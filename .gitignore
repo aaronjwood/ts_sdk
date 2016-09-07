@@ -1,0 +1,8 @@
+*~
+*.o
+*.so
+.DS_Store
+.build/
+build/
+*.swp
+tools/installed/
