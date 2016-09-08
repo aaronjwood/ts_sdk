@@ -1,10 +1,11 @@
 #!/bin/bash
-# Copyright(C) 2015, 2016 Verizon. All rights reserved
+# Copyright(C) 2016 Verizon. All rights reserved
 # Script to set up tools needed for building the firmware for the STM32F4
 
 # Name of the toolkits from mirror server
 TOOLCHAIN_NAME="gcc-arm-none-eabi-4_9-2015q3-20150921-mac.tar.bz2"
 STM32F4_CUBE_LIB="stm32cubef4-v1.13.0.zip"
+OPENOCD_CONFIG="openocdcfg-stm32f4.zip"
 
 ST_SCRIPT="tools/scripts/stm32f4-bootstrap.sh"
 TOOLS_ROOT="$PWD/tools/installed/stm32f4"
@@ -50,6 +51,12 @@ if [ -z "$OPENOCD_INSTALL" ]; then
 	fi
 	echo "[PATH environment variable should append /usr/local/bin]"
 fi
+
+echo "[Installing openocd configs]"
+	scp $1@$ST_TOOLS_MIRROR/$OPENOCD_CONFIG .
+	unzip -d $TOOLS_ROOT/ $OPENOCD_CONFIG
+	rm -f $OPENOCD_CONFIG
+echo "[Installed openocd configs at $TOOLS_ROOT]"
 
 if [ -d $TOOLS_ROOT ]; then
 	echo "stm32f4 tools are already installed for this repo at:"
