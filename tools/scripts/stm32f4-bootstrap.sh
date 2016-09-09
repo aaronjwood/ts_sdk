@@ -3,7 +3,7 @@
 # Script to set up tools needed for building the firmware for the STM32F4
 
 # Name of the toolkits from mirror server
-TOOLCHAIN_NAME="gcc-arm-none-eabi-4_9-2015q3-20150921-mac.tar.bz2"
+TOOLCHAIN_NAME="gcc-arm-none-eabi-5_4-2016q2-20160622-mac.tar.bz2"
 STM32F4_CUBE_LIB="stm32cubef4-v1.13.0.zip"
 OPENOCD_CONFIG="openocdcfg-stm32f4.zip"
 
@@ -52,12 +52,6 @@ if [ -z "$OPENOCD_INSTALL" ]; then
 	echo "[PATH environment variable should append /usr/local/bin]"
 fi
 
-echo "[Installing openocd configs]"
-	scp $1@$ST_TOOLS_MIRROR/$OPENOCD_CONFIG .
-	unzip -d $TOOLS_ROOT/ $OPENOCD_CONFIG
-	rm -f $OPENOCD_CONFIG
-echo "[Installed openocd configs at $TOOLS_ROOT]"
-
 if [ -d $TOOLS_ROOT ]; then
 	echo "stm32f4 tools are already installed for this repo at:"
 	echo " $TOOLS_ROOT"
@@ -80,6 +74,12 @@ echo "[Installing toolchain....]"
 	tar -C $TOOLS_ROOT/ -x -j -f $TOOLCHAIN_NAME
 	rm -f $TOOLCHAIN_NAME
 echo "[Toolchain installed at $TOOLS_ROOT]"
+
+echo "[Installing openocd configs]"
+	scp $1@$ST_TOOLS_MIRROR/$OPENOCD_CONFIG .
+	unzip -d $TOOLS_ROOT/ $OPENOCD_CONFIG
+	rm -f $OPENOCD_CONFIG
+echo "[Installed openocd configs at $TOOLS_ROOT]"
 
 echo "[Installing stm32cubef4-v1.13.0 library....]"
 	scp $1@$ST_TOOLS_MIRROR/$STM32F4_CUBE_LIB .

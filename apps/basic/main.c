@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
 	dbg_module_init();
 
 	while(1) {
-		dbg_printf("Hello World!\n");
+		dbg_printf("This is an example of a moderately long sentence ending in a newline.\n");
 		HAL_Delay(1000);
 	}
 	return 0;
