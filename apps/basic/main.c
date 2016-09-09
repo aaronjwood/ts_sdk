@@ -1,6 +1,7 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
 #include <stm32f4xx_hal.h>
+#include "dbg.h"
 
 static void SystemClock_Config(void);
 
@@ -8,20 +9,12 @@ int main(int argc, char *argv[])
 {
 	HAL_Init();
 	SystemClock_Config();
+	dbg_module_init();
 
-	/* Output the system clock / 4 to PC9 */
-	__HAL_RCC_GPIOC_CLK_ENABLE();
-	GPIO_InitTypeDef g;
-	g.Pin = GPIO_PIN_9;
-	g.Pull = GPIO_NOPULL;
-	g.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	g.Mode = GPIO_MODE_AF_PP;
-	g.Alternate = GPIO_AF0_MCO;
-	HAL_GPIO_Init(GPIOC, &g);
-	HAL_RCC_MCOConfig(RCC_MCO2, RCC_MCO2SOURCE_SYSCLK, RCC_MCODIV_4);
-
-	while(1)
-		;
+	while(1) {
+		dbg_printf("Hello World!\n");
+		HAL_Delay(1000);
+	}
 	return 0;
 }
 
@@ -105,7 +98,10 @@ static void SystemClock_Config(void)
 			;
 }
 
-/* Some of the handlers should be defined in order to prevent runaway code. */
+/*
+ * Some of the handlers should be defined in order to prevent runaway code
+ * while debugging.
+ */
 void HardFault_Handler(void)
 {
 	while (1)

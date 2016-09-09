@@ -10,7 +10,8 @@ ifneq (build,$(notdir $(CURDIR)))
 include build_in_subdir.mk
 else
 
-TOOLS_ROOT = $(SRCDIR)/../../tools/installed/stm32f4/
+PROJ_ROOT = $(shell git rev-parse --show-toplevel)
+TOOLS_ROOT = $(PROJ_ROOT)/tools/installed/stm32f4
 GCC_ROOT = $(TOOLS_ROOT)/gcc-arm-none-eabi-4_9-2015q3
 STM32_LIB_COMMON = $(TOOLS_ROOT)/STM32Cube_FW_F4_V1.13.0
 
@@ -40,7 +41,7 @@ MDEF = -DSTM32F429xx
 FW_EXEC = firmware.elf
 
 # OTT services library component headers
-INC = -I $(SRCDIR)/../../include
+INC = -I $(PROJ_ROOT)/include/dbg
 
 # App specific include
 INC += -I $(SRCDIR)/include
@@ -66,13 +67,14 @@ OBJ_STARTUP = startup_stm32f429xx.o
 
 # Use 'vpath' to search specific directories for library and user sources
 vpath %.c $(SRCDIR): \
-	$(SRCDIR)/../../lib/core: \
-	$(SRCDIR)/../../vendor: \
+	$(PROJ_ROOT)/lib/dbg: \
+	$(PROJ_ROOT)/vendor: \
 	$(STM32_PLIB): \
 	$(STM32_CMSIS)/Source/Templates:
 
-# List of core library components to be included in the build process
-CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c
+# List of core library components to be included in the build process.
+# This includes debugging facilities.
+CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c dbg.c
 
 # List of OTT service library components
 OTT_SRC =
