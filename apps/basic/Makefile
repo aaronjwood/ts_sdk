@@ -88,6 +88,9 @@ LIB_SRC += stm32f4xx_hal_uart.c
 LIB_SRC += stm32f4xx_hal_pwr.c
 LIB_SRC += stm32f4xx_hal_pwr_ex.c
 
+# Define this macro to turn off debug messages globally.
+DBG_MACRO = #-DNO_DEBUG
+
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
 # debug flag enabled
 # Eg: DBG_LIB_SRC = stm32l0xx_hal_uart.c stm32l0xx_hal_uart_ex.c
@@ -126,13 +129,13 @@ $(OBJ_STARTUP):
 	$(AS) $(MFLAGS) -o $(OBJ_STARTUP) $(STARTUP_SRC)
 
 $(OBJ_LIB): %.o: %.c
-	$(CC) -c $(CFLAGS_LIB) $(MFLAGS) $(MDEF) $< -o $@
+	$(CC) -c $(CFLAGS_LIB) $(DBG_MACRO) $(MFLAGS) $(MDEF) $< -o $@
 
 $(OBJ_DBG_LIB): %.o: %.c
 	$(CC) -c $(CFLAGS_DBG_LIB) $(MFLAGS) $(MDEF) $< -o $@
 
 $(OBJ_USER): %.o: %.c
-	$(CC) -c $(CFLAGS_USER) $(MFLAGS) $(MDEF) $< -o $@
+	$(CC) -c $(CFLAGS_USER) $(DBG_MACRO) $(MFLAGS) $(MDEF) $< -o $@
 
 clean:
 	rm -rf $(SRCDIR)/build

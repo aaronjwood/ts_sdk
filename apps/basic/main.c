@@ -12,7 +12,8 @@ int main(int argc, char *argv[])
 	dbg_module_init();
 
 	while(1) {
-		dbg_printf("This is an example of a moderately long sentence ending in a newline.\n");
+		dbg_printf("This is an example of a moderately long sentence"
+				"ending in a newline.\n");
 		HAL_Delay(1000);
 	}
 	return 0;
@@ -98,8 +99,15 @@ static void SystemClock_Config(void)
 			;
 }
 
+/* Increments the SysTick value. */
+void SysTick_Handler(void)
+{
+	HAL_IncTick();
+}
+
 /*
- * Some of the handlers should be defined in order to prevent runaway code
+ * The following are interrupt handlers that trap illegal memory access and
+ * illegal program behavior. These should be defined to prevent runaway code
  * while debugging.
  */
 void HardFault_Handler(void)
@@ -124,10 +132,4 @@ void UsageFault_Handler(void)
 {
 	while (1)
 		;
-}
-
-/* Increments the SysTick value. */
-void SysTick_Handler(void)
-{
-	HAL_IncTick();
 }

@@ -30,9 +30,9 @@
 bool __dbg_module_init(void);
 
 #ifdef NO_DEBUG
-#define dbg_module_init
+#define dbg_module_init()
 #else
-#define dbg_module_init	__dbg_module_init
+#define dbg_module_init()	__dbg_module_init()
 #endif
 
 /*
@@ -44,13 +44,12 @@ bool __dbg_module_init(void);
  * 	characters written.
  *
  * Parameters:
- * 	Format string
- * 	Variable number of arguments
+ * 	Format string and variable number of arguments
  */
 #ifdef NO_DEBUG
-#define dbg_printf
+#define dbg_printf(args...)
 #else
-#define dbg_printf	printf
+#define dbg_printf(args...)	printf(args)
 #endif
 
 #endif
