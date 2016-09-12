@@ -2,7 +2,7 @@ This repository contains a reference implementation of firmware for use
 with the Dakota "Over The Top" (OTT) IoT services.  The firmware is intended for
 use on a microcontroller (MCU) connected to an LTE modem.
 
-The current target hardware is a xxxxxxx ARM development board connected to 
+The current target hardware is a NUCLEO-F429ZI ARM development board connected to
 a Sierrra Wireless HL7588 modem.
 
 For more information see:
@@ -11,8 +11,8 @@ For more information see:
 
 
 Repository contents:
-	
-	tools/scripts - Build scripts
+
+	tools/scripts - Toolchain build scripts
 	tools/installed - Directory to hold toolchain, device support files,
 			  SDK libraries, etc. that are installed from an
 			  external source.
@@ -22,7 +22,7 @@ Repository contents:
 
 	lib/          -  Library components used by the apps to communicate
 			 with the OTT services (e.g. OTT protocol,
-			 modem support etc)
+			 modem support etc.)
 
 	include/       - Header files that define the external interfaces
 			 to the lib components.
