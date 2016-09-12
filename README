@@ -12,21 +12,20 @@ For more information see:
 
 Repository contents:
 
-	tools/scripts - Toolchain build scripts
+	tools/scripts   - Toolchain build scripts
 	tools/installed - Directory to hold toolchain, device support files,
-			  SDK libraries, etc. that are installed from an
-			  external source.
+                          SDK libraries, etc. that are installed from an
+                          external source.
 
-	apps/ 	      -  Sample applications built to communicate with the
-			 OTT services.
+	apps/           - Sample applications built to communicate with the
+                          OTT services.
 
-	lib/          -  Library components used by the apps to communicate
-			 with the OTT services (e.g. OTT protocol,
-			 modem support etc.)
+	lib/            - Library components used by the apps to communicate
+                          with the OTT services (e.g. OTT protocol,
+                          modem support etc.)
 
-	include/       - Header files that define the external interfaces
-			 to the lib components.
+	include/        - Header files that define the external interfaces
+                          to the lib components.
 
-	vendor/	       - Third-party libraries needed to build lib/ or apps/
-			 components.
-
+	vendor/         - Third-party libraries needed to build lib/ or apps/
+                          components.
