@@ -9,6 +9,7 @@ int main(int argc, char *argv[])
 {
 	HAL_Init();
 	SystemClock_Config();
+
 	dbg_module_init();
 
 	while(1) {
@@ -72,14 +73,12 @@ static void SystemClock_Config(void)
 	RCC_OscInitStruct.PLL.PLLQ = 8;		/* PLL48CLK = 45 MHz. */
 	if(HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
 		/* Initialization Error */
-		while (1)
-			;
+		raise_err();
 
 	/* Extend maximum clock frequency to 180 MHz from 168 MHz. */
 	if(HAL_PWREx_EnableOverDrive() != HAL_OK)
 		/* Initialization Error */
-		while (1)
-			;
+		raise_err();
 
 	/*
 	 * Select PLL as system clock source and configure the HCLK, PCLK1 and
@@ -95,8 +94,7 @@ static void SystemClock_Config(void)
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;         /* 90 MHz */
 	if(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
 		/* Initialization Error */
-		while (1)
-			;
+		raise_err();
 }
 
 /* Increments the SysTick value. */

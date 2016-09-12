@@ -48,3 +48,19 @@ ssize_t _write(int fd, const void *buf, size_t count)
 		return 0;
 	return count;
 }
+
+void raise_err(void)
+{
+	__HAL_RCC_GPIOB_CLK_ENABLE();
+	GPIO_InitTypeDef err_led;
+	err_led.Pin = GPIO_PIN_7;
+	err_led.Mode = GPIO_MODE_OUTPUT_PP;
+	err_led.Pull = GPIO_NOPULL;
+	err_led.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOB, &err_led);
+
+	while (1) {
+		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+		HAL_Delay(1000);
+	}
+}

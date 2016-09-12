@@ -52,4 +52,47 @@ bool __dbg_module_init(void);
 #define dbg_printf(args...)	printf(args)
 #endif
 
+/*
+ * Block execution and toggle the onboard LED - LD2 (Blue).
+ *
+ * Returns:
+ * 	None
+ *
+ * Parameters:
+ * 	None
+ */
+void raise_err(void);
+
+/*
+ * Block execution, print the given message and toggle the onboard LED.
+ * if NO_DEBUG is defined, the message will not be printed but the LED will be
+ * toggled.
+ *
+ * Returns:
+ * 	None
+ *
+ * Parameters:
+ * 	Format string and variable number of arguments
+ */
+#define fatal_err(args...) do { dbg_printf(args); raise_err(); } while(0)
+
+/*
+ * Assert an expression. Use the debug port to print the filename and the line
+ * number and toggle the onboard LED if the expression evaluates to "false".
+ * If NO_DEBUG is defined, the filename and line number will not be printed but
+ * the LED will be toggled.
+ *
+ * Returns:
+ * 	None
+ *
+ * Parameters:
+ * 	Expr - The expression expected to evaluate to "true".
+ */
+#define ASSERT(x) do { \
+	if (!((x))) { \
+		dbg_printf("Assertion failed in %s : %d\n", __FILE__, __LINE__); \
+		raise_err(); \
+	} \
+} while(0)
+
 #endif
