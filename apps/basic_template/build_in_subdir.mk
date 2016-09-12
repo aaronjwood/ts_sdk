@@ -1,7 +1,7 @@
 # Copyright(C) 2016 Verizon. All rights reserved.
 #
 # Magic to run the including Makefile after changing to a subdirectory.
-# This lets VPATH be used to find the sources, while collecting all the 
+# This lets VPATH be used to find the sources, while collecting all the
 # objects into a single object directory.
 # Based on the example at:
 #   http://make.mad-scientist.net/papers/multi-architecture-builds/#advanced

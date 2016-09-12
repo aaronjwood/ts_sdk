@@ -64,7 +64,7 @@ bool __dbg_module_init(void);
 void raise_err(void);
 
 /*
- * Block execution, print the given message and toggle the onboard LED.
+ * Print the given message, block execution and toggle the onboard LED.
  * if NO_DEBUG is defined, the message will not be printed but the LED will be
  * toggled.
  *
@@ -86,7 +86,7 @@ void raise_err(void);
  * 	None
  *
  * Parameters:
- * 	Expr - The expression expected to evaluate to "true".
+ * 	x - The expression expected to evaluate to "true".
  */
 #define ASSERT(x) do { \
 	if (!((x))) { \
