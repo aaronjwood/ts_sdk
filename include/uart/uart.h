@@ -14,7 +14,7 @@
  * receiving the response of an AT command.
  */
 
-#define INV_DATA		-1	/* Signifies invalid data. */
+#define INV_DATA		-1	/* Signifies no unread data in the RX buffer. */
 #define ALMOST_FULL_FRAC	0.6	/* Call the receive callback once this
 					 * fraction of the buffer is full.
 					 */
@@ -41,8 +41,7 @@ bool uart_module_init(void);
  * Set the receive callback. This will be invoked whenever an idle timeout of
  * a previously configured number of characters is detected on the line.
  * The receive callback will also be called after a set fraction of the buffer
- * has been filled (see ALMOST_FULL_FRAC). This allows the driver to receive
- * contiguous bytes of data bigger than it's own buffer.
+ * has been filled (see ALMOST_FULL_FRAC).
  *
  * Paramters:
  * 	cb - UART receive callback function pointer.
@@ -50,7 +49,7 @@ bool uart_module_init(void);
  * Returns:
  * 	None
  */
-void uart_set_rx_callback(uart_rx_cb *cb);
+void uart_set_rx_callback(uart_rx_cb cb);
 
 /*
  * Configure the idle timeout delay in number of characters.
@@ -92,7 +91,7 @@ bool uart_tx(uint8_t *data, uint16_t size, uint16_t timeout_ms);
  *
  * Returns:
  * 	True - When there are unread bytes in the read buffer of the driver.
- * 	False - Otherwise
+ * 	False - No bytes available in the read buffer.
  */
 bool uart_rx_available(void);
 
@@ -107,5 +106,20 @@ bool uart_rx_available(void);
  * 	INV_DATA if there's no unread data.
  */
 int uart_read(void);
+
+/*
+ * This function is used to detect idle timeouts on the UART RX line. An idle
+ * timeout is used to signify the end of a response from the modem. It is
+ * expected that this function be called at 1ms intervals to check for an idle
+ * line. If the line is idle, the receive callback supplied by the user is
+ * invoked.
+ *
+ * Parameters:
+ * 	None
+ *
+ * Returns
+ * 	None
+ */
+void uart_handle_idle_timeout(void);
 
 #endif

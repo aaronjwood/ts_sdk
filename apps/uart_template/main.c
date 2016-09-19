@@ -2,23 +2,9 @@
 
 #include <stm32f4xx_hal.h>
 #include "dbg.h"
+#include "uart.h"
 
-static void SystemClock_Config(void);
-
-int main(int argc, char *argv[])
-{
-	HAL_Init();
-	SystemClock_Config();
-
-	dbg_module_init();
-
-	while(1) {
-		dbg_printf("This is an example of a moderately long sentence"
-				"ending in a newline.\n");
-		HAL_Delay(1000);
-	}
-	return 0;
-}
+static volatile bool received_response;
 
 /**
   * @brief  System Clock Configuration
@@ -101,6 +87,7 @@ static void SystemClock_Config(void)
 void SysTick_Handler(void)
 {
 	HAL_IncTick();
+	uart_handle_idle_timeout();
 }
 
 /*
@@ -130,4 +117,29 @@ void UsageFault_Handler(void)
 {
 	while (1)
 		;
+}
+
+/* UART receive handler. */
+static void rx_cb(void)
+{
+	received_response = true;
+}
+
+int main(int argc, char *argv[])
+{
+	HAL_Init();
+	SystemClock_Config();
+
+	dbg_module_init();
+	uart_module_init();
+	uart_set_rx_callback(rx_cb);
+
+	while(1) {
+		if (received_response) {
+			received_response = false;
+			dbg_printf("Received Response!\n");
+		}
+		HAL_Delay(1000);
+	}
+	return 0;
 }

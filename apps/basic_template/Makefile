@@ -80,7 +80,7 @@ CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c dbg.c
 OTT_SRC =
 
 # Peripheral list
-LIB_SRC += stm32f4xx_hal_cortex.c
+LIB_SRC = stm32f4xx_hal_cortex.c
 LIB_SRC += stm32f4xx_hal_gpio.c
 LIB_SRC += stm32f4xx_hal_rcc.c
 LIB_SRC += stm32f4xx_hal_rcc_ex.c

@@ -82,13 +82,14 @@ CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c dbg.c uart.c
 OTT_SRC =
 
 # Peripheral list
-LIB_SRC += stm32f4xx_hal_cortex.c
+LIB_SRC = stm32f4xx_hal_cortex.c
 LIB_SRC += stm32f4xx_hal_gpio.c
 LIB_SRC += stm32f4xx_hal_rcc.c
 LIB_SRC += stm32f4xx_hal_rcc_ex.c
 LIB_SRC += stm32f4xx_hal_uart.c
 LIB_SRC += stm32f4xx_hal_pwr.c
 LIB_SRC += stm32f4xx_hal_pwr_ex.c
+LIB_SRC += stm32f4xx_hal_dma.c
 
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG
