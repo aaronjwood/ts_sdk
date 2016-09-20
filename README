@@ -29,3 +29,4 @@ Repository contents:
 
 	vendor/         - Third-party libraries needed to build lib/ or apps/
                           components.
+	      /mbedtls  - ARM mbed TLS library.
