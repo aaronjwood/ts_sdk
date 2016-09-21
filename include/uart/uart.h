@@ -19,7 +19,12 @@
 					 * fraction of the buffer is full.
 					 */
 
-typedef void (*uart_rx_cb)(void);
+typedef enum callback_event {
+	UART_EVENT_RESP_RECV,
+	UART_EVENT_RX_OVERFLOW
+} callback_event;
+
+typedef void (*uart_rx_cb)(callback_event event);
 
 /*
  * Initialize the UART hardware with the following settings:
@@ -83,29 +88,28 @@ void uart_config_idle_timeout(uint8_t t);
 bool uart_tx(uint8_t *data, uint16_t size, uint16_t timeout_ms);
 
 /*
- * Check if there are still bytes available to be read in the driver's read
- * buffer.
+ * Return the number of unread bytes present in the buffer.
  *
  * Paramters:
  * 	None
  *
  * Returns:
- * 	True - When there are unread bytes in the read buffer of the driver.
- * 	False - No bytes available in the read buffer.
+ * 	Number of unread bytes in the buffer.
  */
-bool uart_rx_available(void);
+unsigned int uart_rx_available(void);
 
 /*
- * Retrieve a byte from the UART's read buffer.
+ * Retrieve a set of bytes from the UART's read buffer. The maximum number of
+ * bytes that can be retrieved are given by the return value of uart_rx_available.
  *
  * Parameters:
  * 	None
  *
  * Returns:
- * 	A byte if there is unread data in the read buffer.
- * 	INV_DATA if there's no unread data.
+ * 	Number of bytes read from the buffer.
+ * 	INV_DATA if there's no unread data or buf_sz exceeds limits.
  */
-int uart_read(void);
+int uart_read(uint8_t *buf, uint16_t buf_sz);
 
 /*
  * This function is used to detect idle timeouts on the UART RX line. An idle
@@ -120,6 +124,18 @@ int uart_read(void);
  * Returns
  * 	None
  */
-void uart_handle_idle_timeout(void);
+void uart_detect_recv_idle(void);
+
+/*
+ * Flush the receive buffer. This resets the read and write head of the internal
+ * buffer, effectively clearing the buffer.
+ *
+ * Parameters:
+ * 	None
+ *
+ * Returns:
+ * 	None
+ */
+void uart_flush_rx_buffer(void);
 
 #endif

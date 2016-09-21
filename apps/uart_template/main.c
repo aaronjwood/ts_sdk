@@ -3,8 +3,10 @@
 #include <stm32f4xx_hal.h>
 #include "dbg.h"
 #include "uart.h"
+#include <string.h>
 
 static volatile bool received_response;
+static volatile bool overflow;
 
 /**
   * @brief  System Clock Configuration
@@ -87,7 +89,6 @@ static void SystemClock_Config(void)
 void SysTick_Handler(void)
 {
 	HAL_IncTick();
-	uart_handle_idle_timeout();
 }
 
 /*
@@ -120,9 +121,18 @@ void UsageFault_Handler(void)
 }
 
 /* UART receive handler. */
-static void rx_cb(void)
+static void rx_cb(callback_event event)
 {
-	received_response = true;
+	if (event == UART_EVENT_RESP_RECV)
+		received_response = true;
+	else if (event == UART_EVENT_RX_OVERFLOW)
+		overflow = true;
+}
+
+/* A higher level API not yet designed. */
+void mc_service_api(void)
+{
+	uart_detect_recv_idle();
 }
 
 int main(int argc, char *argv[])
@@ -131,15 +141,34 @@ int main(int argc, char *argv[])
 	SystemClock_Config();
 
 	dbg_module_init();
-	uart_module_init();
+	ASSERT(uart_module_init() == true);
 	uart_set_rx_callback(rx_cb);
 
+	uint8_t msg[] = "AT&V\r";
+	uint8_t response[600];
+	memset(response, 0, 600);
+	dbg_printf("Begin\n");
+	ASSERT(uart_tx(msg, sizeof(msg), 2000) == true);
+	HAL_Delay(1000);
 	while(1) {
 		if (received_response) {
 			received_response = false;
-			dbg_printf("Received Response!\n");
+
+			uint16_t sz = uart_rx_available();
+			ASSERT(uart_read(response, sz) == sz);
+			response[sz] = 0x00;
+
+			dbg_printf("Received Response:\n%s\n", response);
+			HAL_Delay(1000);
+			ASSERT(uart_tx(msg, sizeof(msg), 2000) == true);
+			HAL_Delay(1000);
 		}
-		HAL_Delay(1000);
+		if (overflow) {
+			overflow = false;
+			dbg_printf("Buffer overflow!\n");
+			uart_flush_rx_buffer();
+		}
+		mc_service_api();
 	}
 	return 0;
 }
