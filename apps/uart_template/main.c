@@ -123,7 +123,7 @@ void UsageFault_Handler(void)
 /* UART receive handler. */
 static void rx_cb(callback_event event)
 {
-	if (event == UART_EVENT_RESP_RECV)
+	if (event == UART_EVENT_RESP_RECVD)
 		received_response = true;
 	else if (event == UART_EVENT_RX_OVERFLOW)
 		overflow = true;

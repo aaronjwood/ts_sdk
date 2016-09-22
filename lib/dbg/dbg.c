@@ -18,7 +18,7 @@ bool __dbg_module_init(void)
 	dbg_uart_pins.Pin = GPIO_PIN_10;	/* Configure TX only. */
 	dbg_uart_pins.Mode = GPIO_MODE_AF_PP;
 	dbg_uart_pins.Pull = GPIO_PULLUP;
-	dbg_uart_pins.Speed = GPIO_SPEED_FREQ_LOW;
+	dbg_uart_pins.Speed = GPIO_SPEED_FREQ_HIGH;
 	dbg_uart_pins.Alternate = GPIO_AF8_UART4;
 	HAL_GPIO_Init(GPIOC, &dbg_uart_pins);
 

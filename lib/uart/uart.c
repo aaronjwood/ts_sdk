@@ -209,7 +209,7 @@ void USART2_IRQHandler(void)
 	rx.num_unread++;
 
 	/* Check for buffer overflow. */
-	if (rx.num_unread >= UART_RX_BUFFER_SIZE)
+	if (rx.num_unread > UART_RX_BUFFER_SIZE)
 		INVOKE_CALLBACK(UART_EVENT_RX_OVERFLOW);
 }
 
@@ -240,7 +240,7 @@ bool uart_config_idle_timeout(uint8_t t)
 	return true;
 }
 
-unsigned int uart_rx_available(void)
+uint16_t uart_rx_available(void)
 {
 	return rx.num_unread;
 }
