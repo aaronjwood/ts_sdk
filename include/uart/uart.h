@@ -14,7 +14,7 @@
  * receiving the response of an AT command.
  */
 
-#define UART_INV_DATA		-1	/* Signifies no unread data in the RX buffer. */
+#define UART_READ_ERR		-1	/* Error while reading UART buffer. */
 #define UART_EN_HW_CTRL		true	/* Enable hardware flow control. */
 #define UART_DIS_HW_CTRL	false	/* Disable hardware flow control. */
 
@@ -90,7 +90,7 @@ bool uart_config_idle_timeout(uint8_t t);
  *
  * Returns:
  * 	True - If the data was sent out successfully.
- * 	False - Send aborted due to timeout.
+ * 	False - Send aborted due to timeout or null pointer provided for data.
  */
 bool uart_tx(uint8_t *data, uint16_t size, uint16_t timeout_ms);
 
@@ -115,8 +115,8 @@ uint16_t uart_rx_available(void);
  *
  * Returns:
  * 	Number of bytes read from the buffer.
- * 	UART_INV_DATA if there's no unread data or 'sz' exceeds the number of
- * 	unread bytes.
+ * 	UART_READ_ERR if there's no unread data or 'sz' exceeds the number of
+ * 	unread bytes or null pointer provided for buffer.
  */
 int uart_read(uint8_t *buf, uint16_t sz);
 

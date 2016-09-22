@@ -168,8 +168,8 @@ int uart_read(uint8_t *buf, uint16_t sz)
 	 * 	> There are no bytes to read in the buffer.
 	 * 	> If the read size exceeds the number of unread bytes.
 	 */
-	if (rx.num_unread == 0 || sz > rx.num_unread)
-		return UART_INV_DATA;
+	if (rx.num_unread == 0 || sz > rx.num_unread || !buf)
+		return UART_READ_ERR;
 
 	/*
 	 * Copy bytes into the supplied buffer and perform the necessary
@@ -226,6 +226,9 @@ void uart_flush_rx_buffer(void)
 
 bool uart_tx(uint8_t *data, uint16_t size, uint16_t timeout_ms)
 {
+	if (!data)
+		return false;
+
 	if (HAL_UART_Transmit(&comm_uart, data, size, timeout_ms) != HAL_OK)
 		return false;
 	return true;
