@@ -123,7 +123,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
-bool uart_module_init(bool flow_ctrl)
+bool uart_module_init(bool flow_ctrl, uint8_t t)
 {
 	/* Reset internal buffer's read and write heads. */
 	rx.ridx = 0;
@@ -153,6 +153,10 @@ bool uart_module_init(bool flow_ctrl)
 
 	/* Enable the UART Parity Error and Data Register not empty Interrupts */
 	SET_BIT(comm_uart.Instance->CR1, USART_CR1_PEIE | USART_CR1_RXNEIE);
+
+	if (t == 0)
+		return false;
+	timeout_chars = t;
 
 	/* Initialize the idle timer. */
 	if (tim_module_init() == false)
@@ -237,14 +241,6 @@ bool uart_tx(uint8_t *data, uint16_t size, uint16_t timeout_ms)
 void uart_set_rx_callback(uart_rx_cb cb)
 {
 	rx_cb = cb;
-}
-
-bool uart_config_idle_timeout(uint8_t t)
-{
-	if (t == 0)
-		return false;
-	timeout_chars = t;
-	return true;
 }
 
 uint16_t uart_rx_available(void)

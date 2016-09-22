@@ -5,6 +5,7 @@
 #include "uart.h"
 
 #define SEND_TIMEOUT_MS		2000
+#define IDLE_CHARS		5
 static volatile bool received_response;
 static uint8_t response[600];
 
@@ -146,7 +147,7 @@ int main(int argc, char *argv[])
 	SystemClock_Config();
 
 	dbg_module_init();
-	ASSERT(uart_module_init(UART_EN_HW_CTRL) == true);
+	ASSERT(uart_module_init(UART_EN_HW_CTRL, IDLE_CHARS) == true);
 	uart_set_rx_callback(rx_cb);
 
 	/*

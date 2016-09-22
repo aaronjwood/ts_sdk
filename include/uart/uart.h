@@ -40,16 +40,23 @@ typedef void (*uart_rx_cb)(callback_event event);
  * Stop bits       : 1
  * HW flow control : Configurable
  *
+ * Also, configure the idle timeout delay in number of characters.
+ * When the line remains idle for 't' characters after receiving the last
+ * character, the driver invokes the receive callback.
+ *
  * Parameters:
  *	flow_ctrl - Can take one of the following two values:
  *		UART_EN_HW_CTRL - Enable hardware flow control.
  *		UART_DIS_HW_CTRL - Disable hardware flow control.
  *
+ * 	t - number of characters to wait. The actual duration is based on the
+ * 	current UART baud rate.
+ *
  * Returns:
  * 	True - If initialization was successful.
  * 	Fase - If initialization failed.
  */
-bool uart_module_init(bool flow_ctrl);
+bool uart_module_init(bool flow_ctrl, uint8_t t);
 
 /*
  * Set the receive callback.
@@ -61,21 +68,6 @@ bool uart_module_init(bool flow_ctrl);
  * 	None
  */
 void uart_set_rx_callback(uart_rx_cb cb);
-
-/*
- * Configure the idle timeout delay in number of characters.
- * When the line remains idle for 't' characters after receiving the last
- * character, the driver invokes the receive callback.
- *
- * Paramters:
- * 	t - number of characters to wait. The actual duration is based on the
- * 	current UART baud rate.
- *
- * Returns:
- * 	True - If the new timeout value was successfully set.
- * 	False - Failed to set the new timeout value.
- */
-bool uart_config_idle_timeout(uint8_t t);
 
 /*
  * Send data over the UART. This is a blocking send. In case the modem blocks
