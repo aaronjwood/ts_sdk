@@ -3,10 +3,10 @@
 #include <stm32f4xx_hal.h>
 #include "dbg.h"
 #include "uart.h"
-#include <string.h>
 
+#define SEND_TIMEOUT_MS		2000
 static volatile bool received_response;
-static volatile bool overflow;
+static uint8_t response[600];
 
 /**
   * @brief  System Clock Configuration
@@ -120,13 +120,24 @@ void UsageFault_Handler(void)
 		;
 }
 
-/* UART receive handler. */
+/* UART receive callback. */
 static void rx_cb(callback_event event)
 {
-	if (event == UART_EVENT_RESP_RECVD)
+	if (event == UART_EVENT_RESP_RECVD) {
+		/*
+		 * Note: If echo is turned on in the modem, the command just
+		 * sent will be seen as the first response. It is up to the AT
+		 * layer to keep track of this.
+		 */
 		received_response = true;
-	else if (event == UART_EVENT_RX_OVERFLOW)
-		overflow = true;
+		uint16_t sz = uart_rx_available();
+		ASSERT(uart_read(response, sz) == sz);
+		response[sz] = 0x00;
+		dbg_printf("Res:\n%s\n", response);
+	} else if (event == UART_EVENT_RX_OVERFLOW) {
+		dbg_printf("Buffer overflow!\n");
+		uart_flush_rx_buffer();
+	}
 }
 
 int main(int argc, char *argv[])
@@ -135,30 +146,25 @@ int main(int argc, char *argv[])
 	SystemClock_Config();
 
 	dbg_module_init();
-	ASSERT(uart_module_init() == true);
+	ASSERT(uart_module_init(UART_EN_HW_CTRL) == true);
 	uart_set_rx_callback(rx_cb);
 
-	uint8_t msg[] = "AT&V\r";
-	uint8_t response[600];
-	memset(response, 0, 600);
-	dbg_printf("Begin\n");
-	ASSERT(uart_tx(msg, sizeof(msg), 2000) == true);
-	while(1) {
+	/*
+	 * Note: It is assumed the modem has booted and is ready to receive
+	 * commands at this point. If it isn't and HW flow control is enabled,
+	 * the assertion over uart_tx is likely to fail implying the modem is
+	 * not ready yet.
+	 */
+	dbg_printf("Begin:\n");
+	uint8_t msg[] = "AT&V\r";	/* AT&V displays current configuration. */
+	ASSERT(uart_tx(msg, sizeof(msg), SEND_TIMEOUT_MS) == true);
+
+	while (1) {
 		if (received_response) {
+			/* Received a response. Wait and resend AT&V. */
 			received_response = false;
-
-			uint16_t sz = uart_rx_available();
-			ASSERT(uart_read(response, sz) == sz);
-			response[sz] = 0x00;
-
-			dbg_printf("Received Response:\n%s\n", response);
-			HAL_Delay(1500);
-			ASSERT(uart_tx(msg, sizeof(msg), 2000) == true);
-		}
-		if (overflow) {
-			overflow = false;
-			dbg_printf("Buffer overflow!\n");
-			uart_flush_rx_buffer();
+			HAL_Delay(2000);
+			ASSERT(uart_tx(msg, sizeof(msg), SEND_TIMEOUT_MS) == true);
 		}
 	}
 	return 0;

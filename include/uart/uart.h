@@ -14,10 +14,10 @@
  * receiving the response of an AT command.
  */
 
-#define INV_DATA		-1	/* Signifies no unread data in the RX buffer. */
-#define ALMOST_FULL_FRAC	0.6	/* Call the receive callback once this
-					 * fraction of the buffer is full.
-					 */
+#define UART_INV_DATA		-1	/* Signifies no unread data in the RX buffer. */
+#define UART_EN_HW_CTRL		true	/* Enable hardware flow control. */
+#define UART_DIS_HW_CTRL	false	/* Disable hardware flow control. */
+
 typedef enum callback_event {
 	UART_EVENT_RESP_RECVD,
 	UART_EVENT_RX_OVERFLOW
@@ -27,8 +27,7 @@ typedef enum callback_event {
  * The receive callback for the UART driver. This will be invoked whenever an
  * idle timeout of a previously configured number of characters is detected on
  * the line. The receive callback will also be called after a set fraction of
- * the buffer has been filled (see ALMOST_FULL_FRAC) and when the internal
- * buffer overflows.
+ * the buffer has been filled and when the internal buffer overflows.
  * The callback takes an event parameter that records the cause of the callback.
  */
 typedef void (*uart_rx_cb)(callback_event event);
@@ -39,16 +38,18 @@ typedef void (*uart_rx_cb)(callback_event event);
  * Data width      : 8 bits
  * Parity bits     : None
  * Stop bits       : 1
- * HW flow control : Yes
+ * HW flow control : Configurable
  *
  * Parameters:
- * 	None
+ *	flow_ctrl - Can take one of the following two values:
+ *		UART_EN_HW_CTRL - Enable hardware flow control.
+ *		UART_DIS_HW_CTRL - Disable hardware flow control.
  *
  * Returns:
  * 	True - If initialization was successful.
  * 	Fase - If initialization failed.
  */
-bool uart_module_init(void);
+bool uart_module_init(bool flow_ctrl);
 
 /*
  * Set the receive callback.
@@ -114,7 +115,8 @@ uint16_t uart_rx_available(void);
  *
  * Returns:
  * 	Number of bytes read from the buffer.
- * 	INV_DATA if there's no unread data or 'sz' exceeds limits.
+ * 	UART_INV_DATA if there's no unread data or 'sz' exceeds the number of
+ * 	unread bytes.
  */
 int uart_read(uint8_t *buf, uint16_t sz);
 

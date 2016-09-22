@@ -7,11 +7,13 @@
 #define BAUD_RATE		115200
 #define CALLBACK_TRIGGER_MARK	((uint16_t)(UART_RX_BUFFER_SIZE * ALMOST_FULL_FRAC))
 #define DEFAULT_IDLE_CHARS	5
-
+#define ALMOST_FULL_FRAC	0.6	/* Call the receive callback once this
+					 * fraction of the buffer is full.
+					 */
 #define CEIL(x, y)		(((x) + (y) - 1) / (y))
-#define US_MULTIPLIER		1000000
+#define MICRO_SEC_MUL		1000000
 #define TIM_BASE_FREQ_HZ	1000000
-#define TIMEOUT_BYTE_US		CEIL((8 * US_MULTIPLIER), BAUD_RATE)
+#define TIMEOUT_BYTE_US		CEIL((8 * MICRO_SEC_MUL), BAUD_RATE)
 
 #define USART_IRQ_PRIORITY	5
 #define TIM_IRQ_PRIORITY	6	/* TIM2 priority is lower than USART2 */
@@ -121,7 +123,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
-bool uart_module_init(void)
+bool uart_module_init(bool flow_ctrl)
 {
 	/* Reset internal buffer's read and write heads. */
 	rx.ridx = 0;
@@ -136,7 +138,8 @@ bool uart_module_init(void)
 	comm_uart.Init.StopBits = UART_STOPBITS_1;
 	comm_uart.Init.Parity = UART_PARITY_NONE;
 	comm_uart.Init.Mode = UART_MODE_TX_RX;
-	comm_uart.Init.HwFlowCtl = UART_HWCONTROL_RTS_CTS;
+	comm_uart.Init.HwFlowCtl = (flow_ctrl) ?
+		UART_HWCONTROL_RTS_CTS : UART_HWCONTROL_NONE;
 	/*
 	 * Choose oversampling by 16 to increase tolerance of the receiver to
 	 * noise on an asynchronous line.
@@ -163,14 +166,14 @@ int uart_read(uint8_t *buf, uint16_t sz)
 	/*
 	 * Return an error if:
 	 * 	> There are no bytes to read in the buffer.
-	 * 	> If the buffer size exceeds the number of unread bytes.
+	 * 	> If the read size exceeds the number of unread bytes.
 	 */
 	if (rx.num_unread == 0 || sz > rx.num_unread)
-		return INV_DATA;
+		return UART_INV_DATA;
 
 	/*
-	 * Copy bytes into the supplied buffer and perform
-	 * the necessary book-keeping.
+	 * Copy bytes into the supplied buffer and perform the necessary
+	 * book-keeping.
 	 */
 	uint16_t n_bytes = sz;
 	uint16_t i = 0;
@@ -196,21 +199,22 @@ void USART2_IRQHandler(void)
 		return;
 	}
 
+	byte_recvd = true;
+
 	/* If the timer isn't running, this is the first byte of the response. */
 	if (!(idle_timer.Instance->CR1 & TIM_CR1_CEN)) {
 		num_idle_chars = 0;
 		HAL_TIM_Base_Start_IT(&idle_timer);
 	}
 
-	/* Store data into the read buffer. */
-	byte_recvd = true;
-	rx.buffer[rx.widx] = comm_uart.Instance->DR;
-	rx.widx = (rx.widx + 1) % UART_RX_BUFFER_SIZE;
-	rx.num_unread++;
-
-	/* Check for buffer overflow. */
-	if (rx.num_unread > UART_RX_BUFFER_SIZE)
+	/* Buffer characters as long as the size of the buffer isn't exceeded. */
+	if (rx.num_unread < UART_RX_BUFFER_SIZE) {
+		rx.buffer[rx.widx] = comm_uart.Instance->DR;
+		rx.widx = (rx.widx + 1) % UART_RX_BUFFER_SIZE;
+		rx.num_unread++;
+	} else {
 		INVOKE_CALLBACK(UART_EVENT_RX_OVERFLOW);
+	}
 }
 
 void uart_flush_rx_buffer(void)
