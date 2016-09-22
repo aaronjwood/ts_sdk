@@ -18,12 +18,19 @@
 #define ALMOST_FULL_FRAC	0.6	/* Call the receive callback once this
 					 * fraction of the buffer is full.
 					 */
-
 typedef enum callback_event {
-	UART_EVENT_RESP_RECV,
+	UART_EVENT_RESP_RECVD,
 	UART_EVENT_RX_OVERFLOW
 } callback_event;
 
+/*
+ * The receive callback for the UART driver. This will be invoked whenever an
+ * idle timeout of a previously configured number of characters is detected on
+ * the line. The receive callback will also be called after a set fraction of
+ * the buffer has been filled (see ALMOST_FULL_FRAC) and when the internal
+ * buffer overflows.
+ * The callback takes an event parameter that records the cause of the callback.
+ */
 typedef void (*uart_rx_cb)(callback_event event);
 
 /*
@@ -38,15 +45,13 @@ typedef void (*uart_rx_cb)(callback_event event);
  * 	None
  *
  * Returns:
- * 	None
+ * 	True - If initialization was successful.
+ * 	Fase - If initialization failed.
  */
 bool uart_module_init(void);
 
 /*
- * Set the receive callback. This will be invoked whenever an idle timeout of
- * a previously configured number of characters is detected on the line.
- * The receive callback will also be called after a set fraction of the buffer
- * has been filled (see ALMOST_FULL_FRAC).
+ * Set the receive callback.
  *
  * Paramters:
  * 	cb - UART receive callback function pointer.
@@ -66,9 +71,10 @@ void uart_set_rx_callback(uart_rx_cb cb);
  * 	current UART baud rate.
  *
  * Returns:
- * 	None
+ * 	True - If the new timeout value was successfully set.
+ * 	False - Failed to set the new timeout value.
  */
-void uart_config_idle_timeout(uint8_t t);
+bool uart_config_idle_timeout(uint8_t t);
 
 /*
  * Send data over the UART. This is a blocking send. In case the modem blocks
@@ -96,35 +102,21 @@ bool uart_tx(uint8_t *data, uint16_t size, uint16_t timeout_ms);
  * Returns:
  * 	Number of unread bytes in the buffer.
  */
-unsigned int uart_rx_available(void);
+uint16_t uart_rx_available(void);
 
 /*
  * Retrieve a set of bytes from the UART's read buffer. The maximum number of
- * bytes that can be retrieved are given by the return value of uart_rx_available.
+ * bytes that can be retrieved is given by the return value of 'uart_rx_available'.
  *
  * Parameters:
- * 	None
+ * 	buf - Pointer to the buffer where the data will be read into.
+ * 	sz - Size of the data (in bytes) to be read.
  *
  * Returns:
  * 	Number of bytes read from the buffer.
- * 	INV_DATA if there's no unread data or buf_sz exceeds limits.
+ * 	INV_DATA if there's no unread data or 'sz' exceeds limits.
  */
-int uart_read(uint8_t *buf, uint16_t buf_sz);
-
-/*
- * This function is used to detect idle timeouts on the UART RX line. An idle
- * timeout is used to signify the end of a response from the modem. It is
- * expected that this function be called at 1ms intervals to check for an idle
- * line. If the line is idle, the receive callback supplied by the user is
- * invoked.
- *
- * Parameters:
- * 	None
- *
- * Returns
- * 	None
- */
-void uart_detect_recv_idle(void);
+int uart_read(uint8_t *buf, uint16_t sz);
 
 /*
  * Flush the receive buffer. This resets the read and write head of the internal

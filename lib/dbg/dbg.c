@@ -5,6 +5,7 @@
 #include "dbg.h"
 
 #define DBG_UART_TIMEOUT_MS	2000
+#define BAUD_RATE		115200
 
 static GPIO_InitTypeDef dbg_uart_pins;
 static UART_HandleTypeDef dbg_uart;
@@ -22,7 +23,7 @@ bool __dbg_module_init(void)
 	HAL_GPIO_Init(GPIOC, &dbg_uart_pins);
 
 	dbg_uart.Instance = UART4;
-	dbg_uart.Init.BaudRate = 9600;
+	dbg_uart.Init.BaudRate = BAUD_RATE;
 	dbg_uart.Init.WordLength = UART_WORDLENGTH_8B;
 	dbg_uart.Init.StopBits = UART_STOPBITS_1;
 	dbg_uart.Init.Parity = UART_PARITY_NONE;

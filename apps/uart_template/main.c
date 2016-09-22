@@ -129,12 +129,6 @@ static void rx_cb(callback_event event)
 		overflow = true;
 }
 
-/* A higher level API not yet designed. */
-void mc_service_api(void)
-{
-	uart_detect_recv_idle();
-}
-
 int main(int argc, char *argv[])
 {
 	HAL_Init();
@@ -149,7 +143,6 @@ int main(int argc, char *argv[])
 	memset(response, 0, 600);
 	dbg_printf("Begin\n");
 	ASSERT(uart_tx(msg, sizeof(msg), 2000) == true);
-	HAL_Delay(1000);
 	while(1) {
 		if (received_response) {
 			received_response = false;
@@ -159,16 +152,14 @@ int main(int argc, char *argv[])
 			response[sz] = 0x00;
 
 			dbg_printf("Received Response:\n%s\n", response);
-			HAL_Delay(1000);
+			HAL_Delay(1500);
 			ASSERT(uart_tx(msg, sizeof(msg), 2000) == true);
-			HAL_Delay(1000);
 		}
 		if (overflow) {
 			overflow = false;
 			dbg_printf("Buffer overflow!\n");
 			uart_flush_rx_buffer();
 		}
-		mc_service_api();
 	}
 	return 0;
 }

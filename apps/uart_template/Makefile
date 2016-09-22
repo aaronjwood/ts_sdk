@@ -90,6 +90,8 @@ LIB_SRC += stm32f4xx_hal_uart.c
 LIB_SRC += stm32f4xx_hal_pwr.c
 LIB_SRC += stm32f4xx_hal_pwr_ex.c
 LIB_SRC += stm32f4xx_hal_dma.c
+LIB_SRC += stm32f4xx_hal_tim.c
+LIB_SRC += stm32f4xx_hal_tim_ex.c
 
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG
