@@ -6,7 +6,6 @@
 #define UART_RX_BUFFER_SIZE	1024	/* XXX: Reduce this later on? */
 #define BAUD_RATE		115200
 #define CALLBACK_TRIGGER_MARK	((uint16_t)(UART_RX_BUFFER_SIZE * ALMOST_FULL_FRAC))
-#define DEFAULT_IDLE_CHARS	5
 #define ALMOST_FULL_FRAC	0.6	/* Call the receive callback once this
 					 * fraction of the buffer is full.
 					 */
@@ -27,7 +26,7 @@ static volatile struct {
 } rx;
 
 /* Store the idle timeout in number of characters. */
-static uint16_t timeout_chars = DEFAULT_IDLE_CHARS;
+static uint16_t timeout_chars;
 
 static uart_rx_cb rx_cb;	/* Receive callback */
 #define INVOKE_CALLBACK(x)	if (rx_cb) rx_cb((x))
