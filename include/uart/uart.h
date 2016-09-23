@@ -19,7 +19,7 @@
 #define UART_DIS_HW_CTRL	false	/* Disable hardware flow control. */
 
 typedef enum callback_event {
-	UART_EVENT_RESP_RECVD,
+	UART_EVENT_RECVD_BYTES,
 	UART_EVENT_RX_OVERFLOW
 } callback_event;
 
@@ -103,12 +103,11 @@ uint16_t uart_rx_available(void);
  *
  * Parameters:
  * 	buf - Pointer to the buffer where the data will be read into.
- * 	sz - Size of the data (in bytes) to be read.
+ * 	sz - Maximum size the supplied buffer can store.
  *
  * Returns:
- * 	Number of bytes read from the buffer.
- * 	UART_READ_ERR if there's no unread data or 'sz' exceeds the number of
- * 	unread bytes or null pointer provided for buffer.
+ * 	Number of bytes actually read into the buffer.
+ * 	UART_READ_ERR if there's no unread data or null pointer provided for buffer.
  */
 int uart_read(uint8_t *buf, uint16_t sz);
 

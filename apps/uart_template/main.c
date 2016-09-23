@@ -6,8 +6,9 @@
 
 #define SEND_TIMEOUT_MS		2000
 #define IDLE_CHARS		5
+#define MAX_RESP_SZ		600
 static volatile bool received_response;
-static uint8_t response[600];
+static uint8_t response[MAX_RESP_SZ];
 
 /**
   * @brief  System Clock Configuration
@@ -124,15 +125,15 @@ void UsageFault_Handler(void)
 /* UART receive callback. */
 static void rx_cb(callback_event event)
 {
-	if (event == UART_EVENT_RESP_RECVD) {
+	if (event == UART_EVENT_RECVD_BYTES) {
 		/*
 		 * Note: If echo is turned on in the modem, the command just
 		 * sent will be seen as the first response. It is up to the AT
 		 * layer to keep track of this.
 		 */
 		received_response = true;
-		uint16_t sz = uart_rx_available();
-		ASSERT(uart_read(response, sz) == sz);
+		int sz = uart_read(response, MAX_RESP_SZ);
+		ASSERT(sz != UART_READ_ERR);
 		response[sz] = 0x00;
 		dbg_printf("Res:\n%s\n", response);
 	} else if (event == UART_EVENT_RX_OVERFLOW) {

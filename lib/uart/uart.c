@@ -118,7 +118,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	if ((num_idle_chars >= timeout_chars) ||
 			(rx.num_unread == CALLBACK_TRIGGER_MARK)) {
 		HAL_TIM_Base_Stop_IT(&idle_timer);
-		INVOKE_CALLBACK(UART_EVENT_RESP_RECVD);
+		INVOKE_CALLBACK(UART_EVENT_RECVD_BYTES);
 	}
 }
 
@@ -167,24 +167,22 @@ bool uart_module_init(bool flow_ctrl, uint8_t t)
 int uart_read(uint8_t *buf, uint16_t sz)
 {
 	/*
-	 * Return an error if:
-	 * 	> There are no bytes to read in the buffer.
-	 * 	> If the read size exceeds the number of unread bytes.
+	 * Return an error if there are no bytes to read in the buffer or if a
+	 * null pointer was supplied in place of the buffer.
 	 */
-	if (rx.num_unread == 0 || sz > rx.num_unread || !buf)
+	if (rx.num_unread == 0 || !buf)
 		return UART_READ_ERR;
 
 	/*
 	 * Copy bytes into the supplied buffer and perform the necessary
 	 * book-keeping.
 	 */
-	uint16_t n_bytes = sz;
+	uint16_t n_bytes = (sz > rx.num_unread) ? rx.num_unread : sz;
 	uint16_t i = 0;
-	while (sz) {
+	while ((n_bytes - i) > 0) {
 		buf[i++] = rx.buffer[rx.ridx];
 		rx.ridx = (rx.ridx + 1) % UART_RX_BUFFER_SIZE;
 		rx.num_unread--;
-		sz--;
 	}
 	return n_bytes;
 }
