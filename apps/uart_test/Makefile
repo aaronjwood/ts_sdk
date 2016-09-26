@@ -1,6 +1,6 @@
 # Copyright(C) 2016 Verizon. All rights reserved.
 
-# Makefile for the barebones project for the STM32F4 platform.
+# Makefile for the UART driver test program for the STM32F4 platform.
 # Uses the GCC toolchain and the STMicro STM32CubeF4 HAL drivers.
 # Note: Library sources are built without debug info and optimized for size
 
