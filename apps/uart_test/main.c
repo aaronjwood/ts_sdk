@@ -136,7 +136,7 @@ static void rx_cb(callback_event event)
 		char trailer[] = "\r\n";
 		int sz = uart_line_avail(header, trailer);
 		sz = (sz > MAX_RESP_SZ) ? MAX_RESP_SZ : sz;
-		if (sz == 0)
+		if (sz == 0 || sz == -1)
 			return;
 		sz = uart_read(response, sz);
 		ASSERT(sz != UART_READ_ERR);
