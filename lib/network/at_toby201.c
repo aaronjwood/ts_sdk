@@ -14,6 +14,7 @@
 #define AT_RSP_TIMEOUT  1
 #define AT_WRONG_RSP    2
 #define AT_FAILURE      3
+#define AT_READ_FAILURE 4
 
 #define INVOKE_CALLBACK(x)	if (at_cb) at_cb((x))
 #define CHECK_SUCCESS(x, y, z)	if ((x) != (y)) return (z)
@@ -78,6 +79,8 @@ static volatile bool process_rsp;
 static volatile bool read_available;
 static bool pdp_conf;
 
+static uint16_t num_read_bytes;
+
 static void at_uart_callback(callback_event ev) {
         switch (ev) {
         case UART_EVENT_RESP_RECVD:
@@ -103,16 +106,61 @@ static bool __at_uart_write(const char *comm) {
         uart_write(comm, strlen(comm));
 }
 
-static __at_process_urc(char *rsp) {
-        state |= PROC_RESP;
+static uint8_t __at_process_urc(char *urc) {
+        state |= PROC_URC;
         uint8_t result = AT_SUCCESS;
-        uint16_t read_count = 0;
-        if (strncmp(rsp_buf, at_urcs[NET_STAT_URC],
+        if (strncmp(urc, at_urcs[NET_STAT_URC],
                 strlen(at_urcs[NET_STAT_URC])) == 0) {
-                        /* process network related activities */
-        } else if (strncmp(rsp_buf, at_urcs[EPS_STAT_URC],
+                        uint8_t count = strlen(at_urcs[NET_STAT_URC]);
+                        uint8_t net_stat = urc[count] - '0';
+                        printf("net stat: %u\n", net_stat);
+                        if (net_stat != 1)
+                                state |= NETWORK_LOST;
+                        else
+                                state &= ~NETWORK_LOST;
+
+        } else if (strncmp(urc, at_urcs[EPS_STAT_URC],
                 strlen(at_urcs[EPS_STAT_URC])) == 0) {
-                        /* process esp related activities here */
+                        uint8_t count = strlen(at_urcs[EPS_STAT_URC]);
+                        uint8_t eps_stat = urc[count] - '0';
+                        printf("eps stat: %u\n", eps_stat);
+                        if (net_stat == 0)
+                                state |= NETWORK_LOST;
+                        else
+                                state &= ~NETWORK_LOST;
+        } else if (strncmp(urc, at_urcs[DATA_READ],
+                strlen(at_urcs[DATA_READ])) == 0) {
+                uint8_t count = strlen(at_urcs[DATA_READ]) + 2;
+                uint8_t find_end = count;
+                bool cr_lf = false;
+                while (1) {
+                        if (urc[find_end] == '\r') {
+                                if (urc[find_end + 1] != '\n') {
+                                        cr_lf = false;
+                                        break;
+                                } else
+                                        cr_lf = true;
+
+                        } else
+                                find_end++;
+                }
+                if (cr_lf) {
+                        uint8_t read_num[find_end - count];
+                        memcpy(read_num, ((uint8_t *)urc + count,
+                        find_end - count);
+                        uint16_t multi = 1;
+                        uint16_t temp_read_bytes = 0;
+                        for (int i = sizeof(read_num) - 1 ; i >= 0; i--) {
+                                temp_read_bytes += (read_num[i] * multi);
+                                multi *= 10;
+                        }
+                        printf("read bytes left: %d\n", temp_read_bytes);
+                        num_read_bytes = temp_read_bytes;
+                        state |= TCP_READ;
+                } else {
+                        printf("data read failure\n");
+                        result = AT_READ_FAILURE;
+                }
 
         }
         return result;
@@ -155,12 +203,11 @@ static uint8_t __at_comm_send_and_wait_rsp(at_command_desc *desc) {
         uint16_t read_bytes;
         while (1)
                 read_bytes = uart_rx_line_available(rsp_header, rsp_trailer);
-                if (read_bytes <= 0)
+                if (read_bytes == 0)
                         break;
                 if (uart_read(rsp_line, read_bytes) != UART_READ_ERR) {
-                        __at_process_urc((char *)rsp_line);
-                } else {
-
+                        rsp_line[read_bytes] = 0x0;
+                        result = __at_process_urc((char *)rsp_line);
                 }
         }
         __at_uart_write(desc->comm);
@@ -168,10 +215,6 @@ static uint8_t __at_comm_send_and_wait_rsp(at_command_desc *desc) {
 }
 
 static uint8_t __at_check_modem_conf() {
-        /* before sending any new command, lets first examine the pending
-         * URCs
-         */
-        result = __at_process_urc();
 
         if (state != IDLE)
                 return AT_FAILURE;
