@@ -76,7 +76,7 @@ int at_tcp_recv_timeout(int s_id, unsigned char *buf,
  *
  * \param[in] s_id      socket or tcp session id to close to
  */
-int at_tcp_close(int s_id);
+void at_tcp_close(int s_id);
 
 #ifdef __cplusplus
 }

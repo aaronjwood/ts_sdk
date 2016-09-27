@@ -64,7 +64,8 @@ static at_command_desc tcp_comm[TCP_END] = {
         [TCP_CONF] = {"at+usocr=6\r", "\r\n+USOCR: ", "\r\nERROR\r\n", 20}, //Dipen: FIXME for error hanlding
         [TCP_CONN] = {"at+usoco=%d,%s,%d\r", "\r\nOK\r\n", "\r\nERROR\r\n", 20000},
         [TCP_SEND] = {"at+usowr=%d,%d\r", "\r\n+USOWR: ", "\r\nERROR\r\n", 10000},
-        [TCP_RCV] = {"at+usord=%d,%d\r", "\r\n+USORD: ", "\r\nERROR\r\n", 10}
+        [TCP_RCV] = {"at+usord=%d,%d\r", "\r\n+USORD: ", "\r\nERROR\r\n", 10000},
+        [TCP_CLOSE] = {"at+usocl=%d\r", "\r\nOK\r\n", "\r\nERROR\r\n", 10000}
 };
 
 static uint8_t rsp_line[TEMP_COMM_LIMIT];
@@ -132,23 +133,11 @@ static uint8_t __at_process_tcp_close_urc(char *urc) {
                 return AT_FAILURE;
 }
 
-static uint16_t __at_find_end(char *buf) {
-        bool cr_lf = false;
-        uint16_t find_end = 0;
-        while (1) {
-                if (buf[find_end] == '\r') {
-                        if (urc[find_end + 1] != '\n') {
-                                cr_lf = false;
-                        } else
-                                cr_lf = true;
-                        break;
-                } else
-                        find_end++;
-        }
-        if (cr_lf)
-                return find_end;
-        else
+static uint16_t __at_find_end(char *buf, char *tail) {
+        char *end = strstr(buf, tail);
+        if (!end)
                 return 0;
+        return (end - buf) + 1;
 }
 
 static uint16_t __at_convert_to_decimal(char *num, uint8_t num_digits) {
@@ -171,7 +160,7 @@ static uint8_t __at_process_tcp_read_urc(char *urc) {
                 }
                 //Dipen: FIXME, test this
                 uint8_t count = strlen(at_urcs[DATA_READ]) + 2;
-                uint16_t find_end = __at_find_end(urc + count);
+                uint16_t find_end = __at_find_end(urc + count, rsp_tailer);
 
                 if (find_end != 0) {
                         uint16_t temp_read_bytes =
@@ -433,7 +422,10 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len) {
         char temp_comm[TEMP_COMM_LIMIT];
         snprintf(temp_comm, TEMP_COMM_LIMIT, tcp_comm[TCP_SEND].comm, s_id, len);
 
-        __at_uart_write(temp_comm, strlen(temp_comm));
+        if (!__at_uart_write(temp_comm, strlen(temp_comm))) {
+                printf("ATS_SEND_FAIL\n");
+                return -1;
+        }
         result = __at_wait_for_rsp(write_prompt, strlen(write_prompt), 20, false);
         CHECK_SUCCESS(result, AT_SUCCESS, -1);
         HAL_Delay(50);
@@ -453,6 +445,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len) {
         result = __at_wait_for_rsp(tcp_comm[TCP_SEND].rsp,
                 strlen(tcp_comm[TCP_SEND].rsp), tcp_comm[TCP_SEND].rsp_timeout,
                 true);
+
         state &= ~TCP_WRITE;
         CHECK_SUCCESS(result, AT_SUCCESS, -1);
 
@@ -465,7 +458,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len) {
 
         }
         count += 2;
-        uint16_t find_end = __at_find_end((char *)rsp_line + count);
+        uint16_t find_end = __at_find_end((char *)rsp_line + count, rsp_tailer);
         uint16_t wr_bytes = 0;
         if (find_end != 0) {
                 wr_bytes =
@@ -475,4 +468,48 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len) {
                 state &= ~TCP_WRITE;
         }
         return wr_bytes;
+}
+
+int at_tcp_recv_timeout(int s_id, unsigned char *buf,
+        size_t len, uint32_t timeout) {
+
+        __at_process_urc();
+
+        uint8_t result;
+        if ((state & TCP_CONNECTED != TCP_CONNECTED) ||
+                (state & TCP_READ != TCP_READ)) {
+                printf("ATRT_WRNG_STATE:%u\n", (uint32_t)state);
+                //Dipen: wot to return?
+                return -1;
+        }
+
+        char temp_comm[TEMP_COMM_LIMIT];
+        snprintf(temp_comm, TEMP_COMM_LIMIT, tcp_comm[TCP_RCV].comm, s_id, len);
+        if (!__at_uart_write(temp_comm, strlen(temp_comm))) {
+                printf("ATRT_FAIL\n");
+                return -1;
+        }
+        result = __at_wait_for_rsp(tcp_comm[TCP_RCV].rsp,
+                strlen(tcp_comm[TCP_RCV].rsp), tcp_comm[TCP_RCV].rsp_timeout, false);
+        CHECK_SUCCESS(result, AT_SUCCESS, -1);
+
+}
+
+void at_tcp_close(int s_id) {
+        if (state & TCP_CONNECTED != TCP_CONNECTED) {
+                printf("ATC_ALRDY_CLOSED\n");
+                return;
+        }
+        if (s_id < 0)
+                return;
+
+        char temp_comm[TEMP_COMM_LIMIT];
+        snprintf(temp_comm, TEMP_COMM_LIMIT, tcp_comm[TCP_CLOSE].comm, s_id);
+        if (!__at_uart_write(temp_comm, strlen(temp_comm))) {
+                printf("ATRT_FAIL\n");
+                return -1;
+        }
+        __at_wait_for_rsp(tcp_comm[TCP_CLOSE].rsp,
+                tcp_comm[TCP_CLOSE].rsp_timeout, true);
+        return;
 }
