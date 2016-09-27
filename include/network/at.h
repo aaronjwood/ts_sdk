@@ -59,7 +59,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len);
  * \param[out] buf      The buffer to write to
  * \param[in] len       Maximum length of the buffer
  * \param[in] timeout   Maximum number of milliseconds to wait for data
- *                      0 means wait forever
+ *                      ,0 means wait forever
  *
  * \return         The number of bytes received,
  *                 or -1 for time out

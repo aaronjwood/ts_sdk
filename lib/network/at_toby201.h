@@ -18,7 +18,8 @@ typedef enum at_urc {
         NET_STAT_URC,
         EPS_STAT_URC,
         NO_CARRIER,
-        DATA_READ
+        DATA_READ,
+        TCP_CLOSED
 } at_urc;
 
 typedef enum at_modem_stat_command {

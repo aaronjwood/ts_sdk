@@ -26,16 +26,16 @@ typedef enum at_states {
         DATA_MODE = 1 << 3,
         NETWORK_LOST = 1 << 4,
         TCP_CONNECTED = 1 << 5,
-        TCP_CLOSED = 1 << 6,
-        TCP_WRITE = 1 << 7,
-        TCP_READ = 1 << 8
+        TCP_WRITE = 1 << 6,
+        TCP_READ = 1 << 7
 } at_states;
 
 static const char *at_urcs[] = {
                 [NET_STAT_URC] = "\r\n+CEREG: ",
                 [EPS_STAT_URC] = "\r\n+UREG: ",
                 [NO_CARRIER] = "\r\nNO CARRIER\r\n",
-                [DATA_READ] = "\r\n+UUSORD: "
+                [DATA_READ] = "\r\n+UUSORD: ",
+                [TCP_CLOSED] = "\r\n+UUSOCL: "
 };
 
 static at_command_desc modem_net_status_comm[MOD_END] = {
@@ -68,6 +68,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                         "ERROR", 10}
 };
 
+#define TEMP_COMM_LIMIT 16
 #define MAX_RSP_BYTES   64      /* bytes to store single line of response */
 static uint8_t rsp_line[64];
 
@@ -106,30 +107,43 @@ static bool __at_uart_write(const char *comm) {
         uart_write(comm, strlen(comm));
 }
 
-static uint8_t __at_process_urc(char *urc) {
-        state |= PROC_URC;
-        uint8_t result = AT_SUCCESS;
-        if (strncmp(urc, at_urcs[NET_STAT_URC],
-                strlen(at_urcs[NET_STAT_URC])) == 0) {
-                        uint8_t count = strlen(at_urcs[NET_STAT_URC]);
-                        uint8_t net_stat = urc[count] - '0';
-                        printf("net stat: %u\n", net_stat);
-                        if (net_stat != 1)
-                                state |= NETWORK_LOST;
-                        else
-                                state &= ~NETWORK_LOST;
+static uint8_t __at_process_network_urc(char *urc, at_urc u_code) {
+        if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) != 0)
+                return AT_FAILURE;
 
-        } else if (strncmp(urc, at_urcs[EPS_STAT_URC],
-                strlen(at_urcs[EPS_STAT_URC])) == 0) {
-                        uint8_t count = strlen(at_urcs[EPS_STAT_URC]);
-                        uint8_t eps_stat = urc[count] - '0';
-                        printf("eps stat: %u\n", eps_stat);
-                        if (net_stat == 0)
-                                state |= NETWORK_LOST;
-                        else
-                                state &= ~NETWORK_LOST;
-        } else if (strncmp(urc, at_urcs[DATA_READ],
-                strlen(at_urcs[DATA_READ])) == 0) {
+        uint8_t count = strlen(at_urcs[u_code]);
+        uint8_t net_stat = urc[count] - '0';
+        printf("net stat: %u\n", net_stat);
+        if ((u_code == NET_STAT_URC && net_stat != 1) ||
+        (u_code == EPS_STAT_URC && net_stat == 0))
+                state |= NETWORK_LOST;
+        else
+                state &= ~NETWORK_LOST;
+
+        return AT_SUCCESS;
+}
+
+static uint8_t __at_process_tcp_close_urc(char *urc) {
+        if (strncmp(urc, at_urcs[TCP_CLOSED],
+                strlen(at_urcs[TCP_CLOSED])) == 0) {
+                if (state & TCP_CONNECTED == TCP_CONNECTED)
+                        state &= ~TCP_CONNECTED;
+                else
+                        printf("tcp cant be closed when not connected\n");
+                return AT_SUCCESS;
+        } else
+                return AT_FAILURE;
+}
+
+static uint8_t __at_process_tcp_read_urc(char *urc) {
+        uint8_t result = AT_SUCCESS;
+        if (strncmp(urc, at_urcs[DATA_READ], strlen(at_urcs[DATA_READ])) == 0) {
+                if (state & TCP_CONNECTED != TCP_CONNECTED) {
+                        printf("Cant read when tcp is not connected\n");
+                        num_read_bytes = 0;
+                        return AT_READ_FAILURE;
+                }
+                //Dipen: FIXME, test this
                 uint8_t count = strlen(at_urcs[DATA_READ]) + 2;
                 uint8_t find_end = count;
                 bool cr_lf = false;
@@ -137,17 +151,16 @@ static uint8_t __at_process_urc(char *urc) {
                         if (urc[find_end] == '\r') {
                                 if (urc[find_end + 1] != '\n') {
                                         cr_lf = false;
-                                        break;
                                 } else
                                         cr_lf = true;
-
+                                break;
                         } else
                                 find_end++;
                 }
                 if (cr_lf) {
                         uint8_t read_num[find_end - count];
                         memcpy(read_num, ((uint8_t *)urc + count,
-                        find_end - count);
+                                find_end - count);
                         uint16_t multi = 1;
                         uint16_t temp_read_bytes = 0;
                         for (int i = sizeof(read_num) - 1 ; i >= 0; i--) {
@@ -161,7 +174,37 @@ static uint8_t __at_process_urc(char *urc) {
                         printf("data read failure\n");
                         result = AT_READ_FAILURE;
                 }
+        } else
+                result = AT_FAILURE;
 
+        return result;
+}
+
+static uint8_t __at_process_urc() {
+        uint8_t result = AT_SUCCESS;
+        while (1) {
+                read_bytes = uart_rx_line_available(rsp_header, rsp_trailer);
+                if (read_bytes == 0)
+                        break;
+                uint8_t urc[read_bytes];
+                if (uart_read(urc_line, read_bytes) == UART_READ_ERR) {
+                        printf("APU_READ_ERR\n");
+                        return AT_FAILURE;
+                }
+                result = __at_process_network_urc((char *)urc, NET_STAT_URC);
+                if (result == AT_SUCCESS)
+                        continue;
+                result = __at_process_network_urc((char *)urc, EPS_STAT_URC);
+                if (result == AT_SUCCESS)
+                        continue;
+
+                result = __at_process_tcp_read_urc((char *)urc);
+                if (result != AT_FAILURE)
+                        continue;
+
+                result = __at_process_tcp_close_urc((char *)urc);
+                if (result == AT_SUCCESS)
+                        continue;
         }
         return result;
 }
@@ -189,10 +232,14 @@ static uint8_t __at_wait_for_rsp(const char *rsp, uint32_t timeout) {
                                 if (strncmp((char *)rsp_line, rsp,
                                 strlen(rsp)) != 0)
                                         result = AT_WRONG_RSP;
-                        } else
+                        } else {
                                 result = AT_FAILURE;
-                } else
+                                printf("AWR_1\n");
+                        }
+                } else {
                         result = AT_FAILURE;
+                        printf("AWR_2\n");
+                }
         }
         state &= ~(PROC_RESP);
         return result;
@@ -201,15 +248,9 @@ static uint8_t __at_wait_for_rsp(const char *rsp, uint32_t timeout) {
 static uint8_t __at_comm_send_and_wait_rsp(at_command_desc *desc) {
         uint8_t result;
         uint16_t read_bytes;
-        while (1)
-                read_bytes = uart_rx_line_available(rsp_header, rsp_trailer);
-                if (read_bytes == 0)
-                        break;
-                if (uart_read(rsp_line, read_bytes) != UART_READ_ERR) {
-                        rsp_line[read_bytes] = 0x0;
-                        result = __at_process_urc((char *)rsp_line);
-                }
-        }
+        state |= PROC_URC;
+        result = __at_process_urc();
+        state &= ~PROC_URC;
         __at_uart_write(desc->comm);
         return __at_wait_for_rsp(desc->rsp, desc->rsp_timeout);
 }
@@ -263,15 +304,42 @@ static uint8_t __at_check_modem_conf() {
 
 static uint8_t __at_pdp_conf() {
         uint8_t result = __at_comm_send_and_wait_rsp(
-                &modem_net_status_comm[SEL_IPV4_PREF]);
+                &pdp_conf_comm[SEL_IPV4_PREF]);
         CHECK_SUCCESS(result, AT_SUCCESS, result);
-        result = __at_comm_send_and_wait_rsp(&modem_net_status_comm[ACT_PDP]);
+        result = __at_comm_send_and_wait_rsp(&pdp_conf_comm[ACT_PDP]);
         CHECK_SUCCESS(result, AT_SUCCESS, result);
 }
 
-static uint8_t __at_tcp_connect(const char *host, int port) {
+static int __at_tcp_connect(const char *host, int port) {
+        int s_id = -1;
         uint8_t result = __at_comm_send_and_wait_rsp(
-                &modem_net_status_comm[TCP_CONF]);
+                &tcp_comm[TCP_CONF]);
+        CHECK_SUCCESS(result, AT_SUCCESS, -1);
+        uint16_t count = strlen(modem_net_status_comm[TCP_CONF].rsp);
+        s_id = (*(char *)(rsp_line + count)) - '0';
+        uint16_t read_bytes = uart_line_available();
+        if (read_bytes == 0) {
+                return -1;
+        }
+        uint8_t temp_rsp_line[read_bytes];
+        temp_rsp_line[read_bytes] = 0x0;
+        if (uart_rx_read(temp_rsp_line, read_bytes) == UART_READ_ERR) {
+                printf("ATC_READ_ERR\n");
+                return -1;
+        }
+        if (strncmp(temp_rsp_line, "\r\nOK\r\n", 6) != 0) {
+                printf("ATC_Rsp_err: %s\n", (char *)temp_rsp_line);
+                return -1;
+        }
+        //Dipen: FIXME, test this, what does it send actually
+        char temp_comm[TEMP_COMM_LIMIT];
+        snprintf(temp_comm, TEMP_COMM_LIMIT, tcp_comm[TCP_CONN].comm,
+                s_id, host, port);
+        tcp_comm[TCP_CONN].comm = temp_comm;
+        result = __at_comm_send_and_wait_rsp(&tcp_comm[TCP_CONN]);
+        CHECK_SUCCESS(result, AT_SUCCESS, -1);
+        state |= TCP_CONNECTED;
+        return s_id;
 
 }
 
@@ -302,21 +370,39 @@ bool at_init() {
 
 }
 
+int at_tcp_send(int s_id, const unsigned char *buf, size_t len) {
+        __at_process_urc();
+        if (state & TCP_CONNECTED != TCP_CONNECTED) {
+                printf("ATS not connected\n", );
+                return -1;
+        }
+        //Dipen: FIXME, test this, what does it send actually
+        char temp_comm[TEMP_COMM_LIMIT];
+        snprintf(temp_comm, TEMP_COMM_LIMIT, modem_net_status_comm[TCP_CONN].comm,
+                s_id, host, port);
+        modem_net_status_comm[TCP_CONN].comm = temp_comm;
+        tcp_comm[TCP_SEND].comm
+        __at_uart_write(desc->comm);
+        return __at_wait_for_rsp(desc->rsp, desc->rsp_timeout);
+        __at
+}
+
 int at_tcp_connect(const char *host, int port) {
         switch (state) {
                 case IDLE:
-                case TCP_CLOSED:
-                case TCP_CONNECTED:
+                case TCP_READ:
                         if (!pdp_conf) {
                                 if (__at_pdp_conf() == AT_SUCCESS)
                                         pdp_conf = true;
+                                else
+                                        return -1;
                         }
-                        __at_tcp_connect(host, port);
-                        break;
-                case TCP_READ:
+                        return __at_tcp_connect(host, port);
+                case TCP_CONNECTED:
                 case TCP_WRITE:
                 case DATA_MODE:
                 default:
-                        break;
+                        printf("TCP connect not possible\n");
+                        return -1;
         }
 }
