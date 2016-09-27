@@ -15,15 +15,16 @@
 #include <stdbool.h>
 
 typedef enum at_urc {
-        NET_STAT_URC,
+        NET_STAT_URC = 0,
         EPS_STAT_URC,
         NO_CARRIER,
         DATA_READ,
-        TCP_CLOSED
+        TCP_CLOSED,
+        URC_END
 } at_urc;
 
 typedef enum at_modem_stat_command {
-        MODEM_OK,
+        MODEM_OK = 0,
         MODEM_RESET,
         NET_STAT,
         EPS_STAT,
@@ -36,13 +37,13 @@ typedef enum at_modem_stat_command {
 } at_modem_stat_command;
 
 typedef enum at_pdp_command {
-        SEL_IPV4_PREF,
+        SEL_IPV4_PREF = 0,
         ACT_PDP,
         PDP_END
 } at_pdp_command;
 
 typedef enum at_tcp_command {
-        TCP_CONF,
+        TCP_CONF = 0,
         TCP_CONN,
         TCP_SEND,
         TCP_RCV,

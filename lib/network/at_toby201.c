@@ -9,12 +9,11 @@
 #include "uart.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 
 #define AT_SUCCESS      0
 #define AT_RSP_TIMEOUT  1
-#define AT_WRONG_RSP    2
 #define AT_FAILURE      3
-#define AT_READ_FAILURE 4
 
 #define INVOKE_CALLBACK(x)	if (at_cb) at_cb((x))
 #define CHECK_SUCCESS(x, y, z)	if ((x) != (y)) return (z)
@@ -22,15 +21,13 @@
 typedef enum at_states {
         IDLE = 0x0,
         WAITING_RESP = 1 << 1,
-        PROC_RESP = 1 << 2,
-        PROC_URC = 1 << 3,
-        NETWORK_LOST = 1 << 4,
-        TCP_CONNECTED = 1 << 5,
-        TCP_WRITE = 1 << 6,
-        TCP_READ = 1 << 7
+        NETWORK_LOST = 1 << 2,
+        TCP_CONNECTED = 1 << 3,
+        TCP_WRITE = 1 << 4,
+        TCP_READ = 1 << 5
 } at_states;
 
-static const char *at_urcs[] = {
+static const char *at_urcs[URC_END] = {
                 [NET_STAT_URC] = "\r\n+CEREG: ",
                 [EPS_STAT_URC] = "\r\n+UREG: ",
                 [NO_CARRIER] = "\r\nNO CARRIER\r\n",
@@ -71,7 +68,7 @@ static at_command_desc tcp_comm[TCP_END] = {
 static uint8_t rsp_line[TEMP_COMM_LIMIT];
 
 static const char *rsp_header = "\r\n";
-static const char *rsp_tailer = "\r\n";
+static const char *rsp_trailer = "\r\n";
 
 static volatile at_states state;
 static volatile bool process_rsp;
@@ -101,8 +98,8 @@ static void __at_uart_rx_flush() {
         uart_flush_rx_buffer();
 }
 
-static bool __at_uart_write(const char *buf, uint16_t size) {
-        return uart_tx((uint8_t *)buf), size, AT_TX_WAIT_MS);
+static bool __at_uart_write(const char *buf, uint16_t len) {
+        return uart_tx((uint8_t *)buf), len, AT_TX_WAIT_MS);
 }
 
 static uint8_t __at_process_network_urc(char *urc, at_urc u_code) {
@@ -160,7 +157,7 @@ static uint8_t __at_process_tcp_read_urc(char *urc) {
                 }
                 //Dipen: FIXME, test this
                 uint8_t count = strlen(at_urcs[DATA_READ]) + 2;
-                uint16_t find_end = __at_find_end(urc + count, rsp_tailer);
+                uint16_t find_end = __at_find_end(urc + count, rsp_trailer);
 
                 if (find_end != 0) {
                         uint16_t temp_read_bytes =
@@ -201,84 +198,124 @@ static uint8_t __at_process_urc() {
                         continue;
 
                 result = __at_process_tcp_close_urc((char *)urc);
-                if (result == AT_SUCCESS)
-                        continue;
         }
         return result;
 }
 
-static uint8_t __at_wait_for_rsp(const char *rsp, size_t size, uint32_t timeout,
-        bool read_line) {
-
+static uint8_t __at_wait_for_rsp(uint32_t timeout) {
         uint8_t result = AT_SUCCESS;
         state |= WAITING_RESP;
-        int start = millis();
+        uint32_t start = HAL_GetTick();
         while (!process_rsp && timeout != 0) {
-                if ((millis() - start) > timeout) {
+                if ((HAL_GetTick() - start) > timeout) {
                         result = AT_RSP_TIMEOUT;
                         break;
                 }
         }
         state &= ~(WAITING_RESP);
-        if (result == AT_SUCCESS) {
-                process_rsp = false;
-                state |= PROC_RESP;
-                uint16_t read_bytes;
-                if (read_line)
-                        read_bytes = uart_rx_line_available(rsp_header,
-                                rsp_tailer);
-                else
-                        read_bytes = uart_rx_available();
-                if (read_bytes > 0 && read_bytes < MAX_RSP_BYTES) {
-                        rsp_line[read_bytes] = 0x0;
-                        if (uart_read(rsp_line, read_bytes) != UART_READ_ERR) {
-                                if (strncmp((char *)rsp_line, rsp, size) != 0)
-                                        result = AT_WRONG_RSP;
-                                        printf("AWFR_WRNG_RSP: %s\n", rsp_line);
-                        } else {
-                                result = AT_FAILURE;
-                                printf("AWR_1\n");
-                        }
-                } else {
-                        result = AT_FAILURE;
-                        printf("AWR_2\n");
-                }
-        }
-        state &= ~(PROC_RESP);
         return result;
 }
 
-static uint8_t __at_comm_send_and_wait_rsp(at_command_desc *desc) {
-        uint8_t result;
-        uint16_t read_bytes;
-        state |= PROC_URC;
-        result = __at_process_urc();
-        state &= ~PROC_URC;
-        if (!__at_uart_write(desc->comm, strlen(desc->comm))) {
+static uint8_t __at_comm_send_and_wait_rsp(const char *comm, uint16_t len,
+        uint32_t timeout) {
+
+        __at_process_urc();
+        if (!__at_uart_write(comm, len) {
                 printf("ACSAWR_TX_FAIL\n");
                 return AT_FAILURE;
         }
-        return __at_wait_for_rsp(desc->rsp, strlen(desc->rsp),
-                                desc->rsp_timeout, true);
+        return __at_wait_for_rsp(timeout);
+}
+
+static __at_generic_modem_conf_rsp_checker(at_command_desc *desc,
+        uint8_t rsp_lines) {
+
+        uint8_t result = AT_SUCCESS;
+        const char *comm;
+        const char *rsp;
+        uint32_t timeout;
+        int read_bytes;
+
+        comm = desc->comm;
+        rsp = desc->rsp;
+        timout = desc->rsp_timeout;
+
+        result = __at_comm_send_and_wait_rsp(comm, strlen(comm), timeout);
+        CHECK_SUCCESS(result, AT_SUCCESS, result);
+        while (rsp_lines) {
+                read_bytes = uart_line_avail(rsp_header, rsp_trailer);
+                if (read_bytes <= 0) {
+                        printf("%s: comm: %s failed\n", __func__, comm);
+                        return AT_FAILURE;
+                }
+                uint8_t rsp_buf[read_bytes];
+                rsp_buf[read_bytes] = 0x0;
+                if (uart_read(rsp_buf, read_bytes) != UART_READ_ERR) {
+                        
+                        if (strncmp((char *)rsp_buf, rsp, strlen(rsp)) != 0) {
+                                printf("%s: wrong response: %s\n", __func__,
+                                (char *)rsp_buf);
+                                return AT_FAILURE;
+                        }
+                } else
+                        return AT_FAILURE;
+        }
 }
 
 static uint8_t __at_check_modem_conf() {
 
-        if (state != IDLE)
+        if (state & IDLE != IDLE)
                 return AT_FAILURE;
 
         uint8_t result = AT_SUCCESS;
+        const char *comm;
+        const char *rsp;
+        uint32_t timeout;
+        int read_bytes;
 
         /* Enable EPS network status URCs */
-        result = __at_comm_send_and_wait_rsp(
-                &modem_net_status_comm[EPS_STAT]);
+        comm = modem_net_status_comm[EPS_STAT].comm;
+        rsp = modem_net_status_comm[EPS_STAT].rsp;
+        timout = modem_net_status_comm[EPS_STAT].rsp_timeout;
+        result = __at_comm_send_and_wait_rsp(comm, strlen(comm), timeout);
         CHECK_SUCCESS(result, AT_SUCCESS, result);
+        read_bytes = uart_line_avail(rsp_header, rsp_trailer);
+        if (read_bytes <= 0) {
+                printf("%s: eps_stat failed\n", __func__);
+                return AT_FAILURE;
+        }
+        uint8_t rsp_buf[read_bytes];
+        rsp_buf[read_bytes] = 0x0;
+        if (uart_read(rsp_buf, read_bytes) != UART_READ_ERR) {
+                if (strncmp((char *)rsp_buf, rsp, strlen(rsp)) != 0) {
+                        printf("%s: wrong response: %s\n", __func__,
+                        (char *)rsp_buf);
+                        return AT_FAILURE;
+                }
+        } else
+                return AT_FAILURE;
 
         /* ENABLE network status URCs */
-        result = __at_comm_send_and_wait_rsp(
-                &modem_net_status_comm[NET_STAT]);
+        comm = modem_net_status_comm[NET_STAT].comm;
+        rsp = modem_net_status_comm[NET_STAT].rsp;
+        timout = modem_net_status_comm[NET_STAT].rsp_timeout;
+        result = __at_comm_send_and_wait_rsp(comm, strlen(comm), timeout);
         CHECK_SUCCESS(result, AT_SUCCESS, result);
-
+        read_bytes = uart_line_avail(rsp_header, rsp_trailer);
+        if (read_bytes <= 0) {
+                printf("%s: net_stat failed\n", __func__);
+                return AT_FAILURE;
+        }
+        uint8_t rsp_buf[read_bytes];
+        rsp_buf[read_bytes] = 0x0;
+        if (uart_read(rsp_buf, read_bytes) != UART_READ_ERR) {
+                if (strncmp((char *)rsp_buf, rsp, strlen(rsp)) != 0) {
+                        printf("%s: wrong response: %s\n", __func__,
+                        (char *)rsp_buf);
+                        return AT_FAILURE;
+                }
+        } else
+                return AT_FAILURE;
 
         /* Check if simcard is inserted */
         result = __at_comm_send_and_wait_rsp(&modem_net_status_comm[SIM_READY]);
@@ -319,7 +356,9 @@ static uint8_t __at_pdp_conf() {
 
 static uint8_t __at_check_modem() {
 
-        return __at_comm_send_and_wait_rsp(&modem_net_status_comm[MODEM_OK]);
+        return __at_comm_send_and_wait_rsp(modem_net_status_comm[MODEM_OK].comm,
+                                strlen(modem_net_status_comm[MODEM_OK].comm),
+                                modem_net_status_comm[MODEM_OK].rsp_timeout);
 }
 
 bool at_init() {
@@ -458,7 +497,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len) {
 
         }
         count += 2;
-        uint16_t find_end = __at_find_end((char *)rsp_line + count, rsp_tailer);
+        uint16_t find_end = __at_find_end((char *)rsp_line + count, rsp_trailer);
         uint16_t wr_bytes = 0;
         if (find_end != 0) {
                 wr_bytes =
