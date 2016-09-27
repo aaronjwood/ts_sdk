@@ -2,11 +2,7 @@
 
 #include <stm32f4xx_hal.h>
 #include "dbg.h"
-#include "uart.h"
 #include "ott_protocol.h"
-
-#define SEND_TIMEOUT_MS		2000
-#define IDLE_CHARS		5
 
 /**
   * @brief  System Clock Configuration
@@ -120,30 +116,13 @@ void UsageFault_Handler(void)
 		;
 }
 
-void rx_cb(callback_event event)
-{
-	/* Code */
-}
-
-void update_cb(const bytes_t *data)
-{
-	/* Code */
-}
-
-void command_cb(uint32_t interval)
-{
-	/* Code */
-}
-
 int main(int argc, char *argv[])
 {
 	HAL_Init();
 	SystemClock_Config();
 
 	dbg_module_init();
-	ASSERT(uart_module_init(UART_EN_HW_CTRL, IDLE_CHARS) == true);
-	uart_set_rx_callback(rx_cb);
-	ott_protocol_init();
+	ASSERT(ott_protocol_init() == OTT_OK);
 
 	dbg_printf("Begin:\n");
 
