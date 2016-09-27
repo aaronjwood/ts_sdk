@@ -19,6 +19,9 @@
 extern "C" {
 #endif
 
+#define TCP_SEND_FAIL   -1
+#define TCP_RCV_FAIL    -1
+#define TCP_CONNECT_FAIL -1
 
 /**
  * Initializes underlying hardware i.e. UART etc...and modem
