@@ -2,6 +2,7 @@
 
 #include <string.h>
 #include "dbg.h"
+#include "uart.h"
 #include "ott_protocol.h"
 
 #include "mbedtls/config.h"
