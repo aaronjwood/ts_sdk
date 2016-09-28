@@ -14,6 +14,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define AT_TX_WAIT_MS           10000
+#define MAX_TCP_SEND_BYTES      1024 /* For binary extended mode */
+/* Upper limit for commands which need formatting before sending to modem */
+#define TEMP_COMM_LIMIT         64
+#define MAX_RSP_BYTES           64 /* bytes to store single line of response */
+#define MAX_RSP_LINE            2 /* Some command send response plus OK */
+
 typedef enum at_urc {
         NET_STAT_URC = 0,
         EPS_STAT_URC,
@@ -53,15 +60,9 @@ typedef enum at_tcp_command {
 
 typedef struct _at_command_desc {
         const char *comm;
-        const char *rsp;
+        const char *rsp[MAX_RSP_LINE];
         const char *error;
         uint32_t rsp_timeout;
 } at_command_desc;
-
-#define AT_TX_WAIT_MS           10000
-#define MAX_TCP_SEND_BYTES      1024 /* For binary extended mode */
-/* Upper limit for commands which need formatting before sending to modem */
-#define TEMP_COMM_LIMIT         64
-#define MAX_RSP_BYTES           64 /* bytes to store single line of response */
 
 #endif /* at_toby201.h */
