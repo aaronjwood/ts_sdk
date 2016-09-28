@@ -13,12 +13,6 @@
 #include "mbedtls/error.h"
 #include "mbedtls/certs.h"
 
-#define MAX_MSG_SZ		512
-#define VER_SZ			1
-#define CMD_SZ			1
-#define LEN_SZ			2
-#define MAX_DATA_SZ		(MAX_MSG_SZ - VER_SZ - CMD_SZ - LEN_SZ)
-
 static uint8_t msg_buf[MAX_MSG_SZ];	/* Buffer that holds received messages. */
 static bool message_in_buffer;		/* Set when a message is received. */
 
@@ -57,28 +51,31 @@ ott_status ott_close_connection(void)
 	return OTT_OK;
 }
 
-static bool flags_valid(c_flags_t c_flags)
+static inline bool flags_valid(c_flags_t c_flags)
 {
 	/* Return "true" if the combination of flags are valid. */
+	if (c_flags & (CF_NACK | CF_ACK) == (CF_NACK | CF_ACK))
+		return false;
 	return true;
 }
 
-ott_status ott_send_auth_to_cloud(c_flags_t c_flags,
-                                  const uuid_t dev_id,
-				  const bytes_t *dev_sec)
+ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uuid_t dev_id,
+				  uint16_t dev_sec_sz, const uint8_t *dev_sec)
 {
-	if (!flags_valid(c_flags))
-		return OTT_INV_PARAM;
+	if (!flags_valid(c_flags) || dev_sec_sz > MAX_DATA_SZ)
+		return OTT_ERROR;
 
 	/* TODO: Calls to mbedTLS API here: */
 
 	return OTT_OK;
 }
 
-ott_status ott_send_status_to_cloud(c_flags_t c_flags, const bytes_t *status)
+ott_status ott_send_status_to_cloud(c_flags_t c_flags,
+                                    uint16_t status_sz,
+				    const uint8_t *status)
 {
-	if (!flags_valid(c_flags))
-		return OTT_INV_PARAM;
+	if (!flags_valid(c_flags) || status_sz > MAX_DATA_SZ)
+		return OTT_ERROR;
 
 	/* TODO: Calls to mbedTLS API here: */
 
@@ -87,8 +84,8 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags, const bytes_t *status)
 
 ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 {
-	if (!flags_valid(c_flags))
-		return OTT_INV_PARAM;
+	if (!flags_valid(c_flags) || c_flags == CF_PENDING)
+		return OTT_ERROR;
 
 	/* TODO: Calls to mbedTLS API here: */
 
