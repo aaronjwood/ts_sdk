@@ -67,7 +67,7 @@ typedef enum at_tcp_command {
 typedef struct _at_rsp_desc {
         const char *rsp;
         int parse_rsp;
-        void *data;
+        int data;
 } at_rsp_desc;
 
 typedef struct _at_command_desc {
