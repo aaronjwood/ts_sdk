@@ -561,6 +561,9 @@ static uint8_t __at_parse_read_qry_rsp(uint8_t *rsp_buf, int read_bytes,
 }
 
 int at_read_available(int s_id) {
+
+        at_command_desc *desc = &tcp_comm[TCP_RCV_QRY];
+
         if (state & TCP_CONNECTED != TCP_CONNECTED) {
                 printf("%s: tcp not connected to read\n", __func__);
                 return -1;
@@ -569,10 +572,12 @@ int at_read_available(int s_id) {
                 printf("%s: Invalid socket id\n", __func__);
                 return -1;
         }
-
-        result = __at_generic_comm_rsp_util(&tcp_comm[TCP_RCV_QRY], false, true);
+        char temp_comm[TEMP_COMM_LIMIT];
+        snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id);
+        desc->comm = temp_comm;
+        result = __at_generic_comm_rsp_util(desc, false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, -1);
-
+        
         return tcp_comm[TCP_RCV_QRY].rsp_desc[0].data;
 }
 
