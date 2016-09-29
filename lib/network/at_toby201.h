@@ -61,15 +61,21 @@ typedef enum at_tcp_command {
         TCP_SEND,
         TCP_RCV,
         TCP_CLOSE,
-        TCP_END
+        TCP_END,
 } at_tcp_command;
 
+typedef struct _at_rsp_desc {
+        const char *rsp;
+        int parse_rsp;
+        void *data;
+} at_rsp_desc;
+
 typedef struct _at_command_desc {
-        const char *comm_skeleton;
+        const char *comm_sketch;
         const char *comm;
-        const char *rsp[MAX_RSP_LINE];
+        uint32_t comm_timeout;
+        at_rsp_desc rsp_desc[MAX_RSP_LINE];
         const char *error;
-        uint32_t rsp_timeout;
 } at_command_desc;
 
 #endif /* at_toby201.h */

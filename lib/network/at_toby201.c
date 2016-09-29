@@ -5,7 +5,7 @@
  *
  */
 #include "at.h"
-#include "at_toby201.h"
+#include "at_toby201_command.h"
 #include "uart.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -28,124 +28,12 @@ typedef enum at_states {
         TCP_READ = 1 << 5
 } at_states;
 
-static const char *at_urcs[URC_END] = {
-                [NET_STAT_URC] = "\r\n+CEREG: ",
-                [EPS_STAT_URC] = "\r\n+UREG: ",
-                [NO_CARRIER] = "\r\nNO CARRIER\r\n",
-                [DATA_READ] = "\r\n+UUSORD: ",
-                [TCP_CLOSED] = "\r\n+UUSOCL: "
-};
-
-static at_command_desc modem_net_status_comm[MOD_END] = {
-        [MODEM_OK] = {
-                .comm = "at\r",
-                .rsp = {"\r\nOK\r\n", NULL}
-                .error =  NULL,
-                .rsp_timeout = 20
-        },
-        [NET_STAT] = {
-                .comm = "at+cereg=1\r",
-                .rsp = {"\r\nOK\r\n", NULL},
-                .error = NULL,
-                .rsp_timeout = 20
-        },
-        [EPS_STAT] = {
-                .comm = "at+ureg=1\r",
-                .rsp = {"\r\nOK\r\n", NULL},
-                .error = NULL,
-                .rsp_timeout = 20
-        },
-        [MNO_STAT] = {
-                .comm = "at+umnoconf?\r",
-                .rsp = {"\r\n+UMNOCONF: 3,23","\r\n\r\nOK\r\n"},
-                .error = NULL,
-                .rsp_timeout = 100
-        },
-        [MNO_SET] = {
-                .comm = "at+umnoconf=3,23\r",
-                .rsp =  {"\r\n+UMNOCONF: 3,23\r\n","\r\nOK\r\n"},
-                .error = NULL,
-                .rsp_timeout = 100
-        },
-        [SIM_READY] = {
-                .comm = "at+cpin?\r",
-                .rsp = {"\r\n+CPIN: READY\r\n","\r\nOK\r\n"},
-                .error = "\r\nERROR\r\n",
-                .rsp_timeout = 100
-        },
-        [NET_REG_STAT] = {
-                .comm = "at+cereg?\r",
-                .rsp = {"\r\n+CEREG: 1,1\r\n","\r\nOK\r\n"},
-                .error = NULL,
-                .rsp_timeout = 20
-        },
-        [EPS_REG_STAT] = {
-                .comm = "at+ureg?\r",
-                .rsp = {"\r\n+UREG: 1,7\r\n","\r\nOK\r\n"},
-                .error = NULL,
-                .rsp_timeout = 20
-        }
-};
-
-static at_command_desc pdp_conf_comm[PDP_END] = {
-        [SEL_IPV4_PREF] = {
-                .comm = "at+upsd=0,0,2\r",
-                .rsp = {"\r\nOK\r\n", NULL},
-                .error = NULL,
-                .rsp_timeout = 20
-        },
-        [ACT_PDP] = {
-                .comm = "at+upsda=0,3\r",
-                .rsp = {"\r\nOK\r\n","\r\n+UUPSDA: 0,"},
-                .error = "\r\nERROR\r\n",
-                .rsp_timeout = 150000
-        }
-};
-
-static at_command_desc tcp_comm[TCP_END] = {
-        [TCP_CONF] = {
-                .comm = "at+usocr=6\r",
-                .rsp = {"\r\n+USOCR: ", "\r\nOK\r\n"},
-                .error = "\r\nERROR\r\n",
-                .rsp_timeout = 20
-        }, //Dipen: FIXME for error hanlding
-        [TCP_CONN] = {
-                .comm = "at+usoco=%d,%s,%d\r",
-                .rsp = {"\r\nOK\r\n", NULL},
-                .error = "\r\nERROR\r\n",
-                .rsp_timeout = 20000
-        },
-        [TCP_SEND] = {
-                .comm = "at+usowr=%d,%d\r",
-                .rsp = {"\r\n+USOWR: ","\r\nOK\r\n"},
-                .error = "\r\nERROR\r\n",
-                .rsp_timeout = 10000
-        },
-        [TCP_RCV] = {
-                .comm = "at+usord=%d,%d\r",
-                .rsp = {"\r\n+USORD: ", "\r\nOK\r\n"},
-                .error = "\r\nERROR\r\n",
-                .rsp_timeout = 10000
-        },
-        [TCP_CLOSE] = {
-                .comm = "at+usocl=%d\r",
-                .rsp = {"\r\nOK\r\n", NULL},
-                .error = "\r\nERROR\r\n",
-                .rsp_timeout = 10000
-        }
-};
-
 static const char *rsp_header = "\r\n";
 static const char *rsp_trailer = "\r\n";
 
 static volatile at_states state;
 static volatile bool process_rsp;
 static bool pdp_conf;
-
-static uint8_t read_buffer[MAX_TCP_RCV_BYTES];
-static uint16_t read_ptr;
-static uint16_t write_ptr;
-
 static uint16_t num_read_bytes;
 
 static void at_uart_callback(callback_event ev) {
@@ -297,7 +185,7 @@ static uint8_t __at_comm_send_and_wait_rsp(const char *comm, uint16_t len,
         return __at_wait_for_rsp(timeout);
 }
 
-static __at_generic_rsp_checker(at_command_desc *desc) {
+static uint8_t __at_generic_rsp_checker(at_command_desc *desc, bool skip_comm) {
 
         uint8_t result = AT_SUCCESS;
         const char *comm;
@@ -307,14 +195,17 @@ static __at_generic_rsp_checker(at_command_desc *desc) {
         uint16_t begin = 0;
 
         comm = desc->comm;
-        rsp = desc->rsp;
-        timout = desc->rsp_timeout;
+        timout = desc->comm_timeout;
 
-        result = __at_comm_send_and_wait_rsp(comm, strlen(comm), timeout);
-        CHECK_SUCCESS(result, AT_SUCCESS, result);
+        if (!skip_comm) {
+                result = __at_comm_send_and_wait_rsp(comm, strlen(comm),
+                                                                timeout);
+                CHECK_SUCCESS(result, AT_SUCCESS, result);
+        }
+
         uint8_t i = 0;
-        for(; i < (sizeof(desc->rsp)/sizeof(*(desc->rsp))); i++) {
-                if (!desc->rsp[i])
+        for(; i < (sizeof(desc->rsp_desc)/sizeof(*(desc->rsp_desc))); i++) {
+                if (!desc->rsp_desc[i].rsp)
                         continue;
                 read_bytes = uart_line_avail(rsp_header, rsp_trailer);
                 if (read_bytes <= 0) {
@@ -326,7 +217,7 @@ static __at_generic_rsp_checker(at_command_desc *desc) {
                 rsp_buf[read_bytes] = 0x0;
                 if (uart_read(rsp_buf, read_bytes) != UART_READ_ERR) {
                         if (strncmp((char *)rsp_buf, desc->rsp[i],
-                        strlen(desc->rsp[i])) != 0) {
+                                                strlen(desc->rsp[i])) != 0) {
                                 printf("%s: wrong response: %s\n", __func__,
                                 (char *)rsp_buf);
                                 result = AT_WRONG_RSP;
@@ -417,18 +308,7 @@ bool at_init() {
 
 }
 
-static int __at_tcp_connect(const char *host, int port) {
-        int s_id = -1;
-        int read_bytes;
-        uint8_t i = 0;
-        uint8_t result = AT_SUCCESS;
-        at_command_desc *desc = &tcp_comm[TCP_CONF];
-
-        /* Configure tcp connection first to be tcp client */
-        result = __at_comm_send_and_wait_rsp(desc->comm, strlen(desc->comm),
-                                                        desc->rsp_timeout);
-        CHECK_SUCCESS(result, AT_SUCCESS, -1);
-
+static int __at_generic_tcp_rsp_parser(uint16_t start, uint8_t *rsp_buf) {
         /* Parse the response for session or socket id */
         for(; i < (sizeof(desc->rsp)/sizeof(*(desc->rsp))); i++) {
                 if (!desc->rsp[i])
@@ -462,6 +342,21 @@ static int __at_tcp_connect(const char *host, int port) {
                 } else
                         result = AT_FAILURE;
         }
+
+}
+
+static int __at_tcp_connect(const char *host, int port) {
+        int s_id = -1;
+        int read_bytes;
+        uint8_t i = 0;
+        uint8_t result = AT_SUCCESS;
+        at_command_desc *desc = &tcp_comm[TCP_CONF];
+
+        /* Configure tcp connection first to be tcp client */
+        result = __at_comm_send_and_wait_rsp(desc->comm, strlen(desc->comm),
+                                                        desc->rsp_timeout);
+        CHECK_SUCCESS(result, AT_SUCCESS, -1);
+
         CHECK_SUCCESS(result, AT_SUCCESS, -1);
 
         /* Now make remote connection */
