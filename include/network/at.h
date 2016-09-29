@@ -54,6 +54,16 @@ int at_tcp_connect(const char *host, int port);
 int at_tcp_send(int s_id, const unsigned char *buf, size_t len);
 
 /**
+ * \brief               querry AT layer if data is available to read
+ *
+ * \param[in] s_id      Socket or session id to read
+ * \return              actual data available to read, 0 otherwise, -1 for any
+ *                      other internal error, for example, socket is not valid
+ *
+ */
+int at_read_available(int s_id);
+
+/**
  * \brief          Read at most 'len' characters, blocking for at most
  *                 'timeout' seconds. If no error occurs, the actual amount
  *                 read is returned.
@@ -61,15 +71,12 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len);
  * \param[in] s_id      Socket or session id to read
  * \param[out] buf      The buffer to write to
  * \param[in] len       Maximum length of the buffer
- * \param[in] timeout   Maximum number of milliseconds to wait for data
- *                      ,0 means wait forever
  *
  * \return         The number of bytes received,
  *                 or -1 for time out
  *
  */
-int at_tcp_recv_timeout(int s_id, unsigned char *buf,
-        size_t len, uint32_t timeout);
+int at_tcp_recv(int s_id, unsigned char *buf, size_t len);
 
 /**
  * \brief               Gracefully shutdown the connection

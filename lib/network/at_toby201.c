@@ -16,7 +16,6 @@
 #define AT_FAILURE      3
 #define AT_WRONG_RSP    4
 
-#define INVOKE_CALLBACK(x)	if (at_cb) at_cb((x))
 #define CHECK_SUCCESS(x, y, z)	if ((x) != (y)) return (z)
 
 typedef enum at_states {
@@ -38,7 +37,7 @@ static uint16_t num_read_bytes;
 
 static void at_uart_callback(callback_event ev) {
         switch (ev) {
-        case UART_EVENT_RESP_RECVD:
+        case UART_EVENT_RECVD_BYTES:
                 if (state & WAITING_RESP == WAITING_RESP)
                         process_rsp = true;
                 else {
@@ -46,47 +45,14 @@ static void at_uart_callback(callback_event ev) {
                         __at_process_urc();
                 }
                 break;
+        case UART_EVENT_RX_OVERFLOW:
+                printf("%s: rx overflows\n", __func__);
+                break;
         default:
                 printf("AUC\n");
                 break;
         }
 
-}
-
-static void __at_uart_rx_flush() {
-        uart_flush_rx_buffer();
-}
-
-static bool __at_uart_write(const char *buf, uint16_t len, at_type type) {
-        return uart_tx((uint8_t *)buf), len, AT_TX_WAIT_MS);
-}
-
-static uint8_t __at_process_network_urc(char *urc, at_urc u_code) {
-        if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) != 0)
-                return AT_FAILURE;
-
-        uint8_t count = strlen(at_urcs[u_code]);
-        uint8_t net_stat = urc[count] - '0';
-        printf("net stat: %u\n", net_stat);
-        if ((u_code == NET_STAT_URC && net_stat != 1) ||
-        (u_code == EPS_STAT_URC && net_stat == 0))
-                state |= NETWORK_LOST;
-        else
-                state &= ~NETWORK_LOST;
-
-        return AT_SUCCESS;
-}
-
-static uint8_t __at_process_tcp_close_urc(char *urc) {
-        if (strncmp(urc, at_urcs[TCP_CLOSED],
-                strlen(at_urcs[TCP_CLOSED])) == 0) {
-                if (state & TCP_CONNECTED == TCP_CONNECTED)
-                        state &= ~TCP_CONNECTED;
-                else
-                        printf("tcp cant be closed when not connected\n");
-                return AT_SUCCESS;
-        } else
-                return AT_FAILURE;
 }
 
 static uint32_t __at_find_end(char *str, char tail) {
@@ -106,13 +72,50 @@ static uint32_t __at_convert_to_decimal(char *num, uint8_t num_digits) {
         return dec;
 }
 
+static void __at_uart_rx_flush() {
+        uart_flush_rx_buffer();
+}
+
+static bool __at_uart_write(const char *buf, uint16_t len, at_type type) {
+        return uart_tx((uint8_t *)buf), len, AT_TX_WAIT_MS);
+}
+
+static uint8_t __at_process_network_urc(char *urc, at_urc u_code) {
+        if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) != 0)
+                return AT_FAILURE;
+
+        uint8_t count = strlen(at_urcs[u_code]);
+        uint8_t net_stat = urc[count] - '0';
+        printf("%s: net stat: %u\n", __func__, net_stat);
+        if ((u_code == NET_STAT_URC && net_stat != 1) ||
+                (u_code == EPS_STAT_URC && net_stat == 0))
+                state |= NETWORK_LOST;
+        else
+                state &= ~NETWORK_LOST;
+
+        return AT_SUCCESS;
+}
+
+static uint8_t __at_process_tcp_close_urc(char *urc) {
+        if (strncmp(urc, at_urcs[TCP_CLOSED],
+                strlen(at_urcs[TCP_CLOSED])) == 0) {
+                if (state & TCP_CONNECTED == TCP_CONNECTED)
+                        state &= ~TCP_CONNECTED;
+                else
+                        printf("%s: tcp cant be closed when not connected\n",
+                                __func__);
+                return AT_SUCCESS;
+        } else
+                return AT_FAILURE;
+}
+
 static uint8_t __at_process_tcp_read_urc(char *urc) {
-        uint8_t result = AT_SUCCESS;
+
         if (strncmp(urc, at_urcs[DATA_READ], strlen(at_urcs[DATA_READ])) == 0) {
                 if (state & TCP_CONNECTED != TCP_CONNECTED) {
-                        printf("Cant read when tcp is not connected\n");
+                        printf("%s: tcp is not connected\n", __func__);
                         num_read_bytes = 0;
-                        return AT_READ_FAILURE;
+                        return AT_SUCCESS;
                 }
                 uint8_t count = strlen(at_urcs[DATA_READ]) + 2;
                 uint16_t find_end = __at_find_end(urc + count, '\r');
@@ -120,17 +123,16 @@ static uint8_t __at_process_tcp_read_urc(char *urc) {
                 if (find_end != 0) {
                         uint16_t temp_read_bytes =
                                 __at_convert_to_decimal(urc + count, find_end);
-                        printf("read bytes left: %d\n", temp_read_bytes);
+                        printf("%s: read bytes left: %d\n",
+                                                __func__, temp_read_bytes);
                         num_read_bytes = temp_read_bytes;
                         state |= TCP_READ;
                 } else {
-                        printf("data read failure\n");
-                        result = AT_READ_FAILURE;
+                        printf("%s: data read failure\n", __func__);
+                        return AT_SUCCESS;
                 }
         } else
-                result = AT_FAILURE;
-
-        return result;
+                return AT_FAILURE;
 }
 
 static uint8_t __at_process_urc() {
@@ -141,7 +143,7 @@ static uint8_t __at_process_urc() {
                         break;
                 uint8_t urc[read_bytes];
                 if (uart_read(urc_line, read_bytes) == UART_READ_ERR) {
-                        printf("APU_READ_ERR\n");
+                        printf("%s: read err\n", __func__);
                         return AT_FAILURE;
                 }
                 result = __at_process_network_urc((char *)urc, NET_STAT_URC);
@@ -194,9 +196,12 @@ static uint8_t __at_parse_rsp(uint8_t *rsp_buf, int read_bytes,
                         desc, rsp_num);
         case TCP_SEND:
                 return __at_parse_tcp_send_rsp(rsp_buf, read_bytes,
-                        desc, rsp_num)
+                        desc, rsp_num);
+        case TCP_RCV_QRY:
+                return __at_parse_read_qry_rsp(rsp_buf, read_bytes,
+                        desc, rsp_num);
         default:
-                return AT_FAILURE;
+                return AT_SUCCESS;
         }
 }
 
@@ -265,21 +270,25 @@ static uint8_t __at_check_modem_conf() {
         uint8_t result = AT_SUCCESS;
 
         /* Enable EPS network status URCs */
-        result = __at_generic_rsp_checker(&modem_net_status_comm[EPS_STAT]);
+        result = __at_generic_comm_rsp_util(&modem_net_status_comm[EPS_STAT],
+                                                false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, result);
 
         /* ENABLE network status URCs */
-        result = __at_generic_rsp_checker(&modem_net_status_comm[NET_STAT]);
+        result = __at_generic_comm_rsp_util(&modem_net_status_comm[NET_STAT],
+                                                false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, result);
 
         /* Check if simcard is inserted */
-        result = __at_generic_rsp_checker(&modem_net_status_comm[SIM_READY]);
+        result = __at_generic_comm_rsp_util(&modem_net_status_comm[SIM_READY],
+                                                false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, result);
 
         /* Check MNO configuration, if it is not set for the Verizon, configure
          * for it and reset the modem
          */
-        result = __at_generic_rsp_checker(&modem_net_status_comm[MNO_STAT]);
+        result = __at_generic_comm_rsp_util(&modem_net_status_comm[MNO_STAT],
+                                                false, true);
         if (result == AT_WRONG_RSP) {
                 // Dipen: FIXME
                 /* Configure modem for verizon and reset it here, poll for modem
@@ -288,29 +297,23 @@ static uint8_t __at_check_modem_conf() {
         }
 
         /* Check network registration status */
-        result = __at_generic_rsp_checker(&modem_net_status_comm[NET_REG_STAT]);
+        result = __at_generic_comm_rsp_util(&modem_net_status_comm[NET_REG_STAT],
+                                                false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, result);
 
         /* Check packet switch network registration status */
-        result = __at_generic_rsp_checker(&modem_net_status_comm[EPS_REG_STAT]);
-        CHECK_SUCCESS(result, AT_SUCCESS, result);
+        result = __at_generic_comm_rsp_util(&modem_net_status_comm[EPS_REG_STAT],
+                                                false, true);
 
+        CHECK_SUCCESS(result, AT_SUCCESS, result);
         return result;
 
 }
 
-static uint8_t __at_pdp_conf() {
-        uint8_t result = __at_generic_rsp_checker(
-                                &pdp_conf_comm[SEL_IPV4_PREF]);
-        CHECK_SUCCESS(result, AT_SUCCESS, result);
-        //Dipen: check back about second response line
-        result = __at_generic_rsp_checker(&pdp_conf_comm[ACT_PDP]);
-        CHECK_SUCCESS(result, AT_SUCCESS, result);
-}
-
 static uint8_t __at_check_modem() {
 
-        return __at_generic_rsp_checker(&modem_net_status_comm[MODEM_OK]);
+        return __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_OK],
+                false, true);
 }
 
 bool at_init() {
@@ -335,41 +338,12 @@ bool at_init() {
 
 }
 
-static uint8_t __at_parse_tcp_send_rsp(uint8_t *rsp_buf, int read_bytes,
-                                at_command_desc *desc , uint8_t rsp_num) {
-
-
-        if (rsp_num > MAX_RSP_LINE || !desc)
-                return AT_FAILURE;
-
-        uint16_t count = strlen(desc->rsp_desc[rsp_num]);
-        int s_temp = (*(char *)(rsp_buf + count)) - '0';
-        if (s_temp != s_id) {
-                printf("%s: wrong s_id :%d\n", __func__, s_temp);
-                return AT_FAILURE;
-        }
-        count += 2;
-        uint32_t find_end =__at_find_end((char *)rsp_buf + count, '\r');
-
-        if (find_end != 0) {
-                desc->rsp_desc[rsp_num].data =
-                        __at_convert_to_decimal((char *)rsp_buf + count,
-                                                find_end);
-                printf("%s: Write Bytes: %d\n",
-                        __func__, desc->rsp_desc[rsp_num].data);
-                desc->rsp_desc[rsp_num].data = wr_bytes;
-        } else
-                return AT_FAILURE;
-
-        return AT_SUCCESS;
-}
-
 static uint8_t __at_parse_tcp_conf_rsp(uint8_t *rsp_buf, int read_bytes,
         at_command_desc *desc , uint8_t rsp_num) {
         if (rsp_num > MAX_RSP_LINE || !desc)
                 return AT_FAILURE;
 
-        uint16_t count = strlen(desc->rsp_desc[rsp_num]);
+        uint16_t count = strlen(desc->rsp_desc[rsp_num].rsp);
         int s_id = (*(char *)(rsp_buf + count)) - '0';
         desc->rsp_desc[rsp_num].data = s_id;
         return AT_SUCCESS;
@@ -407,6 +381,16 @@ static int __at_tcp_connect(const char *host, int port) {
         return s_id;
 }
 
+static uint8_t __at_pdp_conf() {
+        uint8_t result = __at_generic_comm_rsp_util(
+                                &pdp_conf_comm[SEL_IPV4_PREF], false, true);
+        CHECK_SUCCESS(result, AT_SUCCESS, result);
+        //Dipen: check back about second response line
+        result = __at_generic_comm_rsp_util(&pdp_conf_comm[ACT_PDP],
+                                                false, true);
+        CHECK_SUCCESS(result, AT_SUCCESS, result);
+}
+
 int at_tcp_connect(const char *host, int port) {
         __at_process_urc();
         switch (state) {
@@ -426,6 +410,29 @@ int at_tcp_connect(const char *host, int port) {
                         printf("TCP connect not possible\n");
                         return -1;
         }
+}
+
+static uint8_t __at_parse_tcp_send_rsp(uint8_t *rsp_buf, int read_bytes,
+                                at_command_desc *desc , uint8_t rsp_num) {
+
+
+        if (rsp_num > MAX_RSP_LINE || !desc)
+                return AT_FAILURE;
+
+        uint16_t count = strlen(desc->rsp_desc[rsp_num].rsp);
+        int s_temp = (*(char *)(rsp_buf + count)) - '0';
+        if (s_temp != s_id) {
+                printf("%s: wrong s_id :%d\n", __func__, s_temp);
+                return AT_FAILURE;
+        }
+        count += 2;
+        int num_bytes = __at_get_bytes(rsp_buf, count, '\r');
+        if (num_bytes == -1) {
+                printf("%s: can not find number sent bytes\n", __func__);
+                return -1;
+        }
+        desc->rsp_desc[rsp_num].data = num_bytes;
+        return AT_SUCCESS;
 }
 
 int at_tcp_send(int s_id, const unsigned char *buf, size_t len) {
@@ -497,22 +504,34 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len) {
         return desc->rsp_desc[0].data;
 }
 
-static int __at_parse_rcv_rsp(uint16_t start, uint8_t *rsp_buf, uint8_t *buf,
-                                size_t len) {
-        int num_read;
-        int s_temp = (*(rsp_buf + start)) - '0';
-        if (s_temp != s_id) {
-                printf("%s: wrong s_id :%d\n", __func__, s_temp);
-                return -1;
-        }
-        start += 2;
-        uint32_t find_end = __at_find_end((char *)rsp_buf + start, ',');
+static int __at_get_bytes(char *rsp_buf, uint16_t start, char tail) {
+
+        int num_read = -1;
+        uint32_t find_end = __at_find_end((char *)rsp_buf + start, tail);
         if (find_end != 0) {
                 num_read = __at_convert_to_decimal((char *)rsp_buf + start,
                                                 find_end);
-                printf("%s: Read Bytes: %d\n", __func__, num_read);
+                printf("%s: Data Bytes: %d\n", __func__, num_read);
         } else
                 return -1;
+}
+
+static int __at_parse_rcv_rsp(uint16_t start, uint8_t *rsp_buf, uint8_t *buf,
+                                size_t len) {
+        int num_read = -1;
+        int s_temp = (*(rsp_buf + start)) - '0';
+        if (s_temp != s_id) {
+                printf("%s: wrong s_id :%d\n", __func__, s_temp);
+                /* Dipen: drain rx buffer? */
+                return -1;
+        }
+        start += 2;
+        num_read = __at_get_bytes(rsp_buf, start, ',');
+        if (num_read == -1) {
+                printf("%s: can not find number of read bytes\n", __func__);
+                return -1;
+        }
+
         start = start + find_end + 2;
         memcpy(buf, rsp_buf + start, num_read);
         start += 3;
@@ -523,8 +542,38 @@ static int __at_parse_rcv_rsp(uint16_t start, uint8_t *rsp_buf, uint8_t *buf,
         return num_read;
 }
 
-bool at_read_available() {
-        return (state & TCP_READ == TCP_READ);
+static uint8_t __at_parse_read_qry_rsp(uint8_t *rsp_buf, int read_bytes,
+        at_command_desc *desc , uint8_t rsp_num) {
+
+        if (rsp_num > MAX_RSP_LINE || !desc)
+                return AT_FAILURE;
+
+        int num_read = -1;
+        uint16_t start = strlen(desc->rsp_desc[rsp_num].rsp);
+        start += 2;
+        num_read = __at_get_bytes(rsp_buf, start, '\r');
+        if (num_read == -1) {
+                printf("%s: can not find number of read bytes\n", __func__);
+                return -1;
+        }
+        desc->rsp_desc[rsp_num].data = num_read;
+        return AT_SUCCESS;
+}
+
+int at_read_available(int s_id) {
+        if (state & TCP_CONNECTED != TCP_CONNECTED) {
+                printf("%s: tcp not connected to read\n", __func__);
+                return -1;
+        }
+        if (s_id < 0) {
+                printf("%s: Invalid socket id\n", __func__);
+                return -1;
+        }
+
+        result = __at_generic_comm_rsp_util(&tcp_comm[TCP_RCV_QRY], false, true);
+        CHECK_SUCCESS(result, AT_SUCCESS, -1);
+
+        return tcp_comm[TCP_RCV_QRY].rsp_desc[0].data;
 }
 
 int at_tcp_recv_timeout(int s_id, unsigned char *buf,
@@ -586,6 +635,7 @@ int at_tcp_recv_timeout(int s_id, unsigned char *buf,
 }
 
 void at_tcp_close(int s_id) {
+
         __at_process_urc();
         at_command_desc *desc = &tcp_comm[TCP_CLOSE];
         if (state & TCP_CONNECTED != TCP_CONNECTED) {

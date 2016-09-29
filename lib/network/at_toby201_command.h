@@ -228,6 +228,23 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .error = "\r\nERROR\r\n",
                 .comm_timeout = 10000
         },
+        [TCP_RCV_QRY] = {
+                .comm_sketch = "at+usord=%d,0\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\n+USORD: ",
+                                .parse_rsp = TCP_RCV_QRY,
+                                .data = -1
+                        },
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .parse_rsp = -1,
+                                .data = -1
+                        }
+                },
+                .error = "\r\nERROR\r\n",
+                .comm_timeout = 10000
+        },
         [TCP_CLOSE] = {
                 .comm_sketch = "at+usocl=%d\r",
                 .rsp_desc = {
