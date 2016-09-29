@@ -1,3 +1,13 @@
+/**
+ * \file at_toby201_command.h
+ *
+ * \brief AT command for ublox-toby201 LTE modem functions
+ *
+ * \copyright Copyright (C) 2016, Verizon. All rights reserved.
+ *
+ *
+ */
+
 #include "at_toby201.h"
 
 static const char *at_urcs[URC_END] = {

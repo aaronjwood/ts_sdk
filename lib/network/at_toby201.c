@@ -1,9 +1,13 @@
 /*
- *  AT command functions for u-blox toby201 lte modem
+ *  \file at_toby201.c
  *
- *  Copyright (C) 2016, Verizon. All rights reserved.
+ *  \brief AT command functions for u-blox toby201 lte modem
+ *
+ *  \copyright Copyright (C) 2016, Verizon. All rights reserved.
  *
  */
+
+#include <stm32f4xx_hal.h>
 #include "at.h"
 #include "at_toby201_command.h"
 #include "uart.h"
@@ -24,7 +28,8 @@ typedef enum at_states {
         NETWORK_LOST = 1 << 2,
         TCP_CONNECTED = 1 << 3,
         TCP_WRITE = 1 << 4,
-        TCP_READ = 1 << 5
+        TCP_READ = 1 << 5,
+        AT_INVALID = 1 << 6
 } at_states;
 
 static const char *rsp_header = "\r\n";
@@ -76,7 +81,7 @@ static void __at_uart_rx_flush() {
         uart_flush_rx_buffer();
 }
 
-static bool __at_uart_write(const char *buf, uint16_t len, at_type type) {
+static bool __at_uart_write(const char *buf, uint16_t len) {
         return uart_tx((uint8_t *)buf), len, AT_TX_WAIT_MS);
 }
 
@@ -313,7 +318,7 @@ static uint8_t __at_check_modem_conf() {
 static uint8_t __at_check_modem() {
 
         return __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_OK],
-                false, true);
+                                        false, true);
 }
 
 bool at_init() {
@@ -322,7 +327,7 @@ bool at_init() {
         CHECK_SUCCESS(res, true, false);
 
         uart_set_rx_callback(at_uart_callback);
-        state = IDLE;
+        state = AT_INVALID;
         process_rsp = false;
         process_urc = false;
         pdp_conf = false;
@@ -333,7 +338,7 @@ bool at_init() {
 
         res_modem = __at_check_modem_conf();
         CHECK_SUCCESS(res_modem, AT_SUCCESS, false);
-
+        state = IDLE;
         return true;
 
 }
@@ -577,7 +582,7 @@ int at_read_available(int s_id) {
         desc->comm = temp_comm;
         result = __at_generic_comm_rsp_util(desc, false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, -1);
-        
+
         return tcp_comm[TCP_RCV_QRY].rsp_desc[0].data;
 }
 

@@ -1,7 +1,7 @@
 /**
  * \file at_toby201.h
  *
- * \brief AT command for ublox-toby201 LTE modem functions
+ * \brief AT command table definations for ublox-toby201 LTE modem functions
  *
  * \copyright Copyright (C) 2016, Verizon. All rights reserved.
  *
@@ -21,11 +21,6 @@
 #define TEMP_COMM_LIMIT         64
 #define MAX_RSP_BYTES           64 /* bytes to store single line of response */
 #define MAX_RSP_LINE            2 /* Some command send response plus OK */
-
-typedef enum at_type {
-        COMMAND,
-        DATA
-} at_type;
 
 typedef enum at_urc {
         NET_STAT_URC = 0,
