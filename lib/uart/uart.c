@@ -223,18 +223,18 @@ void USART2_IRQHandler(void)
 }
 
 /*
- * Find the substring 'substr' inside the receive buffer between the read and
- * write indices. Return the starting position of the substring if found.
- * Otherwise, return -1.
+ * Find the substring 'substr' inside the receive buffer between the index
+ * supplied and write index. Return the starting position of the substring if
+ * found. Otherwise, return -1.
  */
-static int find_substr_in_ring_buffer(uint8_t *substr, buf_sz nlen)
+static int find_substr_in_ring_buffer(buf_sz idx_start, uint8_t *substr, buf_sz nlen)
 {
 	if (!substr || nlen == 0)
 		return -1;
 
-	buf_sz bidx = rx.ridx;
+	buf_sz bidx = idx_start;
 	buf_sz idx = 0;
-	buf_sz found_idx = rx.ridx;
+	buf_sz found_idx = idx_start;
 	bool first_char_seen = false;
 	do {
 		if (substr[idx] == rx.buffer[bidx]) {	/* Bytes match */
@@ -250,7 +250,7 @@ static int find_substr_in_ring_buffer(uint8_t *substr, buf_sz nlen)
 				bidx = found_idx + 1;
 			else
 				bidx++;
-			found_idx = rx.ridx;
+			found_idx = idx_start;
 			idx = 0;
 		}
 		if (first_char_seen && idx == nlen)	/* Substring found */
@@ -269,21 +269,32 @@ int uart_line_avail(char *header, char *trailer)
 	if (rx.num_unread == 0)
 		return 0;
 
-	int hidx = 0;
-	int tidx = 0;
+	int hidx = rx.ridx;		/* Store the header index */
+	int tidx = 0;			/* Store the trailer index */
 	buf_sz len = 0;
 	buf_sz hlen = strlen(header);
 	buf_sz tlen = strlen(trailer);
-	hidx = find_substr_in_ring_buffer(header, hlen);
-	if (header && hidx == -1)	/* Header specified but not found. */
-		return 0;
 
-	tidx = find_substr_in_ring_buffer(trailer, tlen);
+	if (header) {
+		/* Search for the header from where we left off reading. */
+		hidx = find_substr_in_ring_buffer(rx.ridx, header, hlen);
+		if (hidx == -1)
+			return 0;	/* Header specified but not found. */
+	}
+
+	/* If the header was found, skip the length of the header from the
+	 * read location. This workaround is for the case where the header and
+	 * the trailer are the same.
+	 */
+	tidx = find_substr_in_ring_buffer(rx.ridx + hlen, trailer, tlen);
 	if (tidx == -1)			/* Trailer not found. */
 		return 0;
-	len += tlen;
 
-	len += ((tidx > hidx) ? (tidx - hidx) : (tidx + UART_RX_BUFFER_SIZE - hidx));
+	len = ((tidx >= hidx) ? (tidx - hidx) : (tidx + UART_RX_BUFFER_SIZE - hidx));
+	/* If there is a line, signified by (len != 0), adjust the length to
+	 * include the trailer.
+	 */
+	len = (len == 0) ? len : len + tlen;
 	return len;
 }
 
