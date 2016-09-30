@@ -21,28 +21,36 @@ CFLAGS_DBG_LIB = -Werror -std=c99 $(INC) $(DBG_OP_USER_FLAGS) -fdata-sections \
 		 -ffunction-sections
 
 #==================================RULES=======================================#
-.PHONY: all build dump bin clean upload
+.PHONY: all build vendor_libs dump bin clean upload
 
 all build: $(FW_EXEC)
 	$(SIZE) $(FW_EXEC)
 
-$(FW_EXEC): $(OBJ) $(OBJ_STARTUP)
-	$(CC) -Wl,-Map,fw.map,--cref $(NOSYSLIB) $(INC) -Os $(MFLAGS) -T $(LDSCRIPT) \
-		$(OBJ) $(OBJ_STARTUP) -o $(FW_EXEC)
+$(FW_EXEC): $(OBJ) $(OBJ_STARTUP) vendor_libs
+	$(CC) $(LDFLAGS) $(NOSYSLIB) $(INC) -Os $(ARCHFLAGS) $(LDSCRIPT) \
+		$(OBJ) $(OBJ_STARTUP) $(VENDOR_LIB_FLAGS) -o $(FW_EXEC) 
 
 $(OBJ_STARTUP):
-	$(AS) $(MFLAGS) -o $(OBJ_STARTUP) $(STARTUP_SRC)
+	$(AS) $(ARCHFLAGS) -o $(OBJ_STARTUP) $(STARTUP_SRC)
 
 $(OBJ_LIB): %.o: %.c
-	$(CC) -c $(CFLAGS_LIB) $(DBG_MACRO) $(MFLAGS) $(MDEF) $< -o $@
+	$(CC) -c $(CFLAGS_LIB) $(DBG_MACRO) $(ARCHFLAGS) $(MDEF) $< -o $@
 
 $(OBJ_DBG_LIB): %.o: %.c
-	$(CC) -c $(CFLAGS_DBG_LIB) $(MFLAGS) $(MDEF) $< -o $@
+	$(CC) -c $(CFLAGS_DBG_LIB) $(ARCHFLAGS) $(MDEF) $< -o $@
 
 $(OBJ_USER): %.o: %.c
-	$(CC) -c $(CFLAGS_USER) $(DBG_MACRO) $(MFLAGS) $(MDEF) $< -o $@
+	$(CC) -c $(CFLAGS_USER) $(DBG_MACRO) $(ARCHFLAGS) $(MDEF) $< -o $@
+
+vendor_libs:
+ifdef VENDOR_LIB_DIRS
+	$(MAKE) -C $(PROJ_ROOT)/vendor $(VENDOR_LIB_DIRS)
+endif
 
 clean:
+ifdef VENDOR_LIB_DIRS
+	$(MAKE) -C $(PROJ_ROOT)/vendor clean
+endif
 	rm -rf $(SRCDIR)/build
 
 dump: $(FW_EXEC)
