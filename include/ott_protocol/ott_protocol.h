@@ -25,9 +25,9 @@
 #define MAX_DATA_SZ		(MAX_MSG_SZ - VER_SZ - CMD_SZ - LEN_SZ)
 
 typedef enum {
-	OTT_OK,			/* API exited without any errors. */
-	OTT_ERROR,		/* API exited with errors. */
-	OTT_SEND_FAILED,	/* Timed out waiting for a response from the
+	OTT_OK,			/* API call exited without any errors. */
+	OTT_ERROR,		/* API call exited with errors. */
+	OTT_SEND_TIMEOUT,	/* Timed out waiting for a response from the
 				 * cloud service. */
 } ott_status;
 
@@ -128,14 +128,14 @@ ott_status ott_close_connection(void);
  *	dev_sec    : Pointer to binary data that holds the device secret.
  *
  * Returns:
- * 	OTT_OK          : Authentication message was sent to the cloud and a
- * 	                  response was received in return.
- * 	OTT_SEND_FAILED : Timed out waiting for a response from the cloud service.
- * 	                  The authentication message was not delivered.
- * 	OTT_ERROR       : Possible causes of error:
- * 	                  Flag parameter is invalid (Eg. ACK+NACK),
- * 	                  Byte array must have a valid length (<= MAX_DATA_SZ bytes),
- * 	                  Sending the message failed due to a TCP/TLS error.
+ * 	OTT_OK           : Authentication message was sent to the cloud and a
+ * 	                   response was received in return.
+ * 	OTT_SEND_TIMEOUT : Timed out waiting for a response from the cloud service.
+ * 	                   The authentication message was not delivered.
+ * 	OTT_ERROR        : Possible causes of error:
+ * 	                   Flag parameter is invalid (Eg. ACK+NACK),
+ * 	                   Byte array must have a valid length (<= MAX_DATA_SZ bytes),
+ * 	                   Sending the message failed due to a TCP/TLS error.
  */
 ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uuid_t dev_id,
 				  uint16_t dev_sec_sz, const uint8_t *dev_sec);
@@ -151,14 +151,14 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uuid_t dev_id,
  * 	status    : Pointer to binary data that stores the status to be reported.
  *
  * Returns:
- * 	OTT_OK          : Status report was sent to the cloud and a response was
- * 	                  received in return.
- * 	OTT_SEND_FAILED : Timed out waiting for a response from the cloud service.
- * 	                  The status report was not delivered.
- * 	OTT_ERROR       : Possible causes of error:
- * 	                  Flag parameter is invalid (Eg. ACK+NACK),
- * 	                  Byte array must have a valid length (<= MAX_DATA_SZ bytes),
- * 	                  Sending the message failed due to a TCP/TLS error.
+ * 	OTT_OK           : Status report was sent to the cloud and a response was
+ * 	                   received in return.
+ * 	OTT_SEND_TIMEOUT : Timed out waiting for a response from the cloud service.
+ * 	                   The status report was not delivered.
+ * 	OTT_ERROR        : Possible causes of error:
+ * 	                   Flag parameter is invalid (Eg. ACK+NACK),
+ * 	                   Byte array must have a valid length (<= MAX_DATA_SZ bytes),
+ * 	                   Sending the message failed due to a TCP/TLS error.
  */
 ott_status ott_send_status_to_cloud(c_flags_t c_flags,
                                     uint16_t status_sz,
