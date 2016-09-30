@@ -164,6 +164,17 @@ int main(int argc, char *argv[])
 	 * not ready yet.
 	 */
 	dbg_printf("Begin:\n");
+
+	uint8_t echo_off[] = "ATE0\r";	/* ATE0 turns off echo in DCE for DTE commands */
+	ASSERT(uart_tx(echo_off, sizeof(echo_off), SEND_TIMEOUT_MS) == true);
+	HAL_Delay(2000);		/* Wait for modem to process */
+
+	/* Get rid of all responses that aren't surrounded by the header and
+	 * trailer.
+	 */
+	uart_flush_rx_buffer();
+
+	/* Main test begins. */
 	uint8_t msg[] = "AT+CPIN?\r";	/* AT+CPIN? Checks if SIM card is ready. */
 	ASSERT(uart_tx(msg, sizeof(msg), SEND_TIMEOUT_MS) == true);
 
