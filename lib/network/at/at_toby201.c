@@ -32,8 +32,8 @@ typedef enum at_states {
         AT_INVALID = 1 << 8
 } at_states;
 
-static const char *rsp_header = "\r\n";
-static const char *rsp_trailer = "\r\n";
+static char *rsp_header = "\r\n";
+static char *rsp_trailer = "\r\n";
 
 static volatile at_states state;
 static volatile bool process_rsp;
