@@ -14,7 +14,13 @@
  * receiving the response of an AT command.
  */
 
-#define UART_READ_ERR		-1	/* Error while reading UART buffer. */
+typedef uint16_t buf_sz;
+
+enum {
+	UART_READ_ERR = -1,	/* Error while reading UART buffer. */
+	UART_INV_PARAM = -2	/* Invalid parameter. */
+};
+
 #define UART_EN_HW_CTRL		true	/* Enable hardware flow control. */
 #define UART_DIS_HW_CTRL	false	/* Disable hardware flow control. */
 
@@ -84,7 +90,7 @@ void uart_set_rx_callback(uart_rx_cb cb);
  * 	True - If the data was sent out successfully.
  * 	False - Send aborted due to timeout or null pointer provided for data.
  */
-bool uart_tx(uint8_t *data, uint16_t size, uint16_t timeout_ms);
+bool uart_tx(uint8_t *data, buf_sz size, uint16_t timeout_ms);
 
 /*
  * Return the number of unread bytes present in the buffer.
@@ -95,7 +101,26 @@ bool uart_tx(uint8_t *data, uint16_t size, uint16_t timeout_ms);
  * Returns:
  * 	Number of unread bytes in the buffer.
  */
-uint16_t uart_rx_available(void);
+buf_sz uart_rx_available(void);
+
+/*
+ * Return the number of bytes that makes a complete line. A line is defined
+ * as a string that begins with a specified header and ends with a specified
+ * trailer.
+ *
+ * Parameters:
+ * 	header - Null character terminated header string. If null, the header is
+ * 	ignored and the count starts from the first read index.
+ * 	trailer - Null character terminated trailer string. The trailer cannot
+ * 	be empty.
+ *
+ * Returns:
+ * 	Zero if no such string is found inside the read buffer.
+ * 	On success, number of bytes the line comprises of including the header
+ * 	and the	trailer bytes.
+ * 	UART_INV_PARAM if the trailer is empty.
+ */
+int uart_line_avail(char *header, char *trailer);
 
 /*
  * Retrieve a set of bytes from the UART's read buffer. The maximum number of
@@ -107,9 +132,10 @@ uint16_t uart_rx_available(void);
  *
  * Returns:
  * 	Number of bytes actually read into the buffer.
- * 	UART_READ_ERR if there's no unread data or null pointer provided for buffer.
+ * 	UART_READ_ERR if there's no unread data.
+ * 	UART_INV_PARAM if null pointer is provided for buffer.
  */
-int uart_read(uint8_t *buf, uint16_t sz);
+int uart_read(uint8_t *buf, buf_sz sz);
 
 /*
  * Flush the receive buffer. This resets the read and write head of the internal

@@ -132,7 +132,13 @@ static void rx_cb(callback_event event)
 		 * layer to keep track of this.
 		 */
 		received_response = true;
-		int sz = uart_read(response, MAX_RESP_SZ);
+		char header[] = "\r\n";
+		char trailer[] = "\r\n";
+		int sz = uart_line_avail(header, trailer);
+		sz = (sz > MAX_RESP_SZ) ? MAX_RESP_SZ : sz;
+		if (sz == 0 || sz == -1)
+			return;
+		sz = uart_read(response, sz);
 		ASSERT(sz != UART_READ_ERR);
 		response[sz] = 0x00;
 		dbg_printf("Res:\n%s\n", response);
@@ -158,7 +164,7 @@ int main(int argc, char *argv[])
 	 * not ready yet.
 	 */
 	dbg_printf("Begin:\n");
-	uint8_t msg[] = "AT&V\r";	/* AT&V displays current configuration. */
+	uint8_t msg[] = "AT+CPIN?\r";	/* AT+CPIN? Checks if SIM card is ready. */
 	ASSERT(uart_tx(msg, sizeof(msg), SEND_TIMEOUT_MS) == true);
 
 	while (1) {

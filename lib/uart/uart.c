@@ -1,11 +1,12 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
+#include <string.h>
 #include <stm32f4xx_hal.h>
 #include "uart.h"
 
 #define UART_RX_BUFFER_SIZE	1024	/* XXX: Reduce this later on? */
 #define BAUD_RATE		115200
-#define CALLBACK_TRIGGER_MARK	((uint16_t)(UART_RX_BUFFER_SIZE * ALMOST_FULL_FRAC))
+#define CALLBACK_TRIGGER_MARK	((buf_sz)(UART_RX_BUFFER_SIZE * ALMOST_FULL_FRAC))
 #define ALMOST_FULL_FRAC	0.6	/* Call the receive callback once this
 					 * fraction of the buffer is full.
 					 */
@@ -20,9 +21,9 @@
 /* The internal buffer that will hold incoming data. */
 static volatile struct {
 	uint8_t buffer[UART_RX_BUFFER_SIZE];
-	uint16_t ridx;
-	uint16_t widx;
-	uint16_t num_unread;
+	buf_sz ridx;
+	buf_sz widx;
+	buf_sz num_unread;
 } rx;
 
 /* Store the idle timeout in number of characters. */
@@ -164,21 +165,24 @@ bool uart_module_init(bool flow_ctrl, uint8_t t)
 	return true;
 }
 
-int uart_read(uint8_t *buf, uint16_t sz)
+int uart_read(uint8_t *buf, buf_sz sz)
 {
 	/*
 	 * Return an error if there are no bytes to read in the buffer or if a
 	 * null pointer was supplied in place of the buffer.
 	 */
-	if (rx.num_unread == 0 || !buf)
+	if (rx.num_unread == 0)
 		return UART_READ_ERR;
+
+	if (!buf)
+		return UART_INV_PARAM;
 
 	/*
 	 * Copy bytes into the supplied buffer and perform the necessary
 	 * book-keeping.
 	 */
-	uint16_t n_bytes = (sz > rx.num_unread) ? rx.num_unread : sz;
-	uint16_t i = 0;
+	buf_sz n_bytes = (sz > rx.num_unread) ? rx.num_unread : sz;
+	buf_sz i = 0;
 	while ((n_bytes - i) > 0) {
 		buf[i++] = rx.buffer[rx.ridx];
 		rx.ridx = (rx.ridx + 1) % UART_RX_BUFFER_SIZE;
@@ -218,6 +222,71 @@ void USART2_IRQHandler(void)
 	}
 }
 
+/*
+ * Find the substring 'substr' inside the receive buffer between the read and
+ * write indices. Return the starting position of the substring if found.
+ * Otherwise, return -1.
+ */
+static int find_substr_in_ring_buffer(uint8_t *substr, buf_sz nlen)
+{
+	if (!substr || nlen == 0)
+		return -1;
+
+	buf_sz bidx = rx.ridx;
+	buf_sz idx = 0;
+	buf_sz found_idx = rx.ridx;
+	bool first_char_seen = false;
+	do {
+		if (substr[idx] == rx.buffer[bidx]) {	/* Bytes match */
+			if (!first_char_seen) {
+				first_char_seen = true;
+				found_idx = bidx;
+			}
+			idx++;
+			bidx++;
+		} else {				/* Bytes mismatch */
+			first_char_seen = false;
+			if (first_char_seen)
+				bidx = found_idx + 1;
+			else
+				bidx++;
+			found_idx = rx.ridx;
+			idx = 0;
+		}
+		if (first_char_seen && idx == nlen)	/* Substring found */
+			return found_idx;
+		if (bidx == UART_RX_BUFFER_SIZE)	/* Index wrapping */
+			bidx = 0;
+	} while(bidx != rx.widx);			/* Scan until write index */
+	return -1;					/* No substring found */
+}
+
+int uart_line_avail(char *header, char *trailer)
+{
+	if (!trailer)
+		return UART_INV_PARAM;
+
+	if (rx.num_unread == 0)
+		return 0;
+
+	int hidx = 0;
+	int tidx = 0;
+	buf_sz len = 0;
+	buf_sz hlen = strlen(header);
+	buf_sz tlen = strlen(trailer);
+	hidx = find_substr_in_ring_buffer(header, hlen);
+	if (header && hidx == -1)	/* Header specified but not found. */
+		return 0;
+
+	tidx = find_substr_in_ring_buffer(trailer, tlen);
+	if (tidx == -1)			/* Trailer not found. */
+		return 0;
+	len += tlen;
+
+	len += ((tidx > hidx) ? (tidx - hidx) : (tidx + UART_RX_BUFFER_SIZE - hidx));
+	return len;
+}
+
 void uart_flush_rx_buffer(void)
 {
 	rx.widx = 0;
@@ -225,7 +294,7 @@ void uart_flush_rx_buffer(void)
 	rx.num_unread = 0;
 }
 
-bool uart_tx(uint8_t *data, uint16_t size, uint16_t timeout_ms)
+bool uart_tx(uint8_t *data, buf_sz size, uint16_t timeout_ms)
 {
 	if (!data)
 		return false;
@@ -240,7 +309,7 @@ void uart_set_rx_callback(uart_rx_cb cb)
 	rx_cb = cb;
 }
 
-uint16_t uart_rx_available(void)
+buf_sz uart_rx_available(void)
 {
 	return rx.num_unread;
 }
