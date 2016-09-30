@@ -1,6 +1,5 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
-#include <inttypes.h>
 #include <stm32f4xx_hal.h>
 #include "dbg.h"
 #include "ott_protocol.h"

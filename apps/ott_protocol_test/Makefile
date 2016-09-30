@@ -40,7 +40,25 @@ USER_SRC = $(wildcard $(SRCDIR)/*.c)
 LIB_SRC += ott_protocol.c
 
 # mbedTLS sources
-LIB_SRC +=
+# NOTE: Include custom net.c here
+# XXX: This is an incomplete list for now and so it is not possible to compile
+# ott_protocol_test just yet. The configuration header must be updated to exclude
+# those modules which won't be used depending on the cipher suite we end up using.
+LIB_SRC += ssl_tls.c \
+	   ctr_drbg.c \
+	   entropy.c \
+	   sha512.c \
+	   entropy_poll.c \
+	   x509_crt.c \
+	   certs.c \
+	   cipher.c \
+	   md.c \
+	   md5.c \
+	   bignum.c \
+	   asn1parse.c \
+	   aes.c \
+	   debug.c \
+	   pem.c
 
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
 # debug flag enabled

@@ -37,7 +37,7 @@ $(OBJ_LIB): %.o: %.c
 	$(CC) -c $(CFLAGS_LIB) $(DBG_MACRO) $(MFLAGS) $(MDEF) $< -o $@
 
 $(OBJ_DBG_LIB): %.o: %.c
-	$(CC) -c $(CFLAGS_DBG_LIB) $(MFLAGS) $(MDEF) $< -o $@
+	$(CC) -c $(CFLAGS_DBG_LIB) $(DBG_MACRO) $(MFLAGS) $(MDEF) $< -o $@
 
 $(OBJ_USER): %.o: %.c
 	$(CC) -c $(CFLAGS_USER) $(DBG_MACRO) $(MFLAGS) $(MDEF) $< -o $@

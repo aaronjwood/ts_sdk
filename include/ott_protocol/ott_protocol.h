@@ -25,7 +25,7 @@
 #define MAX_DATA_SZ		(MAX_MSG_SZ - VER_SZ - CMD_SZ - LEN_SZ)
 
 typedef enum {
-	OTT_OK = 1,		/* API exited without any errors. */
+	OTT_OK,			/* API exited without any errors. */
 	OTT_ERROR,		/* API exited with errors. */
 	OTT_SEND_FAILED,	/* Timed out waiting for a response from the
 				 * cloud service. */
@@ -133,8 +133,8 @@ ott_status ott_close_connection(void);
  * 	OTT_SEND_FAILED : Timed out waiting for a response from the cloud service.
  * 	                  The authentication message was not delivered.
  * 	OTT_ERROR       : Possible causes of error:
- * 	                  Flag paramter is invalid (Eg. ACK+NACK),
- * 	                  Byte array must have a valid length (<= 508 bytes),
+ * 	                  Flag parameter is invalid (Eg. ACK+NACK),
+ * 	                  Byte array must have a valid length (<= MAX_DATA_SZ bytes),
  * 	                  Sending the message failed due to a TCP/TLS error.
  */
 ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uuid_t dev_id,
@@ -156,8 +156,8 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uuid_t dev_id,
  * 	OTT_SEND_FAILED : Timed out waiting for a response from the cloud service.
  * 	                  The status report was not delivered.
  * 	OTT_ERROR       : Possible causes of error:
- * 	                  Flag paramter is invalid (Eg. ACK+NACK),
- * 	                  Byte array must have a valid length (<= 508 bytes),
+ * 	                  Flag parameter is invalid (Eg. ACK+NACK),
+ * 	                  Byte array must have a valid length (<= MAX_DATA_SZ bytes),
  * 	                  Sending the message failed due to a TCP/TLS error.
  */
 ott_status ott_send_status_to_cloud(c_flags_t c_flags,
@@ -187,7 +187,7 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags);
 /*
  * The device has to poll for responses from the cloud. It does so right after
  * sending a message or via a control message in case it has nothing to send
- * and the cloud has pending messages. Use this function to retrieve the cloud
+ * while the cloud has pending messages. Use this function to retrieve the cloud
  * service's most recent response.
  *
  * Parameters:
