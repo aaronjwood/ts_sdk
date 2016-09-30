@@ -68,7 +68,7 @@ typedef struct _at_rsp_desc {
 
 typedef struct _at_command_desc {
         const char *comm_sketch;
-        const char *comm;
+        char *comm;
         uint32_t comm_timeout;
         at_rsp_desc rsp_desc[MAX_RSP_LINE];
         const char *error;
