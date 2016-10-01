@@ -111,7 +111,7 @@ static uint8_t __at_process_network_urc(char *urc, at_urc u_code) {
 
         uint8_t count = strlen(at_urcs[u_code]);
         uint8_t net_stat = urc[count] - '0';
-        printf("%s: net stat: %u\n", __func__, net_stat);
+        DEBUG_V0("%s: net stat: %u\n", __func__, net_stat);
         if ((u_code == NET_STAT_URC && net_stat != 1) ||
                 (u_code == EPS_STAT_URC && net_stat == 0))
                 state |= NETWORK_LOST;
@@ -401,6 +401,11 @@ static uint8_t __at_check_modem() {
 
         result =  __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_OK],
                                                                 false, true);
+        CHECK_SUCCESS(result, AT_SUCCESS, result)
+
+        result = __at_check_modem_conf();
+        CHECK_SUCCESS(result, AT_SUCCESS, result)
+
         return result;
 
 }
@@ -417,11 +422,11 @@ bool at_init() {
         __at_uart_rx_flush();
 
         uint8_t res_modem = __at_check_modem();
-        CHECK_SUCCESS(res_modem, AT_SUCCESS, false)
 
-        res_modem = __at_check_modem_conf();
-        CHECK_SUCCESS(res_modem, AT_SUCCESS, false)
-
+        if (res_modem != AT_SUCCESS) {
+                state = AT_INVALID;
+                return false;
+        }
         return true;
 
 }
