@@ -33,6 +33,7 @@ typedef enum at_urc {
 
 typedef enum at_modem_stat_command {
         MODEM_OK = 0,
+        ECHO_OFF,
         MODEM_RESET,
         NET_STAT,
         EPS_STAT,

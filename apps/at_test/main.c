@@ -127,8 +127,10 @@ int main(int argc, char *argv[])
 
 	dbg_module_init();
 	dbg_printf("Begin:\n");
-	ASSERT(at_init() == true);
-
+	if (!at_init())
+		dbg_printf("Failed\n");
+	else
+		dbg_printf("Success\n");
 	while (1) {
 	}
 	return 0;

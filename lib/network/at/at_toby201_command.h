@@ -31,6 +31,18 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                 .error =  NULL,
                 .comm_timeout = 20
         },
+        [ECHO_OFF] = {
+                .comm = "ate0\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .parse_rsp = -1,
+                                .data = -1
+                        }
+                },
+                .error =  "\r\nERROR\r\n",
+                .comm_timeout = 20
+        },
         [NET_STAT] = {
                 .comm = "at+cereg=1\r",
                 .rsp_desc = {
