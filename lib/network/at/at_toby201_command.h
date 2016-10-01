@@ -164,7 +164,7 @@ static at_command_desc pdp_conf_comm[PDP_END] = {
                                 .data = -1
                         }
                 },
-                .error = NULL,
+                .error = "\r\nERROR\r\n",
                 .comm_timeout = 20
         },
         [ACT_PDP] = {

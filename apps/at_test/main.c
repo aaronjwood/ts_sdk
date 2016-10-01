@@ -129,8 +129,13 @@ int main(int argc, char *argv[])
 	dbg_printf("Begin:\n");
 	if (!at_init())
 		dbg_printf("Failed\n");
-	else
+	else {
 		dbg_printf("Success\n");
+		HAL_Delay(20);
+		dbg_printf("socket id is :%d\n",
+				at_tcp_connect("httpbin.org", 80));
+	}
+
 	while (1) {
 	}
 	return 0;
