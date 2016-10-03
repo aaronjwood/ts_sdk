@@ -127,14 +127,21 @@ int main(int argc, char *argv[])
 
 	dbg_module_init();
 	dbg_printf("Begin:\n");
-	if (!at_init())
-		dbg_printf("Failed\n");
-	else {
-		dbg_printf("Success\n");
-		HAL_Delay(20);
-		dbg_printf("socket id is :%d\n",
-				at_tcp_connect("httpbin.org", 80));
+	while (!at_init()) {
+		HAL_Delay(8000);
 	}
+	uint8_t temp[10] = {0x1, 0x2, 0x3, 0x4, 0xfd};
+	dbg_printf("Success\n");
+	int s_id = at_tcp_connect("73.47.119.157", 749);
+	dbg_printf("socket id is :%d\n", s_id);
+	if (s_id < 0) {
+		dbg_printf("invalid socket id\n");
+		while (1) {
+		}
+	}
+	dbg_printf("Sending some data:\n");
+	int res = at_tcp_send(s_id, temp, 5);
+	dbg_printf("Sent data: %d\n", res);
 
 	while (1) {
 	}

@@ -238,12 +238,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\n+USORD: ",
-                                .parse_rsp = -1,
-                                .data = -1
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
+                                .parse_rsp = TCP_RCV,
                                 .data = -1
                         }
                 },
