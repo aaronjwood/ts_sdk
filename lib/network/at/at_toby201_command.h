@@ -233,6 +233,18 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .error = "\r\nERROR\r\n",
                 .comm_timeout = 10000
         },
+        [TCP_WRITE_PROMPT] = {
+                .comm_sketch = "at+usowr=%d,%d\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\n@",
+                                .parse_rsp = -1,
+                                .data = -1
+                        }
+                },
+                .error = "\r\nERROR\r\n",
+                .comm_timeout = 20
+        },
         [TCP_RCV] = {
                 .comm_sketch = "at+usord=%d,%d\r",
                 .rsp_desc = {
