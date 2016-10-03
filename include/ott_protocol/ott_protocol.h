@@ -16,7 +16,6 @@
  * The device reports its status to the cloud at another set of fixed intervals.
  */
 
-#define VERSION_BYTE		((uint8_t)0x01)
 #define UUID_SZ			16
 #define MAX_MSG_SZ		512
 #define VER_SZ			1
@@ -24,11 +23,11 @@
 #define LEN_SZ			2
 #define MAX_DATA_SZ		(MAX_MSG_SZ - VER_SZ - CMD_SZ - LEN_SZ)
 
-typedef enum {
-	OTT_OK,			/* API call exited without any errors. */
-	OTT_ERROR,		/* API call exited with errors. */
-	OTT_SEND_TIMEOUT,	/* Timed out waiting for a response from the
-				 * cloud service. */
+typedef enum {			/* Defines return codes of this API. */
+	OTT_OK,			/* API call exited without any errors */
+	OTT_ERROR,		/* API call exited with errors */
+	OTT_NO_MSG,		/* There are no messages to be retrieved */
+	OTT_INV_PARAM		/* Invalid parameters passed to the API */
 } ott_status;
 
 typedef enum {			/* Defines control flags. */
@@ -104,19 +103,6 @@ ott_status ott_initiate_connection(void);
 ott_status ott_close_connection(void);
 
 /*
- * Send APIs:
- * These APIs are of three kinds:
- * 	1) Send authentication message
- * 	2) Send status report
- * 	3) Send a control message
- * On calling 1) and 2), the cloud produces a response that must be read before
- * taking the next course of action. This is done through the
- * ott_retrieve_msg(...) API.
- * The third send API may or may not produce a response from the cloud depending
- * on what flags are set.
- */
-
-/*
  * Send the authentication message to the cloud service. Transactions in the TLS
  * session must begin only after a successful call to this API (i.e. it exits
  * with OTT_OK) and after checking if the ACK flag is set in the received response.
@@ -128,14 +114,11 @@ ott_status ott_close_connection(void);
  *	dev_sec    : Pointer to binary data that holds the device secret.
  *
  * Returns:
- * 	OTT_OK           : Authentication message was sent to the cloud and a
- * 	                   response was received in return.
- * 	OTT_SEND_TIMEOUT : Timed out waiting for a response from the cloud service.
- * 	                   The authentication message was not delivered.
- * 	OTT_ERROR        : Possible causes of error:
- * 	                   Flag parameter is invalid (Eg. ACK+NACK),
- * 	                   Byte array must have a valid length (<= MAX_DATA_SZ bytes),
- * 	                   Sending the message failed due to a TCP/TLS error.
+ * 	OTT_OK        : Authentication message was sent to the cloud.
+ * 	OTT_INV_PARAM :	Flag parameter is invalid (Eg. ACK+NACK) or
+ * 	                dev_sec has length > MAX_DATA_SZ bytes or
+ * 	                Device secret / device ID is NULL
+ * 	OTT_ERROR     : Sending the message failed due to a TCP/TLS error.
  */
 ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uuid_t dev_id,
 				  uint16_t dev_sec_sz, const uint8_t *dev_sec);
@@ -151,14 +134,11 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uuid_t dev_id,
  * 	status    : Pointer to binary data that stores the status to be reported.
  *
  * Returns:
- * 	OTT_OK           : Status report was sent to the cloud and a response was
- * 	                   received in return.
- * 	OTT_SEND_TIMEOUT : Timed out waiting for a response from the cloud service.
- * 	                   The status report was not delivered.
- * 	OTT_ERROR        : Possible causes of error:
- * 	                   Flag parameter is invalid (Eg. ACK+NACK),
- * 	                   Byte array must have a valid length (<= MAX_DATA_SZ bytes),
- * 	                   Sending the message failed due to a TCP/TLS error.
+ * 	OTT_OK        : Status report was sent to the cloud.
+ * 	OTT_INV_PARAM :	Flag parameter is invalid (Eg. ACK+NACK) or
+ * 	                status has length > MAX_DATA_SZ bytes or
+ * 	                status is NULL
+ * 	OTT_ERROR     : Sending the message failed due to a TCP/TLS error.
  */
 ott_status ott_send_status_to_cloud(c_flags_t c_flags,
                                     uint16_t status_sz,
@@ -177,26 +157,26 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
  * 	c_flags : Control flags
  *
  * Returns:
- * 	OTT_OK    : Message was sent to the cloud service.
- * 	OTT_ERROR : Possible causes of error:
- * 	            Flag parameter is invalid (Eg. ACK+NACK).
- * 	            Sending the message failed due to a TCP/TLS error.
+ * 	OTT_OK        : Message was sent to the cloud service.
+ * 	OTT_INV_PARAM :	Flag parameter is invalid (Eg. ACK+NACK) or
+ * 	                Pending flag is active
+ * 	OTT_ERROR     : Sending the message failed due to a TCP/TLS error.
  */
 ott_status ott_send_ctrl_msg(c_flags_t c_flags);
 
 /*
- * The device has to poll for responses from the cloud. It does so right after
- * sending a message or via a control message in case it has nothing to send
- * while the cloud has pending messages. Use this function to retrieve the cloud
- * service's most recent response.
+ * According to the protocol, the device has to poll for responses from the
+ * cloud. Use this function to retrieve the cloud service's most recent
+ * response, if any.
  *
  * Parameters:
  * 	msg : Pointer to buffer that will store the message data, type and
  * 	      associated control flags.
  *
  * Returns:
- * 	OTT_OK    : Message successfully retrieved
- * 	OTT_ERROR : No message to retrieve.
+ * 	OTT_OK     : Message successfully retrieved
+ * 	OTT_NO_MSG : No message to retrieve.
+ * 	OTT_ERROR  : Receiving failed due to a TCP/TLS error.
  */
 ott_status ott_retrieve_msg(msg_t *msg);
 #endif
