@@ -203,7 +203,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                 },
                 .error = "\r\nERROR\r\n",
                 .comm_timeout = 20
-        }, //Dipen: FIXME for error hanlding
+        },
         [TCP_CONN] = {
                 .comm_sketch = "at+usoco=%d,%s,%d\r",
                 .rsp_desc = {
@@ -238,7 +238,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\n+USORD: ",
-                                .parse_rsp = TCP_RCV,
+                                .parse_rsp = -1,
                                 .data = -1
                         }
                 },
@@ -261,6 +261,23 @@ static at_command_desc tcp_comm[TCP_END] = {
                 },
                 .error = "\r\nERROR\r\n",
                 .comm_timeout = 10000
+        },
+        [TCP_SOCK_STAT] = {
+                .comm_sketch = "at+usoctl=%d,10\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\n+USOCTL: ",
+                                .parse_rsp = TCP_SOCK_STAT,
+                                .data = -1
+                        },
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .parse_rsp = -1,
+                                .data = -1
+                        }
+                },
+                .error = "\r\nERROR\r\n",
+                .comm_timeout = 20
         },
         [TCP_CLOSE] = {
                 .comm_sketch = "at+usocl=%d\r",

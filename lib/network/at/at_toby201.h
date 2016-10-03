@@ -57,6 +57,7 @@ typedef enum at_tcp_command {
         TCP_SEND,
         TCP_RCV,
         TCP_RCV_QRY,
+        TCP_SOCK_STAT,
         TCP_CLOSE,
         TCP_END,
 } at_tcp_command;

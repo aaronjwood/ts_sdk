@@ -130,9 +130,10 @@ int main(int argc, char *argv[])
 	while (!at_init()) {
 		HAL_Delay(8000);
 	}
-	uint8_t temp[10] = {0x1, 0x2, 0x3, 0x4, 0xfd};
+	char temp[18] = "GET \\ HTTP\\1.1\r\n";
 	dbg_printf("Success\n");
-	int s_id = at_tcp_connect("73.47.119.157", 749);
+	//int s_id = at_tcp_connect("73.47.119.157", 749);
+	int s_id = at_tcp_connect("httpbin.org", 80);
 	dbg_printf("socket id is :%d\n", s_id);
 	if (s_id < 0) {
 		dbg_printf("invalid socket id\n");
@@ -140,8 +141,21 @@ int main(int argc, char *argv[])
 		}
 	}
 	dbg_printf("Sending some data:\n");
-	int res = at_tcp_send(s_id, temp, 5);
+	int res = at_tcp_send(s_id, (uint8_t *)temp, 18);
 	dbg_printf("Sent data: %d\n", res);
+	int r_b;
+	while (1) {
+		r_b = at_read_available(s_id);
+		printf("Read available:%d\n", r_b);
+		if (r_b > 0)
+			break;
+	}
+
+	uint8_t buf[r_b + 1];
+	buf[r_b] = 0x0;
+	r_b = at_tcp_recv(s_id, buf, r_b);
+	printf("READ#####:%d\n", r_b);
+	printf("%s\n", (char *)buf);
 
 	while (1) {
 	}
