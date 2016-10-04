@@ -581,7 +581,7 @@ static uint8_t __at_parse_tcp_send_rsp(uint8_t *rsp_buf, int read_bytes,
         return AT_SUCCESS;
 }
 
-static void __at_handle_tcp_send_error(int s_id) {
+static int __at_handle_tcp_send_error(int s_id) {
         at_command_desc *desc = &tcp_comm[TCP_SOCK_STAT];
         char temp_comm[TEMP_COMM_LIMIT];
         snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id);
@@ -590,13 +590,15 @@ static void __at_handle_tcp_send_error(int s_id) {
         if (result != AT_SUCCESS) {
                 DEBUG_V0("%s: command failed, result code:%d\n",
                         __func__, result);
-                return;
+                return AT_TCP_SEND_FAIL;
         }
         if (desc->rsp_desc[0].data != 4) {
                 DEBUG_V0("%s: connection closed, code: %d\n",
                         __func__, desc->rsp_desc[0].data);
                 state &= ~TCP_CONNECTED;
+                return AT_TCP_CONNECT_DROPPED;
         }
+        return AT_TCP_SEND_FAIL;
 
 }
 
@@ -605,19 +607,14 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         uint16_t result;
         uint16_t read_bytes;
 
-        /* In binary write mode, it has to wait for below response
-         * before proceding
-         */
-        const char *write_prompt = "\r\n@";
-
         if (len >= MAX_TCP_SEND_BYTES) {
                 DEBUG_V0("%s: cant send more then: %d\n",
                         __func__, MAX_TCP_SEND_BYTES);
-                return -1;
+                return AT_TCP_SEND_FAIL;
         }
         if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
                 DEBUG_V0("%s: tcp not connected\n", __func__);
-                return -1;
+                return AT_TCP_CONNECT_DROPPED;
         }
 
         at_command_desc *desc = &tcp_comm[TCP_WRITE_PROMPT];
@@ -629,8 +626,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         result = __at_generic_comm_rsp_util(desc, false, false);
         if (result == AT_FAILURE) {
                 DEBUG_V0("%s: command failure\n", __func__);
-                __at_handle_tcp_send_error(s_id);
-                return 0;
+                return __at_handle_tcp_send_error(s_id);
         }
 
         /* recommeneded in datasheet */
@@ -650,16 +646,16 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
                 DEBUG_V0("%s: tcp got deconnected in middle of the write\n",
                         __func__);
                 state &= ~TCP_WRITE;
-                return -1;
+                return AT_TCP_CONNECT_DROPPED;
         }
         desc = &tcp_comm[TCP_SEND];
         result = __at_wait_for_rsp(desc->comm_timeout);
         state &= ~TCP_WRITE;
-        CHECK_SUCCESS(result, AT_SUCCESS, -1)
+        CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_SEND_FAIL)
 
         /* Parse the response for session or socket id and number of write */
         result = __at_generic_comm_rsp_util(desc, true, true);
-        CHECK_SUCCESS(result, AT_SUCCESS, -1)
+        CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_SEND_FAIL)
         return desc->rsp_desc[0].data;
 }
 
@@ -692,20 +688,13 @@ int at_read_available(int s_id) {
 
         if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
                 DEBUG_V0("%s: tcp not connected to read\n", __func__);
-                return -1;
+                return AT_TCP_CONNECT_DROPPED;
         }
-        if (s_id < 0) {
-                DEBUG_V0("%s: Invalid socket\n", __func__);
-                return -1;
+        if (s_id < 0 || ((state & TCP_READ) != TCP_READ)) {
+                DEBUG_V0("%s: read not available\n", __func__);
+                return AT_TCP_RCV_FAIL;
         }
-        char temp_comm[TEMP_COMM_LIMIT];
-        snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id);
-        desc->comm = temp_comm;
-        result = __at_generic_comm_rsp_util(desc, false, true);
-        CHECK_SUCCESS(result, AT_SUCCESS, -1)
-        DEBUG_V0("%s: total read bytes: %d\n", __func__,
-                                        tcp_comm[TCP_RCV_QRY].rsp_desc[0].data);
-        return tcp_comm[TCP_RCV_QRY].rsp_desc[0].data;
+        return num_read_bytes;
 }
 
 static int __at_parse_rcv_rsp(uint8_t *buf)
@@ -764,11 +753,11 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         uint16_t read_bytes;
         if (s_id < 0) {
                 DEBUG_V0("%s: socket invalid\n", __func__);
-                return -1;
+                return AT_TCP_RCV_FAIL;
         }
         if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
                 DEBUG_V0("%s: tcp not connected to recv\n", __func__);
-                return -1;
+                return AT_TCP_CONNECT_DROPPED;
         }
         if ((state & TCP_READ) != TCP_READ) {
                 DEBUG_V0("%s:read not possible\n", __func__);
@@ -782,13 +771,13 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
 
         result = __at_comm_send_and_wait_rsp(temp_comm, strlen(temp_comm),
                                                 desc->comm_timeout);
-        CHECK_SUCCESS(result, AT_SUCCESS, -1);
+        CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_RCV_FAIL);
 
         read_bytes = uart_rx_available();
         DEBUG_V0("%s: read bytes:%u\n", __func__, read_bytes);
-        if (read_bytes <= 0 || read_bytes >= MAX_TCP_RCV_BYTES) {
+        if (read_bytes <= 0) {
                 DEBUG_V0("%s: comm: %s failed\n", __func__, temp_comm);
-                return -1;
+                return 0;
         }
         uint8_t rsp_buf[read_bytes + 1];
         rsp_buf[read_bytes] = 0x0;
@@ -845,7 +834,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         }
 error:
         __at_uart_rx_flush();
-        return -1;
+        return AT_TCP_RCV_FAIL;
 done:
         state |= PROC_URC;
         __at_process_urc();

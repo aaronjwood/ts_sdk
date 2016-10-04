@@ -25,12 +25,13 @@
 #define MBEDTLS_ERR_NET_SOCKET_FAILED   -0x0042 /**< Failed to open a socket */
 #define MBEDTLS_ERR_NET_CONNECT_FAILED  -0x0044 /**< The connection to the given
                                                 server / port failed. */
-#define MBEDTLS_ERR_NET_RECV_FAILED     -0x004C  /**< Reading information from the socket failed. */
-#define MBEDTLS_ERR_NET_SEND_FAILED                       -0x004E  /**< Sending information through the socket failed. */
-#define MBEDTLS_ERR_NET_CONN_RESET                        -0x0050  /**< Connection was reset by peer. */
-#define MBEDTLS_ERR_NET_UNKNOWN_HOST                      -0x0052  /**< Failed to get an IP address for the given hostname. */
-#define MBEDTLS_ERR_NET_BUFFER_TOO_SMALL                  -0x0043  /**< Buffer is too small to hold the data. */
-#define MBEDTLS_ERR_NET_INVALID_CONTEXT                   -0x0045  /**< The context is invalid, eg because it was free()ed. */
+#define MBEDTLS_ERR_NET_RECV_FAILED     -0x004C  /**< Reading information from
+                                                the socket failed. */
+#define MBEDTLS_ERR_NET_SEND_FAILED     -0x004E  /**< Sending information
+                                                through the socket failed. */
+#define MBEDTLS_ERR_NET_CONN_RESET      -0x0050  /**< Connection was reset by peer. */
+#define MBEDTLS_ERR_NET_INVALID_CONTEXT -0x0045  /**< The context is invalid,
+                                                eg because it was free()ed. */
 
 #define MBEDTLS_NET_PROTO_TCP 0 /**< The TCP transport protocol */
 
@@ -44,7 +45,7 @@ extern "C" {
  */
 typedef struct {
     int fd;     /**< The underlying socket*/
-} net_context;
+} mbedtls_net_context;
 
 /**
  * Makes the context ready to be used. Also, checks network status.
@@ -52,9 +53,9 @@ typedef struct {
  * ready to use
  *
  * \param[out] ctx       Context to initialize
- * \return      0 if successful or -1 for failure
+ * \return      true if successful, false otherwise
  */
-int net_init(net_context *ctx);
+bool mbedtls_net_init(mbedtls_net_context *ctx);
 
 /**
  * \brief       Initiate a tcp connection with host:port
@@ -70,7 +71,8 @@ int net_init(net_context *ctx);
  *              MBEDTLS_ERR_NET_CONNECT_FAILED
  *
  */
-int net_connect(net_context *ctx, const char *host, const char *port, int proto);
+int mbedtls_net_connect(mbedtls_net_context *ctx, const char *host,
+                        const char *port, int proto);
 
 /**
  * \brief          Write at most 'len' characters. If no error occurs,
@@ -80,10 +82,21 @@ int net_connect(net_context *ctx, const char *host, const char *port, int proto)
  * \param[in] buf     The buffer to read from
  * \param[in] len     The length of the buffer
  *
- * \return         the number of bytes sent,
- *                 or a non-zero error code;
+ * \return         the number of bytes sent, or a non-zero error code.
  */
-int net_send(void *ctx, const unsigned char *buf, size_t len);
+int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len);
+
+/**
+ * \brief          Read at most 'len' characters. If no error occurs,
+ *                 the actual amount read is returned.
+ *
+ * \param ctx[in]       Socket
+ * \param buf[out]      The buffer to write to
+ * \param len[in]       Maximum length of the buffer
+ *
+ * \return      The number of bytes received, or a non-zero error code.
+ */
+int mbedtls_net_recv(void *ctx, unsigned char *buf, size_t len);
 
 /**
  * \brief          Read at most 'len' characters, blocking for at most
@@ -102,7 +115,7 @@ int net_send(void *ctx, const unsigned char *buf, size_t len);
  *
  *
  */
-int net_recv_timeout(void *ctx, unsigned char *buf,
+int mbedtls_net_recv_timeout(void *ctx, unsigned char *buf,
         size_t len, uint32_t timeout);
 
 /**
@@ -111,7 +124,7 @@ int net_recv_timeout(void *ctx, unsigned char *buf,
  *
  * \param[in] ctx       The context to free
  */
-void net_free( mbedtls_net_context *ctx );
+void mbedtls_net_free( mbedtls_net_context *ctx );
 
 #ifdef __cplusplus
 }

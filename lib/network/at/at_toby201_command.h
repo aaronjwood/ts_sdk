@@ -205,7 +205,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .comm_timeout = 20
         },
         [TCP_CONN] = {
-                .comm_sketch = "at+usoco=%d,%s,%d\r",
+                .comm_sketch = "at+usoco=%d,%s,%s\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",

@@ -19,9 +19,9 @@
 extern "C" {
 #endif
 
-#define TCP_SEND_FAIL   -1
-#define TCP_RCV_FAIL    -1
-#define TCP_CONNECT_FAIL -1
+#define AT_TCP_SEND_FAIL   -1
+#define AT_TCP_RCV_FAIL    -1
+#define AT_TCP_CONNECT_DROPPED  -2
 
 /**
  * Initializes underlying hardware i.e. UART etc...and modem
@@ -38,7 +38,7 @@ bool at_init();
  * \return      socket or session id number if successful or -1 for failure
  *
  */
-int at_tcp_connect(const char *host, int port);
+int at_tcp_connect(const char *host, const char *port);
 
 /**
  * \brief          Write at most 'len' characters. If no error occurs,
@@ -51,13 +51,13 @@ int at_tcp_connect(const char *host, int port);
  * \return         The number of bytes sent,
  *                 or -1 if fails;
  */
-int at_tcp_send(int s_id, const unsigned char *buf, size_t len);
+int at_tcp_send(int s_id, const uint8_t *buf, size_t len);
 
 /**
  * \brief               querry AT layer if data is available to read
  *
  * \param[in] s_id      Socket or session id to read
- * \return              actual data available to read, 0 otherwise, -1 for any
+ * \return              actual data available to read, -1 for any
  *                      other internal error, for example, socket is not valid
  *
  */
@@ -73,10 +73,10 @@ int at_read_available(int s_id);
  * \param[in] len       Maximum length of the buffer
  *
  * \return         The number of bytes received,
- *                 or -1 for time out
+ *                 or -1 for error
  *
  */
-int at_tcp_recv(int s_id, unsigned char *buf, size_t len);
+int at_tcp_recv(int s_id, uint8_t *buf, size_t len);
 
 /**
  * \brief               Gracefully shutdown the connection
