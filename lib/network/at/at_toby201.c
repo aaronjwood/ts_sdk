@@ -15,11 +15,6 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define AT_SUCCESS      0
-#define AT_RSP_TIMEOUT  1
-#define AT_FAILURE      3
-#define AT_WRONG_RSP    4
-
 typedef enum at_states {
         IDLE = 1,
         WAITING_RESP = 1 << 1,
@@ -58,6 +53,17 @@ static int debug_level;
                                         return (z); \
                                 }
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
+
+#define AT_SUCCESS              0
+#define AT_RSP_TIMEOUT          1
+#define AT_FAILURE              3
+#define AT_WRONG_RSP            4
+#define AT_RECHECK_MODEM        5
+
+#define IDLE_CHARS	        5
+#define MODEM_RESET_DELAY       20000
+
 static uint8_t __at_parse_tcp_conf_rsp(uint8_t *rsp_buf, int read_bytes,
                                         at_command_desc *desc , uint8_t rsp_num);
 static uint8_t __at_parse_tcp_send_rsp(uint8_t *rsp_buf, int read_bytes,
@@ -94,20 +100,6 @@ static int __at_get_bytes(char *rsp_buf, char tail) {
         } else
                 return -1;
         return num_bytes;
-}
-
-static uint16_t __at_get_line_pos(char *buf, uint16_t max_bytes, char trail)
-{
-        if (!buf)
-                return 0;
-        uint32_t w_idx = 0;
-        while (w_idx < max_bytes) {
-                if (buf[w_idx] == trail)
-                        return w_idx;
-                else
-                        w_idx++;
-        }
-
 }
 
 static void __at_uart_rx_flush() {
@@ -176,6 +168,7 @@ static uint8_t __at_process_urc() {
 
         while (1) {
                 uint8_t result = AT_SUCCESS;
+                HAL_Delay(20);
                 uint16_t read_bytes = uart_line_avail(rsp_header, rsp_trailer);
                 if (read_bytes == 0)
                         break;
@@ -212,7 +205,12 @@ static void at_uart_callback(callback_event ev) {
                 }
                 else if (((state & PROC_RSP) != PROC_RSP) &&
                         ((state & PROC_URC) != PROC_URC)) {
-                        DEBUG_V0("%s: urc processing\n", __func__);
+                        uint16_t data = uart_line_avail(rsp_header, rsp_trailer);
+                        //uint8_t temp[data + 1];
+                        //temp[data] = 0;
+                        //uart_read(temp, data);
+                        DEBUG_V0("%s: urc processing:%d\n", __func__, data);
+                        //printf("%s\n", (char *)temp);
                         __at_process_urc();
                 } else
                         DEBUG_STATE();
@@ -313,7 +311,7 @@ static uint8_t __at_generic_comm_rsp_util(at_command_desc *desc, bool skip_comm,
         state |= PROC_RSP;
         DEBUG_STATE();
         uint8_t i = 0;
-        for(; i < (sizeof(desc->rsp_desc)/sizeof(*(desc->rsp_desc))); i++) {
+        for(; i < ARRAY_SIZE(desc->rsp_desc); i++) {
                 if (!desc->rsp_desc[i].rsp)
                         continue;
                 if (read_line)
@@ -338,28 +336,29 @@ static uint8_t __at_generic_comm_rsp_util(at_command_desc *desc, bool skip_comm,
                         if (strncmp((char *)rsp_buf, desc->rsp_desc[i].rsp,
                                         strlen(desc->rsp_desc[i].rsp)) != 0) {
 
-                                if (desc->error &&
-                                        (strncmp((char *)rsp_buf, desc->error,
-                                        strlen(desc->error)) != 0)) {
+                                if (desc->error) {
+                                        if (strncmp((char *)rsp_buf, desc->error,
+                                        strlen(desc->error)) != 0) {
 
+                                                DEBUG_V0("%s:wrong rsp: %s\n",
+                                                __func__, (char *)rsp_buf);
+                                                result = AT_WRONG_RSP;
+                                        } else
+                                                result = AT_FAILURE;
+                                } else {
                                         DEBUG_V0("%s: wrong response: %s\n",
                                                 __func__, (char *)rsp_buf);
                                         result = AT_WRONG_RSP;
-                                } else {
-                                        DEBUG_V0("%s: recvd command error: %s\n"
-                                                , __func__, desc->error);
-                                        result = AT_FAILURE;
                                 }
                                 break;
                         } else
                                 result = __at_parse_rsp(rsp_buf, read_bytes,
                                                                 desc, i);
-
                 } else
                         result = AT_FAILURE;
         }
         state &= ~PROC_RSP;
-
+        HAL_Delay(20);
         /* check to see if we have urcs while command was executing
          * if result was wrong response, chances are that we are out of sync
          */
@@ -374,6 +373,17 @@ static uint8_t __at_generic_comm_rsp_util(at_command_desc *desc, bool skip_comm,
         __at_uart_rx_flush();
         DEBUG_STATE();
         DEBUG_V0("%s: result: %d\n", __func__, result);
+        return result;
+}
+
+uint8_t __at_modem_reset()
+{
+        uint8_t result = AT_SUCCESS;
+
+        result = __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_RESET],
+                                                false, true);
+        CHECK_SUCCESS(result, AT_SUCCESS, result)
+        HAL_Delay(MODEM_RESET_DELAY);
         return result;
 }
 
@@ -402,10 +412,15 @@ static uint8_t __at_check_modem_conf() {
         result = __at_generic_comm_rsp_util(&modem_net_status_comm[MNO_STAT],
                                                 false, true);
         if (result == AT_WRONG_RSP) {
-                // Dipen: FIXME
-                /* Configure modem for verizon and reset it here, poll for modem
-                 * to comeback by sending AT command
-                 */
+                result = __at_generic_comm_rsp_util(
+                                &modem_net_status_comm[MNO_SET], false, true);
+                CHECK_SUCCESS(result, AT_SUCCESS, result)
+
+                if (__at_modem_reset() != AT_SUCCESS) {
+                        DEBUG_V0("%s: modem reset failed\n");
+                        return AT_FAILURE;
+                }
+                return AT_RECHECK_MODEM;
         }
 
         /* Check network registration status */
@@ -443,7 +458,7 @@ static uint8_t __at_check_modem() {
 
 bool at_init() {
 
-        bool res = uart_module_init(true, 5);
+        bool res = uart_module_init(UART_EN_HW_CTRL, IDLE_CHARS);
         CHECK_SUCCESS(res, true, false)
 
         uart_set_rx_callback(at_uart_callback);
@@ -454,6 +469,10 @@ bool at_init() {
         __at_uart_rx_flush();
 
         uint8_t res_modem = __at_check_modem();
+        if (res_modem == AT_RECHECK_MODEM) {
+                DEBUG_V0("%s: Recheckig modem configs after reset\n", __func__);
+                res_modem = __at_check_modem();
+        }
 
         if (res_modem != AT_SUCCESS) {
                 state = AT_INVALID;
@@ -520,7 +539,6 @@ static uint8_t __at_pdp_conf() {
                                         &pdp_conf_comm[SEL_IPV4_PREF],
                                         false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, result)
-        HAL_Delay(20);
         return __at_generic_comm_rsp_util(&pdp_conf_comm[ACT_PDP], false, true);
 }
 
@@ -662,6 +680,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         /* Parse the response for session or socket id and number of write */
         result = __at_generic_comm_rsp_util(desc, true, true);
         CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_SEND_FAIL)
+        HAL_Delay(20);
         return desc->rsp_desc[0].data;
 }
 
@@ -839,6 +858,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
                 }
         }
 error:
+        HAL_Delay(20);
         __at_uart_rx_flush();
         return AT_TCP_RCV_FAIL;
 done:

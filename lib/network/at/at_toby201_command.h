@@ -43,6 +43,18 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                 .error =  "\r\nERROR\r\n",
                 .comm_timeout = 20
         },
+        [MODEM_RESET] = {
+                .comm = "at+cfun=16\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .parse_rsp = -1,
+                                .data = -1
+                        }
+                },
+                .error =  NULL,
+                .comm_timeout = 5000
+        },
         [NET_STAT] = {
                 .comm = "at+cereg=1\r",
                 .rsp_desc = {
@@ -99,7 +111,7 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                         }
                 },
                 .error = NULL,
-                .comm_timeout = 100
+                .comm_timeout = 10000
         },
         [SIM_READY] = {
                 .comm = "at+cpin?\r",
