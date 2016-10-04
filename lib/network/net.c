@@ -7,12 +7,16 @@
  *
  */
 
+//Dipen: FIXME: enable with mbedtls
+#if 0
 #if !defined(MBEDTLS_CONFIG_FILE)
 #include "mbedtls/config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
+#endif
 
+#include <stm32f4xx_hal.h>
 #include "at.h"
 #include "net.h"
 #include <stdio.h>

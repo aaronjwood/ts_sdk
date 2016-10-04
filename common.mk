@@ -39,8 +39,9 @@ FW_EXEC = firmware.elf
 INC = -I $(PROJ_ROOT)/include/dbg
 INC += -I $(PROJ_ROOT)/include/uart
 
-# at layer library includes
+# net and at layer library includes
 INC += -I $(PROJ_ROOT)/include/network/at
+INC += -I $(PROJ_ROOT)/include/network
 
 # Peripheral related headers
 INC += -I $(STM32_LIB_COMMON)/Drivers/STM32F4xx_HAL_Driver/Inc
@@ -63,7 +64,7 @@ OBJ_STARTUP = startup_stm32f429xx.o
 
 # List of core library components to be included in the build process
 # This includes debugging and UART communication modules
-CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c dbg.c uart.c at_toby201.c
+CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c dbg.c uart.c net.c at_toby201.c
 
 # Peripheral HAL sources
 LIB_SRC = stm32f4xx_hal_cortex.c
@@ -79,6 +80,7 @@ LIB_SRC += stm32f4xx_hal_tim_ex.c
 # Search paths for core module sources
 vpath %.c $(PROJ_ROOT)/lib/dbg: \
 	$(PROJ_ROOT)/lib/uart: \
+	$(PROJ_ROOT)/lib/network: \
 	$(PROJ_ROOT)/lib/network/at: \
 	$(PROJ_ROOT)/vendor: \
 	$(STM32_PLIB): \

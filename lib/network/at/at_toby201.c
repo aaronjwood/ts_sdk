@@ -477,7 +477,7 @@ static uint8_t __at_parse_tcp_conf_rsp(uint8_t *rsp_buf, int read_bytes,
         return AT_SUCCESS;
 }
 
-static int __at_tcp_connect(const char *host, int port) {
+static int __at_tcp_connect(const char *host, const char *port) {
         int read_bytes;
         uint8_t i = 0;
         uint8_t result = AT_SUCCESS;
@@ -518,7 +518,7 @@ static uint8_t __at_pdp_conf() {
         return __at_generic_comm_rsp_util(&pdp_conf_comm[ACT_PDP], false, true);
 }
 
-int at_tcp_connect(const char *host, int port) {
+int at_tcp_connect(const char *host, const char *port) {
 
         if (state > IDLE) {
                 DEBUG_V0("%s: TCP connect not possible, state :%u\n",
