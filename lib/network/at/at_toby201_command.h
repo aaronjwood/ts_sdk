@@ -35,7 +35,7 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                 .comm = "ate0\r",
                 .rsp_desc = {
                         {
-                                .rsp = "\r\nOK\r\n",
+                                .rsp = "ate0\r\r\nOK\r\n",
                                 .parse_rsp = -1,
                                 .data = -1
                         }

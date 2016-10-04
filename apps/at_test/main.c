@@ -1,12 +1,13 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
 #include <stm32f4xx_hal.h>
+#include <string.h>
 #include "dbg.h"
 #include "uart.h"
 #include "at.h"
 
-#define IDLE_CHARS		5
-
+const char *host = "httpbin.org";
+const char *port = "80";
 /**
   * @brief  System Clock Configuration
   *         The system Clock is configured as follow :
@@ -119,6 +120,23 @@ void UsageFault_Handler(void)
 		;
 }
 
+int tcp_connect()
+{
+	int count = 0;
+	int s_id = -1;
+
+	while (s_id < 0 && count < 5) {
+		s_id = at_tcp_connect(host, port);
+		HAL_Delay(1000);
+		count++;
+	}
+	if (s_id < 0) {
+		dbg_printf("Invalid socket id: %d, looping forever\n", s_id);
+		ASSERT(0);
+	}
+	dbg_printf("Socket id is :%d\n", s_id);
+	return s_id;
+}
 
 int main(int argc, char *argv[])
 {
@@ -127,37 +145,49 @@ int main(int argc, char *argv[])
 
 	dbg_module_init();
 	dbg_printf("Begin:\n");
-	while (!at_init()) {
-		HAL_Delay(8000);
-	}
-	char temp[18] = "GET \\ HTTP\\1.1\r\n";
-	dbg_printf("Success\n");
-	//int s_id = at_tcp_connect("73.47.119.157", 749);
-	int s_id = at_tcp_connect("httpbin.org", 80);
-	dbg_printf("socket id is :%d\n", s_id);
-	if (s_id < 0) {
-		dbg_printf("invalid socket id\n");
-		while (1) {
+	/* Step 1: modem init */
+	dbg_printf("Initializing modem...\n");
+	if (!at_init()) {
+		dbg_printf("at init failed, modem may not be ready, "
+			"wait for 20 seconds\n");
+		HAL_Delay(20000);
+		if (!at_init()) {
+			dbg_printf("Modem init failed, looping forever\n");
+			ASSERT(0);
 		}
 	}
-	dbg_printf("Sending some data:\n");
-	int res = at_tcp_send(s_id, (uint8_t *)temp, 18);
+	dbg_printf("Initializing modem done...\n");
+	/* step 2: tcp connect */
+	int s_id = tcp_connect();
+	dbg_printf("TCP connect done...\n");
+
+	/* step 3: send data */
+	char *send_buf = "GET \\ HTTP\\1.1\r\n";
+	dbg_printf("Sending data:\n");
+	int res = at_tcp_send(s_id, (uint8_t *)send_buf, strlen(send_buf));
 	dbg_printf("Sent data: %d\n", res);
+
+	/* step 4: wait for the data */
 	int r_b;
-	while (1) {
+	uint8_t count = 0;
+	while (count < 5) {
 		r_b = at_read_available(s_id);
 		printf("Read available:%d\n", r_b);
 		if (r_b > 0)
 			break;
+		HAL_Delay(1000);
+		count++;
 	}
+	uint8_t read_buf[r_b + 1];
+	read_buf[r_b] = 0x0;
+	int bytes = at_tcp_recv(s_id, read_buf, r_b);
+	printf("READ#####:%d\n", bytes);
+	printf("%s\n", (char *)read_buf);
 
-	uint8_t buf[r_b + 1];
-	buf[r_b] = 0x0;
-	r_b = at_tcp_recv(s_id, buf, r_b);
-	printf("READ#####:%d\n", r_b);
-	printf("%s\n", (char *)buf);
+	/* step 5: tcp close */
+	at_tcp_close(s_id);
 
-	while (1) {
-	}
+	while (1)
+		;
 	return 0;
 }

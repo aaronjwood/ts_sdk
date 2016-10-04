@@ -38,6 +38,7 @@ static char *rsp_trailer = "\r\n";
 static volatile at_states state;
 static volatile bool process_rsp;
 static bool pdp_conf;
+static bool echo_off;
 static int num_read_bytes;
 
 static int debug_level;
@@ -45,7 +46,6 @@ static int debug_level;
 #define DEBUG_V1(...)	if (debug_level >= 1) printf(__VA_ARGS__)
 #define DEBUG_V0(...)	printf(__VA_ARGS__)
 
-//#define DBG_STATE
 #ifdef DBG_STATE
 #define DEBUG_STATE(...) printf("%s: line %d, state: %u\n",\
                                 __func__, __LINE__, (uint32_t)state)
@@ -179,11 +179,14 @@ static uint8_t __at_process_urc() {
                 uint16_t read_bytes = uart_line_avail(rsp_header, rsp_trailer);
                 if (read_bytes == 0)
                         break;
-                uint8_t urc[read_bytes];
+                uint8_t urc[read_bytes + 1];
+                urc[read_bytes] = 0x0;
                 if (uart_read(urc, read_bytes) == UART_READ_ERR) {
                         DEBUG_V0("%s: read err\n", __func__);
                         return AT_FAILURE;
                 }
+                DEBUG_V0("%s: looking to process urc: %s\n",
+                        __func__, (char *)urc);
                 result = __at_process_network_urc((char *)urc, NET_STAT_URC);
                 if (result == AT_SUCCESS)
                         continue;
@@ -209,7 +212,7 @@ static void at_uart_callback(callback_event ev) {
                 }
                 else if (((state & PROC_RSP) != PROC_RSP) &&
                         ((state & PROC_URC) != PROC_URC)) {
-                        DEBUG_V0("%s: urc processig\n", __func__);
+                        DEBUG_V0("%s: urc processing\n", __func__);
                         __at_process_urc();
                 } else
                         DEBUG_STATE();
@@ -422,10 +425,12 @@ static uint8_t __at_check_modem_conf() {
 static uint8_t __at_check_modem() {
 
         uint8_t result = AT_SUCCESS;
-        result =  __at_generic_comm_rsp_util(&modem_net_status_comm[ECHO_OFF],
-                                                                false, true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result)
-
+        if (!echo_off) {
+                result =  __at_generic_comm_rsp_util(
+                                &modem_net_status_comm[ECHO_OFF], false, false);
+                CHECK_SUCCESS(result, AT_SUCCESS, result)
+                echo_off = true;
+        }
         result =  __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_OK],
                                                                 false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, result)
@@ -445,6 +450,7 @@ bool at_init() {
         state = IDLE;
         process_rsp = false;
         pdp_conf = false;
+        echo_off = false;
         __at_uart_rx_flush();
 
         uint8_t res_modem = __at_check_modem();
