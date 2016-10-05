@@ -8,7 +8,16 @@
  *
  */
 
-#include "at_toby201.h"
+#include "at_defs.h"
+
+static void __at_parse_tcp_conf_rsp(void *rcv_rsp, int rcv_rsp_len,
+                                        const char *stored_rsp, void *data);
+static void __at_parse_tcp_send_rsp(void *rcv_rsp, int rcv_rsp_len,
+                                        const char *stored_rsp, void *data);
+static void __at_parse_read_qry_rsp(void *rcv_rsp, int rcv_rsp_len,
+                                        const char *stored_rsp, void *data);
+static void __at_parse_tcp_sock_stat(void *rcv_rsp, int rcv_rsp_len,
+                                        const char *stored_rsp, void *data);
 
 static const char *at_urcs[URC_END] = {
                 [NET_STAT_URC] = "\r\n+CEREG: ",
@@ -24,11 +33,17 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error =  NULL,
+                .err_desc =  {
+                        {
+                                .err = NULL,
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 20
         },
         [ECHO_OFF] = {
@@ -36,11 +51,17 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "ate0\r\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error =  "\r\nERROR\r\n",
+                .err_desc =  {
+                        {
+                                .err = "\r\nERROR\r\n",
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 20
         },
         [MODEM_RESET] = {
@@ -48,11 +69,17 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error =  NULL,
+                .err_desc =  {
+                        {
+                                .err = NULL,
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 5000
         },
         [NET_STAT] = {
@@ -60,11 +87,17 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = NULL,
+                .err_desc =  {
+                        {
+                                .err = NULL,
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 20
         },
         [EPS_STAT] = {
@@ -72,11 +105,17 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = NULL,
+                .err_desc =  {
+                        {
+                                .err = NULL,
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 20
         },
         [MNO_STAT] = {
@@ -84,33 +123,45 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\n+UMNOCONF: 3,23\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         },
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = NULL,
-                .comm_timeout = 100
+                .err_desc =  {
+                        {
+                                .err = NULL,
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
+                .comm_timeout = 50
         },
         [MNO_SET] = {
                 .comm = "at+umnoconf=3,23\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\n+UMNOCONF: 3,23\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         },
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = NULL,
+                .err_desc =  {
+                        {
+                                .err = NULL,
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 10000
         },
         [SIM_READY] = {
@@ -118,33 +169,45 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\n+CPIN: READY\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         },
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = "\r\nERROR\r\n",
-                .comm_timeout = 100
+                .err_desc =  {
+                        {
+                                .err = "\r\nERROR\r\n",
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
+                .comm_timeout = 20
         },
         [NET_REG_STAT] = {
                 .comm = "at+cereg?\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\n+CEREG: 1,1\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         },
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = NULL,
+                .err_desc =  {
+                        {
+                                .err = NULL,
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 20
         },
         [EPS_REG_STAT] = {
@@ -152,16 +215,22 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\n+UREG: 1,7\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         },
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = NULL,
+                .err_desc =  {
+                        {
+                                .err = NULL,
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 20
         }
 };
@@ -172,28 +241,40 @@ static at_command_desc pdp_conf_comm[PDP_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = "\r\nERROR\r\n",
-                .comm_timeout = 20
+                .err_desc =  {
+                        {
+                                .err = "\r\nERROR\r\n",
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
+                .comm_timeout = 50
         },
         [ACT_PDP] = {
                 .comm = "at+upsda=0,3\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         },
                         {
                                 .rsp = "\r\n+UUPSDA: 0,",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = "\r\nERROR\r\n",
+                .err_desc =  {
+                        {
+                                .err = "\r\nERROR\r\n",
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 150000
         }
 };
@@ -204,28 +285,40 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\n+USOCR: ",
-                                .parse_rsp = TCP_CONF,
-                                .data = -1
+                                .rsp_handler = __at_parse_tcp_conf_rsp,
+                                .data = NULL
                         },
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = "\r\nERROR\r\n",
-                .comm_timeout = 20
+                .err_desc =  {
+                        {
+                                .err = "\r\nERROR\r\n",
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
+                .comm_timeout = 100
         },
         [TCP_CONN] = {
                 .comm_sketch = "at+usoco=%d,%s,%s\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = "\r\nERROR\r\n",
+                .err_desc =  {
+                        {
+                                .err = "\r\nERROR\r\n",
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 20000
         },
         [TCP_SEND] = {
@@ -233,16 +326,22 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\n+USOWR: ",
-                                .parse_rsp = TCP_SEND,
-                                .data = -1
+                                .rsp_handler = __at_parse_tcp_send_rsp,
+                                .data = NULL
                         },
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = "\r\nERROR\r\n",
+                .err_desc =  {
+                        {
+                                .err = "\r\nERROR\r\n",
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 10000
         },
         [TCP_WRITE_PROMPT] = {
@@ -250,11 +349,17 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\n@",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = "\r\nERROR\r\n",
+                .err_desc =  {
+                        {
+                                .err = "\r\nERROR\r\n",
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 20
         },
         [TCP_RCV] = {
@@ -262,11 +367,17 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\n+USORD: ",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = "\r\nERROR\r\n",
+                .err_desc =  {
+                        {
+                                .err = "\r\nERROR\r\n",
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 10000
         },
         [TCP_RCV_QRY] = {
@@ -274,16 +385,22 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\n+USORD: ",
-                                .parse_rsp = TCP_RCV_QRY,
-                                .data = -1
+                                .rsp_handler = __at_parse_read_qry_rsp,
+                                .data = NULL
                         },
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = "\r\nERROR\r\n",
+                .err_desc =  {
+                        {
+                                .err = "\r\nERROR\r\n",
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 10000
         },
         [TCP_SOCK_STAT] = {
@@ -291,16 +408,22 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\n+USOCTL: ",
-                                .parse_rsp = TCP_SOCK_STAT,
-                                .data = -1
+                                .rsp_handler = __at_parse_tcp_sock_stat,
+                                .data = NULL
                         },
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = "\r\nERROR\r\n",
+                .err_desc =  {
+                        {
+                                .err = "\r\nERROR\r\n",
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 20
         },
         [TCP_CLOSE] = {
@@ -308,11 +431,17 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
-                                .parse_rsp = -1,
-                                .data = -1
+                                .rsp_handler = NULL,
+                                .data = NULL
                         }
                 },
-                .error = "\r\nERROR\r\n",
+                .err_desc =  {
+                        {
+                                .err = "\r\nERROR\r\n",
+                                .err_handler = NULL,
+                                .data = NULL,
+                        }
+                },
                 .comm_timeout = 10000
         }
 };

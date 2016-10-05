@@ -52,7 +52,12 @@ static int debug_level;
                                         DEBUG_V1("Fail at line: %d\n", __LINE__); \
                                         return (z); \
                                 }
+#define CHECK_NULL(x, y)	if (!((x))) { \
+                                        DEBUG_V1("Fail at line: %d\n", __LINE__); \
+                                        return ((y)); \
+                                }
 
+#define DEBUG_WRONG_RSP
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 
 #define AT_SUCCESS              0
@@ -61,19 +66,11 @@ static int debug_level;
 #define AT_WRONG_RSP            4
 #define AT_RECHECK_MODEM        5
 
-#define IDLE_CHARS	        5
+#define IDLE_CHARS	        10
 #define MODEM_RESET_DELAY       20000
 
-static uint8_t __at_parse_tcp_conf_rsp(uint8_t *rsp_buf, int read_bytes,
-                                        at_command_desc *desc , uint8_t rsp_num);
-static uint8_t __at_parse_tcp_send_rsp(uint8_t *rsp_buf, int read_bytes,
-                                        at_command_desc *desc , uint8_t rsp_num);
-static uint8_t __at_parse_read_qry_rsp(uint8_t *rsp_buf, int read_bytes,
-                                        at_command_desc *desc , uint8_t rsp_num);
-static uint8_t __at_parse_tcp_send_error(uint8_t *rsp_buf, int read_bytes,
-                                        at_command_desc *desc , uint8_t rsp_num);
-
 static uint32_t __at_find_end(char *str, char tail) {
+        CHECK_NULL(str, 0)
         char *end = strrchr(str, tail);
         if (!end)
                 return 0;
@@ -81,6 +78,7 @@ static uint32_t __at_find_end(char *str, char tail) {
 }
 
 static uint32_t __at_convert_to_decimal(char *num, uint8_t num_digits) {
+        CHECK_NULL(num, 0)
         uint16_t multi = 1;
         uint16_t dec = 0;
         for (int i = num_digits - 1 ; i >= 0; i--) {
@@ -91,7 +89,7 @@ static uint32_t __at_convert_to_decimal(char *num, uint8_t num_digits) {
 }
 
 static int __at_get_bytes(char *rsp_buf, char tail) {
-
+        CHECK_NULL(rsp_buf, -1)
         int num_bytes = -1;
         uint32_t find_end = __at_find_end((char *)rsp_buf, tail);
         if (find_end != 0) {
@@ -168,8 +166,8 @@ static uint8_t __at_process_urc() {
 
         while (1) {
                 uint8_t result = AT_SUCCESS;
-                HAL_Delay(20);
                 uint16_t read_bytes = uart_line_avail(rsp_header, rsp_trailer);
+                DEBUG_V0("%s: bytes availbale:%d\n", __func__, read_bytes);
                 if (read_bytes == 0)
                         break;
                 uint8_t urc[read_bytes + 1];
@@ -205,12 +203,8 @@ static void at_uart_callback(callback_event ev) {
                 }
                 else if (((state & PROC_RSP) != PROC_RSP) &&
                         ((state & PROC_URC) != PROC_URC)) {
-                        uint16_t data = uart_line_avail(rsp_header, rsp_trailer);
-                        //uint8_t temp[data + 1];
-                        //temp[data] = 0;
-                        //uart_read(temp, data);
-                        DEBUG_V0("%s: urc processing:%d\n", __func__, data);
-                        //printf("%s\n", (char *)temp);
+                        DEBUG_V0("%s: urc processing:%d\n",
+                        __func__, uart_line_avail(rsp_header, rsp_trailer));
                         __at_process_urc();
                 } else
                         DEBUG_STATE();
@@ -219,7 +213,7 @@ static void at_uart_callback(callback_event ev) {
                 DEBUG_V0("%s: rx overflows\n", __func__);
                 break;
         default:
-                DEBUG_V0("%s: AUC\n", __func__);
+                DEBUG_V0("%s: Unknown event code: %d\n", __func__, ev);
                 break;
         }
 
@@ -260,26 +254,52 @@ static uint8_t __at_comm_send_and_wait_rsp(char *comm, uint16_t len,
         return __at_wait_for_rsp(timeout);
 }
 
-static uint8_t __at_parse_rsp(uint8_t *rsp_buf, int read_bytes,
-                                at_command_desc *desc , uint8_t rsp_num)
+static uint8_t __at_handle_error_rsp(uint8_t *rsp_buf, uint16_t read_bytes,
+                                        at_command_desc *desc, uint8_t rsp_num)
 {
+        uint8_t i = 0;
+        uint8_t result = AT_SUCCESS;
+        for(; i < ARRAY_SIZE(desc->err_desc); i++) {
+                if (desc->err_desc[i].err) {
+                        if (strncmp((char *)rsp_buf, desc->err_desc[i].err,
+                                        strlen(desc->err_desc[i].err)) != 0) {
 
-        switch (desc->rsp_desc[rsp_num].parse_rsp) {
-        case TCP_CONF:
-                return __at_parse_tcp_conf_rsp(rsp_buf, read_bytes,
-                        desc, rsp_num);
-        case TCP_SEND:
-                return __at_parse_tcp_send_rsp(rsp_buf, read_bytes,
-                        desc, rsp_num);
-        case TCP_RCV_QRY:
-                return __at_parse_read_qry_rsp(rsp_buf, read_bytes,
-                        desc, rsp_num);
-        case TCP_SOCK_STAT:
-                return __at_parse_tcp_send_error(rsp_buf, read_bytes,
-                        desc, rsp_num);
-        default:
-                return AT_SUCCESS;
+                                DEBUG_V0("%s: wrong rsp: %s\n",
+                                        __func__, (char *)rsp_buf);
+                                result = AT_WRONG_RSP;
+                        } else {
+                                result = AT_FAILURE;
+                                if (desc->err_desc[i].err_handler)
+                                        desc->err_desc[i].err_handler(
+                                                rsp_buf, read_bytes,
+                                                desc->err_desc[i].err,
+                                                desc->err_desc[i].data
+                                        );
+                                break;
+                        }
+                } else {
+                        DEBUG_V0("%s: wrong response: %s\n",
+                                                __func__, (char *)rsp_buf);
+                        result = AT_WRONG_RSP;
+                }
         }
+
+#ifdef DEBUG_WRONG_RSP
+        if (result == AT_WRONG_RSP) {
+                DEBUG_V0("%s: Printing received wrong response:\n", __func__);
+                for (uint16_t i = 0; i < read_bytes; i++)
+                        DEBUG_V0(" 0x%x", rsp_buf[i]);
+                DEBUG_V0("\n");
+                DEBUG_V0("%s: Printing expected response:\n", __func__);
+                for (uint16_t i = 0; i < strlen(desc->rsp_desc[rsp_num].rsp); i++)
+                        DEBUG_V0(" 0x%x", desc->rsp_desc[rsp_num].rsp[i]);
+                DEBUG_V0("\n");
+                if (strncmp(rsp_buf, desc->rsp_desc[rsp_num].rsp,
+                        read_bytes) == 0)
+                        DEBUG_V0("%s: Received partial response\n", __func__);
+        }
+#endif
+        return result;
 }
 
 /* Generic utility to send command, wait for the response, and process response
@@ -298,29 +318,37 @@ static uint8_t __at_generic_comm_rsp_util(at_command_desc *desc, bool skip_comm,
         char *comm;
         const char *rsp;
         uint32_t timeout;
-        uint16_t read_bytes;
+        int read_bytes;
 
         comm = desc->comm;
         timeout = desc->comm_timeout;
+
         if (!skip_comm) {
                 DEBUG_V0("%s: sending %s\n", __func__, comm);
                 result = __at_comm_send_and_wait_rsp(comm, strlen(comm),
                                                                 timeout);
                 CHECK_SUCCESS(result, AT_SUCCESS, result)
         }
+
         state |= PROC_RSP;
         DEBUG_STATE();
-        uint8_t i = 0;
-        for(; i < ARRAY_SIZE(desc->rsp_desc); i++) {
+
+        for(uint8_t i = 0; i < ARRAY_SIZE(desc->rsp_desc); i++) {
                 if (!desc->rsp_desc[i].rsp)
                         continue;
-                if (read_line)
+                if (read_line) {
                         read_bytes = uart_line_avail(rsp_header, rsp_trailer);
-                else
+                        if (read_bytes == 0) {
+                                DEBUG_V0("%s: no line detected, wait again\n",
+                                        __func__);
+                                uint8_t res = __at_wait_for_rsp(timeout);
+                                CHECK_SUCCESS(res, AT_SUCCESS, res)
+                        }
+                } else
                         read_bytes = uart_rx_available();
 
                 DEBUG_V1("%s: response bytes: %u\n", __func__, read_bytes);
-                if (read_bytes <= 0 || read_bytes >= MAX_TCP_RCV_BYTES) {
+                if (read_bytes <= 0 || read_bytes > MAX_TCP_RCV_BYTES) {
                         DEBUG_V0("%s: comm: %s invalid read_bytes, "
                                         "failed (Unlikely)\n", __func__, comm);
                         state &= ~PROC_RSP;
@@ -336,24 +364,17 @@ static uint8_t __at_generic_comm_rsp_util(at_command_desc *desc, bool skip_comm,
                         if (strncmp((char *)rsp_buf, desc->rsp_desc[i].rsp,
                                         strlen(desc->rsp_desc[i].rsp)) != 0) {
 
-                                if (desc->error) {
-                                        if (strncmp((char *)rsp_buf, desc->error,
-                                        strlen(desc->error)) != 0) {
-
-                                                DEBUG_V0("%s:wrong rsp: %s\n",
-                                                __func__, (char *)rsp_buf);
-                                                result = AT_WRONG_RSP;
-                                        } else
-                                                result = AT_FAILURE;
-                                } else {
-                                        DEBUG_V0("%s: wrong response: %s\n",
-                                                __func__, (char *)rsp_buf);
-                                        result = AT_WRONG_RSP;
-                                }
+                                result = __at_handle_error_rsp(rsp_buf,
+                                                        read_bytes, desc, i);
                                 break;
-                        } else
-                                result = __at_parse_rsp(rsp_buf, read_bytes,
-                                                                desc, i);
+                        } else {
+                                if (desc->rsp_desc[i].rsp_handler)
+                                        desc->rsp_desc[i].rsp_handler(rsp_buf,
+                                                read_bytes,
+                                                desc->rsp_desc[i].rsp,
+                                                desc->rsp_desc[i].data);
+                                result = AT_SUCCESS;
+                        }
                 } else
                         result = AT_FAILURE;
         }
@@ -482,42 +503,40 @@ bool at_init() {
 
 }
 
-static uint8_t __at_parse_tcp_conf_rsp(uint8_t *rsp_buf, int read_bytes,
-                                at_command_desc *desc , uint8_t rsp_num) {
+static void __at_parse_tcp_conf_rsp(void *rcv_rsp, int rcv_rsp_len,
+                                const char *stored_rsp , void *data)
+{
 
-        if (rsp_num > MAX_RSP_LINE || !desc)
-                return AT_FAILURE;
-
-        uint16_t count = strlen(desc->rsp_desc[rsp_num].rsp);
-        if (count >= read_bytes) {
+        uint16_t count = strlen(stored_rsp);
+        if (count >= rcv_rsp_len) {
                 DEBUG_V0("%s: stored rsp is bigger then received rsp\n",
                         __func__);
-                return AT_FAILURE;
+                *((int *)data) = -1;
+                return;
         }
-        int s_id = (*((char *)(rsp_buf + count))) - '0';
-        desc->rsp_desc[rsp_num].data = s_id;
-        DEBUG_V0("%s: processing tcp socket rsp: %d\n", __func__,
-                desc->rsp_desc[rsp_num].data);
-
-        return AT_SUCCESS;
+        int s_id = (*((char *)(rcv_rsp + count))) - '0';
+        *((int *)data) = s_id;
+        DEBUG_V1("%s: processed tcp config rsp: %d\n", __func__, *((int *)data));
 }
 
-static int __at_tcp_connect(const char *host, const char *port) {
+static int __at_tcp_connect(const char *host, const char *port)
+{
         int read_bytes;
+        int s_id = -1;
         uint8_t i = 0;
         uint8_t result = AT_SUCCESS;
         at_command_desc *desc = &tcp_comm[TCP_CONF];
+        desc->rsp_desc[0].data = &s_id;
 
         /* Configure tcp connection first to be tcp client */
         result = __at_generic_comm_rsp_util(desc, false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, -1);
-
-        if (desc->rsp_desc[0].data < 0) {
-                DEBUG_V0("%s: could not get socket: %d\n", __func__,
-                        desc->rsp_desc[0].data);
+        s_id = *((int *)desc->rsp_desc[0].data);
+        if (s_id < 0) {
+                DEBUG_V0("%s: could not get socket: %d\n", __func__, s_id);
                 return -1;
         }
-        int s_id = desc->rsp_desc[0].data;
+
         /* Now make remote connection */
         desc = &tcp_comm[TCP_CONN];
         char temp_comm[TEMP_COMM_LIMIT];
@@ -561,64 +580,59 @@ int at_tcp_connect(const char *host, const char *port) {
         return __at_tcp_connect(host, port);
 }
 
-static uint8_t __at_parse_tcp_send_error(uint8_t *rsp_buf, int read_bytes,
-                                at_command_desc *desc , uint8_t rsp_num) {
+static void __at_parse_tcp_sock_stat(void *rcv_rsp, int rcv_rsp_len,
+                                        const char *stored_rsp, void *data)
+{
 
-
-        if (rsp_num > MAX_RSP_LINE || !desc)
-                return AT_FAILURE;
-
-        uint16_t count = strlen(desc->rsp_desc[rsp_num].rsp);
-        if (count >= read_bytes) {
+        uint16_t count = strlen(stored_rsp);
+        if (count >= rcv_rsp_len) {
                 DEBUG_V0("%s: stored rsp is bigger then received rsp\n",
                         __func__);
-                return AT_FAILURE;
+                *((int *)data) = -1;
+                return;
         }
         count += 5;
-        int code = (*((char *)(rsp_buf + count))) - '0';
-        desc->rsp_desc[rsp_num].data = code;
-
-        return AT_SUCCESS;
+        *((int *)data) = (*((char *)(rcv_rsp + count))) - '0';
 }
 
-static uint8_t __at_parse_tcp_send_rsp(uint8_t *rsp_buf, int read_bytes,
-                                at_command_desc *desc , uint8_t rsp_num) {
+static void __at_parse_tcp_send_rsp(void *rcv_rsp, int rcv_rsp_len,
+                                        const char *stored_rsp, void *data)
+{
 
-
-        if (rsp_num > MAX_RSP_LINE || !desc)
-                return AT_FAILURE;
-
-        uint16_t count = strlen(desc->rsp_desc[rsp_num].rsp);
-        if (count >= read_bytes) {
+        uint16_t count = strlen(stored_rsp);
+        if (count >= rcv_rsp_len) {
                 DEBUG_V0("%s: stored rsp is bigger then received rsp\n",
                         __func__);
-                return AT_FAILURE;
+                *((int *)data) = -1;
+                return;
         }
         count += 2;
-        int num_bytes = __at_get_bytes(rsp_buf + count, '\r');
+        int num_bytes = __at_get_bytes(rcv_rsp + count, '\r');
         if (num_bytes == -1) {
                 DEBUG_V0("%s: sent bytes invalid\n", __func__);
-                desc->rsp_desc[rsp_num].data = num_bytes;
-                return AT_FAILURE;
+                *((int *)data) = -1;
+                return;
         }
-        desc->rsp_desc[rsp_num].data = num_bytes;
-        return AT_SUCCESS;
+        *((int *)data) = num_bytes;
 }
 
 static int __at_handle_tcp_send_error(int s_id) {
+
+        int data = -1;
         at_command_desc *desc = &tcp_comm[TCP_SOCK_STAT];
         char temp_comm[TEMP_COMM_LIMIT];
         snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id);
         desc->comm = temp_comm;
+        desc->rsp_desc[0].data = &data;
         uint8_t result = __at_generic_comm_rsp_util(desc, false, true);
         if (result != AT_SUCCESS) {
                 DEBUG_V0("%s: command failed, result code:%d\n",
                         __func__, result);
                 return AT_TCP_SEND_FAIL;
         }
-        if (desc->rsp_desc[0].data != 4) {
-                DEBUG_V0("%s: connection closed, code: %d\n",
-                        __func__, desc->rsp_desc[0].data);
+        data = *((int *)desc->rsp_desc[0].data);
+        if (data != 4) {
+                DEBUG_V0("%s: connection closed, code: %d\n", __func__, data);
                 state &= ~TCP_CONNECTED;
                 return AT_TCP_CONNECT_DROPPED;
         }
@@ -678,33 +692,34 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_SEND_FAIL)
 
         /* Parse the response for session or socket id and number of write */
+        int data = -1;
+        desc->rsp_desc[0].data = &data;
         result = __at_generic_comm_rsp_util(desc, true, true);
         CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_SEND_FAIL)
         HAL_Delay(20);
-        return desc->rsp_desc[0].data;
+        return data;
 }
 
-static uint8_t __at_parse_read_qry_rsp(uint8_t *rsp_buf, int read_bytes,
-        at_command_desc *desc , uint8_t rsp_num) {
-
-        if (rsp_num > MAX_RSP_LINE || !desc)
-                return AT_FAILURE;
+static void __at_parse_read_qry_rsp(void *rcv_rsp, int rcv_rsp_len,
+                                        const char *stored_rsp, void *data)
+{
 
         int num_read = -1;
-        uint16_t start = strlen(desc->rsp_desc[rsp_num].rsp);
-        if (start >= read_bytes) {
+        uint16_t start = strlen(stored_rsp);
+        if (start >= rcv_rsp_len) {
                 DEBUG_V0("%s: stored rsp is bigger then received rsp\n",
                         __func__);
-                return AT_FAILURE;
+                *((int *)data) = -1;
+                return;
         }
         start += 2;
-        num_read = __at_get_bytes(rsp_buf + start, '\r');
+        num_read = __at_get_bytes(rcv_rsp + start, '\r');
         if (num_read == -1) {
                 DEBUG_V0("%s: can not find number of read bytes\n", __func__);
-                return AT_FAILURE;
+                *((int *)data) = -1;
+                return;
         }
-        desc->rsp_desc[rsp_num].data = num_read;
-        return AT_SUCCESS;
+        *((int *)data) = num_read;
 }
 
 int at_read_available(int s_id) {
@@ -776,8 +791,8 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         uint8_t result = AT_SUCCESS;
         int r_bytes = 0;
         uint16_t read_bytes;
-        if (s_id < 0) {
-                DEBUG_V0("%s: socket invalid\n", __func__);
+        if (s_id < 0 || !buf) {
+                DEBUG_V0("%s: socket or buffer invalid\n", __func__);
                 return AT_TCP_RCV_FAIL;
         }
         if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
@@ -807,11 +822,11 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         uint8_t rsp_buf[read_bytes + 1];
         rsp_buf[read_bytes] = 0x0;
         uint16_t r_idx =  strlen(rsp_header) + 1; /* header plus first byte */
-
         if (uart_read(rsp_buf, r_idx) != UART_READ_ERR) {
                 if (strncmp((char *)(rsp_buf), desc->rsp_desc[0].rsp,
                                         r_idx) != 0) {
-                        if (strncmp((char *)rsp_buf, desc->error, r_idx) != 0)
+                        if (strncmp((char *)rsp_buf, desc->err_desc[0].err,
+                                r_idx) != 0)
                                 result = AT_WRONG_RSP;
                         else
                                 result = AT_FAILURE;
@@ -846,10 +861,10 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
                 goto error;
         } else if (result == AT_FAILURE) {
                 /* handle error case */
-                if (uart_read(rsp_buf + r_idx, strlen(desc->error) - r_idx) !=
-                        UART_READ_ERR) {
-                        if (strncmp(rsp_buf, desc->error,
-                                strlen(desc->error)) != 0) {
+                if (uart_read(rsp_buf + r_idx,
+                        strlen(desc->err_desc[0].err) - r_idx) != UART_READ_ERR) {
+                        if (strncmp(rsp_buf, desc->err_desc[0].err,
+                                strlen(desc->err_desc[0].err)) != 0) {
                                 DEBUG_V0("%s:%d, wrong rsp: %s\n",
                                         __func__, __LINE__, (char *)rsp_buf);
                                 goto error;
