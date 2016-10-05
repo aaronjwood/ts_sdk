@@ -37,7 +37,6 @@ INC += -I $(SRCDIR)/include
 USER_SRC = $(SRCDIR)/main.c
 ifneq ($(BUILD_TARGET),osx)
 USER_SRC += $(SRCDIR)/stm32f4xx_platform.c 
-LIB_SRC += stm32f4xx_hal_rng.c
 endif
 
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the

@@ -82,6 +82,7 @@ LIB_SRC += stm32f4xx_hal_pwr.c
 LIB_SRC += stm32f4xx_hal_pwr_ex.c
 LIB_SRC += stm32f4xx_hal_tim.c
 LIB_SRC += stm32f4xx_hal_tim_ex.c
+LIB_SRC += stm32f4xx_hal_rng.c
 
 # Search paths for core module sources
 vpath %.c $(PROJ_ROOT)/lib/dbg: \
