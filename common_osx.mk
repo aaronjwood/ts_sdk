@@ -15,6 +15,8 @@ FW_EXEC = firmware.elf
 LDFLAGS = -Wl,-map,fw.map
 
 INC = -I $(PROJ_ROOT)/include/dbg
+INC += -I $(PROJ_ROOT)/include/certs
+
 export INC
 
 CORELIB_SRC = dbg_osx.c

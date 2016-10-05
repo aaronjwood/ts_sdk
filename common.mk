@@ -45,6 +45,9 @@ INC = -I $(PROJ_ROOT)/include/dbg
 INC += -I $(PROJ_ROOT)/include/uart
 INC += -I $(PROJ_ROOT)/include/hwrng
 
+# Certificates
+INC += -I $(PROJ_ROOT)/include/certs
+
 # Peripheral related headers
 INC += -I $(STM32_LIB_COMMON)/Drivers/STM32F4xx_HAL_Driver/Inc
 

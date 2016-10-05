@@ -13,8 +13,8 @@ include $(PROJ_ROOT)/build_in_subdir.mk
 else
 
 # Uncomment to build a host OS version of the test program
-##BUILD_TARGET = osx
-##export BUILD_TARGET
+#BUILD_TARGET = osx
+#export BUILD_TARGET
 
 # Defines toolchain and common modules & paths
 ifeq ($(BUILD_TARGET),osx)
@@ -36,11 +36,9 @@ INC += -I $(SRCDIR)/include
 # User application sources
 USER_SRC = $(SRCDIR)/main.c
 ifneq ($(BUILD_TARGET),osx)
-USER_SRC += $(SRCDIR)/stm32f4xx_platform.c
-endif
-
-# Additional peripheral HAL sources (if any)
+USER_SRC += $(SRCDIR)/stm32f4xx_platform.c 
 LIB_SRC += stm32f4xx_hal_rng.c
+endif
 
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
 # debug flag enabled
