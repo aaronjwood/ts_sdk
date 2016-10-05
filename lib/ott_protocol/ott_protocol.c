@@ -40,7 +40,7 @@ static void my_debug(void *ctx, int level,
 }
 #endif
 
-static uint8_t msg_buf[MAX_MSG_SZ];
+static unsigned char msg_buf[MAX_MSG_SZ];
 static bool message_in_buffer;		/* Set when a message is received. */
 
 /* mbedTLS specific variables */
@@ -82,15 +82,19 @@ ott_status ott_protocol_init(void)
 	mbedtls_entropy_init(&entropy);
 	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
 			NULL, 0);
-	if (ret != 0)
+	if (ret != 0) {
+		cleanup_mbedtls();
 		return OTT_ERROR;
+	}
 
 	/* Load the CA root certificate */
 	ret = mbedtls_x509_crt_parse_der(&cacert_der,
                                          (const unsigned char *)&cacert_der,
 					 sizeof(cacert_der));
-	if (ret < 0)
+	if (ret < 0) {
+		cleanup_mbedtls();
 		return OTT_ERROR;
+	}
 
 	return OTT_OK;
 }
@@ -123,7 +127,6 @@ ott_status ott_initiate_connection(void)
 	if (ret != 0)
 		return OTT_ERROR;
 
-	/* This handles non-blocking I/O and will poll for completion. */
 	mbedtls_ssl_set_bio(&ssl, &server_fd, mbedtls_net_send,
 			mbedtls_net_recv, NULL);
 
@@ -131,8 +134,10 @@ ott_status ott_initiate_connection(void)
 	ret = mbedtls_ssl_handshake(&ssl);
 	while (ret != 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
-				ret != MBEDTLS_ERR_SSL_WANT_WRITE)
+				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+			mbedtls_ssl_session_reset(&ssl);
 			return OTT_ERROR;
+		}
 		ret = mbedtls_ssl_handshake(&ssl);
 	}
 
@@ -141,53 +146,138 @@ ott_status ott_initiate_connection(void)
 
 ott_status ott_close_connection(void)
 {
-	return ((mbedtls_ssl_close_notify(&ssl) == 0) ? OTT_OK : OTT_ERROR);
+	int ret = mbedtls_ssl_close_notify(&ssl);
+	if (ret == 0)
+		return OTT_OK;
+	mbedtls_ssl_session_reset(&ssl);
+	return OTT_ERROR;
+}
+
+static bool write_tls(uint8_t *buf, uint16_t len)
+{
+	int ret = mbedtls_ssl_write(&ssl, (const unsigned char *)buf, (size_t)len);
+	while (ret <= 0) {
+		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
+				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+			mbedtls_ssl_session_reset(&ssl);
+			return false;
+		}
+		ret = mbedtls_ssl_write(&ssl, (const unsigned char *)buf,
+				(size_t)len);
+	}
+	return true;
 }
 
 ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uuid_t dev_id,
 				  uint16_t dev_sec_sz, const uint8_t *dev_sec)
 {
-	/* Both ACK and NACK flags cannot be set at once. */
-	if ((c_flags & (CF_NACK | CF_ACK) == (CF_NACK | CF_ACK)) ||
+	/* Check for correct parameters */
+	if (((c_flags & (CF_NACK | CF_ACK)) == (CF_NACK | CF_ACK)) ||
 			(dev_sec_sz + UUID_SZ > MAX_DATA_SZ) ||
 			(dev_id == NULL || dev_sec == NULL || dev_sec_sz == 0))
 		return OTT_INV_PARAM;
 
-	/* TODO: Calls to mbedTLS API here: */
+	uint16_t idx = 0;
+	uint16_t len = VER_SZ + CMD_SZ + UUID_SZ + LEN_SZ + dev_sec_sz;
+	unsigned char buf[len];
 
-	return OTT_OK;
+	buf[idx++] = VERSION_BYTE;
+	buf[idx++] = (uint8_t)(c_flags << 4 | MT_AUTH);
+
+	for (uint16_t i = 0; i < UUID_SZ; i++)
+		buf[idx++] = dev_id[i];
+
+	buf[idx++] = (uint8_t)(dev_sec_sz & 0xFF);
+	buf[idx++] = (uint8_t)((dev_sec_sz >> 8) & 0xFF);
+	for (uint16_t i = 0; i < dev_sec_sz; i++)
+		buf[idx++] = dev_sec[i];
+
+	if (write_tls(buf, len))
+		return OTT_OK;
+	else
+		return OTT_ERROR;
 }
 
 ott_status ott_send_status_to_cloud(c_flags_t c_flags,
                                     uint16_t status_sz,
 				    const uint8_t *status)
 {
-	/* Both ACK and NACK flags cannot be set at once. */
-	if ((c_flags & (CF_NACK | CF_ACK) == (CF_NACK | CF_ACK)) ||
+	/* Check for correct parameters */
+	if (((c_flags & (CF_NACK | CF_ACK)) == (CF_NACK | CF_ACK)) ||
 			(status_sz > MAX_DATA_SZ) ||
 			(status == NULL))
 		return OTT_INV_PARAM;
 
-	/* TODO: Calls to mbedTLS API here: */
+	uint16_t idx = 0;
+	uint16_t len = CMD_SZ + LEN_SZ + status_sz;
+	unsigned char buf[len];
 
-	return OTT_OK;
+	buf[idx++] = (uint8_t)(c_flags << 4 | MT_STATUS);
+	buf[idx++] = (uint8_t)(status_sz & 0xFF);
+	buf[idx++] = (uint8_t)((status_sz >> 8) & 0xFF);
+	for (uint16_t i = 0; i < status_sz; i++)
+		buf[idx++] = status[i];
+
+	if (write_tls(buf, len))
+		return OTT_OK;
+	else
+		return OTT_ERROR;
 }
 
 ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 {
-	/* Both ACK and NACK flags cannot be set at once. */
-	if ((c_flags & (CF_NACK | CF_ACK) == (CF_NACK | CF_ACK)) ||
-			(c_flags == CF_PENDING))
+	/* Check for correct parameters */
+	if (((c_flags & (CF_NACK | CF_ACK)) == (CF_NACK | CF_ACK)) ||
+			((c_flags & CF_PENDING) == CF_PENDING))
 		return OTT_INV_PARAM;
 
-	/* TODO: Calls to mbedTLS API here: */
+	unsigned char buf = (uint8_t)(c_flags << 4 | MT_NONE);
 
-	return OTT_OK;
+	if (write_tls(&buf, 1))
+		return OTT_OK;
+	else
+		return OTT_ERROR;
 }
 
+static void populate_msg(msg_t *msg)
+{
+	msg->c_flags = (c_flags_t)((msg_buf[0] >> 4) & 0x0F);
+	msg->m_type = (m_type_t)(msg_buf[0] & 0x0F);
+	switch (msg->m_type) {
+	case MT_UPDATE:
+		msg->array.sz = (uint16_t)((msg_buf[2] << 8) | msg[1]);
+		ASSERT(msg->array.sz < MAX_DATA_SZ);
+		memcpy(msg->array.bytes, &msg[3], msg->array.sz);
+		break;
+	case MT_CMD_PI:
+	case MT_CMD_SL:
+		msg->cmd_value = (uint32_t)(msg_buf[4] << 24 | msg_buf[3] << 16 |
+					msg_buf[2] << 8 | msg_buf[1]);
+	default:
+		break;
+	}
+}
 ott_status ott_retrieve_msg(msg_t *msg)
 {
-	/* TODO: Calls to mbedTLS API here: */
+	int ret = mbedtls_ssl_read(&ssl, msg_buf, MAX_MSG_SZ);
+	if (ret == MBEDTLS_ERR_SSL_WANT_WRITE ||
+			ret == MBEDTLS_ERR_SSL_WANT_READ ||
+			ret == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY ||
+			ret == OTT_NO_MSG)
+		return OTT_NO_MSG;
 
-	return OTT_OK;
+	if (ret < 0) {
+		mbedtls_ssl_session_reset(&ssl);
+		return OTT_ERROR;
+	}
+
+	if (ret == MAX_MSG_SZ) {	/* Retrieved complete message */
+		populate_msg(msg);
+		return OTT_OK;
+	}
+
+	if (ret == 0)			/* No more messages to receive */
+		return OTT_NO_MSG;
+
+	return OTT_ERROR;
 }
