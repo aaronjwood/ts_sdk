@@ -67,7 +67,7 @@ static int debug_level;
 #define AT_RECHECK_MODEM        5
 
 #define IDLE_CHARS	        10
-#define MODEM_RESET_DELAY       20000
+#define MODEM_RESET_DELAY       60000
 
 static uint32_t __at_find_end(char *str, char tail) {
         CHECK_NULL(str, 0)
@@ -399,12 +399,15 @@ static uint8_t __at_generic_comm_rsp_util(at_command_desc *desc, bool skip_comm,
 
 uint8_t __at_modem_reset()
 {
+        DEBUG_V0("%s: resetting modem...\n", __func__);
         uint8_t result = AT_SUCCESS;
-
         result = __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_RESET],
                                                 false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, result)
         HAL_Delay(MODEM_RESET_DELAY);
+        DEBUG_V0("%s: resetting modem done...\n", __func__);
+        __at_generic_comm_rsp_util(
+                                &modem_net_status_comm[ECHO_OFF], false, false);
         return result;
 }
 
@@ -454,19 +457,17 @@ static uint8_t __at_check_modem_conf() {
                                                 false, true);
 
         CHECK_SUCCESS(result, AT_SUCCESS, result)
+        /* Now modem has registered with home network, it is safe to say network
+         * is ready for tcp connection
+         */
+        state &= ~NETWORK_LOST;
         return result;
 
 }
 
-static uint8_t __at_check_modem() {
+static uint8_t __at_config_modem() {
 
         uint8_t result = AT_SUCCESS;
-        if (!echo_off) {
-                result =  __at_generic_comm_rsp_util(
-                                &modem_net_status_comm[ECHO_OFF], false, false);
-                CHECK_SUCCESS(result, AT_SUCCESS, result)
-                echo_off = true;
-        }
         result =  __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_OK],
                                                                 false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, result)
@@ -486,13 +487,15 @@ bool at_init() {
         state = IDLE;
         process_rsp = false;
         pdp_conf = false;
-        echo_off = false;
         __at_uart_rx_flush();
 
-        uint8_t res_modem = __at_check_modem();
+        uint8_t result = __at_modem_reset();
+        CHECK_SUCCESS(result, AT_SUCCESS, false)
+
+        uint8_t res_modem = __at_config_modem();
         if (res_modem == AT_RECHECK_MODEM) {
                 DEBUG_V0("%s: Recheckig modem configs after reset\n", __func__);
-                res_modem = __at_check_modem();
+                res_modem = __at_config_modem();
         }
 
         if (res_modem != AT_SUCCESS) {
@@ -660,11 +663,12 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         char temp_comm[TEMP_COMM_LIMIT];
         snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id, len);
         desc->comm = temp_comm;
-
+        DEBUG_V0("%s: sending write prompt\n", __func__);
         result = __at_generic_comm_rsp_util(desc, false, false);
-        if (result == AT_FAILURE) {
+        if (result != AT_SUCCESS) {
                 DEBUG_V0("%s: command failure\n", __func__);
-                return __at_handle_tcp_send_error(s_id);
+                if (result == AT_FAILURE)
+                        return __at_handle_tcp_send_error(s_id);
         }
 
         /* recommeneded in datasheet */
@@ -694,6 +698,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         /* Parse the response for session or socket id and number of write */
         int data = -1;
         desc->rsp_desc[0].data = &data;
+        DEBUG_V0("%s: processing write rsp\n", __func__);
         result = __at_generic_comm_rsp_util(desc, true, true);
         CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_SEND_FAIL)
         HAL_Delay(20);

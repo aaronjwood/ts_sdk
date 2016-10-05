@@ -360,7 +360,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL,
                         }
                 },
-                .comm_timeout = 20
+                .comm_timeout = 10000
         },
         [TCP_RCV] = {
                 .comm_sketch = "at+usord=%d,%d\r",
