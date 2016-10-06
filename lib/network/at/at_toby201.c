@@ -67,7 +67,8 @@ static int debug_level;
 #define AT_RECHECK_MODEM        5
 
 #define IDLE_CHARS	        10
-#define MODEM_RESET_DELAY       60000
+#define MODEM_RESET_DELAY       60000 /* In mili seconds */
+#define NET_REG_CHECK_DELAY     10000 /* In mili seconds */
 
 static uint32_t __at_find_end(char *str, char tail) {
         CHECK_NULL(str, 0)
@@ -167,7 +168,7 @@ static uint8_t __at_process_urc() {
         while (1) {
                 uint8_t result = AT_SUCCESS;
                 uint16_t read_bytes = uart_line_avail(rsp_header, rsp_trailer);
-                DEBUG_V0("%s: bytes availbale:%d\n", __func__, read_bytes);
+                DEBUG_V1("%s: bytes availbale:%d\n", __func__, read_bytes);
                 if (read_bytes == 0)
                         break;
                 uint8_t urc[read_bytes + 1];
@@ -397,18 +398,32 @@ static uint8_t __at_generic_comm_rsp_util(at_command_desc *desc, bool skip_comm,
         return result;
 }
 
-uint8_t __at_modem_reset()
+static void __at_modem_reset()
 {
         DEBUG_V0("%s: resetting modem...\n", __func__);
-        uint8_t result = AT_SUCCESS;
-        result = __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_RESET],
+        __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_RESET],
                                                 false, true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result)
         HAL_Delay(MODEM_RESET_DELAY);
         DEBUG_V0("%s: resetting modem done...\n", __func__);
         __at_generic_comm_rsp_util(
                                 &modem_net_status_comm[ECHO_OFF], false, false);
-        return result;
+        __at_uart_rx_flush();
+}
+
+static uint8_t __at_check_network_registration()
+{
+        uint8_t result1 = AT_SUCCESS;
+        uint8_t result2 = AT_SUCCESS;
+        /* Check network registration status */
+        result1 = __at_generic_comm_rsp_util(&modem_net_status_comm[NET_REG_STAT],
+                                                false, true);
+
+        /* Check packet switch network registration status */
+        result2 = __at_generic_comm_rsp_util(&modem_net_status_comm[EPS_REG_STAT],
+                                                false, true);
+        if ((result1 == AT_SUCCESS) && (result2 == AT_SUCCESS))
+                return AT_SUCCESS;
+        return AT_FAILURE;
 }
 
 static uint8_t __at_check_modem_conf() {
@@ -431,36 +446,34 @@ static uint8_t __at_check_modem_conf() {
         CHECK_SUCCESS(result, AT_SUCCESS, result)
 
         /* Check MNO configuration, if it is not set for the Verizon, configure
-         * for it and reset the modem
+         * for it and reset the modem to save settings
          */
         result = __at_generic_comm_rsp_util(&modem_net_status_comm[MNO_STAT],
                                                 false, true);
-        if (result == AT_WRONG_RSP) {
+        if (result != AT_SUCCESS) {
                 result = __at_generic_comm_rsp_util(
                                 &modem_net_status_comm[MNO_SET], false, true);
                 CHECK_SUCCESS(result, AT_SUCCESS, result)
-
-                if (__at_modem_reset() != AT_SUCCESS) {
-                        DEBUG_V0("%s: modem reset failed\n");
-                        return AT_FAILURE;
-                }
+                __at_modem_reset();
                 return AT_RECHECK_MODEM;
         }
+        result = __at_check_network_registration();
+        if (result != AT_SUCCESS) {
+                DEBUG_V0("%s: rechecking network registration\n", __func__);
+                HAL_Delay(NET_REG_CHECK_DELAY);
+                result = __at_check_network_registration();
+        }
 
-        /* Check network registration status */
-        result = __at_generic_comm_rsp_util(&modem_net_status_comm[NET_REG_STAT],
-                                                false, true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result)
-
-        /* Check packet switch network registration status */
-        result = __at_generic_comm_rsp_util(&modem_net_status_comm[EPS_REG_STAT],
-                                                false, true);
-
-        CHECK_SUCCESS(result, AT_SUCCESS, result)
         /* Now modem has registered with home network, it is safe to say network
          * is ready for tcp connection
          */
-        state &= ~NETWORK_LOST;
+        if (result == AT_SUCCESS)
+                state &= ~NETWORK_LOST;
+        else {
+                DEBUG_V0("%s: modem is not connected to network\n", __func__);
+                state |= NETWORK_LOST;
+        }
+
         return result;
 
 }
@@ -472,10 +485,7 @@ static uint8_t __at_config_modem() {
                                                                 false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, result)
 
-        result = __at_check_modem_conf();
-        CHECK_SUCCESS(result, AT_SUCCESS, result)
-
-        return result;
+        return __at_check_modem_conf();
 }
 
 bool at_init() {
@@ -488,9 +498,8 @@ bool at_init() {
         process_rsp = false;
         pdp_conf = false;
         __at_uart_rx_flush();
-
-        uint8_t result = __at_modem_reset();
-        CHECK_SUCCESS(result, AT_SUCCESS, false)
+        /* This may take few seconds */
+        __at_modem_reset();
 
         uint8_t res_modem = __at_config_modem();
         if (res_modem == AT_RECHECK_MODEM) {
@@ -648,7 +657,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         uint16_t result;
         uint16_t read_bytes;
 
-        if (len >= MAX_TCP_SEND_BYTES) {
+        if (len > MAX_TCP_SEND_BYTES) {
                 DEBUG_V0("%s: cant send more then: %d\n",
                         __func__, MAX_TCP_SEND_BYTES);
                 return AT_TCP_SEND_FAIL;
@@ -663,7 +672,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         char temp_comm[TEMP_COMM_LIMIT];
         snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id, len);
         desc->comm = temp_comm;
-        DEBUG_V0("%s: sending write prompt\n", __func__);
+        DEBUG_V1("%s: sending write prompt\n", __func__);
         result = __at_generic_comm_rsp_util(desc, false, false);
         if (result != AT_SUCCESS) {
                 DEBUG_V0("%s: command failure\n", __func__);
@@ -671,7 +680,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
                         return __at_handle_tcp_send_error(s_id);
         }
 
-        /* recommeneded in datasheet */
+        /* Recommeneded in datasheet */
         HAL_Delay(50);
 
         state |= TCP_WRITE;
@@ -683,8 +692,6 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         }
 
         if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
-                //Dipen:FIXME simulate this scenario in test cases which is to terminate connection
-                // in a middle of write
                 DEBUG_V0("%s: tcp got deconnected in middle of the write\n",
                         __func__);
                 state &= ~TCP_WRITE;
@@ -698,7 +705,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         /* Parse the response for session or socket id and number of write */
         int data = -1;
         desc->rsp_desc[0].data = &data;
-        DEBUG_V0("%s: processing write rsp\n", __func__);
+        DEBUG_V1("%s: processing write rsp after complete write\n", __func__);
         result = __at_generic_comm_rsp_util(desc, true, true);
         CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_SEND_FAIL)
         HAL_Delay(20);

@@ -44,7 +44,7 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL,
                         }
                 },
-                .comm_timeout = 20
+                .comm_timeout = 50
         },
         [ECHO_OFF] = {
                 .comm = "ate0\r",
@@ -62,7 +62,7 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL,
                         }
                 },
-                .comm_timeout = 20
+                .comm_timeout = 50
         },
         [MODEM_RESET] = {
                 .comm = "at+cfun=16\r",
@@ -98,7 +98,7 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL,
                         }
                 },
-                .comm_timeout = 20
+                .comm_timeout = 50
         },
         [EPS_STAT] = {
                 .comm = "at+ureg=1\r",
@@ -116,7 +116,7 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL,
                         }
                 },
-                .comm_timeout = 20
+                .comm_timeout = 50
         },
         [MNO_STAT] = {
                 .comm = "at+umnoconf?\r",
@@ -144,11 +144,6 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
         [MNO_SET] = {
                 .comm = "at+umnoconf=3,23\r",
                 .rsp_desc = {
-                        {
-                                .rsp = "\r\n+UMNOCONF: 3,23\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        },
                         {
                                 .rsp = "\r\nOK\r\n",
                                 .rsp_handler = NULL,
@@ -185,7 +180,7 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL,
                         }
                 },
-                .comm_timeout = 20
+                .comm_timeout = 50
         },
         [NET_REG_STAT] = {
                 .comm = "at+cereg?\r",
@@ -208,7 +203,7 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL,
                         }
                 },
-                .comm_timeout = 20
+                .comm_timeout = 50
         },
         [EPS_REG_STAT] = {
                 .comm = "at+ureg?\r",
@@ -231,7 +226,7 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL,
                         }
                 },
-                .comm_timeout = 20
+                .comm_timeout = 50
         }
 };
 
