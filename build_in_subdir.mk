@@ -23,5 +23,5 @@ Makefile : ;
 %.mk :: ;
 
 # Everything depends on OBJDIR (but no explict action to take)
-% :: $(OBJDIR) ; :
+% :: $(OBJDIR) ; 
 

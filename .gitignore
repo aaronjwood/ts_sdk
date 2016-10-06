@@ -1,6 +1,8 @@
 *~
 *.o
 *.so
+*.a
+cscope.out
 .DS_Store
 .build/
 build/

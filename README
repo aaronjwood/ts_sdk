@@ -19,6 +19,8 @@ Repository contents:
 
 	apps/           - Sample applications built to communicate with the
                           OTT services.
+			  This directory also includes some test programs
+			  intended to test individual library components.
 
 	lib/            - Library components used by the apps to communicate
                           with the OTT services (e.g. OTT protocol,
@@ -30,3 +32,46 @@ Repository contents:
 	vendor/         - Third-party libraries needed to build lib/ or apps/
                           components.
 	      /mbedtls  - ARM mbed TLS library.
+
+
+
+Notes on configuring mbed TLS:
+-----------------------------
+There is a script added to vendor/mbedtls: vz_configure_mbedtls
+It is intended to capture the changes needed to customize mbed TLS to the
+minimum set of features that will allow the sample applications to communicate
+with the Verizon OTT cloud services.
+
+The script will edit:
+	vendor/mbedtls/include/mbedtls/config.h.original
+
+to produce the desired configuration in:
+	vendor/mbedtls/include/mbedtls/config.h
+
+That version of config.h is checked into the repository.
+
+The script currently has options to enable/disable certain library features, 
+which allows the library to be customized for test/experimental purposes:
+
+$ ./vz_configure_mbedtls help
+Usage: 
+    vz_configure_mbedtls [help] [debug] [no-net] [full-msgs] [no-hwrng]
+
+debug     - will enable debug messages in the library, especially for TLS
+	    errors. Makes the code much bigger but otherwise it's hard to
+	    tell why something fails.
+
+no-net    - disables the network module (temporary? .. to test building for the 
+            device w/o a TCP library)
+
+full-msgs - support full-sized TLS messages as defined in the RFC.
+	    (by default we know that the largest OTT message is much smaller).
+
+no-hwrng -  Disable using the device hardware random number generator.
+            Expects to use the Linux/OSX /dev/random sources instead.
+
+To build the mbedtls_test program to run on OSX (i.e. by setting
+BUILD_TARGET = osx in mbedtls_test/Makefile), you need to configure the library
+as:
+
+	./vz_configure_mbedtls full-msgs no-hwrng
