@@ -25,7 +25,7 @@
 bool hwrng_module_init(void);
 
 /*
- * Read a random number from the generator, blocking until the number is 
+ * Read a random number from the generator, blocking until the number is
  * available.
  *
  * Parameters:

@@ -41,7 +41,7 @@ bool hwrng_read_random(uint32_t *pnum)
 
 	if (HAL_RNG_GenerateRandomNumber(&hwrng_handle, &num) != HAL_OK)
 		return false;
-	
+
 	/* FIPS 140-2 tests that no two adjacent numbers are the same. */
 	if (num == last_num)
 		return false;
