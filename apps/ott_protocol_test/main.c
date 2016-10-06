@@ -116,9 +116,65 @@ void UsageFault_Handler(void)
 		;
 }
 
+static msg_t msg;
+#define RECV_TIMEOUT_MS		2000
 void test_scenario_1(void)
 {
-	/* Code */
+	/* Scenario 1: Device has status to report, Cloud has nothing pending */
+
+	/* 1 - Initiate the TCP/TLS session */
+	dbg_printf("Initiating a secure connection to the cloud:\n");
+	if (ott_initiate_connection() != OTT_OK) {
+		dbg_printf("\tCould not connect to the cloud.\n");
+		return;
+	}
+
+	/* 2 & 3 - Send the version byte and authenticate the device with the cloud. */
+	uuid_t d_ID = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+	uint8_t d_sec[] = {0, 1, 2, 3, 4, 5, 6};
+	dbg_printf("Sending version byte and authentication message:\n");
+	ASSERT(ott_send_auth_to_cloud(CF_PENDING, d_ID, sizeof(d_sec), d_sec)
+			== OTT_OK);
+
+	/* 4 - Wait for a timeout before checking for a message from the cloud. */
+	HAL_Delay(RECV_TIMEOUT_MS);
+	if (ott_retrieve_msg(&msg) != OTT_OK) {
+		dbg_printf("\tERR: No response from cloud, closing connection.\n");
+		ASSERT(ott_close_connection() == OTT_OK);
+		return;
+	}
+	/* Make sure the previous message was ACKed. */
+	if (!OTT_FLAG_IS_SET(msg.c_flags, CF_ACK)) {
+		dbg_printf("\tCloud did not ACK previous message.\n");
+		ASSERT(ott_close_connection() == OTT_OK);
+		return;
+	}
+	dbg_printf("\tAuthenticated with the cloud.\n");
+
+	/* 5 - Send the status of the sensors attached to the device. */
+	uint8_t status[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+	dbg_printf("Sending device status to the cloud:\n");
+	ASSERT(ott_send_status_to_cloud(CF_NONE, sizeof(status), status) == OTT_OK);
+
+	/* 6 - Wait for a timeout before checking for a message from the cloud. */
+	HAL_Delay(RECV_TIMEOUT_MS);
+	if (ott_retrieve_msg(&msg) != OTT_OK) {
+		dbg_printf("\tERR: No response from cloud, closing connection.\n");
+		ASSERT(ott_close_connection() == OTT_OK);
+		return;
+	}
+	/* Make sure the previous message was ACKed. */
+	if (!OTT_FLAG_IS_SET(msg.c_flags, CF_ACK)) {
+		dbg_printf("\tCloud did not ACK previous message.\n");
+		ASSERT(ott_close_connection() == OTT_OK);
+		return;
+	}
+	dbg_printf("\tDevice status delivered to the cloud.\n");
+
+	/* 7 - In this scenario, the cloud sets the QUIT flag. */
+	ASSERT(OTT_FLAG_IS_SET(msg.c_flags, CF_QUIT));
+	dbg_printf("Closing secure connection.\n");
+	ASSERT(ott_close_connection() == OTT_OK);
 }
 
 void test_scenario_2(void)

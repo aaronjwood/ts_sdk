@@ -38,6 +38,7 @@ typedef enum {			/* Defines control flags. */
 	CF_PENDING = 0x40,	/* More messages to follow */
 	CF_QUIT = 0x80		/* Close connection. All messages sent / received. */
 } c_flags_t;
+#define OTT_FLAG_IS_SET(f_var, bit)	(((f_var) & (bit)) == (bit))
 
 typedef enum  {			/* Defines message type flags. */
 	MT_NONE = 0,		/* Control message */
@@ -118,7 +119,7 @@ ott_status ott_close_connection(void);
  * 	OTT_OK        : Authentication message was sent to the cloud.
  * 	OTT_INV_PARAM :	Flag parameter is invalid (Eg. ACK+NACK) or
  * 	                dev_sec has length > MAX_DATA_SZ bytes or
- * 	                Device secret / device ID is NULL
+ * 	                Device secret / device ID is NULL or dev_sec_sz is zero.
  * 	OTT_ERROR     : Sending the message failed due to a TCP/TLS error.
  */
 ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uuid_t dev_id,

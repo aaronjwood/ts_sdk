@@ -31,7 +31,7 @@ USER_SRC = $(SRCDIR)/main.c
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
 # debug flag enabled
 # Eg: DBG_LIB_SRC = stm32l0xx_hal_uart.c stm32l0xx_hal_uart_ex.c
-DBG_LIB_SRC = ott_protocol.c
+DBG_LIB_SRC =
 
 # Build the  mbed TLS library
 VENDOR_LIB_DIRS += mbedtls
