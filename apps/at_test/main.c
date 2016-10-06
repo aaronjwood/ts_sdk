@@ -138,6 +138,36 @@ int tcp_connect()
 	return s_id;
 }
 
+void tcp_send(int s_id, uint8_t *send_buf, size_t len)
+{
+	int count = 0;
+	int sent_data = 0;
+	int res = 0;
+	while (1) {
+		res = at_tcp_send(s_id, (send_buf + sent_data), len - sent_data);
+		if (res < 0) {
+			if (count > 5)
+				break;
+			else {
+				count++;
+				res = 0;
+			}
+			HAL_Delay(2000);
+		} else {
+			sent_data += res;
+			if (sent_data == len)
+				break;
+		}
+
+	}
+	if (sent_data <= 0) {
+		dbg_printf("TCP send failed, looping forever\n");
+		ASSERT(0);
+	}
+	dbg_printf("Sent data: %d\n", sent_data);
+
+}
+
 int main(int argc, char *argv[])
 {
 	HAL_Init();
@@ -148,13 +178,8 @@ int main(int argc, char *argv[])
 	/* Step 1: modem init */
 	dbg_printf("Initializing modem...\n");
 	if (!at_init()) {
-		dbg_printf("at init failed, modem may not be ready, "
-			"wait for 20 seconds\n");
-		HAL_Delay(20000);
-		if (!at_init()) {
-			dbg_printf("Modem init failed, looping forever\n");
-			ASSERT(0);
-		}
+		dbg_printf("Modem init failed, looping forever\n");
+		ASSERT(0);
 	}
 	dbg_printf("Initializing modem done...\n");
 	/* step 2: tcp connect */
@@ -164,8 +189,8 @@ int main(int argc, char *argv[])
 	/* step 3: send data */
 	char *send_buf = "GET \\ HTTP\\1.1\r\n";
 	dbg_printf("Sending data:\n");
-	int res = at_tcp_send(s_id, (uint8_t *)send_buf, strlen(send_buf));
-	dbg_printf("Sent data: %d\n", res);
+	size_t len = strlen(send_buf);
+	tcp_send(s_id, (uint8_t *)send_buf, len);
 
 	/* step 4: wait for the data */
 	int r_b;
@@ -181,7 +206,7 @@ int main(int argc, char *argv[])
 	uint8_t read_buf[r_b + 1];
 	read_buf[r_b] = 0x0;
 	int bytes = at_tcp_recv(s_id, read_buf, r_b);
-	printf("READ#####:%d\n", bytes);
+	printf("Read Bytes: %d\n", bytes);
 	printf("%s\n", (char *)read_buf);
 
 	/* step 5: tcp close */

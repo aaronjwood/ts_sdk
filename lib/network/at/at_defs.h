@@ -21,7 +21,6 @@
 #define TEMP_COMM_LIMIT         64
 #define MAX_RSP_BYTES           64 /* bytes to store single line of response */
 #define MAX_RSP_LINE            2 /* Some command send response plus OK */
-#define MAX_ERR_LINE            1
 
 typedef enum at_urc {
         NET_STAT_URC = 0,
@@ -66,22 +65,17 @@ typedef enum at_tcp_command {
 
 typedef struct _at_rsp_desc {
         const char *rsp;
-        void (*rsp_handler)(void *, int , const char *, void *);
+        void (*rsp_handler)(void *rcv_rsp, int rcv_rsp_len,
+                                        const char *stored_rsp, void *data);
         void *data;
 } at_rsp_desc;
-
-typedef struct _at_err_desc {
-        const char *err;
-        void (*err_handler)(void *, int ,const char *, void *);
-        void *data;
-} at_err_desc;
 
 typedef struct _at_command_desc {
         const char *comm_sketch;
         char *comm;
         uint32_t comm_timeout;
         at_rsp_desc rsp_desc[MAX_RSP_LINE];
-        at_err_desc err_desc[MAX_ERR_LINE];
+        const char *err;
 } at_command_desc;
 
 #endif /* at_toby201.h */

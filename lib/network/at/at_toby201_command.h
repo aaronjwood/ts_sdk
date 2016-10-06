@@ -37,14 +37,8 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = NULL,
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
-                .comm_timeout = 50
+                .err = NULL,
+                .comm_timeout = 100
         },
         [ECHO_OFF] = {
                 .comm = "ate0\r",
@@ -55,14 +49,8 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = "\r\nERROR\r\n",
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
-                .comm_timeout = 50
+                .err = "\r\nERROR\r\n",
+                .comm_timeout = 100
         },
         [MODEM_RESET] = {
                 .comm = "at+cfun=16\r",
@@ -73,13 +61,7 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = NULL,
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
+                .err = NULL,
                 .comm_timeout = 5000
         },
         [NET_STAT] = {
@@ -91,14 +73,8 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = NULL,
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
-                .comm_timeout = 50
+                .err = NULL,
+                .comm_timeout = 100
         },
         [EPS_STAT] = {
                 .comm = "at+ureg=1\r",
@@ -109,14 +85,8 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = NULL,
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
-                .comm_timeout = 50
+                .err = NULL,
+                .comm_timeout = 100
         },
         [MNO_STAT] = {
                 .comm = "at+umnoconf?\r",
@@ -132,14 +102,8 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = NULL,
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
-                .comm_timeout = 50
+                .err = NULL,
+                .comm_timeout = 100
         },
         [MNO_SET] = {
                 .comm = "at+umnoconf=3,23\r",
@@ -150,13 +114,7 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = NULL,
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
+                .err = NULL,
                 .comm_timeout = 10000
         },
         [SIM_READY] = {
@@ -173,14 +131,8 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = "\r\nERROR\r\n",
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
-                .comm_timeout = 50
+                .err = "\r\nERROR\r\n",
+                .comm_timeout = 100
         },
         [NET_REG_STAT] = {
                 .comm = "at+cereg?\r",
@@ -196,14 +148,8 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = NULL,
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
-                .comm_timeout = 50
+                .err = NULL,
+                .comm_timeout = 100
         },
         [EPS_REG_STAT] = {
                 .comm = "at+ureg?\r",
@@ -219,14 +165,8 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = NULL,
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
-                .comm_timeout = 50
+                .err = NULL,
+                .comm_timeout = 100
         }
 };
 
@@ -240,14 +180,8 @@ static at_command_desc pdp_conf_comm[PDP_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = "\r\nERROR\r\n",
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
-                .comm_timeout = 50
+                .err = "\r\nERROR\r\n",
+                .comm_timeout = 100
         },
         [ACT_PDP] = {
                 .comm = "at+upsda=0,3\r",
@@ -263,13 +197,7 @@ static at_command_desc pdp_conf_comm[PDP_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = "\r\nERROR\r\n",
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
+                .err = "\r\nERROR\r\n",
                 .comm_timeout = 150000
         }
 };
@@ -289,13 +217,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = "\r\nERROR\r\n",
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
+                .err = "\r\nERROR\r\n",
                 .comm_timeout = 100
         },
         [TCP_CONN] = {
@@ -307,13 +229,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = "\r\nERROR\r\n",
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
+                .err = "\r\nERROR\r\n",
                 .comm_timeout = 20000
         },
         [TCP_SEND] = {
@@ -330,13 +246,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = "\r\nERROR\r\n",
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
+                .err = "\r\nERROR\r\n",
                 .comm_timeout = 10000
         },
         [TCP_WRITE_PROMPT] = {
@@ -348,13 +258,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = "\r\nERROR\r\n",
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
+                .err = "\r\nERROR\r\n",
                 .comm_timeout = 10000
         },
         [TCP_RCV] = {
@@ -366,13 +270,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = "\r\nERROR\r\n",
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
+                .err = "\r\nERROR\r\n",
                 .comm_timeout = 10000
         },
         [TCP_RCV_QRY] = {
@@ -389,13 +287,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = "\r\nERROR\r\n",
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
+                .err = "\r\nERROR\r\n",
                 .comm_timeout = 10000
         },
         [TCP_SOCK_STAT] = {
@@ -412,13 +304,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = "\r\nERROR\r\n",
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
+                .err = "\r\nERROR\r\n",
                 .comm_timeout = 20
         },
         [TCP_CLOSE] = {
@@ -430,13 +316,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err_desc =  {
-                        {
-                                .err = "\r\nERROR\r\n",
-                                .err_handler = NULL,
-                                .data = NULL,
-                        }
-                },
+                .err = "\r\nERROR\r\n",
                 .comm_timeout = 10000
         }
 };

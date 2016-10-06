@@ -260,30 +260,21 @@ static uint8_t __at_handle_error_rsp(uint8_t *rsp_buf, uint16_t read_bytes,
 {
         uint8_t i = 0;
         uint8_t result = AT_SUCCESS;
-        for(; i < ARRAY_SIZE(desc->err_desc); i++) {
-                if (desc->err_desc[i].err) {
-                        if (strncmp((char *)rsp_buf, desc->err_desc[i].err,
-                                        strlen(desc->err_desc[i].err)) != 0) {
 
-                                DEBUG_V0("%s: wrong rsp: %s\n",
-                                        __func__, (char *)rsp_buf);
-                                result = AT_WRONG_RSP;
-                        } else {
-                                result = AT_FAILURE;
-                                if (desc->err_desc[i].err_handler)
-                                        desc->err_desc[i].err_handler(
-                                                rsp_buf, read_bytes,
-                                                desc->err_desc[i].err,
-                                                desc->err_desc[i].data
-                                        );
-                                break;
-                        }
-                } else {
-                        DEBUG_V0("%s: wrong response: %s\n",
-                                                __func__, (char *)rsp_buf);
+        if (desc->err) {
+                if (strncmp((char *)rsp_buf, desc->err,
+                                strlen(desc->err)) != 0) {
+                        DEBUG_V0("%s: wrong rsp: %s\n",
+                                __func__, (char *)rsp_buf);
                         result = AT_WRONG_RSP;
-                }
+                } else
+                        result = AT_FAILURE;
+        } else {
+                DEBUG_V0("%s: wrong response: %s\n",
+                                                __func__, (char *)rsp_buf);
+                result = AT_WRONG_RSP;
         }
+
 
 #ifdef DEBUG_WRONG_RSP
         if (result == AT_WRONG_RSP) {
@@ -837,7 +828,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         if (uart_read(rsp_buf, r_idx) != UART_READ_ERR) {
                 if (strncmp((char *)(rsp_buf), desc->rsp_desc[0].rsp,
                                         r_idx) != 0) {
-                        if (strncmp((char *)rsp_buf, desc->err_desc[0].err,
+                        if (strncmp((char *)rsp_buf, desc->err,
                                 r_idx) != 0)
                                 result = AT_WRONG_RSP;
                         else
@@ -874,9 +865,9 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         } else if (result == AT_FAILURE) {
                 /* handle error case */
                 if (uart_read(rsp_buf + r_idx,
-                        strlen(desc->err_desc[0].err) - r_idx) != UART_READ_ERR) {
-                        if (strncmp(rsp_buf, desc->err_desc[0].err,
-                                strlen(desc->err_desc[0].err)) != 0) {
+                        strlen(desc->err) - r_idx) != UART_READ_ERR) {
+                        if (strncmp(rsp_buf, desc->err,
+                                                strlen(desc->err)) != 0) {
                                 DEBUG_V0("%s:%d, wrong rsp: %s\n",
                                         __func__, __LINE__, (char *)rsp_buf);
                                 goto error;
