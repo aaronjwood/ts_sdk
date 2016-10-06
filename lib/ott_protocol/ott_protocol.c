@@ -312,8 +312,10 @@ ott_status ott_retrieve_msg(msg_t *msg)
 	}
 
 	if (ret == MAX_MSG_SZ) {	/* Retrieved complete message */
-		if (!populate_msg_struct(msg))
+		if (!populate_msg_struct(msg)) {
+			ott_send_ctrl_msg(CF_NACK | CF_QUIT);
 			return OTT_MSG_CORRUPT;
+		}
 		return OTT_OK;
 	}
 

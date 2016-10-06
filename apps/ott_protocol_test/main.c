@@ -140,6 +140,7 @@ void test_scenario_1(void)
 	HAL_Delay(RECV_TIMEOUT_MS);
 	if (ott_retrieve_msg(&msg) != OTT_OK) {
 		dbg_printf("\tERR: No response from cloud, closing connection.\n");
+		ASSERT(ott_send_ctrl_msg(CF_NACK | CF_QUIT) == OTT_OK);
 		ASSERT(ott_close_connection() == OTT_OK);
 		return;
 	}
@@ -160,6 +161,7 @@ void test_scenario_1(void)
 	HAL_Delay(RECV_TIMEOUT_MS);
 	if (ott_retrieve_msg(&msg) != OTT_OK) {
 		dbg_printf("\tERR: No response from cloud, closing connection.\n");
+		ASSERT(ott_send_ctrl_msg(CF_NACK | CF_QUIT) == OTT_OK);
 		ASSERT(ott_close_connection() == OTT_OK);
 		return;
 	}
