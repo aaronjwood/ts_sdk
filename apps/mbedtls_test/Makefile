@@ -36,7 +36,7 @@ INC += -I $(SRCDIR)/include
 # User application sources
 USER_SRC = $(SRCDIR)/main.c
 ifneq ($(BUILD_TARGET),osx)
-USER_SRC += $(SRCDIR)/stm32f4xx_platform.c 
+USER_SRC += $(SRCDIR)/stm32f4xx_platform.c
 endif
 
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
@@ -44,12 +44,12 @@ endif
 # Eg: DBG_LIB_SRC = stm32l0xx_hal_uart.c stm32l0xx_hal_uart_ex.c
 DBG_LIB_SRC =
 
-# Build the  mbed TLS library 
+# Build the  mbed TLS library
 VENDOR_LIB_DIRS += mbedtls
 
 # The application uses the mbed TLS library
 INC += -I $(PROJ_ROOT)/vendor/mbedtls/include
-VENDOR_LIB_FLAGS += -L. -lmbedtls -lmbedx509 -lmbedcrypto 
+VENDOR_LIB_FLAGS += -L. -lmbedtls -lmbedx509 -lmbedcrypto
 
 # Defines the target rules
 include $(PROJ_ROOT)/rules.mk

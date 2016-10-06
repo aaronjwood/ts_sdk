@@ -3,13 +3,15 @@
 # This fragment of the Makefile lists the object files that need to be generated
 # along with the target rules.
 
-# Remove files common to both LIB_SRC and DBG_LIB_SRC from LIB_SRC
+# Remove files common to both debug and non-debug library sources
 LIB_SRC := $(filter-out $(DBG_LIB_SRC), $(LIB_SRC))
+CLOUD_COMM_SRC := $(filter-out $(DBG_LIB_SRC), $(CLOUD_COMM_SRC))
 
 # Create lists of object files to be generated from the sources
 OBJ_USER = $(addsuffix .o, $(basename $(notdir $(USER_SRC))))
 OBJ_LIB = $(addsuffix .o, $(basename $(CORELIB_SRC)))
 OBJ_LIB += $(addsuffix .o, $(basename $(LIB_SRC)))
+OBJ_LIB += $(addsuffix .o, $(basename $(CLOUD_COMM_SRC)))
 OBJ_DBG_LIB = $(addsuffix .o, $(basename $(DBG_LIB_SRC)))
 
 OBJ = $(OBJ_USER) $(OBJ_LIB) $(OBJ_DBG_LIB)
@@ -28,7 +30,7 @@ all build: $(FW_EXEC)
 
 $(FW_EXEC): $(OBJ) $(OBJ_STARTUP) vendor_libs
 	$(CC) $(LDFLAGS) $(NOSYSLIB) $(INC) -Os $(ARCHFLAGS) $(LDSCRIPT) \
-		$(OBJ) $(OBJ_STARTUP) $(VENDOR_LIB_FLAGS) -o $(FW_EXEC) 
+		$(OBJ) $(OBJ_STARTUP) $(VENDOR_LIB_FLAGS) -o $(FW_EXEC)
 
 $(OBJ_STARTUP):
 	$(AS) $(ARCHFLAGS) -o $(OBJ_STARTUP) $(STARTUP_SRC)

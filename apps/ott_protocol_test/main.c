@@ -116,81 +116,9 @@ void UsageFault_Handler(void)
 		;
 }
 
-static msg_t msg = {.c_flags = CF_ACK};
 void test_scenario_1(void)
 {
-	/* Example: Device has status to report, cloud has nothing pending. */
-
-	/* Initiate TLS/TCP Session */
-	ASSERT(ott_initiate_connection() == OTT_OK);
-
-	/* Retrieve the device ID and device secret */
-	uuid_t dev_id = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-                         0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
-	uint8_t dev_sec[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
-                             0x07, 0x08, 0x08, 0x0A, 0x0B, 0x0C, 0x0D};
-	ott_status s;
-
-	/*
-	 * Authenticate the device. Pending bit is set since we have status
-	 * to report after this. On authentication failure, close the connection.
-	 */
-	s = ott_send_auth_to_cloud(CF_PENDING, dev_id, sizeof(dev_sec), dev_sec);
-	if (s == OTT_OK) {
-		dbg_printf("Authentication message sent.\n");
-		ASSERT(ott_retrieve_msg(&msg) == OTT_OK);
-		if (msg.c_flags & CF_ACK) {
-			dbg_printf("\tAuthentication succeeded.\n");
-		} else if (msg.c_flags & CF_NACK) {
-			dbg_printf("\tAuthentication failed.\n");
-			goto cleanup;
-		}
-
-		if (msg.c_flags & CF_QUIT) {
-			dbg_printf("\tPeer asked to disconnect.\n");
-			goto cleanup;
-		}
-	} else if (s == OTT_SEND_FAILED) {
-		dbg_printf("Timed out waiting for a response from the cloud.\n");
-		goto cleanup;	/* XXX: Try again? */
-	} else if (s == OTT_ERROR) {
-		dbg_printf("There was an error in sending the message.\n");
-		goto cleanup;
-	}
-
-	/* Get the device status. */
-	uint8_t status[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-                            0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
-
-	/*
-	 * Send the status data to the cloud. Since we have no more data to send
-	 * no flag is set.
-	 */
-	s = ott_send_status_to_cloud(CF_NONE, sizeof(status), status);
-	if (s == OTT_OK) {
-		dbg_printf("Status report sent.\n");
-		ASSERT(ott_retrieve_msg(&msg) == OTT_OK);
-		if (msg.c_flags & CF_ACK) {
-			dbg_printf("\tStatus report accepted by the cloud.\n");
-		} else if (msg.c_flags & CF_NACK) {
-			dbg_printf("\tStatus report rejected by the cloud.\n");
-			goto cleanup;
-		}
-
-		if (msg.c_flags & CF_QUIT) {
-			dbg_printf("\tPeer asked to disconnect.\n");
-			goto cleanup;
-		}
-	} else if (s == OTT_SEND_FAILED) {
-		dbg_printf("Timed out waiting for a response from the cloud.\n");
-		goto cleanup;	/* XXX: Try again? */
-	} else if (s == OTT_ERROR) {
-		dbg_printf("There was an error in sending the message.\n");
-		goto cleanup;
-	}
-
-cleanup:
-	ASSERT(ott_close_connection() == OTT_OK);
+	/* Code */
 }
 
 void test_scenario_2(void)

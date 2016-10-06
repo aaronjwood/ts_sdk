@@ -89,7 +89,7 @@ ott_status ott_protocol_init(void)
 	}
 
 	/* Load the CA root certificate */
-	ret = mbedtls_x509_crt_parse_der(&cacert_der,
+	ret = mbedtls_x509_crt_parse_der(&cacert,
                                          (const unsigned char *)&cacert_der,
 					 sizeof(cacert_der));
 	if (ret < 0) {
@@ -118,7 +118,7 @@ ott_status ott_initiate_connection(void)
 	if (ret != 0)
 		return OTT_ERROR;
 
-	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_VERIFY_REQUIRED);
+	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
 	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
 	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 #ifdef MBEDTLS_DEBUG_C
@@ -255,10 +255,10 @@ static bool populate_msg_struct(msg_t *msg)
 	msg->m_type = (m_type_t)(msg_buf[0] & 0x0F);
 	switch (msg->m_type) {
 	case MT_UPDATE:
-		msg->array.sz = (uint16_t)((msg_buf[2] << 8) | msg[1]);
+		msg->array.sz = (uint16_t)((msg_buf[2] << 8) | msg_buf[1]);
 		if (msg->array.sz >= MAX_DATA_SZ)
 			return false;
-		memcpy(msg->array.bytes, &msg[3], msg->array.sz);
+		memcpy(msg->array.bytes, &msg_buf[3], msg->array.sz);
 		break;
 	case MT_CMD_PI:
 	case MT_CMD_SL:
@@ -303,4 +303,32 @@ ott_status ott_retrieve_msg(msg_t *msg)
 		return OTT_NO_MSG;
 
 	return OTT_ERROR;
+}
+
+/* Stubs for now */
+void mbedtls_net_init( mbedtls_net_context *ctx )
+{
+	(void)ctx;
+}
+int mbedtls_net_connect( mbedtls_net_context *ctx, const char *host, const char *port, int proto )
+{
+	(void)ctx; (void)host; (void)port; (void)proto;
+	return 0;
+}
+
+void mbedtls_net_free( mbedtls_net_context *ctx )
+{
+	(void)ctx;
+}
+
+int mbedtls_net_recv( void *ctx, unsigned char *buf, size_t len )
+{
+	(void)ctx; (void)buf; (void)len;
+	return -1;
+}
+
+int mbedtls_net_send( void *ctx, const unsigned char *buf, size_t len )
+{
+	(void)ctx; (void)buf; (void)len;
+	return 0;
 }
