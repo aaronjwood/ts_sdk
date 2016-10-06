@@ -26,32 +26,32 @@ static bool generator_ready;
 int mbedtls_hardware_poll( void *data,
 			   unsigned char *output, size_t len, size_t *olen )
 {
-	size_t i, j;
-	uint32_t num;
-	((void) data);
+    size_t i, j;
+    uint32_t num;
+    ((void) data);
 
-	if (!generator_ready) {
-		if (!hwrng_module_init())
-			return -1;
+    if ( !generator_ready ) {
+        if ( !hwrng_module_init() )
+            return -1;
 
-		generator_ready = true;
-	}
+        generator_ready = true;
+    }
 
-	for (i = 0; i < len;) {
+    for ( i = 0; i < len; ) {
 
-		if (! hwrng_read_random(&num)) {
-			generator_ready = false;
-			return -1;
-		}
+        if ( ! hwrng_read_random( &num )) {
+            generator_ready = false;
+            return -1;
+        }
 
-		for (j = 0; j < sizeof(num) && i < len;) {
-			*(output + i) = num & 0xff;
-			num >>= 8;
-			i++; j++;
-		}
-	}
-	*olen = len;
-	return 0;
+        for ( j = 0; j < sizeof(num) && i < len; ) {
+            *(output + i) = num & 0xff;
+            num >>= 8;
+            i++; j++;
+        }
+    }
+    *olen = len;
+    return 0;
 }
 
 #endif /* MBEDTLS_ENTROPY_HARDWARE_ALT */
