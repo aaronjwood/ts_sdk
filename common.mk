@@ -62,9 +62,16 @@ LDSCRIPT = $(STM32_LIB_COMMON)/Projects/STM32F429ZI-Nucleo/Templates/SW4STM32/ST
 STARTUP_SRC = $(STM32_CMSIS)/Source/Templates/gcc/startup_stm32f429xx.s
 OBJ_STARTUP = startup_stm32f429xx.o
 
+# defines which modem to use, currently only ublox-toby201 is supported
+MODEM_TARGET = toby201
+
+ifeq ($(MODEM_TARGET),toby201)
+MODEM_SRC += at_toby201.c
+endif
+
 # List of core library components to be included in the build process
 # This includes debugging and UART communication modules
-CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c dbg.c uart.c net.c at_toby201.c
+CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c dbg.c uart.c net.c $(MODEM_SRC)
 
 # Peripheral HAL sources
 LIB_SRC = stm32f4xx_hal_cortex.c

@@ -24,8 +24,8 @@ extern "C" {
 #define AT_TCP_CONNECT_DROPPED  -2
 
 /**
- * Initializes underlying hardware i.e. UART etc...and modem
- * \return true if successful or false if fails
+ * \brief       Initializes underlying hardware i.e. UART etc...and modem
+ * \return      true if successful or false if fails
  */
 bool at_init();
 

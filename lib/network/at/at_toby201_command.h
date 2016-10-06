@@ -10,6 +10,12 @@
 
 #include "at_defs.h"
 
+#define AT_UART_TX_WAIT_MS           10000
+
+/* Upper limit for commands which need formatting before sending to modem */
+#define TEMP_COMM_LIMIT              64
+#define TCP_SOCK_STATUS_CODE         4
+
 static void __at_parse_tcp_conf_rsp(void *rcv_rsp, int rcv_rsp_len,
                                         const char *stored_rsp, void *data);
 static void __at_parse_tcp_send_rsp(void *rcv_rsp, int rcv_rsp_len,
@@ -18,6 +24,52 @@ static void __at_parse_read_qry_rsp(void *rcv_rsp, int rcv_rsp_len,
                                         const char *stored_rsp, void *data);
 static void __at_parse_tcp_sock_stat(void *rcv_rsp, int rcv_rsp_len,
                                         const char *stored_rsp, void *data);
+
+/** All intereted URCs */
+typedef enum at_urc {
+        NET_STAT_URC = 0, /** network status */
+        EPS_STAT_URC, /** data network status */
+        NO_CARRIER,
+        DATA_READ, /** TCP read available urc */
+        TCP_CLOSED, /** TCP close */
+        URC_END
+} at_urc;
+
+/** For modem status check and configuration related commands */
+typedef enum at_modem_stat_command {
+        MODEM_OK = 0, /** simple modem check command i.e. at */
+        ECHO_OFF,
+        MODEM_RESET,
+        NET_STAT, /** turn on network status urc */
+        EPS_STAT, /** turn on data network status urc */
+        MNO_STAT, /** check mobile network opertor */
+        MNO_SET, /** set mobile network opertor */
+        SIM_READY,
+        NET_REG_STAT,
+        EPS_REG_STAT,
+        MOD_END
+} at_modem_stat_command;
+
+/** For PDN (packet data network) activation commands */
+typedef enum at_pdp_command {
+        SEL_IPV4_PREF = 0, /** configure PDP context for IPV4 for preference */
+        ACT_PDP, /** activate pdp context */
+        PDP_END
+} at_pdp_command;
+
+/** TCP related commands */
+typedef enum at_tcp_command {
+        TCP_CONF = 0, /** TCP connection configuration */
+        TCP_CONN, /** TCP connection */
+        TCP_SEND,
+        TCP_WRITE_PROMPT, /** TCP write prompt before sending data */
+        TCP_RCV,
+        TCP_RCV_QRY,
+        TCP_SOCK_STAT,
+        TCP_CLOSE,
+        TCP_END,
+} at_tcp_command;
+
 
 static const char *at_urcs[URC_END] = {
                 [NET_STAT_URC] = "\r\n+CEREG: ",
@@ -305,7 +357,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                         }
                 },
                 .err = "\r\nERROR\r\n",
-                .comm_timeout = 20
+                .comm_timeout = 100
         },
         [TCP_CLOSE] = {
                 .comm_sketch = "at+usocl=%d\r",
