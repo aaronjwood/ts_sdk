@@ -171,12 +171,31 @@ static bool write_tls(uint8_t *buf, uint16_t len)
 	return true;
 }
 
+/* Return "true" if the flag settings are valid. */
+static bool flags_are_valid(c_flags_t f)
+{
+	/*
+	 * Following are the invalid flag settings:
+	 * NACK + ACK
+	 * NACK + PENDING
+	 * NACK + ACK + PENDING
+	 * NACK + PENDING + QUIT
+	 * NACK + ACK + QUIT
+	 * NACK + ACK + PENDING + QUIT
+	 *
+	 * Accounting for the first two takes care of the rest.
+	 */
+	if (OTT_FLAG_IS_SET(f, CF_NACK | CF_ACK) ||
+			OTT_FLAG_IS_SET(f, CF_NACK | CF_PENDING))
+		return false;
+	return true;
+}
+
 ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uuid_t dev_id,
 				  uint16_t dev_sec_sz, const uint8_t *dev_sec)
 {
 	/* Check for correct parameters */
-	if (((c_flags & (CF_NACK | CF_ACK)) == (CF_NACK | CF_ACK)) ||
-			(dev_sec_sz + UUID_SZ > MAX_DATA_SZ) ||
+	if (!flags_are_valid(c_flags) || (dev_sec_sz + UUID_SZ > MAX_DATA_SZ) ||
 			(dev_id == NULL || dev_sec == NULL || dev_sec_sz == 0))
 		return OTT_INV_PARAM;
 
@@ -213,8 +232,7 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 				    const uint8_t *status)
 {
 	/* Check for correct parameters */
-	if (((c_flags & (CF_NACK | CF_ACK)) == (CF_NACK | CF_ACK)) ||
-			(status_sz > MAX_DATA_SZ) ||
+	if (!flags_are_valid(c_flags) || (status_sz > MAX_DATA_SZ) ||
 			(status == NULL))
 		return OTT_INV_PARAM;
 
@@ -237,8 +255,7 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 {
 	/* Check for correct parameters */
-	if (((c_flags & (CF_NACK | CF_ACK)) == (CF_NACK | CF_ACK)) ||
-			((c_flags & CF_PENDING) == CF_PENDING))
+	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_PENDING))
 		return OTT_INV_PARAM;
 
 	unsigned char buf = (uint8_t)(c_flags << 4 | MT_NONE);
@@ -249,6 +266,7 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 		return OTT_ERROR;
 }
 
+/* Return "false" if the message has invalid data. */
 static bool populate_msg_struct(msg_t *msg)
 {
 	msg->c_flags = (c_flags_t)((msg_buf[0] >> 4) & 0x0F);
