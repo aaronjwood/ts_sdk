@@ -8,9 +8,11 @@
  */
 #ifndef BUILD_TARGET_OSX
 #include <stm32f4xx_hal.h>
+#else
+#include <stdlib.h>
 #endif
 
-#include "mbedtls/net.h" // XXX - will need the NET over AT commands header
+#include "mbedtls/net.h" /* XXX - need different header for NET over AT cmds? */
 #include "mbedtls/ssl.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
@@ -38,16 +40,29 @@
 #define GET_REQUEST "GET / HTTP/1.0\r\n\r\n"
 
 #ifdef MBEDTLS_DEBUG_C
-static void my_debug( void *ctx, int level,
-                      const char *file, int line,
-                      const char *str )
+static void my_debug(void *ctx, int level,
+		     const char *file, int line,
+		     const char *str)
 {
-    ((void) level);
+	((void) level);
 
-    dbg_printf("%s:%04d: %s", file, line, str);
-    fflush(stdout);
+	dbg_printf("%s:%04d: %s", file, line, str);
+	fflush(stdout);
 }
 #endif
+
+static void terminate(int ret)
+{
+	if (ret != 0)
+		fatal_err("failed: %d\n", ret);
+
+#ifdef BUILD_TARGET_OSX
+	exit(ret);
+#else
+	while (1)	/* Don't exit on bare metal */
+		;
+#endif
+}
 
 extern void SystemClock_Config(void);
 
@@ -86,33 +101,33 @@ int main(int argc, char *argv[])
 	mbedtls_x509_crt_init(&cacert);
 	mbedtls_ctr_drbg_init(&ctr_drbg);
 
-	dbg_printf( "Seeding RNG...\n");
+	dbg_printf("Seeding RNG...\n");
 	mbedtls_entropy_init(&entropy);
 	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
 				    NULL, 0);
 	if (ret != 0)
-		goto fail;
+		goto done;
 
 	dbg_printf("Loading CA root cert...\n");
 	ret = mbedtls_x509_crt_parse_der(&cacert,
 					 (const unsigned char *)&cacert_der,
 					 sizeof(cacert_der));
 	if (ret < 0)
-		goto fail;
-	
+		goto done;
+
 	dbg_printf("Connecting to %s/%s...\n", SERVER_NAME, SERVER_PORT);
 	ret = mbedtls_net_connect(&server_fd, SERVER_NAME, SERVER_PORT,
 				  MBEDTLS_NET_PROTO_TCP);
 	if (ret < 0)
-		goto fail;
-	
+		goto done;
+
 	dbg_printf("Setting up TLS structure...\n");
 	ret = mbedtls_ssl_config_defaults(&conf,
 					  MBEDTLS_SSL_IS_CLIENT,
 					  MBEDTLS_SSL_TRANSPORT_STREAM,
 					  MBEDTLS_SSL_PRESET_DEFAULT);
 	if (ret != 0)
-		goto fail;
+		goto done;
 
 	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
 	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
@@ -123,8 +138,8 @@ int main(int argc, char *argv[])
 
 	ret = mbedtls_ssl_setup(&ssl, &conf);
 	if (ret != 0)
-		goto fail;
-	
+		goto done;
+
 	/* This handles non-blocking I/O and will poll for completion below. */
 	mbedtls_ssl_set_bio(&ssl, &server_fd, mbedtls_net_send,
 			    mbedtls_net_recv, NULL);
@@ -134,23 +149,23 @@ int main(int argc, char *argv[])
 	while (ret != 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
 		    ret != MBEDTLS_ERR_SSL_WANT_WRITE)
-			goto fail;
+			goto done;
 		ret = mbedtls_ssl_handshake(&ssl);
 	}
-			
+
 	dbg_printf("Writing to server...\n");
 	int len = sprintf((char *)buf, GET_REQUEST);
 	ret = mbedtls_ssl_write(&ssl, buf, len);
 	while (ret <= 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
 		    ret != MBEDTLS_ERR_SSL_WANT_WRITE)
-			goto fail;
+			goto done;
 		ret = mbedtls_ssl_write(&ssl, buf, len);
 	}
 
 	len = ret;
 	dbg_printf("    Wrote %d bytes\n", len);
-	
+
 	dbg_printf("Reading response from server...\n");
 	do {
 		len = sizeof(buf) - 1;
@@ -164,9 +179,9 @@ int main(int argc, char *argv[])
 			dbg_printf("Server closed connection\n");
 			break;
 		}
-			
+
 		if (ret < 0)
-			goto fail;
+			goto done;
 
 		if (ret == 0) {
 			dbg_printf("EOF\n");
@@ -178,18 +193,17 @@ int main(int argc, char *argv[])
 	} while (1);
 
 	mbedtls_ssl_close_notify(&ssl);
+	ret = 0;
 
-	mbedtls_net_free( &server_fd );
-	mbedtls_x509_crt_free( &cacert );
-	mbedtls_ssl_free( &ssl );
-	mbedtls_ssl_config_free( &conf );
-	mbedtls_ctr_drbg_free( &ctr_drbg );
-	mbedtls_entropy_free( &entropy );
+done:
+	mbedtls_net_free(&server_fd);
+	mbedtls_x509_crt_free(&cacert);
+	mbedtls_ssl_free(&ssl);
+	mbedtls_ssl_config_free(&conf);
+	mbedtls_ctr_drbg_free(&ctr_drbg);
+	mbedtls_entropy_free(&entropy);
 
-	return 0;
-
-fail:
-	fatal_err("failed: %d\n", ret);
+	terminate(ret);
 	return 0;
 }
 
@@ -197,28 +211,29 @@ fail:
 /* Temporary stubs to allow compiling before the net over AT library is ready.*/
 #ifndef BUILD_TARGET_OSX
 
-void mbedtls_net_init( mbedtls_net_context *ctx )
+void mbedtls_net_init(mbedtls_net_context *ctx)
 {
 	(void)ctx;
 }
-int mbedtls_net_connect( mbedtls_net_context *ctx, const char *host, const char *port, int proto )
+int mbedtls_net_connect(mbedtls_net_context *ctx, const char *host,
+			const char *port, int proto)
 {
 	(void)ctx; (void)host; (void)port; (void)proto;
 	return 0;
 }
 
-void mbedtls_net_free( mbedtls_net_context *ctx )
+void mbedtls_net_free(mbedtls_net_context *ctx)
 {
 	(void)ctx;
 }
 
-int mbedtls_net_recv( void *ctx, unsigned char *buf, size_t len )
+int mbedtls_net_recv(void *ctx, unsigned char *buf, size_t len)
 {
 	(void)ctx; (void)buf; (void)len;
 	return -1;
 }
 
-int mbedtls_net_send( void *ctx, const unsigned char *buf, size_t len )
+int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len)
 {
 	(void)ctx; (void)buf; (void)len;
 	return 0;
