@@ -17,9 +17,11 @@ STM32_CMSIS = $(STM32_LIB_COMMON)/Drivers/CMSIS/Device/ST/STM32F4xx
 # Compiler, assembler, object code dumper and object code section copier
 CC = $(GCC_ROOT)/bin/arm-none-eabi-gcc
 AS = $(GCC_ROOT)/bin/arm-none-eabi-as
+AR = $(GCC_ROOT)/bin/arm-none-eabi-ar
 OBJDUMP = $(GCC_ROOT)/bin/arm-none-eabi-objdump
 OBJCOPY = $(GCC_ROOT)/bin/arm-none-eabi-objcopy
 SIZE = $(GCC_ROOT)/bin/arm-none-eabi-size
+export CC AS AR OBJDUMP OBJCOPY SIZE
 
 # Debug and optimization flags
 DBG_OP_USER_FLAGS = -g -ggdb3 -O0
@@ -29,15 +31,22 @@ DBG_OP_LIB_FLAGS = -Os
 NOSYSLIB =  -Wl,--gc-sections -Wl,--as-needed --specs=nosys.specs
 
 # Machine specific compiler and assembler settings
-MFLAGS = -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
+ARCHFLAGS = -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
 MDEF = -DSTM32F429xx
+export MDEF
+export ARCHFLAGS
 
 # Firmware name
 FW_EXEC = firmware.elf
+LDFLAGS ?= -Wl,-Map,fw.map,--cref
 
-# Device drivers for debugging and communication over UART
+# Device drivers
 INC = -I $(PROJ_ROOT)/include/dbg
 INC += -I $(PROJ_ROOT)/include/uart
+INC += -I $(PROJ_ROOT)/include/hwrng
+
+# Certificates
+INC += -I $(PROJ_ROOT)/include/certs
 
 # Peripheral related headers
 INC += -I $(STM32_LIB_COMMON)/Drivers/STM32F4xx_HAL_Driver/Inc
@@ -50,9 +59,10 @@ INC += -I $(STM32_CMSIS)/Include
 
 # Standard library function headers
 INC += -I $(GCC_ROOT)/include
+export INC
 
 # Linker script
-LDSCRIPT = $(STM32_LIB_COMMON)/Projects/STM32F429ZI-Nucleo/Templates/SW4STM32/STM32F429ZI_Nucleo_144/STM32F429ZITx_FLASH.ld
+LDSCRIPT = -T $(STM32_LIB_COMMON)/Projects/STM32F429ZI-Nucleo/Templates/SW4STM32/STM32F429ZI_Nucleo_144/STM32F429ZITx_FLASH.ld
 
 # Point to the C Runtime startup code
 STARTUP_SRC = $(STM32_CMSIS)/Source/Templates/gcc/startup_stm32f429xx.s
@@ -60,7 +70,7 @@ OBJ_STARTUP = startup_stm32f429xx.o
 
 # List of core library components to be included in the build process
 # This includes debugging and UART communication modules
-CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c dbg.c uart.c
+CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c dbg.c uart.c hwrng.c
 
 # Peripheral HAL sources
 LIB_SRC = stm32f4xx_hal_cortex.c
@@ -72,10 +82,11 @@ LIB_SRC += stm32f4xx_hal_pwr.c
 LIB_SRC += stm32f4xx_hal_pwr_ex.c
 LIB_SRC += stm32f4xx_hal_tim.c
 LIB_SRC += stm32f4xx_hal_tim_ex.c
+LIB_SRC += stm32f4xx_hal_rng.c
 
 # Search paths for core module sources
 vpath %.c $(PROJ_ROOT)/lib/dbg: \
 	$(PROJ_ROOT)/lib/uart: \
-	$(PROJ_ROOT)/vendor: \
+	$(PROJ_ROOT)/lib/hwrng: \
 	$(STM32_PLIB): \
 	$(STM32_CMSIS)/Source/Templates:

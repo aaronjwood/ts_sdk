@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Copyright (C) 2015 Verizon.  All rights reserved.
+
+# Run the checkpatch.pl script against all the (A)dded and (M)odified 
+# .c and .h files in the current repo.
+
+gittop=$(git rev-parse --show-toplevel)
+checkparse=$gittop/tools/scripts/checkpatch.pl
+
+git status -s -uno | sed 's/^.. //' | egrep '\.c$|\.h$|.ino$' | (
+	while read fn; do
+		echo Checking $fn: ;
+		$checkparse --file --terse --no-tree $fn
+		
+	done )
+
+
+
