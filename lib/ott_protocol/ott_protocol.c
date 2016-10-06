@@ -72,6 +72,7 @@ ott_status ott_protocol_init(void)
 #ifdef MBEDTLS_DEBUG_C
 	mbedtls_debug_set_threshold(1);
 #endif
+	/* Initialize TLS structures */
 	mbedtls_net_init(&server_fd);
 	mbedtls_ssl_init(&ssl);
 	mbedtls_ssl_config_init(&conf);
@@ -146,6 +147,7 @@ ott_status ott_initiate_connection(void)
 
 ott_status ott_close_connection(void)
 {
+	/* Close the connection and notify the peer. */
 	int ret = mbedtls_ssl_close_notify(&ssl);
 	if (ret == 0)
 		return OTT_OK;
@@ -155,6 +157,7 @@ ott_status ott_close_connection(void)
 
 static bool write_tls(uint8_t *buf, uint16_t len)
 {
+	/* Attempt to write 'len' bytes of 'buf' over the TCP/TLS stream. */
 	int ret = mbedtls_ssl_write(&ssl, (const unsigned char *)buf, (size_t)len);
 	while (ret <= 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
@@ -181,7 +184,14 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uuid_t dev_id,
 	uint16_t len = VER_SZ + CMD_SZ + UUID_SZ + LEN_SZ + dev_sec_sz;
 	unsigned char buf[len];
 
-	buf[idx++] = VERSION_BYTE;
+	/* The version byte is sent before the very first message. */
+	buf[0] = VERSION_BYTE;
+	if (write_tls(buf, 1))
+		return OTT_OK;
+	else
+		return OTT_ERROR;
+
+	/* Build the rest of the message. */
 	buf[idx++] = (uint8_t)(c_flags << 4 | MT_AUTH);
 
 	for (uint16_t i = 0; i < UUID_SZ; i++)
@@ -239,14 +249,15 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 		return OTT_ERROR;
 }
 
-static void populate_msg(msg_t *msg)
+static bool populate_msg_struct(msg_t *msg)
 {
 	msg->c_flags = (c_flags_t)((msg_buf[0] >> 4) & 0x0F);
 	msg->m_type = (m_type_t)(msg_buf[0] & 0x0F);
 	switch (msg->m_type) {
 	case MT_UPDATE:
 		msg->array.sz = (uint16_t)((msg_buf[2] << 8) | msg[1]);
-		ASSERT(msg->array.sz < MAX_DATA_SZ);
+		if (msg->array.sz >= MAX_DATA_SZ)
+			return false;
 		memcpy(msg->array.bytes, &msg[3], msg->array.sz);
 		break;
 	case MT_CMD_PI:
@@ -254,17 +265,28 @@ static void populate_msg(msg_t *msg)
 		msg->cmd_value = (uint32_t)(msg_buf[4] << 24 | msg_buf[3] << 16 |
 					msg_buf[2] << 8 | msg_buf[1]);
 	default:
+		return false;
 		break;
 	}
+	return true;
 }
+
 ott_status ott_retrieve_msg(msg_t *msg)
 {
+	if (msg == NULL)
+		return OTT_INV_PARAM;
+
 	int ret = mbedtls_ssl_read(&ssl, msg_buf, MAX_MSG_SZ);
 	if (ret == MBEDTLS_ERR_SSL_WANT_WRITE ||
 			ret == MBEDTLS_ERR_SSL_WANT_READ ||
-			ret == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY ||
 			ret == OTT_NO_MSG)
 		return OTT_NO_MSG;
+
+	if (ret == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY) {
+		if (ott_close_connection() != OTT_OK)
+			return OTT_ERROR;
+		return OTT_NO_MSG;
+	}
 
 	if (ret < 0) {
 		mbedtls_ssl_session_reset(&ssl);
@@ -272,7 +294,8 @@ ott_status ott_retrieve_msg(msg_t *msg)
 	}
 
 	if (ret == MAX_MSG_SZ) {	/* Retrieved complete message */
-		populate_msg(msg);
+		if (!populate_msg_struct(msg))
+			return OTT_MSG_CORRUPT;
 		return OTT_OK;
 	}
 

@@ -27,6 +27,7 @@ typedef enum {			/* Defines return codes of this API. */
 	OTT_OK,			/* API call exited without any errors */
 	OTT_ERROR,		/* API call exited with errors */
 	OTT_NO_MSG,		/* There are no messages to be retrieved */
+	OTT_MSG_CORRUPT,	/* The received message is corrupted. */
 	OTT_INV_PARAM		/* Invalid parameters passed to the API */
 } ott_status;
 
@@ -158,8 +159,8 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
  *
  * Returns:
  * 	OTT_OK        : Message was sent to the cloud service.
- * 	OTT_INV_PARAM :	Flag parameter is invalid (Eg. ACK+NACK) or
- * 	                Pending flag is active
+ * 	OTT_INV_PARAM :	Flag parameter is invalid (Eg. ACK+NACK or Pending flag
+ *                      is active).
  * 	OTT_ERROR     : Sending the message failed due to a TCP/TLS error.
  */
 ott_status ott_send_ctrl_msg(c_flags_t c_flags);
@@ -174,9 +175,10 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags);
  * 	      associated control flags.
  *
  * Returns:
- * 	OTT_OK     : Message successfully retrieved
- * 	OTT_NO_MSG : No message to retrieve.
- * 	OTT_ERROR  : Receiving failed due to a TCP/TLS error.
+ * 	OTT_OK        : Message successfully retrieved
+ * 	OTT_NO_MSG    : No message to retrieve.
+ * 	OTT_ERROR     : An error occurred in the TCP/TLS layer.
+ * 	OTT_INV_PARAM : A NULL pointer was passed in for the buffer.
  */
 ott_status ott_retrieve_msg(msg_t *msg);
 #endif
