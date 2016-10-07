@@ -203,6 +203,10 @@ int main(int argc, char *argv[])
 		HAL_Delay(1000);
 		count++;
 	}
+	if (r_b <= 0) {
+		dbg_printf("Read failed, code:%d, looping forever\n", r_b);
+		ASSERT(0);
+	}
 	uint8_t read_buf[r_b + 1];
 	read_buf[r_b] = 0x0;
 	int bytes = at_tcp_recv(s_id, read_buf, r_b);

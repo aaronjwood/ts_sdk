@@ -39,6 +39,7 @@ static int debug_level;
 #define DEBUG_V1(...)	if (debug_level >= 1) printf(__VA_ARGS__)
 #define DEBUG_V0(...)	printf(__VA_ARGS__)
 
+#define DBG_STATE
 #ifdef DBG_STATE
 #define DEBUG_STATE(...) printf("%s: line %d, state: %u\n",\
                                 __func__, __LINE__, (uint32_t)state)
@@ -98,6 +99,22 @@ static int __at_get_bytes(char *rsp_buf, char tail) {
         } else
                 return -1;
         return num_bytes;
+}
+
+static void __at_dump_buffer(uint8_t *buf, uint16_t len)
+{
+        if (!buf) {
+                int bytes = uart_rx_available();
+                if (bytes > 0) {
+                        uint8_t temp_buf[bytes];
+                        uart_read(temp_buf, bytes);
+                        for (uint8_t i = 0; i < bytes; i++)
+                                DEBUG_V0("0x%x, ", temp_buf[i]);
+                }
+        } else {
+                for (uint8_t i = 0; i < len; i++)
+                        DEBUG_V0("0x%x, ", buf[i]);
+        }
 }
 
 static void __at_uart_rx_flush() {
@@ -192,10 +209,11 @@ static void at_uart_callback(callback_event ev) {
         switch (ev) {
         case UART_EVENT_RECVD_BYTES:
                 if ((state & WAITING_RESP) == WAITING_RESP) {
-                        DEBUG_V1("%s: got response\n", __func__);
+                        DEBUG_V0("%s:response of %d bytes, line of %d bytes\n",
+                        __func__, uart_rx_available(),
+                        uart_line_avail(rsp_header, rsp_trailer));
                         process_rsp = true;
-                }
-                else if (((state & PROC_RSP) != PROC_RSP) &&
+                } else if (((state & PROC_RSP) != PROC_RSP) &&
                         ((state & PROC_URC) != PROC_URC)) {
                         DEBUG_V1("%s: urc processing from callback\n", __func__);
                         __at_process_urc();
@@ -230,9 +248,8 @@ static uint8_t __at_wait_for_rsp(uint32_t timeout) {
 }
 
 static uint8_t __at_comm_send_and_wait_rsp(char *comm, uint16_t len,
-        uint32_t timeout)
+                                                uint32_t timeout)
 {
-        CHECK_NULL(comm, AT_FAILURE)
         /* Process urcs if any before we send down new command
          * and empty buffer
          */
@@ -240,6 +257,8 @@ static uint8_t __at_comm_send_and_wait_rsp(char *comm, uint16_t len,
         __at_process_urc();
         state &= ~PROC_URC;
         __at_uart_rx_flush();
+
+        CHECK_NULL(comm, AT_FAILURE)
 
         if (!__at_uart_write((uint8_t *)comm, len)) {
                 DEBUG_V0("%s: uart tx fail\n", __func__);
@@ -271,12 +290,11 @@ static uint8_t __at_handle_error_rsp(uint8_t *rsp_buf, uint16_t read_bytes,
 #ifdef DEBUG_WRONG_RSP
         if (result == AT_WRONG_RSP) {
                 DEBUG_V0("%s: Printing received wrong response:\n", __func__);
-                for (uint16_t i = 0; i < read_bytes; i++)
-                        DEBUG_V0(" 0x%x", rsp_buf[i]);
+                __at_dump_buffer(rsp_buf, read_bytes);
                 DEBUG_V0("\n");
                 DEBUG_V0("%s: Printing expected response:\n", __func__);
-                for (uint16_t i = 0; i < strlen(desc->rsp_desc[rsp_num].rsp); i++)
-                        DEBUG_V0(" 0x%x", desc->rsp_desc[rsp_num].rsp[i]);
+                __at_dump_buffer(desc->rsp_desc[rsp_num].rsp,
+                                        strlen(desc->rsp_desc[rsp_num].rsp));
                 DEBUG_V0("\n");
                 if (strncmp(rsp_buf, desc->rsp_desc[rsp_num].rsp,
                         read_bytes) == 0)
@@ -287,8 +305,8 @@ static uint8_t __at_handle_error_rsp(uint8_t *rsp_buf, uint16_t read_bytes,
 }
 
 /* Generic utility to send command, wait for the response, and process response
- * this function is only be used when response has guard or line ending
- * delimiters
+ * it is best to be used for responses bound by delimiters with the exceptions
+ * for write prompt command
  */
 
 static uint8_t __at_generic_comm_rsp_util(at_command_desc *desc, bool skip_comm,
@@ -306,37 +324,43 @@ static uint8_t __at_generic_comm_rsp_util(at_command_desc *desc, bool skip_comm,
         timeout = desc->comm_timeout;
 
         if (!skip_comm) {
-                DEBUG_V1("%s: sending %s\n", __func__, comm);
+                DEBUG_V0("%s: sending %s\n", __func__, comm);
                 result = __at_comm_send_and_wait_rsp(comm, strlen(comm),
                                                                 timeout);
-                CHECK_SUCCESS(result, AT_SUCCESS, result)
+                if (result != AT_SUCCESS)
+                        goto done;
         }
 
         state |= PROC_RSP;
-        DEBUG_STATE();
 
         for(uint8_t i = 0; i < ARRAY_SIZE(desc->rsp_desc); i++) {
                 if (!desc->rsp_desc[i].rsp)
                         continue;
                 if (read_line) {
                         read_bytes = uart_line_avail(rsp_header, rsp_trailer);
+                        /* Scenario where modem stops sending partial response
+                         * before we go out reporting error, give another chance
+                         */
                         if (read_bytes == 0) {
-                                DEBUG_V0("%s: no line detected, wait again\n",
-                                        __func__);
-                                uint8_t res = __at_wait_for_rsp(timeout);
-                                if (res != AT_SUCCESS) {
-                                        result = res;
-                                        break;
-                                } else
-                                        read_bytes = uart_line_avail(rsp_header,
+                                DEBUG_V0("%s: no line detected after response,"
+                                                " wait again\n", __func__);
+                                /* don't care about timeout here */
+                                __at_wait_for_rsp(timeout);
+                                read_bytes = uart_line_avail(rsp_header,
                                                                 rsp_trailer);
+                                if (read_bytes == 0) {
+                                        DEBUG_V0("%s: no line available\n",
+                                                __func__);
+                                        __at_dump_buffer(NULL, 0);
+                                        break;
+                                }
                         }
                 } else
                         read_bytes = uart_rx_available();
 
                 if (read_bytes <= 0) {
-                        DEBUG_V0("%s: comm: %s: invalid read_bytes:%d\n",
-                        __func__, comm, read_bytes);
+                        DEBUG_V0("%s: invalid read_bytes:%d for comm: %s\n",
+                                __func__, read_bytes, comm);
                         break;
                 }
                 uint8_t rsp_buf[read_bytes + 1];
@@ -367,6 +391,7 @@ static uint8_t __at_generic_comm_rsp_util(at_command_desc *desc, bool skip_comm,
         }
         state &= ~PROC_RSP;
         /* Recommeded to wait atleast 20ms before proceeding */
+done:
         HAL_Delay(20);
 
         /* check to see if we have urcs while command was executing
@@ -378,8 +403,7 @@ static uint8_t __at_generic_comm_rsp_util(at_command_desc *desc, bool skip_comm,
         state &= ~PROC_URC;
         __at_uart_rx_flush();
 
-        DEBUG_STATE();
-        DEBUG_V1("%s: result: %d\n", __func__, result);
+        DEBUG_V0("%s: result: %d\n", __func__, result);
         return result;
 }
 
@@ -771,6 +795,8 @@ static void __at_parse_rcv_err(uint8_t *rsp_buf, uint16_t r_idx,
                 if (strncmp(rsp_buf, desc->err, strlen(desc->err)) != 0)
                         DEBUG_V0("%s:wrong rsp: %s\n",
                                         __func__, (char *)rsp_buf);
+                else
+                        DEBUG_V1("%s: got error\n", __func__);
         }
 }
 
@@ -847,7 +873,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
 
         char temp_comm[TEMP_COMM_LIMIT];
         snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id, len);
-
+        DEBUG_V1("%s: sending command: %s\n", __func__, temp_comm);
         result = __at_comm_send_and_wait_rsp(temp_comm, strlen(temp_comm),
                                                 desc->comm_timeout);
         CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_RCV_FAIL);
@@ -912,7 +938,8 @@ void at_tcp_close(int s_id) {
         desc->comm = temp_comm;
 
         if (__at_generic_comm_rsp_util(desc, false, true) != AT_SUCCESS) {
-                DEBUG_V0("%s: could not close connection\n", __func__);
+                DEBUG_V0("%s: could not close socket,"
+                        " connection may be already closed\n", __func__);
                 return;
         }
         state &= ~TCP_CONNECTED;

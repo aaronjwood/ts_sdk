@@ -196,7 +196,6 @@ int main(int argc, char *argv[])
 	/* step 3: send data */
 	dbg_printf("Sending data:\n");
 	char *send_buf = "GET \\ HTTP\\1.1\r\n";
-	dbg_printf("Sending data:\n");
 	size_t len = strlen(send_buf);
 	net_send(&ctx, (uint8_t *)send_buf, len);
 
@@ -210,6 +209,10 @@ int main(int argc, char *argv[])
 			break;
 		HAL_Delay(1000);
 		count++;
+	}
+	if (bytes <= 0) {
+		dbg_printf("Read failed, code:%d, looping forever\n", bytes);
+		ASSERT(0);
 	}
 	read_buf[bytes] = 0x0;
 	printf("Read Bytes: %d\n", bytes);

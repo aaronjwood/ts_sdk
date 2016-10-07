@@ -167,7 +167,7 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                         }
                 },
                 .err = NULL,
-                .comm_timeout = 10000
+                .comm_timeout = 190000
         },
         [SIM_READY] = {
                 .comm = "at+cpin?\r",
@@ -250,7 +250,7 @@ static at_command_desc pdp_conf_comm[PDP_END] = {
                         }
                 },
                 .err = "\r\nERROR\r\n",
-                .comm_timeout = 150000
+                .comm_timeout = 190000
         }
 };
 
@@ -282,7 +282,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                         }
                 },
                 .err = "\r\nERROR\r\n",
-                .comm_timeout = 20000
+                .comm_timeout = 25000
         },
         [TCP_SEND] = {
                 .comm_sketch = "at+usowr=%d,%d\r",
@@ -299,7 +299,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                         }
                 },
                 .err = "\r\nERROR\r\n",
-                .comm_timeout = 10000
+                .comm_timeout = 15000
         },
         [TCP_WRITE_PROMPT] = {
                 .comm_sketch = "at+usowr=%d,%d\r",
@@ -311,7 +311,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                         }
                 },
                 .err = "\r\nERROR\r\n",
-                .comm_timeout = 10000
+                .comm_timeout = 15000
         },
         [TCP_RCV] = {
                 .comm_sketch = "at+usord=%d,%d\r",
@@ -323,7 +323,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                         }
                 },
                 .err = "\r\nERROR\r\n",
-                .comm_timeout = 10000
+                .comm_timeout = 15000
         },
         [TCP_RCV_QRY] = {
                 .comm_sketch = "at+usord=%d,0\r",
@@ -369,6 +369,6 @@ static at_command_desc tcp_comm[TCP_END] = {
                         }
                 },
                 .err = "\r\nERROR\r\n",
-                .comm_timeout = 10000
+                .comm_timeout = 15000
         }
 };
