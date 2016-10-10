@@ -49,7 +49,7 @@ int at_tcp_connect(const char *host, const char *port);
  * \param[in] len     The length of the buffer
  *
  * \return         The number of bytes sent,
- *                 or -1 if fails;
+ *                 or AT_TCP_SEND_FAIL/AT_TCP_CONNECT_DROPPED if fails;
  */
 int at_tcp_send(int s_id, const uint8_t *buf, size_t len);
 
@@ -57,8 +57,9 @@ int at_tcp_send(int s_id, const uint8_t *buf, size_t len);
  * \brief               querry AT layer if data is available to read
  *
  * \param[in] s_id      Socket or session id to read
- * \return              actual data available to read, -1 for any
- *                      other internal error, for example, socket is not valid
+ * \return              actual data available to read,
+ *                      AT_TCP_RCV_FAIL/AT_TCP_CONNECT_DROPPED for any
+ *                      other errors, for example, socket is not valid
  *
  */
 int at_read_available(int s_id);
@@ -73,7 +74,7 @@ int at_read_available(int s_id);
  * \param[in] len       Maximum length of the buffer
  *
  * \return         The number of bytes received,
- *                 or -1 for error
+ *                 or AT_TCP_RCV_FAIL/AT_TCP_CONNECT_DROPPED for error
  *
  */
 int at_tcp_recv(int s_id, uint8_t *buf, size_t len);

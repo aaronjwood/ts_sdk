@@ -67,6 +67,7 @@ MODEM_TARGET = toby201
 
 ifeq ($(MODEM_TARGET),toby201)
 MODEM_SRC += at_toby201.c
+MODEM_DIR += toby201
 endif
 
 # List of core library components to be included in the build process
@@ -88,7 +89,7 @@ LIB_SRC += stm32f4xx_hal_tim_ex.c
 vpath %.c $(PROJ_ROOT)/lib/dbg: \
 	$(PROJ_ROOT)/lib/uart: \
 	$(PROJ_ROOT)/lib/network: \
-	$(PROJ_ROOT)/lib/network/at: \
+	$(PROJ_ROOT)/lib/network/at/$(MODEM_DIR): \
 	$(PROJ_ROOT)/vendor: \
 	$(STM32_PLIB): \
 	$(STM32_CMSIS)/Source/Templates:
