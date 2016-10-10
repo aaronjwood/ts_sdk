@@ -31,6 +31,7 @@ static char *rsp_trailer = "\r\n";
 
 static volatile at_states state;
 static volatile bool process_rsp;
+/* Flag to indicate one time packet data network enable procedure */
 static bool pdp_conf;
 
 static int debug_level;
