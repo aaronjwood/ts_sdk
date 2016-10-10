@@ -21,12 +21,12 @@
 #define CMD_SZ			1
 #define LEN_SZ			2
 #define MAX_DATA_SZ		(MAX_MSG_SZ - VER_SZ - CMD_SZ - LEN_SZ)
+#define UUID_SZ			16
 
 typedef enum {			/* Defines return codes of this API. */
 	OTT_OK,			/* API call exited without any errors */
 	OTT_ERROR,		/* API call exited with errors */
 	OTT_NO_MSG,		/* There are no messages to be retrieved */
-	OTT_MSG_CORRUPT,	/* The received message is corrupted. */
 	OTT_INV_PARAM		/* Invalid parameters passed to the API */
 } ott_status;
 
@@ -64,7 +64,7 @@ typedef struct __attribute__((packed)) {
 /*
  * Initialize the OTT Protocol module. This will initialize the underlying modem
  * / TCP drivers, set up the TLS parameters and initialize any certificates, if
- * needed.
+ * needed. This must be called before using any of the APIs in this module.
  *
  * Parameters:
  * 	None
@@ -84,8 +84,9 @@ ott_status ott_protocol_init(void);
  * 	port : The port to connect to.
  *
  * Returns:
- *	OTT_OK     : Successfully established a connection.
- *	OTT_ERROR  : There was an error in establishing the connection.
+ *	OTT_OK        : Successfully established a connection.
+ *	OTT_INV_PARAM : NULL pointers were provided in place of host / port.
+ *	OTT_ERROR     : There was an error in establishing the connection.
  */
 ott_status ott_initiate_connection(const char *host, const char *port);
 
@@ -105,6 +106,7 @@ ott_status ott_close_connection(void);
  * Send the authentication message to the cloud service. Transactions in the TLS
  * session must begin only after a successful call to this API (i.e. it exits
  * with OTT_OK) and after checking if the ACK flag is set in the received response.
+ * An auth message can be sent only after a call to ott_initiate_connection().
  *
  * Parameters:
  *	c_flags    : Control flags
@@ -145,10 +147,9 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 
 /*
  * Send a control message to the cloud service. This message has no data field
- * associated with it, i.e. the message type is MT_NONE.
- * It is useful when the device does not have any data to report but needs to
- * poll the cloud for pending updates and commands, ACK or NACK a previous
- * message response from the cloud, or needs to end the connection.
+ * associated with it, i.e. the message type is MT_NONE. It is used to poll the
+ * cloud for pending responses or to notify it about the termination of the
+ * connection.
  * The pending flag cannot be active for this type of message.
  * This message type may or may not have a response.
  *
@@ -164,9 +165,7 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 ott_status ott_send_ctrl_msg(c_flags_t c_flags);
 
 /*
- * According to the protocol, the device has to poll for responses from the
- * cloud. Use this function to retrieve the cloud service's most recent
- * response, if any.
+ * Retrieve the cloud service's most recent response, if any.
  *
  * Parameters:
  * 	msg : Pointer to buffer that will store the message data, type and
@@ -175,8 +174,8 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags);
  * Returns:
  * 	OTT_OK        : Message successfully retrieved
  * 	OTT_NO_MSG    : No message to retrieve.
- * 	OTT_ERROR     : An error occurred in the TCP/TLS layer.
  * 	OTT_INV_PARAM : A NULL pointer was passed in for the buffer.
+ * 	OTT_ERROR     : An error occurred in the TCP/TLS layer.
  */
 ott_status ott_retrieve_msg(msg_t *msg);
 #endif

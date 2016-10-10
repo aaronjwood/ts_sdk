@@ -17,7 +17,6 @@
 #endif
 
 #define VERSION_BYTE		((uint8_t)0x01)
-#define UUID_SZ			16
 
 #if 0
 #include "verizon_ott_ca.h"
@@ -96,8 +95,10 @@ ott_status ott_protocol_init(void)
 
 ott_status ott_initiate_connection(const char *host, const char *port)
 {
-	int ret;
+	if (host == NULL || port == NULL)
+		return OTT_INV_PARAM;
 
+	int ret;
 	/* Connect to the cloud server over TCP */
 	ret = mbedtls_net_connect(&server_fd, host, port, MBEDTLS_NET_PROTO_TCP);
 	if (ret < 0)
@@ -289,8 +290,7 @@ ott_status ott_retrieve_msg(msg_t *msg)
 
 	int ret = mbedtls_ssl_read(&ssl, msg_buf, MAX_MSG_SZ);
 	if (ret == MBEDTLS_ERR_SSL_WANT_WRITE ||
-			ret == MBEDTLS_ERR_SSL_WANT_READ ||
-			ret == OTT_NO_MSG)
+			ret == MBEDTLS_ERR_SSL_WANT_READ)
 		return OTT_NO_MSG;
 
 	if (ret == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY) {
@@ -307,7 +307,7 @@ ott_status ott_retrieve_msg(msg_t *msg)
 	if (ret > MAX_MSG_SZ) {/* XXX: Assumption: Retrieved complete message */
 		if (!populate_msg_struct(msg)) {
 			ott_send_ctrl_msg(CF_NACK | CF_QUIT);
-			return OTT_MSG_CORRUPT;
+			return OTT_NO_MSG;
 		}
 		return OTT_OK;
 	}
