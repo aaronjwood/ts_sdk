@@ -35,7 +35,11 @@ static volatile bool process_rsp;
 static bool pdp_conf;
 
 static int debug_level;
+/* level v2 is normally for extensive debugging need, for example tracing
+ * function calls
+ */
 #define DEBUG_V2(...)	if (debug_level >= 2) printf(__VA_ARGS__)
+/* V1 is normaly used for variables, states which are internal to functions */
 #define DEBUG_V1(...)	if (debug_level >= 1) printf(__VA_ARGS__)
 #define DEBUG_V0(...)	printf(__VA_ARGS__)
 
@@ -47,6 +51,9 @@ static int debug_level;
 #define DEBUG_STATE(...)
 #endif
 
+/* Enable to debug wrong response, this prints expected vs received buffer in
+ * raw format
+ */
 /*#define DEBUG_WRONG_RSP*/
 
 #define CHECK_SUCCESS(x, y, z)	if ((x) != (y)) { \
