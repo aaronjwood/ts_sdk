@@ -27,6 +27,7 @@ typedef struct _at_rsp_desc {
         void *data;
 } at_rsp_desc;
 
+/** Command description */
 typedef struct _at_command_desc {
         /** skeleton for the command */
         const char *comm_sketch;

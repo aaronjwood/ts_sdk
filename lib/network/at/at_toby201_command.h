@@ -184,7 +184,7 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
                         }
                 },
                 .err = "\r\nERROR\r\n",
-                .comm_timeout = 100
+                .comm_timeout = 15000
         },
         [NET_REG_STAT] = {
                 .comm = "at+cereg?\r",
