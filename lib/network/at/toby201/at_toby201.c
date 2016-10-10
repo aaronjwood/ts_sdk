@@ -917,7 +917,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         read_bytes = uart_rx_available();
         if (read_bytes <= 0) {
                 DEBUG_V0("%s: comm: %s failed\n", __func__, temp_comm);
-                return 0;
+                return AT_TCP_RCV_FAIL;
         }
         uint8_t rsp_buf[read_bytes + 1];
         rsp_buf[read_bytes] = 0x0;
@@ -972,12 +972,14 @@ void at_tcp_close(int s_id) {
         char temp_comm[TEMP_COMM_LIMIT];
         snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id);
         desc->comm = temp_comm;
-
-        if (__at_generic_comm_rsp_util(desc, false, true) != AT_SUCCESS) {
+        uint8_t result = __at_generic_comm_rsp_util(desc, false, true);
+        if (result == AT_RSP_TIMEOUT) {
+                DEBUG_V0("%s: tcp close command timeout\n", __func__);
+                return;
+        } else if (result == AT_FAILURE)
                 DEBUG_V0("%s: could not close socket,"
                         " connection may be already closed\n", __func__);
-                return;
-        }
+
         state &= ~TCP_CONNECTED;
         return;
 }
