@@ -89,5 +89,6 @@ vpath %.c $(PROJ_ROOT)/lib/dbg: \
 	$(PROJ_ROOT)/lib/uart: \
 	$(PROJ_ROOT)/lib/hwrng: \
 	$(PROJ_ROOT)/lib/ott_protocol: \
+	$(PROJ_ROOT)/lib/cloud_comm: \
 	$(STM32_PLIB): \
 	$(STM32_CMSIS)/Source/Templates:

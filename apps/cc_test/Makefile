@@ -47,6 +47,9 @@ INC += -I $(PROJ_ROOT)/include/ott_protocol/
 # Cloud communication API header
 INC += -I $(PROJ_ROOT)/include/cloud_comm/
 
+# Cloud communication / OTT protocol API sources
+CLOUD_COMM_SRC = ott_protocol.c cloud_comm.c
+
 # Defines the target rules
 include $(PROJ_ROOT)/rules.mk
 

@@ -19,31 +19,45 @@
  */
 
 typedef enum {
-	CC_OK,			/* API exited normally */
-	CC_ERROR,		/* API exited with errors */
-	CC_INV_PARAM,		/* Invalid parameters passed */
-	CC_AUTH_FAILED		/* Authentication failed */
-} cc_status;
+	CC_SEND_FAILED,
+	CC_SEND_BUSY,
+	CC_SEND_SUCCESS
+} cc_send_result;
 
 typedef enum {
-	CC_ACK,			/* Received an ACK for the last message sent */
-	CC_NACK,		/* Received a NACK for the last message sent */
-	CC_SEND_TIMEOUT,	/* Timed out sending the message */
-	CC_AUTH_FAILED,		/* Failed to authenticate with the cloud serviec */
-} send_status;
+	CC_STS_ACK,		/* Received an ACK for the last message sent */
+	CC_STS_NACK,		/* Received a NACK for the last message sent */
+	CC_STS_SEND_TIMEOUT,	/* Timed out sending the message */
+} cc_status;
 
 /*
  * Initialize the cloud communication API. This will in turn initialize any
- * protocol specific modules, related hardware etc.
+ * protocol specific modules, related hardware etc. It also sets the device ID
+ * and device secret. These two are used to authenticate the device with the
+ * cloud service and are unlikely to change during the lifetime of the device.
  *
  * Parameters:
- * 	None
+ * 	d_ID     : Pointer to a 16 byte device ID.
+ * 	d_sec_sz : Size of the device secret in bytes.
+ * 	d_sec    : Pointer to the buffer holding the device secret.
  *
  * Returns:
- * 	CC_OK    : The module is ready to send / receive data.
- * 	CC_ERROR : An error occurred during initialization.
+ *	True  : Initialization was successful.
+ *	False : Initialization failed.
  */
-cc_status cc_init(void);
+bool cc_init(const uint8_t *d_ID, uint16_t d_sec_sz, const uint8_t *d_sec);
+
+/*
+ * Register a receive callback.
+ *
+ * Parameters:
+ * 	cb : Pointer to a function that will serve as the receive callback.
+ *
+ * Returns:
+ * 	None
+ */
+typedef void (*cc_rx_cb)(cc_status status);
+void cc_set_rx_callback(cc_rx_cb cb);
 
 /*
  * Send bytes to the cloud. The data is wrapped in protocol headers and sent
@@ -54,10 +68,10 @@ cc_status cc_init(void);
  * 	data : Pointer to the data to be sent.
  *
  * Returns:
- * 	CC_OK           : Bytes were sent through the communication channel.
- * 	CC_AUTH_FAILED  : Failed to authenticate with the cloud. The message was
- * 	                  note sent.
+ * 	CC_SEND_FAILED  : Failed to send the message.
+ * 	CC_SEND_BUSY    : A send is in progress.
+ * 	CC_SEND_SUCCESS : Message was sent, waiting for a response from the cloud.
  */
-cc_status cc_send_bytes_to_cloud(uint16_t sz, uint8_t *data);
+cc_send_result cc_send_bytes_to_cloud(uint16_t sz, uint8_t *data);
 
 #endif
