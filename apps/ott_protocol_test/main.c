@@ -116,6 +116,15 @@ void UsageFault_Handler(void)
 		;
 }
 
+#if 0
+#define SERVER_PORT "4433"
+#define SERVER_NAME "localhost"
+#else
+/* Temporary - a site that happens to speak our single crypto suite. */
+#define SERVER_PORT "443"
+#define SERVER_NAME "www.atper.org"
+#endif
+
 static msg_t msg;
 #define RECV_TIMEOUT_MS		2000
 void test_scenario_1(void)
@@ -124,13 +133,13 @@ void test_scenario_1(void)
 
 	/* 1 - Initiate the TCP/TLS session */
 	dbg_printf("Initiating a secure connection to the cloud:\n");
-	if (ott_initiate_connection() != OTT_OK) {
+	if (ott_initiate_connection(SERVER_NAME, SERVER_PORT) != OTT_OK) {
 		dbg_printf("\tCould not connect to the cloud.\n");
 		return;
 	}
 
 	/* 2 & 3 - Send the version byte and authenticate the device with the cloud. */
-	uuid_t d_ID = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+	uint8_t d_ID[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 	uint8_t d_sec[] = {0, 1, 2, 3, 4, 5, 6};
 	dbg_printf("Sending version byte and authentication message:\n");
 	ASSERT(ott_send_auth_to_cloud(CF_PENDING, d_ID, sizeof(d_sec), d_sec)

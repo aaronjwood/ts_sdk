@@ -16,7 +16,6 @@
  * The device reports its status to the cloud at another set of fixed intervals.
  */
 
-#define UUID_SZ			16
 #define MAX_MSG_SZ		512
 #define VER_SZ			1
 #define CMD_SZ			1
@@ -48,9 +47,6 @@ typedef enum  {			/* Defines message type flags. */
 	MT_CMD_PI = 10,		/* Cloud instructs to set new polling interval */
 	MT_CMD_SL = 11		/* Cloud instructs device to sleep */
 } m_type_t;
-
-/* Type to store the device ID (stored in Little Endian format). */
-typedef uint8_t uuid_t[UUID_SZ];
 
 /* A complete message on the receive path. */
 typedef struct __attribute__((packed)) {
@@ -84,13 +80,14 @@ ott_status ott_protocol_init(void);
  * session, TLS handshake and verification of server certificates.
  *
  * Parameters:
- * 	None
+ * 	host : The server to connect to.
+ * 	port : The port to connect to.
  *
  * Returns:
  *	OTT_OK     : Successfully established a connection.
  *	OTT_ERROR  : There was an error in establishing the connection.
  */
-ott_status ott_initiate_connection(void);
+ott_status ott_initiate_connection(const char *host, const char *port);
 
 /*
  * Close the TLS connection and notify the cloud service.
@@ -111,7 +108,7 @@ ott_status ott_close_connection(void);
  *
  * Parameters:
  *	c_flags    : Control flags
- *	dev_id     : The 16 byte device ID.
+ *	dev_id     : Pointer to the 16 byte device ID.
  *	dev_sec_sz : Size of the device secret in bytes.
  *	dev_sec    : Pointer to binary data that holds the device secret.
  *
@@ -122,7 +119,7 @@ ott_status ott_close_connection(void);
  * 	                Device secret / device ID is NULL or dev_sec_sz is zero.
  * 	OTT_ERROR     : Sending the message failed due to a TCP/TLS error.
  */
-ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uuid_t dev_id,
+ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 				  uint16_t dev_sec_sz, const uint8_t *dev_sec);
 
 /*
