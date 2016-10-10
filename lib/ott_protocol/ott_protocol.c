@@ -40,8 +40,7 @@ static void my_debug(void *ctx, int level,
 }
 #endif
 
-static unsigned char msg_buf[MAX_MSG_SZ];
-static bool message_in_buffer;		/* Set when a message is received. */
+static unsigned char msg_buf[MAX_MSG_SZ];	/* Stores received messages */
 
 /* mbedTLS specific variables */
 static mbedtls_net_context server_fd;
@@ -65,7 +64,6 @@ static inline void cleanup_mbedtls(void)
 ott_status ott_protocol_init(void)
 {
 	int ret;
-	message_in_buffer = false;
 
 	/* XXX: Initialize the AT layer here */
 
