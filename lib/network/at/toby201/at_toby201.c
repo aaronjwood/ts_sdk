@@ -20,11 +20,10 @@ typedef enum at_states {
         WAITING_RESP = 1 << 1,
         NETWORK_LOST = 1 << 2,
         TCP_CONNECTED = 1 << 3,
-        TCP_WRITE = 1 << 4,
-        TCP_READ = 1 << 5,
-        PROC_RSP = 1 << 6,
-        PROC_URC = 1 << 7,
-        AT_INVALID = 1 << 8
+        TCP_READ = 1 << 4,
+        PROC_RSP = 1 << 5,
+        PROC_URC = 1 << 6,
+        AT_INVALID = 1 << 7
 } at_states;
 
 static char *rsp_header = "\r\n";
@@ -741,7 +740,6 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         /* Recommeneded in datasheet */
         HAL_Delay(50);
 
-        state |= TCP_WRITE;
         for (int i = 0; i < len; i++) {
                 if ((state & TCP_CONNECTED) == TCP_CONNECTED)
                         __at_uart_write(((uint8_t *)buf + i), 1);
@@ -752,7 +750,6 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
                 DEBUG_V0("%s: tcp got deconnected in middle of the write\n",
                         __func__);
-                state &= ~TCP_WRITE;
                 /* URC is already been processed so no need to process it again
                  *
                  */
@@ -762,7 +759,6 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         uint32_t timeout = desc->comm_timeout;
 
         result = __at_wait_for_rsp(&timeout);
-        state &= ~TCP_WRITE;
         CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_SEND_FAIL)
 
         /* Parse the response for session or socket id and number of write */
