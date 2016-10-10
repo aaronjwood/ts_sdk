@@ -17,16 +17,12 @@
 #endif
 
 #define VERSION_BYTE		((uint8_t)0x01)
+#define UUID_SZ			16
 
 #if 0
 #include "verizon_ott_ca.h"
-#define SERVER_PORT "4433"
-#define SERVER_NAME "localhost"
 #else
-/* Temporary - a site that happens to speak our single crypto suite. */
 #include "dst_root_ca_x3.h"
-#define SERVER_PORT "443"
-#define SERVER_NAME "www.atper.org"
 #endif
 
 #ifdef MBEDTLS_DEBUG_C
@@ -98,13 +94,12 @@ ott_status ott_protocol_init(void)
 	return OTT_OK;
 }
 
-ott_status ott_initiate_connection(void)
+ott_status ott_initiate_connection(const char *host, const char *port)
 {
 	int ret;
 
 	/* Connect to the cloud server over TCP */
-	ret = mbedtls_net_connect(&server_fd, SERVER_NAME, SERVER_PORT,
-			MBEDTLS_NET_PROTO_TCP);
+	ret = mbedtls_net_connect(&server_fd, host, port, MBEDTLS_NET_PROTO_TCP);
 	if (ret < 0)
 		return OTT_ERROR;
 
@@ -173,7 +168,7 @@ static bool write_tls(uint8_t *buf, uint16_t len)
 static bool flags_are_valid(c_flags_t f)
 {
 	/*
-	 * Following are the invalid flag settings:
+	 * Following are invalid flag settings:
 	 * NACK + ACK
 	 * NACK + PENDING
 	 * NACK + ACK + PENDING
@@ -189,7 +184,7 @@ static bool flags_are_valid(c_flags_t f)
 	return true;
 }
 
-ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uuid_t dev_id,
+ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 				  uint16_t dev_sec_sz, const uint8_t *dev_sec)
 {
 	/* Check for correct parameters */
@@ -309,7 +304,7 @@ ott_status ott_retrieve_msg(msg_t *msg)
 		return OTT_ERROR;
 	}
 
-	if (ret == MAX_MSG_SZ) {	/* Retrieved complete message */
+	if (ret > MAX_MSG_SZ) {/* XXX: Assumption: Retrieved complete message */
 		if (!populate_msg_struct(msg)) {
 			ott_send_ctrl_msg(CF_NACK | CF_QUIT);
 			return OTT_MSG_CORRUPT;
@@ -323,7 +318,7 @@ ott_status ott_retrieve_msg(msg_t *msg)
 	return OTT_ERROR;
 }
 
-/* Stubs for now */
+/* Stubs for now. These will be implemented by the AT layer. */
 void mbedtls_net_init( mbedtls_net_context *ctx )
 {
 	(void)ctx;

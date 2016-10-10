@@ -43,6 +43,9 @@ VENDOR_LIB_FLAGS += -L. -lmbedtls -lmbedx509 -lmbedcrypto
 # OTT protocol API header
 INC += -I $(PROJ_ROOT)/include/ott_protocol/
 
+# Cloud communication / OTT protocol API sources
+CLOUD_COMM_SRC = ott_protocol.c
+
 # Defines the target rules
 include $(PROJ_ROOT)/rules.mk
 

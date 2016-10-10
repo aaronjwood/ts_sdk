@@ -72,9 +72,6 @@ OBJ_STARTUP = startup_stm32f429xx.o
 # This includes debugging, UART and HW RNG modules.
 CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c dbg.c uart.c hwrng.c
 
-# OTT Protocol API source
-CLOUD_COMM_SRC = ott_protocol.c
-
 # Peripheral HAL sources
 LIB_SRC = stm32f4xx_hal_cortex.c
 LIB_SRC += stm32f4xx_hal_gpio.c
