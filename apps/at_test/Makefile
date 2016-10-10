@@ -4,13 +4,14 @@
 # Uses the GCC toolchain and the STMicro STM32CubeF4 HAL drivers.
 # Note: Library sources are built without debug info and optimized for size
 
+PROJ_ROOT = $(shell git rev-parse --show-toplevel)
+export PROJ_ROOT
+
 ifneq (build,$(notdir $(CURDIR)))
 # If not invoked in the build directory, change to that directory and
 # re-invoke the Makefile with SRCDIR set.
-include build_in_subdir.mk
+include $(PROJ_ROOT)/build_in_subdir.mk
 else
-
-PROJ_ROOT = $(shell git rev-parse --show-toplevel)
 
 # Defines toolchain and common modules & paths
 # Debug and UART commuication drivers are included by default
