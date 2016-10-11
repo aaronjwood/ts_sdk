@@ -2,9 +2,7 @@
 
 #include "dbg.h"
 #include "uart.h"
-
-extern void platform_init();
-extern void platform_delay(uint32_t delay_ms);
+#include "platform.h"
 
 #define SEND_TIMEOUT_MS		2000
 #define IDLE_CHARS		5

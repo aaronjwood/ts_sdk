@@ -81,7 +81,7 @@ static const char *at_urcs[URC_END] = {
                 [TCP_CLOSED] = "\r\n+UUSOCL: "
 };
 
-static at_command_desc modem_net_status_comm[MOD_END] = {
+static const at_command_desc modem_net_status_comm[MOD_END] = {
         [MODEM_OK] = {
                 .comm = "at\r",
                 .rsp_desc = {
@@ -224,7 +224,7 @@ static at_command_desc modem_net_status_comm[MOD_END] = {
         }
 };
 
-static at_command_desc pdp_conf_comm[PDP_END] = {
+static const at_command_desc pdp_conf_comm[PDP_END] = {
         [SEL_IPV4_PREF] = {
                 .comm = "at+upsd=0,0,2\r",
                 .rsp_desc = {

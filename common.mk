@@ -40,8 +40,11 @@ export ARCHFLAGS
 FW_EXEC = firmware.elf
 LDFLAGS ?= -Wl,-Map,fw.map,--cref
 
+# platform related header files
+INC += -I $(PROJ_ROOT)/include/platform
+
 # Device drivers
-INC = -I $(PROJ_ROOT)/include/dbg
+INC += -I $(PROJ_ROOT)/include/dbg
 INC += -I $(PROJ_ROOT)/include/uart
 INC += -I $(PROJ_ROOT)/include/hwrng
 
@@ -63,6 +66,10 @@ INC += -I $(STM32_CMSIS)/Include
 
 # Standard library function headers
 INC += -I $(GCC_ROOT)/include
+
+# mbedtls library header files
+INC += -I $(PROJ_ROOT)/vendor/mbedtls/include
+
 export INC
 
 # Linker script
@@ -82,7 +89,7 @@ endif
 
 # List of core library components to be included in the build process
 # This includes debugging and UART communication modules
-CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c dbg.c uart.c hwrng.c net.c $(MODEM_SRC)
+CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c stm32f4xx_platform.c dbg.c uart.c hwrng.c net.c $(MODEM_SRC)
 
 # Peripheral HAL sources
 LIB_SRC = stm32f4xx_hal_cortex.c
@@ -97,7 +104,8 @@ LIB_SRC += stm32f4xx_hal_tim_ex.c
 LIB_SRC += stm32f4xx_hal_rng.c
 
 # Search paths for core module sources
-vpath %.c $(PROJ_ROOT)/lib/dbg: \
+vpath %.c $(PROJ_ROOT)/lib/platform: \
+	$(PROJ_ROOT)/lib/dbg: \
 	$(PROJ_ROOT)/lib/uart: \
 	$(PROJ_ROOT)/lib/hwrng: \
 	$(PROJ_ROOT)/lib/network: \

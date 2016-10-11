@@ -140,7 +140,7 @@ static uint8_t __at_process_network_urc(char *urc, at_urc u_code) {
 
         uint8_t count = strlen(at_urcs[u_code]);
         uint8_t net_stat = urc[count] - '0';
-        DEBUG_V0("%s: net stat: %u\n", __func__, net_stat);
+        DEBUG_V0("%s: net stat (%u): %u\n", __func__, u_code, net_stat);
         if (((u_code == NET_STAT_URC) && (net_stat != 1)) ||
                 ((u_code == EPS_STAT_URC) && (net_stat == 0)))
                 state |= NETWORK_LOST;
@@ -284,7 +284,7 @@ static uint8_t __at_comm_send_and_wait_rsp(char *comm, uint16_t len,
 }
 
 static uint8_t __at_handle_error_rsp(uint8_t *rsp_buf, uint16_t read_bytes,
-                                        at_command_desc *desc, uint8_t rsp_num)
+                                        const at_command_desc *desc, uint8_t rsp_num)
 {
         uint8_t i = 0;
         uint8_t result = AT_SUCCESS;
@@ -325,7 +325,7 @@ static uint8_t __at_handle_error_rsp(uint8_t *rsp_buf, uint16_t read_bytes,
  * for write prompt command for tcp write
  */
 
-static uint8_t __at_generic_comm_rsp_util(at_command_desc *desc, bool skip_comm,
+static uint8_t __at_generic_comm_rsp_util(const at_command_desc *desc, bool skip_comm,
                                         bool read_line)
 {
         CHECK_NULL(desc, AT_FAILURE)

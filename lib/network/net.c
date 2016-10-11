@@ -16,11 +16,11 @@
 #endif
 #endif
 
-#include <stm32f4xx_hal.h>
-#include "at.h"
-#include "net.h"
 #include <stdio.h>
 #include <stdint.h>
+#include <stm32f4xx_hal.h>
+#include "at.h"
+#include "mbedtls/net.h"
 
 #ifdef DEBUG_NET
 #define DEBUG(...)              printf(__VA_ARGS__)
@@ -33,18 +33,29 @@
                                         return ((y)); \
                                 }
 
+#define CHECK_SUCCESS(x, y, z)	if ((x) != (y)) { \
+                                        DEBUG("Fail at line: %d\n", __LINE__); \
+                                        return (z); \
+                                }
+
 #define read(fd, buf, len)      at_tcp_recv(fd, (uint8_t *)buf, (size_t)len)
 #define write(fd, buf, len)     at_tcp_send(fd, (uint8_t *)buf, (size_t)len)
 #define close(fd)               at_tcp_close(fd)
 
+/* flag to indicate if init is done successfully */
+static bool init_flag;
+
 /*
  * Initialize a context
  */
-bool mbedtls_net_init(mbedtls_net_context *ctx)
+void mbedtls_net_init(mbedtls_net_context *ctx)
 {
-        CHECK_NULL(ctx, false)
+        init_flag = false;
+        if (!ctx)
+                return;
         ctx->fd = -1;
-        return at_init();
+        if (at_init())
+                init_flag = true;
 }
 
 /*
@@ -55,6 +66,8 @@ int mbedtls_net_connect(mbedtls_net_context *ctx, const char *host,
 {
         CHECK_NULL(ctx, MBEDTLS_ERR_NET_INVALID_CONTEXT)
         CHECK_NULL(host, MBEDTLS_ERR_NET_SOCKET_FAILED)
+        CHECK_SUCCESS(init_flag, true, MBEDTLS_ERR_NET_SOCKET_FAILED)
+
         int ret = 0;
         if (proto != MBEDTLS_NET_PROTO_TCP)
                 return MBEDTLS_ERR_NET_SOCKET_FAILED;
@@ -73,6 +86,8 @@ int mbedtls_net_recv(void *ctx, unsigned char *buf, size_t len)
 {
         CHECK_NULL(ctx, MBEDTLS_ERR_NET_INVALID_CONTEXT)
         CHECK_NULL(buf, MBEDTLS_ERR_NET_INVALID_CONTEXT)
+        CHECK_SUCCESS(init_flag, true, MBEDTLS_ERR_NET_INVALID_CONTEXT)
+
         int ret;
         int fd = ((mbedtls_net_context *) ctx)->fd;
 
@@ -98,6 +113,8 @@ int mbedtls_net_recv_timeout(void *ctx, unsigned char *buf,
 {
         CHECK_NULL(ctx, MBEDTLS_ERR_NET_INVALID_CONTEXT)
         CHECK_NULL(buf, MBEDTLS_ERR_NET_INVALID_CONTEXT)
+        CHECK_SUCCESS(init_flag, true, MBEDTLS_ERR_NET_INVALID_CONTEXT)
+
         int ret;
         int fd = ((mbedtls_net_context *) ctx)->fd;
 
@@ -134,6 +151,8 @@ int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len)
 {
         CHECK_NULL(ctx, MBEDTLS_ERR_NET_INVALID_CONTEXT)
         CHECK_NULL(buf, MBEDTLS_ERR_NET_INVALID_CONTEXT)
+        CHECK_SUCCESS(init_flag, true, MBEDTLS_ERR_NET_INVALID_CONTEXT)
+
         int ret;
         int fd = ((mbedtls_net_context *) ctx)->fd;
 

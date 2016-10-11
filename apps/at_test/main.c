@@ -4,12 +4,12 @@
 #include "dbg.h"
 #include "uart.h"
 #include "at.h"
-
-extern void platform_init();
-extern void platform_delay(uint32_t delay_ms);
+#include "platform.h"
 
 const char *host = "httpbin.org";
 const char *port = "80";
+
+#define RECV_BUFFER	64
 #define NUM_RETRIES	5
 #define DELAY_MS	2000
 
@@ -61,6 +61,37 @@ static void tcp_send(int s_id, uint8_t *send_buf, size_t len)
 
 }
 
+static void tcp_rcv(int s_id)
+{
+	int r_b;
+	uint8_t count = 0;
+	while (count < NUM_RETRIES) {
+		r_b = at_read_available(s_id);
+		printf("Read available:%d\n", r_b);
+		if (r_b > 0)
+			break;
+		platform_delay(DELAY_MS);
+		count++;
+	}
+	if (r_b <= 0) {
+		dbg_printf("Read failed, code:%d, looping forever\n", r_b);
+		ASSERT(0);
+	}
+
+	uint8_t read_buf[RECV_BUFFER];
+	int bytes;
+	while (1) {
+		memset(read_buf, 0, RECV_BUFFER);
+		bytes = at_tcp_recv(s_id, read_buf, RECV_BUFFER);
+		if (bytes < 0) {
+			dbg_printf("###### Read completed ######\n");
+			break;
+		}
+		read_buf[bytes] = 0x0;
+		printf("%s", (char *)read_buf);
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	platform_init();
@@ -85,25 +116,7 @@ int main(int argc, char *argv[])
 	tcp_send(s_id, (uint8_t *)send_buf, len);
 
 	/* step 4: wait for the data */
-	int r_b;
-	uint8_t count = 0;
-	while (count < NUM_RETRIES) {
-		r_b = at_read_available(s_id);
-		printf("Read available:%d\n", r_b);
-		if (r_b > 0)
-			break;
-		platform_delay(DELAY_MS);
-		count++;
-	}
-	if (r_b <= 0) {
-		dbg_printf("Read failed, code:%d, looping forever\n", r_b);
-		ASSERT(0);
-	}
-	uint8_t read_buf[r_b + 1];
-	read_buf[r_b] = 0x0;
-	int bytes = at_tcp_recv(s_id, read_buf, r_b);
-	printf("Read Bytes: %d\n", bytes);
-	printf("%s\n", (char *)read_buf);
+	tcp_rcv(s_id);
 
 	/* step 5: tcp close */
 	at_tcp_close(s_id);
