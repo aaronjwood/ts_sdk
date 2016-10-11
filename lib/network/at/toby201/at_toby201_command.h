@@ -7,6 +7,8 @@
  *
  *
  */
+#ifndef AT_TOBY_COMM_H
+#define AT_TOBY_COMM_H
 
 #include "at_defs.h"
 
@@ -372,3 +374,4 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .comm_timeout = 15000
         }
 };
+#endif /* at_toby201_command.h */

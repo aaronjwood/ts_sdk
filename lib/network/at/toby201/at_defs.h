@@ -1,5 +1,5 @@
 /**
- * \file at_toby201.h
+ * \file at_defs.h
  *
  * \brief AT command table definations for ublox-toby201 LTE modem functions
  *
@@ -40,4 +40,4 @@ typedef struct _at_command_desc {
         const char *err;
 } at_command_desc;
 
-#endif /* at_toby201.h */
+#endif /* at_defs.h */
