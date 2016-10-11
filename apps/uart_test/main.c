@@ -1,6 +1,5 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
-#include <stm32f4xx_hal.h>
 #include "dbg.h"
 #include "uart.h"
 
