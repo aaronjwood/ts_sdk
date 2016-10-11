@@ -7,13 +7,10 @@
  *
  */
 
-/* FIXME: enable with mbedtls */
-#if 0
 #if !defined(MBEDTLS_CONFIG_FILE)
 #include "mbedtls/config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
-#endif
 #endif
 
 #include <stdio.h>
@@ -136,9 +133,8 @@ int mbedtls_net_recv_timeout(void *ctx, unsigned char *buf,
                 return MBEDTLS_ERR_NET_CONN_RESET;
         } else if (ret == AT_TCP_RCV_FAIL)
                 return MBEDTLS_ERR_NET_RECV_FAILED;
-        /* FIXME: enable when mbed tls library is merged */
-        /*else if ((ret == 0) && timeout_flag)
-                return MBEDTLS_ERR_SSL_TIMEOUT;*/
+        else if ((ret == 0) && timeout_flag)
+                return MBEDTLS_ERR_SSL_TIMEOUT;
 
         /* This call will not block */
         return mbedtls_net_recv(ctx, buf, len);
