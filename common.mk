@@ -102,6 +102,5 @@ vpath %.c $(PROJ_ROOT)/lib/dbg: \
 	$(PROJ_ROOT)/lib/hwrng: \
 	$(PROJ_ROOT)/lib/network: \
 	$(PROJ_ROOT)/lib/network/at/$(MODEM_DIR): \
-	$(PROJ_ROOT)/vendor: \
 	$(STM32_PLIB): \
 	$(STM32_CMSIS)/Source/Templates:
