@@ -8,6 +8,9 @@
 
 const char *host = "httpbin.org";
 const char *port = "80";
+#define NUM_RETRIES	5
+#define DELAY_MS	2000
+
 /**
   * @brief  System Clock Configuration
   *         The system Clock is configured as follow :
@@ -125,9 +128,9 @@ int tcp_connect()
 	int count = 0;
 	int s_id = -1;
 
-	while (s_id < 0 && count < 5) {
+	while (s_id < 0 && count < NUM_RETRIES) {
 		s_id = at_tcp_connect(host, port);
-		HAL_Delay(1000);
+		HAL_Delay(DELAY_MS);
 		count++;
 	}
 	if (s_id < 0) {
@@ -146,13 +149,13 @@ void tcp_send(int s_id, uint8_t *send_buf, size_t len)
 	while (1) {
 		res = at_tcp_send(s_id, (send_buf + sent_data), len - sent_data);
 		if (res < 0) {
-			if (count > 5)
+			if (count > NUM_RETRIES)
 				break;
 			else {
 				count++;
 				res = 0;
 			}
-			HAL_Delay(2000);
+			HAL_Delay(DELAY_MS);
 		} else {
 			sent_data += res;
 			if (sent_data == len)
@@ -195,12 +198,12 @@ int main(int argc, char *argv[])
 	/* step 4: wait for the data */
 	int r_b;
 	uint8_t count = 0;
-	while (count < 5) {
+	while (count < NUM_RETRIES) {
 		r_b = at_read_available(s_id);
 		printf("Read available:%d\n", r_b);
 		if (r_b > 0)
 			break;
-		HAL_Delay(1000);
+		HAL_Delay(DELAY_MS);
 		count++;
 	}
 	if (r_b <= 0) {

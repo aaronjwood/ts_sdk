@@ -10,6 +10,8 @@ const char *host = "httpbin.org";
 const char *port = "80";
 
 #define RECV_BUFFER	1024
+#define NUM_RETRIES	5
+#define DELAY_MS	2000
 
 /**
   * @brief  System Clock Configuration
@@ -128,10 +130,10 @@ void net_connect(mbedtls_net_context *ctx)
 	int count = 0;
 	int res = -1;
 
-	while (res < 0 && count < 5) {
+	while (res < 0 && count < NUM_RETRIES) {
 		res = mbedtls_net_connect(ctx, host, port,
 			MBEDTLS_NET_PROTO_TCP);
-		HAL_Delay(1000);
+		HAL_Delay(DELAY_MS);
 		count++;
 	}
 	if (res != 0) {
@@ -151,13 +153,13 @@ void net_send(mbedtls_net_context *ctx, uint8_t *send_buf, size_t len)
 		res = mbedtls_net_send(ctx, (send_buf + sent_data),
 				len - sent_data);
 		if (res < 0) {
-			if (count > 5)
+			if (count > NUM_RETRIES)
 				break;
 			else {
 				count++;
 				res = 0;
 			}
-			HAL_Delay(2000);
+			HAL_Delay(DELAY_MS);
 		} else {
 			sent_data += res;
 			if (sent_data == len)
@@ -203,11 +205,11 @@ int main(int argc, char *argv[])
 	uint8_t read_buf[RECV_BUFFER];
 	int bytes;
 	uint8_t count = 0;
-	while (count < 5) {
+	while (count < NUM_RETRIES) {
 		bytes = mbedtls_net_recv(&ctx, read_buf, RECV_BUFFER);
 		if (bytes > 0)
 			break;
-		HAL_Delay(1000);
+		HAL_Delay(DELAY_MS);
 		count++;
 	}
 	if (bytes <= 0) {
