@@ -147,6 +147,9 @@ static uint8_t __at_process_network_urc(char *urc, at_urc u_code) {
         else
                 state &= ~NETWORK_LOST;
 
+        /* FIXME: Revisit this if tcp connect still possible after network lost
+         * event is detected
+         */
         return AT_SUCCESS;
 }
 
