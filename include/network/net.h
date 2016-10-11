@@ -11,7 +11,7 @@
 #ifndef OTT_NET_H
 #define OTT_NET_H
 
-//Dipen: FIXME: enable with mbedtls
+/* FIXME: enable with mbedtls */
 #if 0
 #if !defined(MBEDTLS_CONFIG_FILE)
 #include "config.h"
