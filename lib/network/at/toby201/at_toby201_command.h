@@ -27,7 +27,7 @@ static void __at_parse_read_qry_rsp(void *rcv_rsp, int rcv_rsp_len,
 static void __at_parse_tcp_sock_stat(void *rcv_rsp, int rcv_rsp_len,
                                         const char *stored_rsp, void *data);
 
-/** All intereted URCs */
+/** Unsolicited result codes */
 typedef enum at_urc {
         NET_STAT_URC = 0, /** network status */
         EPS_STAT_URC, /** data network status */
