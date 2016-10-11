@@ -65,9 +65,8 @@ int at_tcp_send(int s_id, const uint8_t *buf, size_t len);
 int at_read_available(int s_id);
 
 /**
- * \brief          Read at most 'len' characters, blocking for at most
- *                 'timeout' seconds. If no error occurs, the actual amount
- *                 read is returned.
+ * \brief          Read at most 'len' characters.
+ *                 If no error occurs, the actual amount read is returned.
  *
  * \param[in] s_id      Socket or session id to read
  * \param[out] buf      The buffer to write to
