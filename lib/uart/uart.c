@@ -245,10 +245,10 @@ static int find_substr_in_ring_buffer(buf_sz idx_start, uint8_t *substr, buf_sz 
 			idx++;
 			bidx++;
 		} else {				/* Bytes mismatch */
-			first_char_seen = false;
-			if (first_char_seen)
+			if (first_char_seen) {
+				first_char_seen = false;
 				bidx = found_idx + 1;
-			else
+			} else
 				bidx++;
 			found_idx = idx_start;
 			idx = 0;

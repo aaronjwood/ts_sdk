@@ -54,10 +54,10 @@ int at_tcp_connect(const char *host, const char *port);
 int at_tcp_send(int s_id, const uint8_t *buf, size_t len);
 
 /**
- * \brief               querry AT layer if data is available to read
+ * \brief               query AT layer if data is available to read
  *
  * \param[in] s_id      Socket or session id to read
- * \return              actual data available to read,
+ * \return              number of bytes of data available to read,
  *                      AT_TCP_RCV_FAIL/AT_TCP_CONNECT_DROPPED for any
  *                      other errors, for example, socket is not valid
  *
