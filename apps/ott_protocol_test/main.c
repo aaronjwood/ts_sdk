@@ -122,7 +122,7 @@ void UsageFault_Handler(void)
 #else
 /* Temporary - a site that happens to speak our single crypto suite. */
 #define SERVER_PORT "443"
-#define SERVER_NAME "www.atper.org"
+#define SERVER_NAME "www.tapr.org"
 #endif
 
 static msg_t msg;
