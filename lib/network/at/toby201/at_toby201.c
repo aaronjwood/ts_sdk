@@ -38,9 +38,19 @@ static int debug_level;
 /* level v2 is normally for extensive debugging need, for example tracing
  * function calls
  */
-#define DEBUG_V2(...)	if (debug_level >= 2) printf(__VA_ARGS__)
+#define DEBUG_V2(...)	\
+                        do { \
+                                if (debug_level >= 2) \
+                                        printf(__VA_ARGS__); \
+                        } while (0)
+
 /* V1 is normaly used for variables, states which are internal to functions */
-#define DEBUG_V1(...)	if (debug_level >= 1) printf(__VA_ARGS__)
+#define DEBUG_V1(...) \
+                        do { \
+                                if (debug_level >= 1) \
+                                        printf(__VA_ARGS__); \
+                        } while (0)
+
 #define DEBUG_V0(...)	printf(__VA_ARGS__)
 
 #define DBG_STATE
@@ -56,14 +66,20 @@ static int debug_level;
  */
 /*#define DEBUG_WRONG_RSP*/
 
-#define CHECK_SUCCESS(x, y, z)	if ((x) != (y)) { \
-                                        DEBUG_V1("Fail at line: %d\n", __LINE__); \
-                                        return (z); \
-                                }
-#define CHECK_NULL(x, y)	if (!((x))) { \
+#define CHECK_NULL(x, y) do { \
+                                if (!((x))) { \
                                         DEBUG_V1("Fail at line: %d\n", __LINE__); \
                                         return ((y)); \
-                                }
+                                } \
+                         } while (0);
+
+#define CHECK_SUCCESS(x, y, z)	\
+                        do { \
+                                if ((x) != (y)) { \
+                                        DEBUG_V1("Fail at line: %d\n", __LINE__); \
+                                        return (z); \
+                                } \
+                        } while (0);
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 

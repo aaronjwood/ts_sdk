@@ -25,15 +25,20 @@
 #define DEBUG(...)
 #endif
 
-#define CHECK_NULL(x, y)	if (!((x))) { \
+#define CHECK_NULL(x, y) do { \
+                                if (!((x))) { \
                                         DEBUG("Fail at line: %d\n", __LINE__); \
                                         return ((y)); \
-                                }
+                                } \
+                         } while (0);
 
-#define CHECK_SUCCESS(x, y, z)	if ((x) != (y)) { \
+#define CHECK_SUCCESS(x, y, z)	\
+                        do { \
+                                if ((x) != (y)) { \
                                         DEBUG("Fail at line: %d\n", __LINE__); \
                                         return (z); \
-                                }
+                                } \
+                        } while (0);
 
 #define read(fd, buf, len)      at_tcp_recv(fd, (uint8_t *)buf, (size_t)len)
 #define write(fd, buf, len)     at_tcp_send(fd, (uint8_t *)buf, (size_t)len)
