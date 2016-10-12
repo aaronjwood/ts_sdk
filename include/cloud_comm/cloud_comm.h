@@ -28,7 +28,25 @@ typedef enum {
 	CC_STS_ACK,		/* Received an ACK for the last message sent */
 	CC_STS_NACK,		/* Received a NACK for the last message sent */
 	CC_STS_SEND_TIMEOUT,	/* Timed out sending the message */
+	CC_STS_RCV_CMD,		/* Received a command from the cloud */
+	CC_STS_RCV_UPD		/* Received an update from the cloud */
 } cc_status;
+
+typedef uint16_t cc_data_sz;
+typedef struct {
+	cc_data_sz bufsz;
+	void *buf_ptr;
+} cc_buffer_desc;
+
+#define __CC_BUFFER(name, max_sz) \
+	struct __attribute__((packed)) { \
+		cc_data_sz n; \
+		uint8_t bytes[(max_sz)]; \
+	} name##__cc_buf; \
+	cc_buffer_desc name = {(max_sz), &(name##__cc_buf)};
+
+#define CC_SEND_BUFFER(name, max_sz)	__CC_BUFFER((name), (max_sz))
+#define CC_RECV_BUFFER(name, max_sz)	__CC_BUFFER((name), (max_sz))
 
 /*
  * Initialize the cloud communication API. This will in turn initialize any
