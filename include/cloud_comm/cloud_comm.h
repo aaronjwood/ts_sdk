@@ -25,28 +25,45 @@ typedef enum {
 } cc_send_result;
 
 typedef enum {
+	CC_RECV_BUSY,
+	CC_RECV_SUCCESS
+} cc_recv_result;
+
+typedef enum {
 	CC_STS_ACK,		/* Received an ACK for the last message sent */
 	CC_STS_NACK,		/* Received a NACK for the last message sent */
 	CC_STS_SEND_TIMEOUT,	/* Timed out sending the message */
 	CC_STS_RCV_CMD,		/* Received a command from the cloud */
 	CC_STS_RCV_UPD		/* Received an update from the cloud */
-} cc_status;
+} cc_event;
 
 typedef uint16_t cc_data_sz;
+
 typedef struct {
 	cc_data_sz bufsz;
 	void *buf_ptr;
 } cc_buffer_desc;
 
-#define __CC_BUFFER(name, max_sz) \
-	struct __attribute__((packed)) { \
-		cc_data_sz n; \
-		uint8_t bytes[(max_sz)]; \
+#define __CC_RECV_BUFFER(name, max_sz) \
+	union { \
+		uint32_t cmd_value; \
+		struct { \
+			cc_data_sz sz;	/* Number of bytes filled in buffer */ \
+			uint8_t bytes[(max_sz)]; \
+		} data_array; \
 	} name##__cc_buf; \
 	cc_buffer_desc name = {(max_sz), &(name##__cc_buf)};
 
-#define CC_SEND_BUFFER(name, max_sz)	__CC_BUFFER((name), (max_sz))
-#define CC_RECV_BUFFER(name, max_sz)	__CC_BUFFER((name), (max_sz))
+#define CC_SEND_BUFFER(name, max_sz) __CC_SEND_BUFFER(name, (max_sz))
+
+#define CC_RECV_BUFFER(name, max_sz) __CC_RECV_BUFFER(name, (max_sz))
+
+/*
+ * Pointer to callback routine. The callback accepts a buffer descriptor and
+ * an event from the source of the callback explaining why the callback was
+ * invoked.
+ */
+typedef void (*cc_callback_rtn)(cc_buffer_desc *buf, cc_event status);
 
 /*
  * Initialize the cloud communication API. This will in turn initialize any
@@ -65,17 +82,13 @@ typedef struct {
  */
 bool cc_init(const uint8_t *d_ID, uint16_t d_sec_sz, const uint8_t *d_sec);
 
-/*
- * Register a receive callback.
- *
- * Parameters:
- * 	cb : Pointer to a function that will serve as the receive callback.
- *
- * Returns:
- * 	None
- */
-typedef void (*cc_rx_cb)(cc_status status);
-void cc_set_rx_callback(cc_rx_cb cb);
+bool cc_send_in_progress(void);
+
+uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf);
+
+uint32_t cc_read_recv_data_as_int(cc_buffer_desc *buf);
+
+uint8_t *cc_read_recv_data_as_byte_array(cc_buffer_desc *buf, cc_data_sz *sz);
 
 /*
  * Send bytes to the cloud. The data is wrapped in protocol headers and sent
@@ -90,6 +103,11 @@ void cc_set_rx_callback(cc_rx_cb cb);
  * 	CC_SEND_BUSY    : A send is in progress.
  * 	CC_SEND_SUCCESS : Message was sent, waiting for a response from the cloud.
  */
-cc_send_result cc_send_bytes_to_cloud(uint16_t sz, uint8_t *data);
+cc_send_result cc_send_bytes_to_cloud(cc_buffer_desc *buf, cc_data_sz sz,
+		cc_callback_rtn cb);
 
+cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_data_sz sz.
+		cc_callback_rtn cb);
+
+int32_t cc_service_send_receive(void);
 #endif

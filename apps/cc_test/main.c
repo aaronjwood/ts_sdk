@@ -2,6 +2,7 @@
 
 #include <stm32f4xx_hal.h>
 #include "dbg.h"
+#include "cloud_comm.h"
 
 /**
   * @brief  System Clock Configuration
@@ -115,6 +116,7 @@ void UsageFault_Handler(void)
 		;
 }
 
+CC_SEND_BUFFER(send_buffer, 512);
 int main(int argc, char *argv[])
 {
 	HAL_Init();
@@ -124,7 +126,7 @@ int main(int argc, char *argv[])
 
 	dbg_printf("Begin:\n");
 	while (1) {
-		/* Code */
+		send_buffer.cmd_value = 2;
 	}
 	return 0;
 }
