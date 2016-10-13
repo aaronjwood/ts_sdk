@@ -267,15 +267,15 @@ static bool populate_msg_struct(msg_t *msg)
 	msg->m_type = (m_type_t)(msg_buf[0] & 0x0F);
 	switch (msg->m_type) {
 	case MT_UPDATE:
-		msg->array.sz = (uint16_t)((msg_buf[2] << 8) | msg_buf[1]);
-		if (msg->array.sz >= MAX_DATA_SZ)
+		msg->data.array.sz = (uint16_t)((msg_buf[2] << 8) | msg_buf[1]);
+		if (msg->data.array.sz >= MAX_DATA_SZ)
 			return false;
-		memcpy(msg->array.bytes, &msg_buf[3], msg->array.sz);
+		memcpy(msg->data.array.bytes, &msg_buf[3], msg->data.array.sz);
 		break;
 	case MT_CMD_PI:
 	case MT_CMD_SL:
-		msg->cmd_value = (uint32_t)(msg_buf[4] << 24 | msg_buf[3] << 16 |
-					msg_buf[2] << 8 | msg_buf[1]);
+		msg->data.cmd_value = (uint32_t)(msg_buf[4] << 24 | msg_buf[3]
+				<< 16 | msg_buf[2] << 8 | msg_buf[1]);
 	default:
 		return false;
 		break;
