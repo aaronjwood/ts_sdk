@@ -48,17 +48,21 @@ typedef enum  {			/* Defines message type flags. */
 	MT_CMD_SL = 11		/* Cloud instructs device to sleep */
 } m_type_t;
 
-/* A complete message on the receive path. */
+typedef struct __attribute__((packed)) {
+	uint16_t sz;
+	uint8_t *bytes;
+} array_t;
+
+typedef union {
+	uint32_t cmd_value;
+	array_t array;
+} msg_packet_t;
+
+/* A complete message. */
 typedef struct __attribute__((packed)) {
 	c_flags_t c_flags;
 	m_type_t m_type;
-	union {
-		uint32_t cmd_value;
-		struct __attribute__((packed)) {
-			uint16_t sz;
-			uint8_t bytes[MAX_DATA_SZ];
-		} array;
-	};
+	msg_packet_t data;
 } msg_t;
 
 /*
