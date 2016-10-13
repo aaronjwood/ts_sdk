@@ -13,6 +13,7 @@
 #include MBEDTLS_CONFIG_FILE
 #endif
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stm32f4xx_hal.h>
@@ -105,6 +106,11 @@ int mbedtls_net_recv(void *ctx, unsigned char *buf, size_t len)
                         DEBUG("%s: connection dropped\n", __func__);
                         return MBEDTLS_ERR_NET_CONN_RESET;
                 }
+                if (errno == EPIPE || errno == ECONNRESET)
+                        return MBEDTLS_ERR_NET_CONN_RESET;
+
+                if (errno == EINTR)
+                        return MBEDTLS_ERR_SSL_WANT_READ;
                 return MBEDTLS_ERR_NET_RECV_FAILED;
         }
         return ret;
@@ -160,7 +166,7 @@ int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len)
         int ret;
         int fd = ((mbedtls_net_context *) ctx)->fd;
 
-        if( fd < 0 )
+        if (fd < 0)
                 return MBEDTLS_ERR_NET_INVALID_CONTEXT;
 
         ret = write(fd, buf, len);
@@ -169,10 +175,11 @@ int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len)
                         printf("%s: connection dropped\n", __func__);
                         return MBEDTLS_ERR_NET_CONN_RESET;
                 }
-                /* FIXME: Figure out if this is possible with AT layer
+                if (errno == EPIPE || errno == ECONNRESET)
+                        return MBEDTLS_ERR_NET_CONN_RESET;
+
                 if (errno == EINTR)
-                        return MBEDTLS_ERR_SSL_WANT_READ;
-                */
+                        return MBEDTLS_ERR_SSL_WANT_WRITE;
 
                 return MBEDTLS_ERR_NET_SEND_FAILED;
         }
