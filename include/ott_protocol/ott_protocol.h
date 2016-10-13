@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "ott_limits.h"
 
 /*
  * OTT Protocol API:
@@ -15,13 +16,6 @@
  * There is never more than one outstanding message in this protocol.
  * The device reports its status to the cloud at another set of fixed intervals.
  */
-
-#define MAX_MSG_SZ		512
-#define VER_SZ			1
-#define CMD_SZ			1
-#define LEN_SZ			2
-#define MAX_DATA_SZ		(MAX_MSG_SZ - VER_SZ - CMD_SZ - LEN_SZ)
-#define UUID_SZ			16
 
 typedef enum {			/* Defines return codes of this API. */
 	OTT_OK,			/* API call exited without any errors */
@@ -49,11 +43,11 @@ typedef enum  {			/* Defines message type flags. */
 } m_type_t;
 
 typedef struct __attribute__((packed)) {
-	uint16_t sz;
-	uint8_t *bytes;
+	uint16_t sz;			/* Number of bytes currently filled */
+	uint8_t bytes[];
 } array_t;
 
-typedef union {
+typedef union __attribute__((packed)) {
 	uint32_t cmd_value;
 	array_t array;
 } msg_packet_t;

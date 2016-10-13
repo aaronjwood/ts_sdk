@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "ott_limits.h"
 
 /* Cloud communication API:
  * This module forms the device facing API to communicate with the cloud.
@@ -39,24 +40,32 @@ typedef enum {
 
 typedef uint16_t cc_data_sz;
 
-typedef struct {
+typedef struct {		/* Buffer descriptor available to the API user */
 	cc_data_sz bufsz;
 	void *buf_ptr;
 } cc_buffer_desc;
 
-#define __CC_RECV_BUFFER(name, max_sz) \
-	union { \
-		uint32_t cmd_value; \
-		struct { \
-			cc_data_sz sz;	/* Number of bytes filled in buffer */ \
-			uint8_t bytes[(max_sz)]; \
-		} data_array; \
-	} name##__cc_buf; \
-	cc_buffer_desc name = {(max_sz), &(name##__cc_buf)};
+/*
+ * Macro framework for asserting at compile time; Replace with "static_assert"
+ * in C11 and beyond.
+ */
+#define __token_paste(a, b) a##_##b
+#define __get_name(name, line) __token_paste(name, line)
+#define __compile_time_assert(predicate, error_text) \
+	typedef char __get_name(error_text, __LINE__)[2*!!(predicate) - 1]
 
-#define CC_SEND_BUFFER(name, max_sz) __CC_SEND_BUFFER(name, (max_sz))
+/*
+ * The buffer defined by __CC_BUFFER is opaque to the user apart from its size.
+ * Headers to this buffer are handled internally.
+ */
+#define __CC_BUFFER(name, max_sz) \
+	__compile_time_assert((max_sz) + OTT_OVERHEAD_SZ <= OTT_MAX_MSG_SZ, \
+			name##_exceeds_max_size_on_line); \
+	uint8_t name##_bytes[(max_sz) + OTT_OVERHEAD_SZ]; \
+	cc_buffer_desc name = {(max_sz), &(name##_bytes)}
 
-#define CC_RECV_BUFFER(name, max_sz) __CC_RECV_BUFFER(name, (max_sz))
+#define CC_SEND_BUFFER(name, max_sz) __CC_BUFFER(name, max_sz)
+#define CC_RECV_BUFFER(name, max_sz) __CC_BUFFER(name, max_sz)
 
 /*
  * Pointer to callback routine. The callback accepts a buffer descriptor and
@@ -86,9 +95,9 @@ bool cc_send_in_progress(void);
 
 uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf);
 
-uint32_t cc_read_recv_data_as_int(cc_buffer_desc *buf);
+uint8_t *cc_read_recv_data_as_byte_array(cc_buffer_desc *buf);
 
-uint8_t *cc_read_recv_data_as_byte_array(cc_buffer_desc *buf, cc_data_sz *sz);
+cc_data_sz cc_get_receive_data_len(cc_buffer_desc *buf);
 
 /*
  * Send bytes to the cloud. The data is wrapped in protocol headers and sent
@@ -106,8 +115,7 @@ uint8_t *cc_read_recv_data_as_byte_array(cc_buffer_desc *buf, cc_data_sz *sz);
 cc_send_result cc_send_bytes_to_cloud(cc_buffer_desc *buf, cc_data_sz sz,
 		cc_callback_rtn cb);
 
-cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_data_sz sz.
-		cc_callback_rtn cb);
+cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_data_sz sz);
 
-int32_t cc_service_send_receive(void);
+int32_t cc_service_send_receive(int32_t current_timestamp);
 #endif

@@ -13,7 +13,7 @@
 #define SERVER_PORT	"443"
 #define TCP_TIMEOUT_MS	5000
 
-static uint8_t dev_ID[UUID_SZ];
+static uint8_t dev_ID[OTT_UUID_SZ];
 static uint8_t *dev_sec;
 static uint16_t dev_sec_sz;
 static bool send_in_progress;
@@ -23,11 +23,11 @@ static msg_t msg;
 bool cc_init(const uint8_t *d_ID, uint16_t d_sec_sz, const uint8_t *d_sec)
 {
 	if (d_ID == NULL || d_sec == NULL || d_sec_sz == 0 ||
-			(dev_sec_sz + UUID_SZ > MAX_DATA_SZ))
+			(dev_sec_sz + OTT_UUID_SZ > OTT_DATA_SZ))
 		return false;
 
 	dev_sec_sz = d_sec_sz;
-	memcpy(dev_ID, d_ID, UUID_SZ);
+	memcpy(dev_ID, d_ID, OTT_UUID_SZ);
 	dev_sec = malloc(dev_sec_sz);
 	memcpy(dev_sec, d_sec, dev_sec_sz);
 
@@ -44,7 +44,8 @@ bool cc_send_in_progress(void)
 	return send_in_progress;
 }
 
-cc_send_result cc_send_bytes_to_cloud(uint16_t sz, uint8_t *data)
+cc_send_result cc_send_bytes_to_cloud(cc_buffer_desc *buf, cc_data_sz sz,
+		cc_callback_rtn cb)
 {
 	if (send_in_progress)
 		return CC_SEND_BUSY;

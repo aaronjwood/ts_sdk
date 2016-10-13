@@ -116,7 +116,7 @@ void UsageFault_Handler(void)
 		;
 }
 
-CC_SEND_BUFFER(send_buffer, 512);
+CC_RECV_BUFFER(send_buffer, OTT_DATA_SZ);
 int main(int argc, char *argv[])
 {
 	HAL_Init();
@@ -126,7 +126,6 @@ int main(int argc, char *argv[])
 
 	dbg_printf("Begin:\n");
 	while (1) {
-		send_buffer.cmd_value = 2;
 	}
 	return 0;
 }

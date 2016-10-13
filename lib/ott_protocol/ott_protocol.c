@@ -35,7 +35,7 @@ static void my_debug(void *ctx, int level,
 }
 #endif
 
-static unsigned char msg_buf[MAX_MSG_SZ];	/* Stores received messages */
+static unsigned char msg_buf[OTT_MAX_MSG_SZ];	/* Stores received messages */
 
 /* mbedTLS specific variables */
 static mbedtls_net_context server_fd;
@@ -189,31 +189,24 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 				  uint16_t dev_sec_sz, const uint8_t *dev_sec)
 {
 	/* Check for correct parameters */
-	if (!flags_are_valid(c_flags) || (dev_sec_sz + UUID_SZ > MAX_DATA_SZ) ||
+	if (!flags_are_valid(c_flags) || (dev_sec_sz + OTT_UUID_SZ > OTT_DATA_SZ) ||
 			(dev_id == NULL || dev_sec == NULL || dev_sec_sz == 0))
 		return OTT_INV_PARAM;
 
-	uint16_t idx = 0;
-	uint16_t len = VER_SZ + CMD_SZ + UUID_SZ + LEN_SZ + dev_sec_sz;
+	uint16_t len = OTT_OVERHEAD_SZ + OTT_UUID_SZ + dev_sec_sz;
 	unsigned char buf[len];
 
+	uint16_t idx = 0;
 	/* The version byte is sent before the very first message. */
-	buf[0] = VERSION_BYTE;
-	if (write_tls(buf, 1))
-		return OTT_OK;
-	else
-		return OTT_ERROR;
+	buf[idx++] = VERSION_BYTE;
 
 	/* Build the rest of the message. */
 	buf[idx++] = (uint8_t)(c_flags << 4 | MT_AUTH);
-
-	for (uint16_t i = 0; i < UUID_SZ; i++)
-		buf[idx++] = dev_id[i];
-
+	memcpy(buf + idx, dev_id, OTT_UUID_SZ);
+	idx += OTT_UUID_SZ;
 	buf[idx++] = (uint8_t)(dev_sec_sz & 0xFF);
 	buf[idx++] = (uint8_t)((dev_sec_sz >> 8) & 0xFF);
-	for (uint16_t i = 0; i < dev_sec_sz; i++)
-		buf[idx++] = dev_sec[i];
+	memcpy(buf + idx, dev_sec, dev_sec_sz);
 
 	if (write_tls(buf, len))
 		return OTT_OK;
@@ -226,19 +219,18 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 				    const uint8_t *status)
 {
 	/* Check for correct parameters */
-	if (!flags_are_valid(c_flags) || (status_sz > MAX_DATA_SZ) ||
+	if (!flags_are_valid(c_flags) || (status_sz > OTT_DATA_SZ) ||
 			(status == NULL))
 		return OTT_INV_PARAM;
 
-	uint16_t idx = 0;
-	uint16_t len = CMD_SZ + LEN_SZ + status_sz;
+	uint16_t len = OTT_CMD_SZ + OTT_LEN_SZ + status_sz;
 	unsigned char buf[len];
 
+	uint16_t idx = 0;
 	buf[idx++] = (uint8_t)(c_flags << 4 | MT_STATUS);
 	buf[idx++] = (uint8_t)(status_sz & 0xFF);
 	buf[idx++] = (uint8_t)((status_sz >> 8) & 0xFF);
-	for (uint16_t i = 0; i < status_sz; i++)
-		buf[idx++] = status[i];
+	memcpy(buf + idx, status, status_sz);
 
 	if (write_tls(buf, len))
 		return OTT_OK;
@@ -268,7 +260,7 @@ static bool populate_msg_struct(msg_t *msg)
 	switch (msg->m_type) {
 	case MT_UPDATE:
 		msg->data.array.sz = (uint16_t)((msg_buf[2] << 8) | msg_buf[1]);
-		if (msg->data.array.sz >= MAX_DATA_SZ)
+		if (msg->data.array.sz > OTT_DATA_SZ)
 			return false;
 		memcpy(msg->data.array.bytes, &msg_buf[3], msg->data.array.sz);
 		break;
@@ -288,7 +280,7 @@ ott_status ott_retrieve_msg(msg_t *msg)
 	if (msg == NULL)
 		return OTT_INV_PARAM;
 
-	int ret = mbedtls_ssl_read(&ssl, msg_buf, MAX_MSG_SZ);
+	int ret = mbedtls_ssl_read(&ssl, msg_buf, OTT_MAX_MSG_SZ);
 	if (ret == MBEDTLS_ERR_SSL_WANT_WRITE ||
 			ret == MBEDTLS_ERR_SSL_WANT_READ)
 		return OTT_NO_MSG;
@@ -304,7 +296,7 @@ ott_status ott_retrieve_msg(msg_t *msg)
 		return OTT_ERROR;
 	}
 
-	if (ret > MAX_MSG_SZ) {/* XXX: Assumption: Retrieved complete message */
+	if (ret > OTT_MAX_MSG_SZ) {/* XXX: Assumption: Retrieved complete message */
 		if (!populate_msg_struct(msg)) {
 			ott_send_ctrl_msg(CF_NACK | CF_QUIT);
 			return OTT_NO_MSG;
