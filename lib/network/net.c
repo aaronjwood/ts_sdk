@@ -64,7 +64,7 @@ void mbedtls_net_init(mbedtls_net_context *ctx)
  * Initiate a TCP connection with host:port and the given protocol
  */
 int mbedtls_net_connect(mbedtls_net_context *ctx, const char *host,
-                        const char *port, int proto)
+                                                const char *port, int proto)
 {
         CHECK_NULL(ctx, MBEDTLS_ERR_NET_INVALID_CONTEXT)
         CHECK_NULL(host, MBEDTLS_ERR_NET_SOCKET_FAILED)
@@ -75,10 +75,13 @@ int mbedtls_net_connect(mbedtls_net_context *ctx, const char *host,
                 return MBEDTLS_ERR_NET_SOCKET_FAILED;
 
         ret = at_tcp_connect(host, port);
-        if (ret < 0)
+        if (ret == AT_CONNECT_FAILED)
+                return MBEDTLS_ERR_NET_CONNECT_FAILED;
+        else if (ret == AT_SOCKET_FAILED)
                 return MBEDTLS_ERR_NET_SOCKET_FAILED;
+
         ctx->fd = ret;
-        return ret;
+        return 0;
 }
 
 /*

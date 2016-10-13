@@ -31,6 +31,7 @@ typedef enum at_return_codes {
         AT_SUCCESS = 0,
         AT_RSP_TIMEOUT,
         AT_FAILURE,
+        AT_TX_FAILURE,
         AT_TCP_FAILURE,
         AT_WRONG_RSP,
         AT_RECHECK_MODEM
@@ -122,7 +123,7 @@ static int __at_get_bytes(char *rsp_buf, char tail) {
         uint32_t find_end = __at_find_end((char *)rsp_buf, tail);
         if (find_end != 0) {
                 num_bytes = __at_convert_to_decimal((char *)rsp_buf, find_end);
-                DEBUG_V1("%s: Data Bytes: %d\n", __func__, num_bytes);
+                DEBUG_V1("%s: decimal number: %d\n", __func__, num_bytes);
         } else
                 return -1;
         return num_bytes;
@@ -317,7 +318,7 @@ static at_ret_code __at_comm_send_and_wait_rsp(char *comm, uint16_t len,
 
         if (!__at_uart_write((uint8_t *)comm, len)) {
                 DEBUG_V0("%s: uart tx fail\n", __func__);
-                return AT_FAILURE;
+                return AT_TX_FAILURE;
         }
         return __at_wait_for_rsp(timeout);
 }
@@ -485,14 +486,22 @@ static at_ret_code __at_modem_reset()
         DEBUG_V1("%s: resetting modem...\n", __func__);
         result = __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_RESET],
                                                                 false, true);
-        if (result == AT_RSP_TIMEOUT)
+        if (result == AT_RSP_TIMEOUT || result == AT_TX_FAILURE)
                 return result;
+
         HAL_Delay(MODEM_RESET_DELAY);
         DEBUG_V1("%s: resetting modem done...\n", __func__);
+
         result = __at_generic_comm_rsp_util(
                                 &modem_net_status_comm[ECHO_OFF], false, false);
-        if (result == AT_RSP_TIMEOUT)
+        if (result == AT_RSP_TIMEOUT || result == AT_TX_FAILURE)
                 return result;
+
+        result = __at_generic_comm_rsp_util(
+                                &modem_net_status_comm[CME_CONF], false, true);
+        if (result == AT_RSP_TIMEOUT || result == AT_TX_FAILURE)
+                return result;
+
         return AT_SUCCESS;
 }
 
@@ -542,8 +551,8 @@ static at_ret_code __at_check_modem_conf() {
                                 &modem_net_status_comm[MNO_SET], false, true);
                 CHECK_SUCCESS(result, AT_SUCCESS, result)
                 uint8_t res = __at_modem_reset();
-                if (res == AT_RSP_TIMEOUT)
-                        return AT_FAILURE;
+                if (res == AT_RSP_TIMEOUT || res == AT_TX_FAILURE)
+                        return res;
                 return AT_RECHECK_MODEM;
         }
 
@@ -564,7 +573,11 @@ static at_ret_code __at_check_modem_conf() {
                 state |= NETWORK_LOST;
         }
 
-        return result;
+        /* result of network registration does not matter at this point
+         * since, if network is not up, tcp related command will yield errors
+         * so for now we can say init was success
+         */
+        return AT_SUCCESS;
 }
 
 static at_ret_code __at_config_modem() {
@@ -637,10 +650,9 @@ static int __at_tcp_connect(const char *host, const char *port)
         /* Configure tcp connection first to be tcp client */
         result = __at_generic_comm_rsp_util(desc, false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, -1);
-        s_id = *((int *)desc->rsp_desc[0].data);
         if (s_id < 0) {
                 DEBUG_V0("%s: could not get socket: %d\n", __func__, s_id);
-                return -1;
+                return AT_SOCKET_FAILED;
         }
 
         /* Now make remote connection */
@@ -652,7 +664,7 @@ static int __at_tcp_connect(const char *host, const char *port)
         desc->comm = temp_comm;
         result = __at_generic_comm_rsp_util(desc, false, true);
 
-        CHECK_SUCCESS(result, AT_SUCCESS, -1);
+        CHECK_SUCCESS(result, AT_SUCCESS, AT_CONNECT_FAILED);
 
         state |= TCP_CONNECTED;
         DEBUG_V1("%s: socket:%d created\n", __func__, s_id);
@@ -735,8 +747,46 @@ static void __at_parse_tcp_send_rsp(void *rcv_rsp, int rcv_rsp_len,
         *((int *)data) = num_bytes;
 }
 
-static int __at_handle_tcp_send_error(int s_id)
+static void __at_parse_tcp_get_err(void *rcv_rsp, int rcv_rsp_len,
+                                        const char *stored_rsp, void *data)
 {
+        if (!data)
+                return;
+        uint16_t count = strlen(stored_rsp);
+        if (count > rcv_rsp_len) {
+                DEBUG_V0("%s: stored rsp is bigger then received rsp\n",
+                        __func__);
+                *((int *)data) = -1;
+                return;
+        }
+        int err_code = __at_get_bytes(rcv_rsp + count, '\r');
+        if (err_code == -1) {
+                DEBUG_V0("%s: err code not found\n", __func__);
+                *((int *)data) = -1;
+                return;
+        }
+        *((int *)data) = err_code;
+        DEBUG_V1("%s: retrieved tcp error: %d\n", __func__, err_code);
+}
+
+static int __at_get_tcp_err_code()
+{
+        int data = -1;
+        at_command_desc *desc = &tcp_comm[TCP_GET_ERR];
+        desc->rsp_desc[0].data = &data;
+        at_ret_code result = __at_generic_comm_rsp_util(desc, false, true);
+        if (result != AT_SUCCESS)
+                return data;
+        if (data == -1)
+                return data;
+        errno = data;
+        return data;
+}
+
+static int __at_handle_tcp_send_error(int s_id, at_ret_code cur_result)
+{
+        if (cur_result == AT_TCP_FAILURE)
+                __at_get_tcp_err_code();
 
         int data = -1;
         at_command_desc *desc = &tcp_comm[TCP_SOCK_STAT];
@@ -782,10 +832,14 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         DEBUG_V1("%s: sending write prompt\n", __func__);
         result = __at_generic_comm_rsp_util(desc, false, false);
         if (result != AT_SUCCESS) {
-                DEBUG_V0("%s: command failure\n", __func__);
-                /* Queue may be full */
-                if (result == AT_FAILURE)
-                        return __at_handle_tcp_send_error(s_id);
+                DEBUG_V0("%s: command failure, result code: %d\n",
+                        __func__, result);
+                /* Queue may be full because of network lost or congestion */
+                if (result == AT_WRONG_RSP || result == AT_TX_FAILURE ||
+                                                result == AT_RSP_TIMEOUT)
+                        return AT_TCP_SEND_FAIL;
+
+                return __at_handle_tcp_send_error(s_id, result);
         }
 
         /* Recommeneded in datasheet */
@@ -873,16 +927,49 @@ int at_read_available(int s_id) {
 }
 
 static void __at_parse_rcv_err(uint8_t *rsp_buf, uint16_t r_idx,
-                        at_command_desc *desc)
+                        at_command_desc *desc, bool tcp_err)
 {
-        if (uart_read(rsp_buf + r_idx, strlen(desc->err) - r_idx) !=
-                UART_READ_ERR) {
+        if (!tcp_err) {
+                uint16_t count = 0;
+                char rcv;
+                while (1) {
+                        if (uart_read(&rcv, 1) == UART_READ_ERR) {
+                                DEBUG_V0("%s:%d read error (unlikely)\n",
+                                        __func__, __LINE__);
+                                return;
+                        }
+                        memcpy(rsp_buf + r_idx + count, &rcv, 1);
+                        count++;
+                        if (rcv == '\n')
+                                break;
+                }
                 if (strncmp(rsp_buf, desc->err, strlen(desc->err)) != 0)
-                        DEBUG_V0("%s:wrong rsp: %s\n",
-                                        __func__, (char *)rsp_buf);
+                        DEBUG_V0("%s:%d wrong rsp: %s\n",
+                                        __func__, __LINE__, (char *)rsp_buf);
                 else
-                        DEBUG_V0("%s: got error\n", __func__);
+                        DEBUG_V0("%s: got error %s\n",
+                                                __func__, (char *)rsp_buf);
+
+        } else {
+                if (uart_read(rsp_buf + r_idx, strlen(tcp_error) - r_idx) !=
+                        UART_READ_ERR) {
+                        if (strncmp(rsp_buf, tcp_error, strlen(tcp_error)) != 0) {
+                                DEBUG_V0("%s:%d wrong rsp: %s\n",
+                                                __func__, __LINE__,
+                                                (char *)rsp_buf);
+                                return;
+                        }
+                        DEBUG_V0("%s: got tcp error %s\n",
+                                                __func__, (char *)rsp_buf);
+                        __at_get_tcp_err_code();
+
+                } else {
+                        DEBUG_V0("%s:%d read error (unlikely)\n",
+                                __func__, __LINE__);
+                        return;
+                }
         }
+
 }
 
 static int __at_parse_rcv_rsp(uint8_t *buf)
@@ -972,15 +1059,23 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         }
         uint8_t rsp_buf[read_bytes + 1];
         rsp_buf[read_bytes] = 0x0;
-         /* header plus first byte, + means response and E means error */
-        uint16_t r_idx =  strlen(rsp_header) + 1;
+
+        /* header plus first two bytes, +U means response,
+         * +C and ER means error
+         */
+        uint16_t r_idx =  strlen(rsp_header) + 2;
         if (uart_read(rsp_buf, r_idx) != UART_READ_ERR) {
                 if (strncmp((char *)(rsp_buf), desc->rsp_desc[0].rsp, r_idx) != 0) {
-                        if (strncmp((char *)rsp_buf, desc->err, r_idx) != 0)
-                                DEBUG_V0("%s:%d wrong rsp\n",
+                        if (strncmp((char *)rsp_buf, desc->err, r_idx) != 0) {
+                                if (strncmp((char *)rsp_buf, tcp_error,
+                                                                r_idx) != 0) {
+                                        DEBUG_V0("%s:%d wrong rsp\n",
                                                         __func__, __LINE__);
-                        else
-                                __at_parse_rcv_err(rsp_buf, r_idx, desc);
+                                } else
+                                        __at_parse_rcv_err(rsp_buf, r_idx,
+                                                                desc, true);
+                        } else
+                                __at_parse_rcv_err(rsp_buf, r_idx, desc, false);
                         goto done;
                 } else {
                         if (uart_read(rsp_buf + r_idx,
