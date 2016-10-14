@@ -601,11 +601,7 @@ static at_ret_code __at_check_modem_conf() {
                 state |= NETWORK_LOST;
         }
 
-        /* result of network registration does not matter at this point
-         * since, if network is not up, tcp related command will yield errors
-         * so for now we can say init was success
-         */
-        return AT_SUCCESS;
+        return result;
 }
 
 static at_ret_code __at_config_modem() {
