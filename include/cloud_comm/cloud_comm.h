@@ -46,8 +46,8 @@ typedef struct {		/* Buffer descriptor available to the API user */
 } cc_buffer_desc;
 
 /*
- * Macro framework for asserting at compile time; Replace with "static_assert"
- * in C11 and beyond.
+ * Macro framework for asserting at compile time for C99; Replace with
+ * "static_assert" in C11 and beyond.
  */
 #define __token_paste(a, b) a##_##b
 #define __get_name(name, line) __token_paste(name, line)
@@ -56,12 +56,14 @@ typedef struct {		/* Buffer descriptor available to the API user */
 
 /*
  * The buffer defined by __CC_BUFFER is opaque to the user apart from its size.
- * Headers to this buffer are handled internally.
+ * Headers to this buffer are handled internally. The minimum size of the buffer
+ * is 4 bytes. The maximum buffer size is OTT_DATA_SZ.
  */
 #define __CC_BUFFER(name, max_sz) \
-	__compile_time_assert((max_sz) + OTT_OVERHEAD_SZ <= OTT_MAX_MSG_SZ, \
-			name##_exceeds_max_size_on_line); \
-	uint8_t name##_bytes[(max_sz) + OTT_OVERHEAD_SZ]; \
+	__compile_time_assert(((max_sz) <= OTT_DATA_SZ) && \
+			((max_sz) >= sizeof(uint32_t)), \
+			name##_does_not_have_a_valid_size_on_line); \
+	uint8_t name##_bytes[OTT_OVERHEAD_SZ + (max_sz)]; \
 	cc_buffer_desc name = {(max_sz), &(name##_bytes)}
 
 #define CC_SEND_BUFFER(name, max_sz) __CC_BUFFER(name, max_sz)
@@ -95,7 +97,7 @@ bool cc_send_in_progress(void);
 
 uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf);
 
-uint8_t *cc_read_recv_data_as_byte_array(cc_buffer_desc *buf);
+uint8_t *cc_get_recv_buffer_ptr(cc_buffer_desc *buf);
 
 cc_data_sz cc_get_receive_data_len(cc_buffer_desc *buf);
 
@@ -112,7 +114,7 @@ cc_data_sz cc_get_receive_data_len(cc_buffer_desc *buf);
  * 	CC_SEND_BUSY    : A send is in progress.
  * 	CC_SEND_SUCCESS : Message was sent, waiting for a response from the cloud.
  */
-cc_send_result cc_send_bytes_to_cloud(cc_buffer_desc *buf, cc_data_sz sz,
+cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 		cc_callback_rtn cb);
 
 cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_data_sz sz);
