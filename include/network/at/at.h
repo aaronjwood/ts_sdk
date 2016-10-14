@@ -19,11 +19,17 @@
 extern "C" {
 #endif
 
+/** send failure */
 #define AT_TCP_SEND_FAIL   -1
+/** receive failure */
 #define AT_TCP_RCV_FAIL    -1
+
+/** connect dropped may be between connect and read or write or in middle of
+ * write
+ */
 #define AT_TCP_CONNECT_DROPPED  -2
 
-/* TCP connect related error codes */
+/** TCP connect related error codes */
 #define AT_CONNECT_FAILED       -1
 #define AT_SOCKET_FAILED        -2
 
