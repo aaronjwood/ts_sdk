@@ -40,10 +40,28 @@ typedef enum at_return_codes {
 static char *rsp_header = "\r\n";
 static char *rsp_trailer = "\r\n";
 
+/* TCP operation can fail at tcp level as well operation level which can be
+ * caught with +CME ERROR, while tcp level error requires issuing
+ * special command to retrieve error number
+ */
+static const char *tcp_error = "\r\nERROR\r\n";
+
+/* low level uart rx buffer size
+ * we need this as uart driver implements circular buffer and it can not
+ * receive more than that size as it can overwrite the rx buffer, for example
+ * at+usord=0,1024 will overwrite some of the data as read command contains raw
+ * data as well come command related meta data
+ */
+static buf_sz uart_rx_buf_sz;
+
 static volatile at_states state;
 static volatile bool process_rsp;
 /* Flag to indicate one time packet data network enable procedure */
 static volatile bool pdp_conf;
+
+/* Enable this macro to display error messages, i.e. enable debug level 0
+ */
+/*#define DEBUG_AT_LIB*/
 
 static int debug_level;
 /* level v2 is normally for extensive debugging need, for example tracing
@@ -62,7 +80,11 @@ static int debug_level;
                                         printf(__VA_ARGS__); \
                         } while (0)
 
+#ifdef DEBUG_AT_LIB
 #define DEBUG_V0(...)	printf(__VA_ARGS__)
+#else
+#define DEBUG_V0(...)
+#endif
 
 #define DBG_STATE
 #ifdef DBG_STATE
@@ -97,6 +119,11 @@ static int debug_level;
 #define IDLE_CHARS	        10
 #define MODEM_RESET_DELAY       60000 /* In mili seconds */
 #define NET_REG_CHECK_DELAY     10000 /* In mili seconds */
+
+/* meta data related to at+usord command
+ * adjust this parameter according to low level uart rx buffer size
+ */
+#define MAX_RX_META_DATA        512
 
 static uint32_t __at_find_end(char *str, char tail) {
         CHECK_NULL(str, 0)
@@ -166,10 +193,10 @@ static at_ret_code __at_process_network_urc(char *urc, at_urc u_code)
         if (((u_code == NET_STAT_URC) && (net_stat != 1)) ||
                 ((u_code == EPS_STAT_URC) && (net_stat == 0))) {
                 state |= NETWORK_LOST;
-                DEBUG_V1("%s: network lost\n", __func__);
+                DEBUG_V0("%s: network lost\n", __func__);
         } else {
                 state &= ~NETWORK_LOST;
-                DEBUG_V1("%s: network restored\n", __func__);
+                DEBUG_V0("%s: network restored\n", __func__);
         }
 
         /* FIXME: Revisit this if tcp connect still possible after network lost
@@ -185,10 +212,11 @@ static at_ret_code __at_process_pdp_tcp_close_urc(char *urc, at_urc u_code)
                 case TCP_CLOSED:
                         if ((state & TCP_CONNECTED) == TCP_CONNECTED)
                                 state &= ~TCP_CONNECTED;
-                        DEBUG_V1("%s: tcp closed\n", __func__);
+                        state &= ~TCP_READ;
+                        DEBUG_V0("%s: tcp closed\n", __func__);
                         return AT_SUCCESS;
                 case PDP_DEACT:
-                        DEBUG_V1("%s: pdp closed\n", __func__);
+                        DEBUG_V0("%s: pdp closed\n", __func__);
                         pdp_conf = false;
                         return AT_SUCCESS;
                 }
@@ -600,6 +628,7 @@ bool at_init()
         state = IDLE;
         process_rsp = false;
         pdp_conf = false;
+        uart_rx_buf_sz = 0;
         __at_uart_rx_flush();
 
         /* This may take few seconds */
@@ -616,6 +645,12 @@ bool at_init()
                 state = AT_INVALID;
                 return false;
         }
+
+        buf_sz temp_sz = uart_get_rx_buf_size();
+        uart_rx_buf_sz = (temp_sz > MAX_AT_TCP_RX_SIZE) ?
+                                (MAX_AT_TCP_RX_SIZE - MAX_RX_META_DATA):
+                                (temp_sz - MAX_RX_META_DATA);
+
         return true;
 
 }
@@ -766,7 +801,7 @@ static void __at_parse_tcp_get_err(void *rcv_rsp, int rcv_rsp_len,
                 return;
         }
         *((int *)data) = err_code;
-        DEBUG_V1("%s: retrieved tcp error: %d\n", __func__, err_code);
+        DEBUG_V0("%s: retrieved tcp error: %d\n", __func__, err_code);
 }
 
 static int __at_get_tcp_err_code()
@@ -859,6 +894,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
                  *
                  */
                  /* FIXME: check this scenario again for tcp error if any */
+                __at_uart_rx_flush();
                 return AT_TCP_CONNECT_DROPPED;
         }
         desc = &tcp_comm[TCP_SEND];
@@ -870,9 +906,9 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         /* Parse the response for session or socket id and number of write */
         int data = -1;
         desc->rsp_desc[0].data = &data;
-        DEBUG_V1("%s: processing write rsp after complete write\n", __func__);
         result = __at_generic_comm_rsp_util(desc, true, true);
         CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_SEND_FAIL)
+        DEBUG_V1("%s: data written: %d\n", __func__, data);
         return data;
 }
 
@@ -1016,7 +1052,8 @@ static int __at_parse_rcv_rsp(uint8_t *buf)
          * start of the ok
          */
         if (strncmp(temp_buf + 3, ok, strlen(ok)) != 0) {
-                DEBUG_V0("%s: non ok after reading into buffer\n", __func__);
+                DEBUG_V0("%s: non ok after reading into buffer: %s\n",
+                        __func__, (char *)temp_buf);
                 return AT_TCP_RCV_FAIL;
         }
         return num_read;
@@ -1037,6 +1074,9 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
                 return AT_TCP_RCV_FAIL;
         }
 
+        if (len > uart_rx_buf_sz)
+                len = uart_rx_buf_sz;
+
         at_ret_code result = AT_SUCCESS;
         int r_bytes = AT_TCP_RCV_FAIL;
         uint16_t read_bytes;
@@ -1046,16 +1086,16 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
 
         char temp_comm[TEMP_COMM_LIMIT];
         snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id, len);
-        DEBUG_V1("%s: sending command: %s\n", __func__, temp_comm);
         timeout = desc->comm_timeout;
+        DEBUG_V1("%s: sending command:%s\n", __func__, temp_comm);
         result = __at_comm_send_and_wait_rsp(temp_comm, strlen(temp_comm),
                                                 &timeout);
-        CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_RCV_FAIL);
-
+        CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_RCV_FAIL)
         read_bytes = uart_rx_available();
         if (read_bytes <= 0) {
-                DEBUG_V0("%s: comm: %s failed\n", __func__, temp_comm);
-                return AT_TCP_RCV_FAIL;
+                DEBUG_V0("%s: read bytes:%d, failed comm:%s\n", __func__,
+                                                read_bytes, temp_comm);
+                return 0;
         }
         uint8_t rsp_buf[read_bytes + 1];
         rsp_buf[read_bytes] = 0x0;
@@ -1069,8 +1109,9 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
                         if (strncmp((char *)rsp_buf, desc->err, r_idx) != 0) {
                                 if (strncmp((char *)rsp_buf, tcp_error,
                                                                 r_idx) != 0) {
-                                        DEBUG_V0("%s:%d wrong rsp\n",
-                                                        __func__, __LINE__);
+                                        DEBUG_V0("%s:%d wrong rsp:%s\n",
+                                                        __func__, __LINE__,
+                                                        (char *)rsp_buf);
                                 } else
                                         __at_parse_rcv_err(rsp_buf, r_idx,
                                                                 desc, true);
@@ -1102,11 +1143,12 @@ done:
         __at_process_urc();
         state &= ~PROC_URC;
         __at_uart_rx_flush();
+        if (at_read_available(s_id) <= 0)
+                state &= ~TCP_READ;
         return r_bytes;
 }
 
 void at_tcp_close(int s_id) {
-
         at_command_desc *desc = &tcp_comm[TCP_CLOSE];
         if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
                 DEBUG_V0("%s: tcp already closed\n", __func__);

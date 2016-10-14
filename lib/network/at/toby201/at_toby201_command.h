@@ -29,12 +29,6 @@ static void __at_parse_tcp_sock_stat(void *rcv_rsp, int rcv_rsp_len,
 static void __at_parse_tcp_get_err(void *rcv_rsp, int rcv_rsp_len,
                                         const char *stored_rsp, void *data);
 
-/* TCP operation can fail at tcp level as well operation level which can be
- * caught with +CME ERROR, while tcp level error requires issuing
- * special command to retrieve error number
- */
-static const char *tcp_error = "\r\nERROR\r\n";
-
 /** Unsolicited result codes */
 typedef enum at_urc {
         NET_STAT_URC = 0, /** network status */

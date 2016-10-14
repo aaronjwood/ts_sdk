@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #endif
 
-#include "mbedtls/net.h" /* XXX - need different header for NET over AT cmds? */
+#include "mbedtls/net.h"
 #include "mbedtls/ssl.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
@@ -184,8 +184,7 @@ int main(int argc, char *argv[])
 			dbg_printf("EOF\n");
 			break;
 		} else
-			dbg_printf("\n==== Read %d bytes\n\n%s",
-				   len, (char *)buf);
+			dbg_printf("%s",(char *)buf);
 
 	} while (1);
 
@@ -203,37 +202,3 @@ done:
 	terminate(ret);
 	return 0;
 }
-
-/* ************************************************************************** */
-/* Temporary stubs to allow compiling before the net over AT library is ready.*/
-#ifndef BUILD_TARGET_OSX
-
-void mbedtls_net_init(mbedtls_net_context *ctx)
-{
-	(void)ctx;
-}
-int mbedtls_net_connect(mbedtls_net_context *ctx, const char *host,
-			const char *port, int proto)
-{
-	(void)ctx; (void)host; (void)port; (void)proto;
-	return 0;
-}
-
-void mbedtls_net_free(mbedtls_net_context *ctx)
-{
-	(void)ctx;
-}
-
-int mbedtls_net_recv(void *ctx, unsigned char *buf, size_t len)
-{
-	(void)ctx; (void)buf; (void)len;
-	return -1;
-}
-
-int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len)
-{
-	(void)ctx; (void)buf; (void)len;
-	return 0;
-}
-/* ************************************************************************** */
-#endif /* BUILD_TARGET_OSX */
