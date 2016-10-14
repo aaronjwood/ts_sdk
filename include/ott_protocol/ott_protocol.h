@@ -29,9 +29,8 @@ typedef enum {			/* Defines control flags. */
 	CF_NACK = 0x10,		/* Failed to accept or process previous message */
 	CF_ACK = 0x20,		/* Previous message accepted */
 	CF_PENDING = 0x40,	/* More messages to follow */
-	CF_QUIT = 0x80		/* Close connection. All messages sent / received. */
+	CF_QUIT = 0x80		/* Close connection */
 } c_flags_t;
-#define OTT_FLAG_IS_SET(f_var, bit)	(((f_var) & (bit)) == (bit))
 
 typedef enum  {			/* Defines message type flags. */
 	MT_NONE = 0,		/* Control message */
@@ -42,21 +41,30 @@ typedef enum  {			/* Defines message type flags. */
 	MT_CMD_SL = 11		/* Cloud instructs device to sleep */
 } m_type_t;
 
+#define OTT_FLAG_IS_SET(f_var, bit)	(((f_var) & (bit)) == (bit))
+#define OTT_MTYPE_IS_SET(m_var, bit)	(((m_var) & (bit)) == (bit))
+#define OTT_STORE_FLAGS(cmd, f_var)	((cmd) |= ((uint8_t)(f_var) << 4))
+#define OTT_STORE_MTYPE(cmd, m_var)	((cmd) |= (uint8_t)(m_var))
+#define OTT_LOAD_FLAGS(cmd, f_var)	((f_var) = ((uint8_t)(cmd) >> 4) & 0x0F)
+#define OTT_LOAD_MTYPE(cmd, m_var)	((m_var) = (uint8_t)(cmd) & 0x0F)
+
+/* Defines an array type */
 typedef struct __attribute__((packed)) {
 	uint16_t sz;			/* Number of bytes currently filled */
 	uint8_t bytes[];
 } array_t;
 
+/* Defines a value received by the device from the cloud */
 typedef union __attribute__((packed)) {
 	uint32_t cmd_value;
 	array_t array;
 } msg_packet_t;
 
-/* A complete message. */
+/* A complete message received by the cloud */
 typedef struct __attribute__((packed)) {
 	c_flags_t c_flags;
 	m_type_t m_type;
-	msg_packet_t data;
+	msg_packet_t *data;
 } msg_t;
 
 /*
@@ -74,8 +82,8 @@ typedef struct __attribute__((packed)) {
 ott_status ott_protocol_init(void);
 
 /*
- * Initiate a connection to the cloud service. This involves starting the TCP
- * session, TLS handshake and verification of server certificates.
+ * Initiate a secure connection to the cloud service. This involves starting the
+ * TCP session, TLS handshake and verification of server certificates.
  *
  * Parameters:
  * 	host : The server to connect to.
@@ -146,7 +154,7 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 /*
  * Send a control message to the cloud service. This message has no data field
  * associated with it, i.e. the message type is MT_NONE. It is used to poll the
- * cloud for pending responses or to notify it about the termination of the
+ * cloud for pending messages or to notify it about the termination of the
  * connection.
  * The pending flag cannot be active for this type of message.
  * This message type may or may not have a response.

@@ -1,5 +1,6 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
+#include <stm32f4xx_hal.h>
 #include <string.h>
 #include "dbg.h"
 #include "ott_protocol.h"
@@ -17,6 +18,7 @@
 #endif
 
 #define VERSION_BYTE		((uint8_t)0x01)
+#define TIMEOUT_MS		5000
 
 #if 0
 #include "verizon_ott_ca.h"
@@ -90,6 +92,28 @@ ott_status ott_protocol_init(void)
 		return OTT_ERROR;
 	}
 
+	/*
+	 * XXX: Move this section to ott_initiate_connection() (after connect
+	 * and before setting up the SSL context) if it doesn't work when placed
+	 * here.
+	 */
+	/* Set up the TLS structures */
+	ret = mbedtls_ssl_config_defaults(&conf,
+			MBEDTLS_SSL_IS_CLIENT,
+			MBEDTLS_SSL_TRANSPORT_STREAM,
+			MBEDTLS_SSL_PRESET_DEFAULT);
+	if (ret != 0) {
+		cleanup_mbedtls();
+		return OTT_ERROR;
+	}
+
+	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
+	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
+	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
+#ifdef MBEDTLS_DEBUG_C
+	mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
+#endif
+
 	return OTT_OK;
 }
 
@@ -104,20 +128,7 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 	if (ret < 0)
 		return OTT_ERROR;
 
-	/* Set up the TLS structures */
-	ret = mbedtls_ssl_config_defaults(&conf,
-			MBEDTLS_SSL_IS_CLIENT,
-			MBEDTLS_SSL_TRANSPORT_STREAM,
-			MBEDTLS_SSL_PRESET_DEFAULT);
-	if (ret != 0)
-		return OTT_ERROR;
-
-	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
-	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
-	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
-#ifdef MBEDTLS_DEBUG_C
-	mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
-#endif
+	/* Set up the SSL context */
 	ret = mbedtls_ssl_setup(&ssl, &conf);
 	if (ret != 0)
 		return OTT_ERROR;
@@ -127,9 +138,15 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 
 	/* Perform TLS handshake */
 	ret = mbedtls_ssl_handshake(&ssl);
+	/* XXX: Keep timeout here? */
+	uint32_t start = HAL_GetTick();
 	while (ret != 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
 				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+			mbedtls_ssl_session_reset(&ssl);
+			return OTT_ERROR;
+		}
+		if (HAL_GetTick() - start > TIMEOUT_MS) {
 			mbedtls_ssl_session_reset(&ssl);
 			return OTT_ERROR;
 		}
@@ -142,22 +159,27 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 ott_status ott_close_connection(void)
 {
 	/* Close the connection and notify the peer. */
-	int ret = mbedtls_ssl_close_notify(&ssl);
-	if (ret == 0)
+	if (mbedtls_ssl_close_notify(&ssl) == 0)
 		return OTT_OK;
 	mbedtls_ssl_session_reset(&ssl);
 	return OTT_ERROR;
 }
 
-static bool write_tls(uint8_t *buf, uint16_t len)
+static bool write_tls(const uint8_t *buf, uint16_t len)
 {
 	/* Attempt to write 'len' bytes of 'buf' over the TCP/TLS stream. */
 	int ret = mbedtls_ssl_write(&ssl, (const unsigned char *)buf, (size_t)len);
+	/* XXX: Keep timeout here? */
+	uint32_t start = HAL_GetTick();
 	while (ret <= 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
 				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 			mbedtls_ssl_session_reset(&ssl);
 			return false;
+		}
+		if (HAL_GetTick() - start > TIMEOUT_MS) {
+			mbedtls_ssl_session_reset(&ssl);
+			return OTT_ERROR;
 		}
 		ret = mbedtls_ssl_write(&ssl, (const unsigned char *)buf,
 				(size_t)len);
@@ -189,11 +211,12 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 				  uint16_t dev_sec_sz, const uint8_t *dev_sec)
 {
 	/* Check for correct parameters */
-	if (!flags_are_valid(c_flags) || (dev_sec_sz + OTT_UUID_SZ > OTT_DATA_SZ) ||
-			(dev_id == NULL || dev_sec == NULL || dev_sec_sz == 0))
+	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_QUIT) ||
+			(dev_sec_sz + OTT_UUID_SZ > OTT_DATA_SZ) ||
+			dev_id == NULL || dev_sec == NULL || dev_sec_sz == 0)
 		return OTT_INV_PARAM;
 
-	uint16_t len = OTT_OVERHEAD_SZ + OTT_UUID_SZ + dev_sec_sz;
+	uint16_t len = OTT_VER_SZ + OTT_OVERHEAD_SZ + OTT_UUID_SZ + dev_sec_sz;
 	unsigned char buf[len];
 
 	uint16_t idx = 0;
@@ -219,8 +242,8 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 				    const uint8_t *status)
 {
 	/* Check for correct parameters */
-	if (!flags_are_valid(c_flags) || (status_sz > OTT_DATA_SZ) ||
-			(status == NULL))
+	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_QUIT) ||
+			(status_sz > OTT_DATA_SZ) || (status == NULL))
 		return OTT_INV_PARAM;
 
 	uint16_t len = OTT_CMD_SZ + OTT_LEN_SZ + status_sz;
@@ -255,18 +278,18 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 /* Return "false" if the message has invalid data. */
 static bool populate_msg_struct(msg_t *msg)
 {
-	msg->c_flags = (c_flags_t)((msg_buf[0] >> 4) & 0x0F);
-	msg->m_type = (m_type_t)(msg_buf[0] & 0x0F);
+	OTT_LOAD_FLAGS(msg_buf[0], msg->c_flags);
+	OTT_LOAD_MTYPE(msg_buf[0], msg->m_type);
 	switch (msg->m_type) {
 	case MT_UPDATE:
-		msg->data.array.sz = (uint16_t)((msg_buf[2] << 8) | msg_buf[1]);
-		if (msg->data.array.sz > OTT_DATA_SZ)
+		msg->data->array.sz = (uint16_t)((msg_buf[2] << 8) | msg_buf[1]);
+		if (msg->data->array.sz > OTT_DATA_SZ)
 			return false;
-		memcpy(msg->data.array.bytes, &msg_buf[3], msg->data.array.sz);
+		memcpy(msg->data->array.bytes, &msg_buf[3], msg->data->array.sz);
 		break;
 	case MT_CMD_PI:
 	case MT_CMD_SL:
-		msg->data.cmd_value = (uint32_t)(msg_buf[4] << 24 | msg_buf[3]
+		msg->data->cmd_value = (uint32_t)(msg_buf[4] << 24 | msg_buf[3]
 				<< 16 | msg_buf[2] << 8 | msg_buf[1]);
 	default:
 		return false;
@@ -296,7 +319,7 @@ ott_status ott_retrieve_msg(msg_t *msg)
 		return OTT_ERROR;
 	}
 
-	if (ret > OTT_MAX_MSG_SZ) {/* XXX: Assumption: Retrieved complete message */
+	if (ret > 0) {	/* XXX: Assuming entire message arrives at once */
 		if (!populate_msg_struct(msg)) {
 			ott_send_ctrl_msg(CF_NACK | CF_QUIT);
 			return OTT_NO_MSG;
