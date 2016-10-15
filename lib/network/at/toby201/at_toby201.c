@@ -852,7 +852,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
 
         if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
                 DEBUG_V0("%s: tcp not connected\n", __func__);
-                return AT_TCP_CONNECT_DROPPED;
+                return AT_TCP_SEND_FAIL;
         }
 
         at_command_desc *desc = &tcp_comm[TCP_WRITE_PROMPT];
@@ -889,8 +889,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
                 /* URC is already been processed so no need to process it again
                  *
                  */
-                 /* FIXME: check this scenario again for tcp error if any */
-                __at_uart_rx_flush();
+                /* AT modem returns tcp error 11 which is EAGAIN */
                 return AT_TCP_CONNECT_DROPPED;
         }
         desc = &tcp_comm[TCP_SEND];
@@ -942,7 +941,7 @@ int at_read_available(int s_id) {
 
         if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
                DEBUG_V0("%s: tcp not connected to read\n", __func__);
-               return AT_TCP_CONNECT_DROPPED;
+               return AT_TCP_RCV_FAIL;
         }
         if (s_id < 0) {
                DEBUG_V0("%s: Invalid socket\n", __func__);
@@ -1063,7 +1062,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         }
         if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
                 DEBUG_V0("%s: tcp not connected to recv\n", __func__);
-                return AT_TCP_CONNECT_DROPPED;
+                return AT_TCP_RCV_FAIL;
         }
         if ((state & TCP_READ) != TCP_READ) {
                 DEBUG_V0("%s: read not possible at this time\n", __func__);

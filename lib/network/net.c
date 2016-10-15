@@ -104,7 +104,7 @@ int mbedtls_net_recv(void *ctx, unsigned char *buf, size_t len)
         if (ret < 0) {
                 if (ret == AT_TCP_CONNECT_DROPPED) {
                         DEBUG("%s: connection dropped\n", __func__);
-                        return MBEDTLS_ERR_NET_CONN_RESET;
+                        return MBEDTLS_ERR_SSL_WANT_READ;
                 }
                 if (errno == EPIPE || errno == ECONNRESET)
                         return MBEDTLS_ERR_NET_CONN_RESET;
@@ -172,8 +172,8 @@ int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len)
         ret = write(fd, buf, len);
         if (ret < 0) {
                 if (ret == AT_TCP_CONNECT_DROPPED) {
-                        printf("%s: connection dropped\n", __func__);
-                        return MBEDTLS_ERR_NET_CONN_RESET;
+                        DEBUG("%s: connection dropped\n", __func__);
+                        return MBEDTLS_ERR_SSL_WANT_WRITE;
                 }
                 if (errno == EPIPE || errno == ECONNRESET)
                         return MBEDTLS_ERR_NET_CONN_RESET;
