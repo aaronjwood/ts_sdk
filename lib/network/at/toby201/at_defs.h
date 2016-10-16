@@ -21,6 +21,11 @@
  */
 #define MAX_AT_TCP_RX_SIZE      1024
 
+/* Maximum modem tx buffer size, this limit is imposed by modem internal
+ * tcp transmit buffer
+ */
+#define MAX_AT_TCP_TX_SIZE      1024
+
 /** response descriptor */
 typedef struct _at_rsp_desc {
         /** Hard coded expected response for the given command */

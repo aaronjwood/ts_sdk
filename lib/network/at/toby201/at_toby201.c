@@ -854,6 +854,8 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
                 DEBUG_V0("%s: tcp not connected\n", __func__);
                 return AT_TCP_SEND_FAIL;
         }
+        if (len > MAX_AT_TCP_TX_SIZE)
+                len = MAX_AT_TCP_TX_SIZE;
 
         at_command_desc *desc = &tcp_comm[TCP_WRITE_PROMPT];
 
