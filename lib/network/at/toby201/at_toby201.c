@@ -59,7 +59,8 @@ static volatile bool process_rsp;
 /* Flag to indicate one time packet data network enable procedure */
 static volatile bool pdp_conf;
 
-/* Enable this macro to display error messages, i.e. enable debug level 0
+/* Enable this macro to display messages, error will alway be reported if this
+ * macro is enabled while V2 and V1 will depend on debug_level setting
  */
 /*#define DEBUG_AT_LIB*/
 
@@ -67,6 +68,7 @@ static int debug_level;
 /* level v2 is normally for extensive debugging need, for example tracing
  * function calls
  */
+#ifdef DEBUG_AT_LIB
 #define DEBUG_V2(...)	\
                         do { \
                                 if (debug_level >= 2) \
@@ -80,10 +82,12 @@ static int debug_level;
                                         printf(__VA_ARGS__); \
                         } while (0)
 
-#ifdef DEBUG_AT_LIB
 #define DEBUG_V0(...)	printf(__VA_ARGS__)
 #else
 #define DEBUG_V0(...)
+#define DEBUG_V1(...)
+#define DEBUG_V2(...)
+
 #endif
 
 #define DBG_STATE
@@ -198,10 +202,6 @@ static at_ret_code __at_process_network_urc(char *urc, at_urc u_code)
                 state &= ~NETWORK_LOST;
                 DEBUG_V0("%s: network restored\n", __func__);
         }
-
-        /* FIXME: Revisit this if tcp connect still possible after network lost
-         * event is detected
-         */
         return AT_SUCCESS;
 }
 
