@@ -37,7 +37,16 @@ static void my_debug(void *ctx, int level,
 }
 #endif
 
-static unsigned char msg_buf[OTT_MAX_MSG_SZ];	/* Stores received messages */
+/*
+ * Assumption : Underlying transport protocol is stream oriented. So parts of
+ * the message can be sent through separate write calls.
+ */
+#define WRITE_AND_RETURN_ON_ERROR(buf, len, ret) \
+	do { \
+	ret = write_tls((buf), (len)); \
+	if (ret == OTT_ERROR || ret == OTT_TIMEOUT) \
+		return ret; \
+	} while(0)
 
 /* mbedTLS specific variables */
 static mbedtls_net_context server_fd;
@@ -138,7 +147,6 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 
 	/* Perform TLS handshake */
 	ret = mbedtls_ssl_handshake(&ssl);
-	/* XXX: Keep timeout here? */
 	uint32_t start = HAL_GetTick();
 	while (ret != 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
@@ -148,7 +156,7 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 		}
 		if (HAL_GetTick() - start > TIMEOUT_MS) {
 			mbedtls_ssl_session_reset(&ssl);
-			return OTT_ERROR;
+			return OTT_TIMEOUT;
 		}
 		ret = mbedtls_ssl_handshake(&ssl);
 	}
@@ -165,26 +173,25 @@ ott_status ott_close_connection(void)
 	return OTT_ERROR;
 }
 
-static bool write_tls(const uint8_t *buf, uint16_t len)
+static ott_status write_tls(const uint8_t *buf, uint16_t len)
 {
 	/* Attempt to write 'len' bytes of 'buf' over the TCP/TLS stream. */
 	int ret = mbedtls_ssl_write(&ssl, (const unsigned char *)buf, (size_t)len);
-	/* XXX: Keep timeout here? */
 	uint32_t start = HAL_GetTick();
 	while (ret <= 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
 				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 			mbedtls_ssl_session_reset(&ssl);
-			return false;
+			return OTT_ERROR;
 		}
 		if (HAL_GetTick() - start > TIMEOUT_MS) {
 			mbedtls_ssl_session_reset(&ssl);
-			return OTT_ERROR;
+			return OTT_TIMEOUT;
 		}
 		ret = mbedtls_ssl_write(&ssl, (const unsigned char *)buf,
 				(size_t)len);
 	}
-	return true;
+	return OTT_OK;
 }
 
 /* Return "true" if the flag settings are valid. */
@@ -216,25 +223,28 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 			dev_id == NULL || dev_sec == NULL || dev_sec_sz == 0)
 		return OTT_INV_PARAM;
 
-	uint16_t len = OTT_VER_SZ + OTT_OVERHEAD_SZ + OTT_UUID_SZ + dev_sec_sz;
-	unsigned char buf[len];
+	uint8_t bytes[2] = {VERSION_BYTE, 0};
+	ott_status ret;
 
-	uint16_t idx = 0;
 	/* The version byte is sent before the very first message. */
-	buf[idx++] = VERSION_BYTE;
+	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&bytes, 1, ret);
 
-	/* Build the rest of the message. */
-	buf[idx++] = (uint8_t)(c_flags << 4 | MT_AUTH);
-	memcpy(buf + idx, dev_id, OTT_UUID_SZ);
-	idx += OTT_UUID_SZ;
-	buf[idx++] = (uint8_t)(dev_sec_sz & 0xFF);
-	buf[idx++] = (uint8_t)((dev_sec_sz >> 8) & 0xFF);
-	memcpy(buf + idx, dev_sec, dev_sec_sz);
+	/* Send the command byte */
+	bytes[0] = (uint8_t)(c_flags << 4 | MT_AUTH);
+	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&bytes, 1, ret);
 
-	if (write_tls(buf, len))
-		return OTT_OK;
-	else
-		return OTT_ERROR;
+	/* Send the device ID */
+	WRITE_AND_RETURN_ON_ERROR((unsigned char *)dev_id, OTT_UUID_SZ, ret);
+
+	/* Send the device secret size in little endian format */
+	bytes[0] = (uint8_t)(dev_sec_sz & 0xFF);
+	bytes[1] = (uint8_t)((dev_sec_sz >> 8) & 0xFF);
+	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&bytes, sizeof(uint16_t), ret);
+
+	/* Send the device secret */
+	WRITE_AND_RETURN_ON_ERROR((unsigned char *)dev_sec, dev_sec_sz, ret);
+
+	return OTT_OK;
 }
 
 ott_status ott_send_status_to_cloud(c_flags_t c_flags,
@@ -246,19 +256,22 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 			(status_sz > OTT_DATA_SZ) || (status == NULL))
 		return OTT_INV_PARAM;
 
-	uint16_t len = OTT_CMD_SZ + OTT_LEN_SZ + status_sz;
-	unsigned char buf[len];
+	ott_status ret;
+	uint8_t bytes[2];
 
-	uint16_t idx = 0;
-	buf[idx++] = (uint8_t)(c_flags << 4 | MT_STATUS);
-	buf[idx++] = (uint8_t)(status_sz & 0xFF);
-	buf[idx++] = (uint8_t)((status_sz >> 8) & 0xFF);
-	memcpy(buf + idx, status, status_sz);
+	/* Send the command byte */
+	bytes[0] = (uint8_t)(c_flags << 4 | MT_STATUS);
+	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&bytes, 1, ret);
 
-	if (write_tls(buf, len))
-		return OTT_OK;
-	else
-		return OTT_ERROR;
+	/* Send the status length field in little endian format */
+	bytes[0] = (uint8_t)(status_sz & 0xFF);
+	bytes[1] = (uint8_t)((status_sz >> 8) & 0xFF);
+	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&bytes, sizeof(uint16_t), ret);
+
+	/* Send the actual status data */
+	WRITE_AND_RETURN_ON_ERROR((unsigned char *)status, status_sz, ret);
+
+	return OTT_OK;
 }
 
 ott_status ott_send_ctrl_msg(c_flags_t c_flags)
@@ -267,35 +280,35 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_PENDING))
 		return OTT_INV_PARAM;
 
-	unsigned char buf = (uint8_t)(c_flags << 4 | MT_NONE);
+	ott_status ret;
+	unsigned char byte = (uint8_t)(c_flags << 4 | MT_NONE);
 
-	if (write_tls(&buf, 1))
-		return OTT_OK;
-	else
-		return OTT_ERROR;
+	/* Send the command byte */
+	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&byte, 1, ret);
+
+	return OTT_OK;
 }
 
-/* Return "false" if the message has invalid data. */
-static bool populate_msg_struct(msg_t *msg)
+/* Return "false" if the message has invalid data, else return "true". */
+static bool msg_is_valid(msg_t *msg)
 {
-	OTT_LOAD_FLAGS(msg_buf[0], msg->c_flags);
-	OTT_LOAD_MTYPE(msg_buf[0], msg->m_type);
-	switch (msg->m_type) {
+	m_type_t m_type;
+	OTT_LOAD_MTYPE(*(uint8_t *)msg, m_type);
+	switch (m_type) {
 	case MT_UPDATE:
-		msg->data->array.sz = (uint16_t)((msg_buf[2] << 8) | msg_buf[1]);
-		if (msg->data->array.sz > OTT_DATA_SZ)
+		if (msg->data.array.sz > OTT_DATA_SZ)
 			return false;
-		memcpy(msg->data->array.bytes, &msg_buf[3], msg->data->array.sz);
+		else
+			return true;
 		break;
 	case MT_CMD_PI:
 	case MT_CMD_SL:
-		msg->data->cmd_value = (uint32_t)(msg_buf[4] << 24 | msg_buf[3]
-				<< 16 | msg_buf[2] << 8 | msg_buf[1]);
+		/* XXX: Perform some check on interval values? */
+		return true;
 	default:
 		return false;
 		break;
 	}
-	return true;
 }
 
 ott_status ott_retrieve_msg(msg_t *msg)
@@ -303,7 +316,7 @@ ott_status ott_retrieve_msg(msg_t *msg)
 	if (msg == NULL)
 		return OTT_INV_PARAM;
 
-	int ret = mbedtls_ssl_read(&ssl, msg_buf, OTT_MAX_MSG_SZ);
+	int ret = mbedtls_ssl_read(&ssl, (unsigned char *)msg, OTT_MAX_MSG_SZ);
 	if (ret == MBEDTLS_ERR_SSL_WANT_WRITE ||
 			ret == MBEDTLS_ERR_SSL_WANT_READ)
 		return OTT_NO_MSG;
@@ -320,14 +333,14 @@ ott_status ott_retrieve_msg(msg_t *msg)
 	}
 
 	if (ret > 0) {	/* XXX: Assuming entire message arrives at once */
-		if (!populate_msg_struct(msg)) {
+		if (!msg_is_valid(msg)) {
 			ott_send_ctrl_msg(CF_NACK | CF_QUIT);
 			return OTT_NO_MSG;
 		}
 		return OTT_OK;
 	}
 
-	if (ret == 0)			/* No more messages to receive */
+	if (ret == 0)			/* EOF: No more messages to receive */
 		return OTT_NO_MSG;
 
 	return OTT_ERROR;
