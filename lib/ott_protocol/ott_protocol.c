@@ -292,6 +292,7 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 /* Return "false" if the message has invalid data, else return "true". */
 static bool msg_is_valid(msg_t *msg)
 {
+	/* XXX: Perform a check on the flags? */
 	m_type_t m_type;
 	OTT_LOAD_MTYPE(*(uint8_t *)msg, m_type);
 	switch (m_type) {
@@ -303,6 +304,7 @@ static bool msg_is_valid(msg_t *msg)
 		break;
 	case MT_CMD_PI:
 	case MT_CMD_SL:
+	case MT_NONE:
 		/* XXX: Perform some check on interval values? */
 		return true;
 	default:
