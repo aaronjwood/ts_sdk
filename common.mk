@@ -40,13 +40,20 @@ export ARCHFLAGS
 FW_EXEC = firmware.elf
 LDFLAGS ?= -Wl,-Map,fw.map,--cref
 
+# platform related header files
+INC += -I $(PROJ_ROOT)/include/platform
+
 # Device drivers
-INC = -I $(PROJ_ROOT)/include/dbg
+INC += -I $(PROJ_ROOT)/include/dbg
 INC += -I $(PROJ_ROOT)/include/uart
 INC += -I $(PROJ_ROOT)/include/hwrng
 
 # Certificates
 INC += -I $(PROJ_ROOT)/include/certs
+
+# net and at layer library includes
+INC += -I $(PROJ_ROOT)/include/network/at
+INC += -I $(PROJ_ROOT)/include/network
 
 # Peripheral related headers
 INC += -I $(STM32_LIB_COMMON)/Drivers/STM32F4xx_HAL_Driver/Inc
@@ -59,6 +66,16 @@ INC += -I $(STM32_CMSIS)/Include
 
 # Standard library function headers
 INC += -I $(GCC_ROOT)/include
+
+# mbedtls library header files
+INC += -I $(PROJ_ROOT)/vendor/mbedtls/include
+
+# OTT protocol API header
+INC += -I $(PROJ_ROOT)/include/ott_protocol/
+
+# Cloud communication API header
+INC += -I $(PROJ_ROOT)/include/cloud_comm/
+
 export INC
 
 # Linker script
@@ -68,9 +85,20 @@ LDSCRIPT = -T $(STM32_LIB_COMMON)/Projects/STM32F429ZI-Nucleo/Templates/SW4STM32
 STARTUP_SRC = $(STM32_CMSIS)/Source/Templates/gcc/startup_stm32f429xx.s
 OBJ_STARTUP = startup_stm32f429xx.o
 
+# defines which modem to use, currently only ublox-toby201 is supported
+MODEM_TARGET = toby201
+
+ifeq ($(MODEM_TARGET),toby201)
+MODEM_SRC += at_toby201.c
+MODEM_DIR += toby201
+endif
+
 # List of core library components to be included in the build process
-# This includes debugging, UART and HW RNG modules.
-CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c dbg.c uart.c hwrng.c
+# This includes debugging, UART, NET and HW RNG modules.
+CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c stm32f4xx_platform.c dbg.c uart.c hwrng.c net.c $(MODEM_SRC)
+
+# Cloud communication / OTT protocol API sources
+CLOUD_COMM_SRC = ott_protocol.c cloud_comm.c
 
 # Peripheral HAL sources
 LIB_SRC = stm32f4xx_hal_cortex.c
@@ -85,10 +113,13 @@ LIB_SRC += stm32f4xx_hal_tim_ex.c
 LIB_SRC += stm32f4xx_hal_rng.c
 
 # Search paths for core module sources
-vpath %.c $(PROJ_ROOT)/lib/dbg: \
+vpath %.c $(PROJ_ROOT)/lib/platform: \
+	$(PROJ_ROOT)/lib/dbg: \
 	$(PROJ_ROOT)/lib/uart: \
 	$(PROJ_ROOT)/lib/hwrng: \
 	$(PROJ_ROOT)/lib/ott_protocol: \
 	$(PROJ_ROOT)/lib/cloud_comm: \
+	$(PROJ_ROOT)/lib/network: \
+	$(PROJ_ROOT)/lib/network/at/$(MODEM_DIR): \
 	$(STM32_PLIB): \
 	$(STM32_CMSIS)/Source/Templates:

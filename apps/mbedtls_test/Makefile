@@ -33,10 +33,13 @@ vpath %.c $(SRCDIR):
 # User application includes
 INC += -I $(SRCDIR)/include
 
+# platform specific source file
+PLATFORM_SRC = stm32f4xx_platform.c
+
 # User application sources
 USER_SRC = $(SRCDIR)/main.c
-ifneq ($(BUILD_TARGET),osx)
-USER_SRC += $(SRCDIR)/stm32f4xx_platform.c
+ifeq ($(BUILD_TARGET),osx)
+CORELIB_SRC := $(filter-out $(PLATFORM_SRC), $(CORELIB_SRC))
 endif
 
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
@@ -46,9 +49,6 @@ DBG_LIB_SRC =
 
 # Build the  mbed TLS library
 VENDOR_LIB_DIRS += mbedtls
-
-# The application uses the mbed TLS library
-INC += -I $(PROJ_ROOT)/vendor/mbedtls/include
 VENDOR_LIB_FLAGS += -L. -lmbedtls -lmbedx509 -lmbedcrypto
 
 # Defines the target rules

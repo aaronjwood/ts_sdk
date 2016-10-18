@@ -23,7 +23,7 @@
   * @param  None
   * @retval None
   */
-void SystemClock_Config(void)
+static void SystemClock_Config(void)
 {
 	RCC_ClkInitTypeDef RCC_ClkInitStruct;
 	RCC_OscInitTypeDef RCC_OscInitStruct;
@@ -80,6 +80,17 @@ void SystemClock_Config(void)
 		raise_err();
 }
 
+void platform_init()
+{
+        HAL_Init();
+	SystemClock_Config();
+}
+
+void platform_delay(uint32_t delay_ms)
+{
+        HAL_Delay(delay_ms);
+}
+
 /* Increments the SysTick value. */
 void SysTick_Handler(void)
 {
@@ -114,4 +125,3 @@ void UsageFault_Handler(void)
 	while (1)
 		;
 }
-

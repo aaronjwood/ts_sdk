@@ -4,7 +4,6 @@
 #include <string.h>
 #include "dbg.h"
 #include "ott_protocol.h"
-/* Include AT Layer module: #include "AT_LAYER.H" */
 
 #include "mbedtls/net.h"
 #include "mbedtls/ssl.h"
@@ -43,8 +42,8 @@ static void my_debug(void *ctx, int level,
  */
 #define WRITE_AND_RETURN_ON_ERROR(buf, len, ret) \
 	do { \
-	ret = write_tls((buf), (len)); \
-	if (ret == OTT_ERROR || ret == OTT_TIMEOUT) \
+		ret = write_tls((buf), (len)); \
+		if (ret == OTT_ERROR || ret == OTT_TIMEOUT) \
 		return ret; \
 	} while(0)
 
@@ -70,8 +69,6 @@ static inline void cleanup_mbedtls(void)
 ott_status ott_protocol_init(void)
 {
 	int ret;
-
-	/* XXX: Initialize the AT layer here */
 
 #ifdef MBEDTLS_DEBUG_C
 	mbedtls_debug_set_threshold(1);
@@ -292,6 +289,7 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 /* Return "false" if the message has invalid data, else return "true". */
 static bool msg_is_valid(msg_t *msg)
 {
+	/* XXX: Perform a check on the flags? */
 	m_type_t m_type;
 	OTT_LOAD_MTYPE(*(uint8_t *)msg, m_type);
 	switch (m_type) {
@@ -303,6 +301,7 @@ static bool msg_is_valid(msg_t *msg)
 		break;
 	case MT_CMD_PI:
 	case MT_CMD_SL:
+	case MT_NONE:
 		/* XXX: Perform some check on interval values? */
 		return true;
 	default:
@@ -344,32 +343,4 @@ ott_status ott_retrieve_msg(msg_t *msg)
 		return OTT_NO_MSG;
 
 	return OTT_ERROR;
-}
-
-/* Stubs for now. These will be implemented by the AT layer. */
-void mbedtls_net_init( mbedtls_net_context *ctx )
-{
-	(void)ctx;
-}
-int mbedtls_net_connect( mbedtls_net_context *ctx, const char *host, const char *port, int proto )
-{
-	(void)ctx; (void)host; (void)port; (void)proto;
-	return 0;
-}
-
-void mbedtls_net_free( mbedtls_net_context *ctx )
-{
-	(void)ctx;
-}
-
-int mbedtls_net_recv( void *ctx, unsigned char *buf, size_t len )
-{
-	(void)ctx; (void)buf; (void)len;
-	return -1;
-}
-
-int mbedtls_net_send( void *ctx, const unsigned char *buf, size_t len )
-{
-	(void)ctx; (void)buf; (void)len;
-	return 0;
 }

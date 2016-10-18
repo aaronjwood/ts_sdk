@@ -7,7 +7,7 @@
  * Based loosly on the mbed TLS ssl_client1.c example.
  */
 #ifndef BUILD_TARGET_OSX
-#include <stm32f4xx_hal.h>
+#include "platform.h"
 #else
 #include <stdlib.h>
 #endif
@@ -64,8 +64,6 @@ static void terminate(int ret)
 #endif
 }
 
-extern void SystemClock_Config(void);
-
 int main(int argc, char *argv[])
 {
 	mbedtls_net_context server_fd;
@@ -79,8 +77,7 @@ int main(int argc, char *argv[])
 	int ret;
 
 #ifndef BUILD_TARGET_OSX
-	HAL_Init();
-	SystemClock_Config();
+	platform_init();
 #endif
 
 	dbg_module_init();

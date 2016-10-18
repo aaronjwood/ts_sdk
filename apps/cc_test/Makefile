@@ -4,6 +4,7 @@
 # STM32F4 platform. Uses the GCC toolchain and the STMicro STM32CubeF4
 # HAL drivers.
 # Note: Library sources are built without debug info and optimized for size
+
 PROJ_ROOT = $(shell git rev-parse --show-toplevel)
 export PROJ_ROOT
 
@@ -27,7 +28,7 @@ vpath %.c $(SRCDIR):
 INC += -I $(SRCDIR)/include
 
 # User application sources
-USER_SRC = $(SRCDIR)/main.c
+USER_SRC = $(wildcard $(SRCDIR)/*.c)
 
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
 # debug flag enabled
@@ -36,19 +37,7 @@ DBG_LIB_SRC =
 
 # Build the  mbed TLS library
 VENDOR_LIB_DIRS += mbedtls
-
-# The application uses the mbed TLS library
-INC += -I $(PROJ_ROOT)/vendor/mbedtls/include
 VENDOR_LIB_FLAGS += -L. -lmbedtls -lmbedx509 -lmbedcrypto
-
-# OTT protocol API header
-INC += -I $(PROJ_ROOT)/include/ott_protocol/
-
-# Cloud communication API header
-INC += -I $(PROJ_ROOT)/include/cloud_comm/
-
-# Cloud communication / OTT protocol API sources
-CLOUD_COMM_SRC = ott_protocol.c cloud_comm.c
 
 # Defines the target rules
 include $(PROJ_ROOT)/rules.mk

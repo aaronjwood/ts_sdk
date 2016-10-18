@@ -1,0 +1,27 @@
+/**
+ * \file platform.h
+ *
+ * \brief APIs to address platform related init and other utillities
+ *
+ * \copyright Copyright (C) 2016, Verizon. All rights reserved.
+ *
+ *
+ */
+ #ifndef PLAT_H
+ #define PLAT_H
+
+ #include <stdint.h>
+ /**
+  * \brief       Initializes platform, includes HAL layer init, system clock
+  *              configuration, installing different handlert etc...
+  */
+void platform_init();
+
+/**
+ * \brief       Provides delay functionality
+ *
+ * \param[in] delay_ms    delay value in miliseconds
+ */
+void platform_delay(uint32_t delay_ms);
+
+#endif
