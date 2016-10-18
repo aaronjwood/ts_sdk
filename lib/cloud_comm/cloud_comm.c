@@ -8,9 +8,6 @@
 #include "ott_protocol.h"
 #include "dbg.h"
 
-/* XXX: Replace with our server:port */
-#define SERVER_NAME	"www.tapr.org"
-#define SERVER_PORT	"443"
 #define TCP_TIMEOUT_MS	5000
 
 static struct {				/* Store authentication data */
@@ -21,14 +18,18 @@ static struct {				/* Store authentication data */
 static struct {
 	bool send_in_progress;		/* Set if a message is currently sent */
 	bool auth_done;			/* Auth was sent for this session */
-	const msg_packet_t *msg;	/* Actual message */
+	const uint8_t *msg;		/* Outgoing data buffer */
+	cc_callback_rtn cb;		/* "Send" callback */
 } outgoing_conn;
 
 static struct {
 	bool recv_in_progress;		/* Set if an async receive was scheduled */
 	bool msg_recvd;			/* Set if a complete message was received */
-	msg_packet_t *msg;		/* Actual message */
+	msg_t *msg;			/* Incoming data buffer */
+	cc_callback_rtn cb;		/* "Receive" callback */
 } incoming_conn;
+
+static bool connection_established;	/* Set when a session is active */
 
 bool cc_init(const uint8_t *d_ID, uint16_t d_sec_sz, const uint8_t *d_sec)
 {
@@ -60,17 +61,56 @@ bool cc_init(const uint8_t *d_ID, uint16_t d_sec_sz, const uint8_t *d_sec)
 
 uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf)
 {
-	return ((msg_packet_t *)(buf))->array.bytes;
+	return buf->buf_ptr;
 }
 
 uint8_t *cc_get_recv_buffer_ptr(cc_buffer_desc *buf)
 {
-	return ((msg_packet_t *)(buf))->array.bytes;
+	/*
+	 * Depending on the type of message in the buffer, return a pointer
+	 * to the "interval" field of the message's data or the "bytes" field.
+	 */
+	m_type_t m_type;
+	OTT_LOAD_MTYPE(*(const uint8_t *)buf->buf_ptr, m_type);
+
+	msg_t *ptr_to_msg = (msg_t *)(buf->buf_ptr);
+	uint8_t *ptr_to_interval = (uint8_t *)&(ptr_to_msg->data.interval);
+	uint8_t *ptr_to_bytes = (uint8_t *)&(ptr_to_msg->data.array.bytes);
+
+	switch (m_type) {
+	case MT_UPDATE:
+		return ptr_to_bytes;
+	case MT_CMD_PI:
+	case MT_CMD_SL:
+		return ptr_to_interval;
+	default:
+		/* XXX: Unlikely because of checks in ott_retrieve_msg() */
+		return (uint8_t *)(buf->buf_ptr);
+	}
 }
 
 cc_data_sz cc_get_receive_data_len(cc_buffer_desc *buf)
 {
-	return ((msg_packet_t *)(buf))->array.sz;
+	/*
+	 * The message can have one of two lengths depending on the type of
+	 * message received:
+	 * 1) sizeof(uint32_t) for command messages
+	 * 2) sz field of the byte array received
+	 */
+	m_type_t m_type;
+	OTT_LOAD_MTYPE(*(const uint8_t *)buf->buf_ptr, m_type);
+	msg_t *ptr_to_msg = (msg_t *)(buf->buf_ptr);
+
+	switch (m_type) {
+	case MT_UPDATE:
+		return ptr_to_msg->data.array.sz;
+	case MT_CMD_PI:
+	case MT_CMD_SL:
+		return sizeof(uint32_t);
+	default:
+		/* XXX: Unlikely because of checks in ott_retrieve_msg() */
+		return 0;
+	}
 }
 
 bool cc_send_in_progress(void)
@@ -78,30 +118,52 @@ bool cc_send_in_progress(void)
 	return outgoing_conn.send_in_progress;
 }
 
+bool cc_establish_session(const char *host, const char *port)
+{
+	/* Prevent establishing multiple connections to the cloud services. */
+	if (connection_established)
+		return false;
+
+	/* Initiate a connection to the cloud server */
+	if (ott_initiate_connection(host, port) != OTT_OK)
+		return false;
+
+	/* Authenticate the device with the cloud. On failure, close connection */
+	if (ott_send_auth_to_cloud(CF_PENDING,
+				auth_params.dev_ID,
+				auth_params.d_sec->sz,
+				auth_params.d_sec->bytes) != OTT_OK) {
+		ASSERT(ott_close_connection() == OTT_OK);
+		return false;
+	}
+
+	connection_established = true;
+	return true;
+}
+
+void cc_close_session(void)
+{
+	if (!connection_established)
+		return;
+	ott_close_connection();
+	connection_established = false;
+}
+
 cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 		cc_callback_rtn cb)
 {
+	/* Ensure a connection has already been established */
+	if (!connection_established)
+		return CC_SEND_FAILED;
+
 	/* Allow for only one send to be outstanding */
 	if (outgoing_conn.send_in_progress)
 		return CC_SEND_BUSY;
 
 	outgoing_conn.send_in_progress = true;
 
-	/* Initiate a connection to the cloud server */
-	if (ott_initiate_connection(SERVER_NAME, SERVER_PORT) != OTT_OK)
-		return CC_SEND_FAILED;
-
-	/* Authenticate the device with the cloud */
-	if (ott_send_auth_to_cloud(CF_PENDING,
-				auth_params.dev_ID,
-				auth_params.d_sec->sz,
-				auth_params.d_sec->bytes) != OTT_OK) {
-		ASSERT(ott_close_connection() == OTT_OK);
-		return CC_SEND_FAILED;
-	}
-
 	/* Store a pointer to the data to be sent */
-	outgoing_conn.msg = (const msg_packet_t *)buf->buf_ptr;
+	outgoing_conn.msg = (const uint8_t *)buf->buf_ptr;
 
 	return CC_SEND_SUCCESS;
 }
