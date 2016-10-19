@@ -15,11 +15,23 @@ FW_EXEC = firmware.elf
 LDFLAGS = -Wl,-map,fw.map
 
 INC = -I $(PROJ_ROOT)/include/dbg
+INC += -I $(PROJ_ROOT)/include/platform
 INC += -I $(PROJ_ROOT)/include/certs
+
+# mbedtls library header files
+INC += -I $(PROJ_ROOT)/vendor/mbedtls/include
+
+# OTT protocol API header
+INC += -I $(PROJ_ROOT)/include/ott_protocol/
 
 export INC
 
-CORELIB_SRC = dbg_osx.c
+CORELIB_SRC = dbg_osx.c osx_platform.c
+
+# Cloud communication / OTT protocol API sources
+CLOUD_COMM_SRC = ott_protocol.c
 
 # Search paths for core module sources
-vpath %.c $(PROJ_ROOT)/lib/dbg:
+vpath %.c $(PROJ_ROOT)/lib/dbg: \
+	$(PROJ_ROOT)/lib/platform: \
+	$(PROJ_ROOT)/lib/ott_protocol:

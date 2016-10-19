@@ -13,9 +13,17 @@ ifneq (build,$(notdir $(CURDIR)))
 include $(PROJ_ROOT)/build_in_subdir.mk
 else
 
+# Uncomment to build a host OS version of the test program
+#BUILD_TARGET = osx
+#export BUILD_TARGET
+
 # Defines toolchain and common modules & paths
+ifeq ($(BUILD_TARGET),osx)
+include $(PROJ_ROOT)/common_osx.mk
+else
 # Debug, UART and HW RNG drivers are included by default
 include $(PROJ_ROOT)/common.mk
+endif
 
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG
@@ -26,8 +34,14 @@ vpath %.c $(SRCDIR):
 # User application includes
 INC += -I $(SRCDIR)/include
 
+# platform specific source file
+PLATFORM_SRC = stm32f4xx_platform.c
+
 # User application sources
-USER_SRC = $(wildcard $(SRCDIR)/*.c)
+USER_SRC = $(SRCDIR)/main.c
+ifeq ($(BUILD_TARGET),osx)
+CORELIB_SRC := $(filter-out $(PLATFORM_SRC), $(CORELIB_SRC))
+endif
 
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
 # debug flag enabled

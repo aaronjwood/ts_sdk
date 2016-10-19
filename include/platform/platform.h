@@ -24,4 +24,11 @@ void platform_init();
  */
 void platform_delay(uint32_t delay_ms);
 
+/**
+ * \brief       Provides system tick functionality
+ *
+ * \return      Number of milliseconds since calling platform_init()
+ */
+uint32_t platform_get_tick_ms(void);
+
 #endif

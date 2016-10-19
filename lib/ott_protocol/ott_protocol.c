@@ -1,6 +1,6 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
-#include <stm32f4xx_hal.h>
+#include "platform.h"
 #include <string.h>
 #include "dbg.h"
 #include "ott_protocol.h"
@@ -30,7 +30,7 @@ static void my_debug(void *ctx, int level,
                      const char *file, int line,
 		     const char *str)
 {
-	UNUSED(level);
+	(void)(level);
 	dbg_printf("%s:%04d: %s", file, line, str);
 	fflush(stdout);
 }
@@ -144,14 +144,14 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 
 	/* Perform TLS handshake */
 	ret = mbedtls_ssl_handshake(&ssl);
-	uint32_t start = HAL_GetTick();
+	uint32_t start = platform_get_tick_ms();
 	while (ret != 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
 				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 			mbedtls_ssl_session_reset(&ssl);
 			return OTT_ERROR;
 		}
-		if (HAL_GetTick() - start > TIMEOUT_MS) {
+		if (platform_get_tick_ms() - start > TIMEOUT_MS) {
 			mbedtls_ssl_session_reset(&ssl);
 			return OTT_TIMEOUT;
 		}
@@ -174,14 +174,14 @@ static ott_status write_tls(const uint8_t *buf, uint16_t len)
 {
 	/* Attempt to write 'len' bytes of 'buf' over the TCP/TLS stream. */
 	int ret = mbedtls_ssl_write(&ssl, (const unsigned char *)buf, (size_t)len);
-	uint32_t start = HAL_GetTick();
+	uint32_t start = platform_get_tick_ms();
 	while (ret <= 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
 				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 			mbedtls_ssl_session_reset(&ssl);
 			return OTT_ERROR;
 		}
-		if (HAL_GetTick() - start > TIMEOUT_MS) {
+		if (platform_get_tick_ms() - start > TIMEOUT_MS) {
 			mbedtls_ssl_session_reset(&ssl);
 			return OTT_TIMEOUT;
 		}
@@ -310,12 +310,12 @@ static bool msg_is_valid(msg_t *msg)
 	}
 }
 
-ott_status ott_retrieve_msg(msg_t *msg)
+ott_status ott_retrieve_msg(msg_t *msg, uint16_t sz)
 {
 	if (msg == NULL)
 		return OTT_INV_PARAM;
 
-	int ret = mbedtls_ssl_read(&ssl, (unsigned char *)msg, OTT_MAX_MSG_SZ);
+	int ret = mbedtls_ssl_read(&ssl, (unsigned char *)msg, sz);
 	if (ret == MBEDTLS_ERR_SSL_WANT_WRITE ||
 			ret == MBEDTLS_ERR_SSL_WANT_READ)
 		return OTT_NO_MSG;

@@ -185,12 +185,13 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags);
  * Parameters:
  * 	msg : Pointer to buffer that will store the message data, type and
  * 	      associated control flags.
+ * 	sz  : Size of the buffer.
  *
  * Returns:
  * 	OTT_OK        : Message successfully retrieved
  * 	OTT_NO_MSG    : No message to retrieve.
- * 	OTT_INV_PARAM : A NULL pointer was passed in for the buffer.
+ * 	OTT_INV_PARAM : A NULL pointer was supplied / invalid maximum buffer size
  * 	OTT_ERROR     : An error occurred in the TCP/TLS layer.
  */
-ott_status ott_retrieve_msg(msg_t *msg);
+ott_status ott_retrieve_msg(msg_t *msg, uint16_t sz);
 #endif

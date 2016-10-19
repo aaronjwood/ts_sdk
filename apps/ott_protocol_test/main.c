@@ -1,10 +1,13 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
-#include <stm32f4xx_hal.h>
 #include <inttypes.h>
 #include "dbg.h"
 #include "ott_protocol.h"
 #include "platform.h"
+
+#ifdef BUILD_TARGET_OSX
+#include <stdlib.h>
+#endif
 
 #if 0
 #define SERVER_PORT "4433"
@@ -15,14 +18,15 @@
 #define SERVER_NAME "www.tapr.org"
 #endif
 
-static msg_t msg;
+static msg_t *msg;
 #define RECV_TIMEOUT_MS		7000
+#define BUF_SZ		512
 
 /* Wait for a response from the cloud. If none, return. */
-#define EXPECT_RESPONSE_FROM_CLOUD(_msg) \
+#define EXPECT_RESPONSE_FROM_CLOUD(_msg_ptr, _sz) \
 do { \
 	platform_delay(RECV_TIMEOUT_MS); \
-	if (ott_retrieve_msg(&(_msg)) != OTT_OK) { \
+	if (ott_retrieve_msg(_msg_ptr, _sz) != OTT_OK) { \
 		dbg_printf("\tERR: No response from cloud, closing connection.\n"); \
 		ott_send_ctrl_msg(CF_NACK | CF_QUIT); \
 		ott_close_connection(); \
@@ -31,9 +35,9 @@ do { \
 } while(0)
 
 /* Check for an ACK, failing which return. */
-#define EXPECT_ACK_FROM_CLOUD(_msg, _flags) \
+#define EXPECT_ACK_FROM_CLOUD(_msg_ptr, _flags) \
 do { \
-	OTT_LOAD_FLAGS(*(uint8_t *)&(_msg), (_flags)); \
+	OTT_LOAD_FLAGS(*(uint8_t *)(_msg_ptr), (_flags)); \
 	if (!OTT_FLAG_IS_SET((_flags), CF_ACK)) { \
 		dbg_printf("\tERR: Cloud did not ACK previous message.\n"); \
 		ott_send_ctrl_msg(CF_NACK | CF_QUIT); \
@@ -62,7 +66,7 @@ void test_scenario_1(void)
 			== OTT_OK);
 
 	/* 4 - Wait for a timeout before checking for a message from the cloud. */
-	EXPECT_RESPONSE_FROM_CLOUD(msg);
+	EXPECT_RESPONSE_FROM_CLOUD(msg, BUF_SZ);
 
 	/* Make sure the previous message was ACKed. */
 	EXPECT_ACK_FROM_CLOUD(msg, c_flags);
@@ -74,14 +78,14 @@ void test_scenario_1(void)
 	ASSERT(ott_send_status_to_cloud(CF_NONE, sizeof(status), status) == OTT_OK);
 
 	/* 6 - Wait for a timeout before checking for a message from the cloud. */
-	EXPECT_RESPONSE_FROM_CLOUD(msg);
+	EXPECT_RESPONSE_FROM_CLOUD(msg, BUF_SZ);
 
 	/* Make sure the previous message was ACKed. */
 	EXPECT_ACK_FROM_CLOUD(msg, c_flags);
 	dbg_printf("\tDevice status delivered to the cloud.\n");
 
 	/* 7 - In this scenario, the cloud sets the QUIT flag. */
-	OTT_LOAD_FLAGS(*(uint8_t *)&msg, c_flags);
+	OTT_LOAD_FLAGS(*(uint8_t *)msg, c_flags);
 	ASSERT(OTT_FLAG_IS_SET(c_flags, CF_QUIT));
 	dbg_printf("Closing secure connection.\n");
 	ASSERT(ott_close_connection() == OTT_OK);
@@ -107,7 +111,7 @@ void test_scenario_2(void)
 			== OTT_OK);
 
 	/* 4 - Wait for a timeout before checking for a message from the cloud. */
-	EXPECT_RESPONSE_FROM_CLOUD(msg);
+	EXPECT_RESPONSE_FROM_CLOUD(msg, BUF_SZ);
 
 	/* Make sure the previous message was ACKed. */
 	EXPECT_ACK_FROM_CLOUD(msg, c_flags);
@@ -116,9 +120,9 @@ void test_scenario_2(void)
 	/* Read the update message from the cloud. */
 	dbg_printf("Reading update sent from the cloud.\n");
 	ASSERT(OTT_FLAG_IS_SET(c_flags, CF_PENDING));
-	dbg_printf("\tSize : %d", msg.data.array.sz);
+	dbg_printf("\tSize : %d", msg->data.array.sz);
 	dbg_printf("\tData :\n");
-	for (uint8_t i = 0; i < msg.data.array.sz; i++)
+	for (uint8_t i = 0; i < msg->data.array.sz; i++)
 		dbg_printf("\t0x%2X\n", i);
 
 	/* 5 - Send the status of the sensors attached to the device. */
@@ -127,14 +131,14 @@ void test_scenario_2(void)
 	ASSERT(ott_send_status_to_cloud(CF_ACK, sizeof(status), status) == OTT_OK);
 
 	/* 6 - Wait for a timeout before checking for a message from the cloud. */
-	EXPECT_RESPONSE_FROM_CLOUD(msg);
+	EXPECT_RESPONSE_FROM_CLOUD(msg, BUF_SZ);
 
 	/* Make sure the previous message was ACKed. */
 	EXPECT_ACK_FROM_CLOUD(msg, c_flags);
 	dbg_printf("\tDevice status delivered to the cloud.\n");
 
 	/* Read the interval from the message */
-	dbg_printf("Polling interval set: %"PRIu32" sec.\n", msg.data.interval);
+	dbg_printf("Polling interval set: %"PRIu32" sec.\n", msg->data.interval);
 
 	/* 7 & 8- Acknowledge the last message sent by the cloud and end comm. */
 	dbg_printf("Closing secure connection.\n");
@@ -162,7 +166,7 @@ void test_scenario_3(void)
 			== OTT_OK);
 
 	/* 4 - Wait for a timeout before checking for a message from the cloud. */
-	EXPECT_RESPONSE_FROM_CLOUD(msg);
+	EXPECT_RESPONSE_FROM_CLOUD(msg, BUF_SZ);
 
 	/* Make sure the previous message was ACKed. */
 	EXPECT_ACK_FROM_CLOUD(msg, c_flags);
@@ -171,9 +175,9 @@ void test_scenario_3(void)
 	/* Read the update message from the cloud. */
 	dbg_printf("Reading update sent from the cloud.\n");
 	ASSERT(OTT_FLAG_IS_SET(c_flags, CF_PENDING));
-	dbg_printf("\tSize : %d", msg.data.array.sz);
+	dbg_printf("\tSize : %d", msg->data.array.sz);
 	dbg_printf("\tData :\n");
-	for (uint8_t i = 0; i < msg.data.array.sz; i++)
+	for (uint8_t i = 0; i < msg->data.array.sz; i++)
 		dbg_printf("\t0x%2X\n", i);
 
 	/* 5 - Acknowledge the last message received and end communication */
@@ -189,6 +193,7 @@ int main(int argc, char *argv[])
 
 	dbg_module_init();
 	ASSERT(ott_protocol_init() == OTT_OK);
+	msg = malloc(BUF_SZ);
 
 	dbg_printf("Begin:\n");
 	while (1) {
