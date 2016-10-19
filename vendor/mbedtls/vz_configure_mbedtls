@@ -208,7 +208,8 @@ c unset MBEDTLS_X509_CSR_WRITE_C
 # Don't need XTEA block cipher
 c unset MBEDTLS_XTEA_C
 
-# OTT protocol has a max frame size of 512
+# OTT protocol has a max frame size of 512, but the cloud-side TLS termination
+# suffers from the OpenSSL minimum buffer size of 4096.
 if ! option "full-msgs"; then
-c set	MBEDTLS_SSL_MAX_CONTENT_LEN 512
+c set	MBEDTLS_SSL_MAX_CONTENT_LEN 4096
 fi
