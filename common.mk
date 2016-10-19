@@ -70,6 +70,9 @@ INC += -I $(GCC_ROOT)/include
 # mbedtls library header files
 INC += -I $(PROJ_ROOT)/vendor/mbedtls/include
 
+# OTT protocol API header
+INC += -I $(PROJ_ROOT)/include/ott_protocol/
+
 export INC
 
 # Linker script
@@ -88,8 +91,11 @@ MODEM_DIR += toby201
 endif
 
 # List of core library components to be included in the build process
-# This includes debugging and UART communication modules
+# This includes debugging, UART, NET and HW RNG modules.
 CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c stm32f4xx_platform.c dbg.c uart.c hwrng.c net.c $(MODEM_SRC)
+
+# Cloud communication / OTT protocol API sources
+CLOUD_COMM_SRC = ott_protocol.c
 
 # Peripheral HAL sources
 LIB_SRC = stm32f4xx_hal_cortex.c
@@ -108,6 +114,7 @@ vpath %.c $(PROJ_ROOT)/lib/platform: \
 	$(PROJ_ROOT)/lib/dbg: \
 	$(PROJ_ROOT)/lib/uart: \
 	$(PROJ_ROOT)/lib/hwrng: \
+	$(PROJ_ROOT)/lib/ott_protocol: \
 	$(PROJ_ROOT)/lib/network: \
 	$(PROJ_ROOT)/lib/network/at/$(MODEM_DIR): \
 	$(STM32_PLIB): \
