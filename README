@@ -61,14 +61,15 @@ debug     - will enable debug messages in the library, especially for TLS
 	    errors. Makes the code much bigger but otherwise it's hard to
 	    tell why something fails.
 
-no-net    - disables the network module (temporary? .. to test building for the 
-            device w/o a TCP library)
+no-net    - disables the mbed TLS OS networking module. Set this when building 
+	    for the "network over modem" library.
+            
 
 full-msgs - support full-sized TLS messages as defined in the RFC.
 	    (by default we know that the largest OTT message is much smaller).
 
 no-hwrng -  Disable using the device hardware random number generator.
-            Expects to use the Linux/OSX /dev/random sources instead.
+            Set this to use the Linux/OSX /dev/random sources instead.
 
 To build the mbedtls_test program to run on OSX (i.e. by setting
 BUILD_TARGET = osx in mbedtls_test/Makefile), you need to configure the library
