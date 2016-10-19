@@ -17,6 +17,9 @@ LDFLAGS = -Wl,-map,fw.map
 INC = -I $(PROJ_ROOT)/include/dbg
 INC += -I $(PROJ_ROOT)/include/certs
 
+# mbedtls library header files
+INC += -I $(PROJ_ROOT)/vendor/mbedtls/include
+
 export INC
 
 CORELIB_SRC = dbg_osx.c
