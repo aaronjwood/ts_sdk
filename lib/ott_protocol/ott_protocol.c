@@ -66,6 +66,11 @@ static inline void cleanup_mbedtls(void)
 	mbedtls_entropy_free(&entropy);
 }
 
+void ott_protocol_deinit(void)
+{
+	cleanup_mbedtls();
+}
+
 ott_status ott_protocol_init(void)
 {
 	int ret;
@@ -289,7 +294,11 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 /* Return "false" if the message has invalid data, else return "true". */
 static bool msg_is_valid(msg_t *msg)
 {
-	/* XXX: Perform a check on the flags? */
+	c_flags_t c_flags;
+	OTT_LOAD_FLAGS(*(uint8_t *)msg, c_flags);
+	if (!flags_are_valid(c_flags))
+		return false;
+
 	m_type_t m_type;
 	OTT_LOAD_MTYPE(*(uint8_t *)msg, m_type);
 	switch (m_type) {
@@ -298,21 +307,21 @@ static bool msg_is_valid(msg_t *msg)
 			return false;
 		else
 			return true;
-		break;
 	case MT_CMD_PI:
 	case MT_CMD_SL:
+		/* XXX: Limit the intervals to some realistic value: 2 days? */
+		return true;
 	case MT_NONE:
-		/* XXX: Perform some check on interval values? */
+		/* XXX: Perform additional checks? */
 		return true;
 	default:
 		return false;
-		break;
 	}
 }
 
 ott_status ott_retrieve_msg(msg_t *msg, uint16_t sz)
 {
-	if (msg == NULL)
+	if (msg == NULL || sz < 4 || sz > OTT_MAX_MSG_SZ)
 		return OTT_INV_PARAM;
 
 	int ret = mbedtls_ssl_read(&ssl, (unsigned char *)msg, sz);
@@ -334,6 +343,8 @@ ott_status ott_retrieve_msg(msg_t *msg, uint16_t sz)
 	if (ret > 0) {	/* XXX: Assuming entire message arrives at once */
 		if (!msg_is_valid(msg)) {
 			ott_send_ctrl_msg(CF_NACK | CF_QUIT);
+			if (ott_close_connection() != OTT_OK)
+				return OTT_ERROR;
 			return OTT_NO_MSG;
 		}
 		return OTT_OK;

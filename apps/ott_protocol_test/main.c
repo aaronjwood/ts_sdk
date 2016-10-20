@@ -30,7 +30,7 @@ do { \
 		dbg_printf("\tERR: No response from cloud, closing connection.\n"); \
 		ott_send_ctrl_msg(CF_NACK | CF_QUIT); \
 		ott_close_connection(); \
-		return; \
+		return false; \
 	} \
 } while(0)
 
@@ -42,11 +42,11 @@ do { \
 		dbg_printf("\tERR: Cloud did not ACK previous message.\n"); \
 		ott_send_ctrl_msg(CF_NACK | CF_QUIT); \
 		ott_close_connection(); \
-		return; \
+		return false; \
 	} \
 } while(0)
 
-void test_scenario_1(void)
+bool test_scenario_1(void)
 {
 	/* Scenario 1: Device has status to report, Cloud has nothing pending */
 
@@ -55,7 +55,7 @@ void test_scenario_1(void)
 	dbg_printf("Initiating a secure connection to the cloud\n");
 	if (ott_initiate_connection(SERVER_NAME, SERVER_PORT) != OTT_OK) {
 		dbg_printf("\tCould not connect to the cloud.\n");
-		return;
+		return false;
 	}
 
 	/* 2 & 3 - Send the version byte and authenticate the device with the cloud. */
@@ -89,9 +89,11 @@ void test_scenario_1(void)
 	ASSERT(OTT_FLAG_IS_SET(c_flags, CF_QUIT));
 	dbg_printf("Closing secure connection.\n");
 	ASSERT(ott_close_connection() == OTT_OK);
+
+	return true;
 }
 
-void test_scenario_2(void)
+bool test_scenario_2(void)
 {
 	/* Scenario 2: Device has status to report and Cloud has pending updates */
 
@@ -100,7 +102,7 @@ void test_scenario_2(void)
 	dbg_printf("Initiating a secure connection to the cloud\n");
 	if (ott_initiate_connection(SERVER_NAME, SERVER_PORT) != OTT_OK) {
 		dbg_printf("\tCould not connect to the cloud.\n");
-		return;
+		return false;
 	}
 
 	/* 2 & 3 - Send the version byte and authenticate the device with the cloud. */
@@ -144,9 +146,11 @@ void test_scenario_2(void)
 	dbg_printf("Closing secure connection.\n");
 	ASSERT(ott_send_ctrl_msg(CF_ACK | CF_QUIT) == OTT_OK);
 	ASSERT(ott_close_connection() == OTT_OK);
+
+	return true;
 }
 
-void test_scenario_3(void)
+bool test_scenario_3(void)
 {
 	/* Scenario 3 : Device has no status to report, Cloud has pending updates */
 
@@ -155,7 +159,7 @@ void test_scenario_3(void)
 	dbg_printf("Initiating a secure connection to the cloud\n");
 	if (ott_initiate_connection(SERVER_NAME, SERVER_PORT) != OTT_OK) {
 		dbg_printf("\tCould not connect to the cloud.\n");
-		return;
+		return false;
 	}
 
 	/* 2 & 3 - Send the version byte and authenticate the device with the cloud. */
@@ -184,9 +188,19 @@ void test_scenario_3(void)
 	dbg_printf("Closing secure connection.\n");
 	ASSERT(ott_send_ctrl_msg(CF_ACK | CF_QUIT) == OTT_OK);
 	ASSERT(ott_close_connection() == OTT_OK);
+
+	return true;
 }
 
-#define DELAY_MS	20000
+#define DELAY_MS	2500
+
+#ifdef BUILD_TARGET_OSX
+extern void ott_protocol_deinit(void);
+#define EVAL_RETURN(x)	do { if (!(x)) goto cleanup; } while(0)
+#else
+#define EVAL_RETURN(x)	do { if (!(x)) ASSERT(0); } while(0)
+#endif
+
 int main(int argc, char *argv[])
 {
 	platform_init();
@@ -196,16 +210,27 @@ int main(int argc, char *argv[])
 	msg = malloc(BUF_SZ);
 
 	dbg_printf("Begin:\n");
-	while (1) {
-		dbg_printf("Test scenario 1\n");
-		test_scenario_1();
-		platform_delay(DELAY_MS);
-		dbg_printf("Test scenario 2\n");
-		test_scenario_2();
-		platform_delay(DELAY_MS);
-		dbg_printf("Test scenario 3\n");
-		test_scenario_3();
-		platform_delay(DELAY_MS);
-	}
+
+	dbg_printf("Test scenario 1\n");
+	EVAL_RETURN(test_scenario_1());
+
+	platform_delay(DELAY_MS);
+
+	dbg_printf("Test scenario 2\n");
+	EVAL_RETURN(test_scenario_2());
+
+	platform_delay(DELAY_MS);
+
+	dbg_printf("Test scenario 3\n");
+	EVAL_RETURN(test_scenario_3());
+
+#ifndef BUILD_TARGET_OSX
+	while (1)
+		;
+#else
+cleanup:
+	free(msg);
+	ott_protocol_deinit();
+#endif
 	return 0;
 }

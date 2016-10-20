@@ -42,9 +42,11 @@ typedef enum  {			/* Defines message type flags. */
 	MT_CMD_SL = 11		/* Cloud instructs device to sleep */
 } m_type_t;
 
-/* Helper macros to read / write to the command byte */
+/* Helper macros to set / reset individual message type and flag bits. */
 #define OTT_FLAG_IS_SET(f_var, bit)	(((f_var) & (bit)) == (bit))
 #define OTT_MTYPE_IS_SET(m_var, bit)	(((m_var) & (bit)) == (bit))
+
+/* Helper macros to read / write to the command byte */
 #define OTT_STORE_FLAGS(cmd, f_var)	((cmd) |= ((uint8_t)(f_var) << 4))
 #define OTT_STORE_MTYPE(cmd, m_var)	((cmd) |= (uint8_t)(m_var))
 #define OTT_LOAD_FLAGS(cmd, f_var)	((f_var) = ((uint8_t)(cmd) >> 4) & 0x0F)
@@ -62,7 +64,7 @@ typedef union __attribute__((packed)) {
 	array_t array;
 } msg_packet_t;
 
-/* A complete message received by the cloud */
+/* A complete OTT protocol message */
 typedef struct __attribute__((packed)) {
 	uint8_t cmd_byte;
 	msg_packet_t data;
