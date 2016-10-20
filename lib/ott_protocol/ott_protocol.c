@@ -66,10 +66,12 @@ static inline void cleanup_mbedtls(void)
 	mbedtls_entropy_free(&entropy);
 }
 
+#ifdef BUILD_TARGET_OSX
 void ott_protocol_deinit(void)
 {
 	cleanup_mbedtls();
 }
+#endif
 
 ott_status ott_protocol_init(void)
 {
