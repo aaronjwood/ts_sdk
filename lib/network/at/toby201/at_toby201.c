@@ -969,17 +969,17 @@ static at_ret_code __at_wait_for_bytes(uint16_t *rcv_bytes,
 {
         while ((*rcv_bytes < target_bytes) && (*timeout > 0)) {
                 /* Modem may be busy and could not send whole response that
-                 * we are looking for, wait for max remaing time here to give
-                 * another chance
+                 * we are looking for, wait here to give another chance
                  */
                 __at_wait_for_rsp(timeout);
+                state |= WAITING_RESP;
                 /* New total bytes available to read */
-                *rcv_bytes = uart_rx_available();
+                *rcv_bytes = *rcv_bytes + uart_rx_available();
 
         }
         state |= WAITING_RESP;
         if (*timeout == 0) {
-                *rcv_bytes = uart_rx_available();
+                *rcv_bytes = *rcv_bytes + uart_rx_available();
                 if (*rcv_bytes < target_bytes)
                         return AT_FAILURE;
         }
@@ -988,11 +988,10 @@ static at_ret_code __at_wait_for_bytes(uint16_t *rcv_bytes,
         return AT_SUCCESS;
 }
 
-static void __at_parse_rcv_err(uint16_t len, uint16_t r_idx,
-                                at_command_desc *desc, bool tcp_err,
-                                uint32_t *timeout)
+static void __at_parse_rcv_err(uint16_t r_idx, at_command_desc *desc,
+                                bool tcp_err, uint32_t *timeout)
 {
-        uint16_t rcvd = len - r_idx;
+        uint16_t rcvd = uart_rx_available();
         uint16_t wanted;
         uint16_t temp_len;
 
@@ -1055,8 +1054,7 @@ static void __at_parse_rcv_err(uint16_t len, uint16_t r_idx,
                 }
         }
         if (!found) {
-                DEBUG_V0("%s:%d read error (unlikely)\n",
-                        __func__, __LINE__);
+                DEBUG_V0("%s:%d read error (unlikely)\n", __func__, __LINE__);
                 return;
         }
         if (strncmp(err_buf, (desc->err + r_idx),
@@ -1069,23 +1067,33 @@ static void __at_parse_rcv_err(uint16_t len, uint16_t r_idx,
 
 }
 
-static int __at_parse_rcv_rsp(uint8_t *buf, size_t len)
+static int __at_parse_rcv_rsp(uint8_t *buf, size_t len, uint32_t *timeout)
 {
-        int num_read = -1;
-        char temp_buf[TEMP_COMM_LIMIT];
-        memset(temp_buf, 0, TEMP_COMM_LIMIT);
+        at_ret_code result;
 
         int temp_len = uart_read(buf, len);
-        if (temp_len != len) {
-                DEBUG_V0("%s:%d uart read error, len:%d\n",
-                                                __func__, __LINE__, temp_len);
-                return AT_TCP_RCV_FAIL;
+        uint16_t wanted = len - temp_len;
+        uint16_t rcd = uart_rx_available();
+        if (temp_len < len) {
+                result = __at_wait_for_bytes(&rcd, wanted, timeout);
+                CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_RCV_FAIL);
+                temp_len = uart_read(buf + temp_len, rcd);
+                if (temp_len != wanted)
+                        return AT_TCP_RCV_FAIL;
         }
 
         const char *ok = "\r\nOK\r\n";
-        /* 3 is to account for "\r\n at the end of the data read and before
+        /* 3 is to account for "\r\n at the end of the raw data and before
          * start of the ok
          */
+        wanted = strlen(ok) + 3;
+        rcd = uart_rx_available();
+        result = __at_wait_for_bytes(&rcd, wanted, timeout);
+        CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_RCV_FAIL);
+
+        char temp_buf[wanted + 1];
+        memset(temp_buf, 0, wanted + 1);
+
         temp_len = uart_read(temp_buf, strlen(ok) + 3);
         if (temp_len != (strlen(ok) + 3)) {
                 DEBUG_V0("%s:%d uart read error, len:%d\n",
@@ -1208,10 +1216,10 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
                                                 read_bytes, temp_comm);
                 return AT_TCP_RCV_FAIL;
         }
-        uint8_t rsp_buf[read_bytes + 1];
-        rsp_buf[read_bytes] = 0x0;
-
         uint16_t r_idx =  strlen(rsp_header) + 2;
+        uint8_t rsp_buf[r_idx + 1];
+        rsp_buf[r_idx] = 0x0;
+
         if (uart_read(rsp_buf, r_idx) != UART_READ_ERR) {
                 if (strncmp((char *)(rsp_buf), desc->rsp_desc[0].rsp,
                         r_idx) != 0) {
@@ -1222,29 +1230,17 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
                                                         __func__, __LINE__,
                                                         (char *)rsp_buf);
                                 } else
-                                        __at_parse_rcv_err(read_bytes, r_idx,
-                                                                desc, true,
+                                        __at_parse_rcv_err(r_idx, desc, true,
                                                                 &timeout);
                         } else
-                                __at_parse_rcv_err(read_bytes, r_idx,
-                                                        desc, false,
-                                                        &timeout);
+                                __at_parse_rcv_err(r_idx, desc, false, &timeout);
                         goto done;
                 } else {
                         int r_len = __at_find_rcvd_len(read_bytes, r_idx,
                                                                 desc, &timeout);
                         if (r_len < 0)
                                 goto done;
-                        /* 9 is to account for the trailing "\r\n\r\nOK\r\n in
-                         * the read response
-                         */
-                        uint16_t wanted = r_len + 9;
-                        uint16_t rcvd = uart_rx_available();
-                        at_ret_code res = __at_wait_for_bytes(&rcvd,
-                                                        wanted, &timeout);
-                        if (res != AT_SUCCESS)
-                                goto done;
-                        r_bytes = __at_parse_rcv_rsp(buf, r_len);
+                        r_bytes = __at_parse_rcv_rsp(buf, r_len, &timeout);
                         goto done;
                 }
 
