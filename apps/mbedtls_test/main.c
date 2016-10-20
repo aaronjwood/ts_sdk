@@ -26,10 +26,10 @@
 
 #include "dbg.h"
 
-#if 0
+#if 1
 #include "verizon_ott_ca.h"
-#define SERVER_PORT "4433"
-#define SERVER_NAME "localhost"
+#define SERVER_PORT "443"
+#define SERVER_NAME "testott.vzbi.com"
 #else
 /* Temporary - a site that happens to speak our single crypto suite. */
 #include "dst_root_ca_x3.h"
@@ -203,37 +203,3 @@ done:
 	terminate(ret);
 	return 0;
 }
-
-/* ************************************************************************** */
-/* Temporary stubs to allow compiling before the net over AT library is ready.*/
-#ifndef BUILD_TARGET_OSX
-
-void mbedtls_net_init(mbedtls_net_context *ctx)
-{
-	(void)ctx;
-}
-int mbedtls_net_connect(mbedtls_net_context *ctx, const char *host,
-			const char *port, int proto)
-{
-	(void)ctx; (void)host; (void)port; (void)proto;
-	return 0;
-}
-
-void mbedtls_net_free(mbedtls_net_context *ctx)
-{
-	(void)ctx;
-}
-
-int mbedtls_net_recv(void *ctx, unsigned char *buf, size_t len)
-{
-	(void)ctx; (void)buf; (void)len;
-	return -1;
-}
-
-int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len)
-{
-	(void)ctx; (void)buf; (void)len;
-	return 0;
-}
-/* ************************************************************************** */
-#endif /* BUILD_TARGET_OSX */
