@@ -1,6 +1,6 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
-#include <stm32f4xx_hal.h>
+#include "platform.h"
 #include <string.h>
 #include "dbg.h"
 #include "ott_protocol.h"
@@ -30,7 +30,7 @@ static void my_debug(void *ctx, int level,
                      const char *file, int line,
 		     const char *str)
 {
-	UNUSED(level);
+	(void)(level);
 	dbg_printf("%s:%04d: %s", file, line, str);
 	fflush(stdout);
 }
@@ -65,6 +65,13 @@ static inline void cleanup_mbedtls(void)
 	mbedtls_ctr_drbg_free(&ctr_drbg);
 	mbedtls_entropy_free(&entropy);
 }
+
+#ifdef BUILD_TARGET_OSX
+void ott_protocol_deinit(void)
+{
+	cleanup_mbedtls();
+}
+#endif
 
 ott_status ott_protocol_init(void)
 {
@@ -144,14 +151,14 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 
 	/* Perform TLS handshake */
 	ret = mbedtls_ssl_handshake(&ssl);
-	uint32_t start = HAL_GetTick();
+	uint32_t start = platform_get_tick_ms();
 	while (ret != 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
 				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 			mbedtls_ssl_session_reset(&ssl);
 			return OTT_ERROR;
 		}
-		if (HAL_GetTick() - start > TIMEOUT_MS) {
+		if (platform_get_tick_ms() - start > TIMEOUT_MS) {
 			mbedtls_ssl_session_reset(&ssl);
 			return OTT_TIMEOUT;
 		}
@@ -174,14 +181,14 @@ static ott_status write_tls(const uint8_t *buf, uint16_t len)
 {
 	/* Attempt to write 'len' bytes of 'buf' over the TCP/TLS stream. */
 	int ret = mbedtls_ssl_write(&ssl, (const unsigned char *)buf, (size_t)len);
-	uint32_t start = HAL_GetTick();
+	uint32_t start = platform_get_tick_ms();
 	while (ret <= 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
 				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 			mbedtls_ssl_session_reset(&ssl);
 			return OTT_ERROR;
 		}
-		if (HAL_GetTick() - start > TIMEOUT_MS) {
+		if (platform_get_tick_ms() - start > TIMEOUT_MS) {
 			mbedtls_ssl_session_reset(&ssl);
 			return OTT_TIMEOUT;
 		}
@@ -289,7 +296,11 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 /* Return "false" if the message has invalid data, else return "true". */
 static bool msg_is_valid(msg_t *msg)
 {
-	/* XXX: Perform a check on the flags? */
+	c_flags_t c_flags;
+	OTT_LOAD_FLAGS(*(uint8_t *)msg, c_flags);
+	if (!flags_are_valid(c_flags))
+		return false;
+
 	m_type_t m_type;
 	OTT_LOAD_MTYPE(*(uint8_t *)msg, m_type);
 	switch (m_type) {
@@ -298,24 +309,24 @@ static bool msg_is_valid(msg_t *msg)
 			return false;
 		else
 			return true;
-		break;
 	case MT_CMD_PI:
 	case MT_CMD_SL:
+		/* XXX: Limit the intervals to some realistic value: 2 days? */
+		return true;
 	case MT_NONE:
-		/* XXX: Perform some check on interval values? */
+		/* XXX: Perform additional checks? */
 		return true;
 	default:
 		return false;
-		break;
 	}
 }
 
-ott_status ott_retrieve_msg(msg_t *msg)
+ott_status ott_retrieve_msg(msg_t *msg, uint16_t sz)
 {
-	if (msg == NULL)
+	if (msg == NULL || sz < 4 || sz > OTT_MAX_MSG_SZ)
 		return OTT_INV_PARAM;
 
-	int ret = mbedtls_ssl_read(&ssl, (unsigned char *)msg, OTT_MAX_MSG_SZ);
+	int ret = mbedtls_ssl_read(&ssl, (unsigned char *)msg, sz);
 	if (ret == MBEDTLS_ERR_SSL_WANT_WRITE ||
 			ret == MBEDTLS_ERR_SSL_WANT_READ)
 		return OTT_NO_MSG;
@@ -334,6 +345,8 @@ ott_status ott_retrieve_msg(msg_t *msg)
 	if (ret > 0) {	/* XXX: Assuming entire message arrives at once */
 		if (!msg_is_valid(msg)) {
 			ott_send_ctrl_msg(CF_NACK | CF_QUIT);
+			if (ott_close_connection() != OTT_OK)
+				return OTT_ERROR;
 			return OTT_NO_MSG;
 		}
 		return OTT_OK;
