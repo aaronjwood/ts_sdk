@@ -10,8 +10,8 @@
 #endif
 
 #if 0
-#define SERVER_PORT "4433"
-#define SERVER_NAME "localhost"
+#define SERVER_PORT "443"
+#define SERVER_NAME "testott.vzbi.com"
 #else
 /* Temporary - a site that happens to speak our single crypto suite. */
 #define SERVER_PORT "443"
