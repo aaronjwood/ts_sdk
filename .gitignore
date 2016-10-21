@@ -8,3 +8,4 @@ cscope.out
 build/
 *.swp
 tools/installed/
+vendor/mbedtls/apidoc
