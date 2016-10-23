@@ -737,7 +737,6 @@ int at_tcp_connect(const char *host, const char *port)
                 pdp_conf = true;
 
         }
-        /* call will update state to TCP_CONNECTED if successful */
         return __at_tcp_connect(host, port);
 }
 
@@ -903,6 +902,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
                  *
                  */
                 /* AT modem returns tcp error 11 which is EAGAIN */
+                state &= ~TCP_CONN_CLOSED;
                 return AT_TCP_CONNECT_DROPPED;
         }
         desc = &tcp_comm[TCP_SEND];
@@ -992,8 +992,8 @@ static at_ret_code __at_wait_for_bytes(uint16_t *rcv_bytes,
                 if (*rcv_bytes < target_bytes)
                         return AT_FAILURE;
         }
-        //DEBUG_V0("%s: data available (%u), wanted (%u), waited for %u time\n",
-        //        __func__, *rcv_bytes, target_bytes, *timeout);
+        DEBUG_V1("%s: data available (%u), wanted (%u), waited for %u time\n",
+                                __func__, *rcv_bytes, target_bytes, *timeout);
         return AT_SUCCESS;
 }
 
@@ -1005,7 +1005,9 @@ static void __at_parse_rcv_err(uint16_t r_idx, at_command_desc *desc,
         uint16_t temp_len;
 
         if (!tcp_err) {
-                /* 2 for trailing \r\n */
+                /* 2 for trailing \r\n, minimum bytes required to process CME
+                 * errors since we don't know how long the error code will be
+                 */
                 wanted = (strlen(desc->err) - r_idx) + 2;
                 /* maximum possible cme error length
                  * for example: \r\n+CME ERROR: 4001\r\n
@@ -1042,6 +1044,7 @@ static void __at_parse_rcv_err(uint16_t r_idx, at_command_desc *desc,
 
                 DEBUG_V0("%s: got tcp error %s\n", __func__, (char *)err_buf);
                 state &= ~WAITING_RESP;
+                state &= ~PROC_RSP;
                 __at_get_tcp_err_code();
                 return;
         }
@@ -1067,7 +1070,7 @@ static void __at_parse_rcv_err(uint16_t r_idx, at_command_desc *desc,
                 return;
         }
         if (strncmp(err_buf, (desc->err + r_idx),
-                (strlen(desc->err) - r_idx)) != 0)
+                        (strlen(desc->err) - r_idx)) != 0)
                 DEBUG_V0("%s:%d wrong rsp: %s\n",
                                 __func__, __LINE__, (char *)err_buf);
         else
@@ -1088,7 +1091,7 @@ static int __at_parse_rcv_rsp(uint8_t *buf, size_t len, uint32_t *timeout)
                 CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_RCV_FAIL);
                 temp_len = uart_read(buf + temp_len, wanted);
                 if (temp_len < wanted) {
-                        DEBUG_V0("%s: no engh data, avail len (%d),"
+                        DEBUG_V0("%s: not engh data, avail len (%d),"
                                 " wanted (%u)\n", __func__, temp_len, wanted);
                         return AT_TCP_RCV_FAIL;
                 }
@@ -1100,23 +1103,22 @@ static int __at_parse_rcv_rsp(uint8_t *buf, size_t len, uint32_t *timeout)
          */
         wanted = strlen(ok) + 3;
         rcd = uart_rx_available();
-        //DEBUG_V0("%s: ok section, avail data (%u)\n", __func__, rcd);
         result = __at_wait_for_bytes(&rcd, wanted, timeout);
         CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_RCV_FAIL);
 
         char temp_buf[wanted + 1];
-        memset(temp_buf, 0, wanted + 1);
 
-        temp_len = uart_read(temp_buf, strlen(ok) + 3);
-        if (temp_len != (strlen(ok) + 3)) {
-                DEBUG_V0("%s:%d uart read error, len:%d\n",
-                                                __func__, __LINE__, temp_len);
+        temp_len = uart_read(temp_buf, wanted);
+        if (temp_len != wanted) {
+                DEBUG_V0("%s:%d uart read error, len:%d, wanted:%u\n",
+                                                __func__, __LINE__,
+                                                temp_len, wanted);
                 return AT_TCP_RCV_FAIL;
         }
 
         if (strncmp(temp_buf + 3, ok, strlen(ok)) != 0) {
-                DEBUG_V0("%s: non ok after reading into buffer: %s\n",
-                        __func__, (char *)temp_buf);
+                DEBUG_V0("%s: non ok after reading: %s\n",
+                                __func__, (char *)temp_buf);
                 return AT_TCP_RCV_FAIL;
         }
         return len;
@@ -1159,7 +1161,7 @@ static int __at_find_rcvd_len(uint16_t len, uint16_t r_idx,
                 return -1;
         }
         /* 8 is to account for SORD: 0, in a read response since /r/n+U is
-         * being processed
+         * already being processed
          */
         return __at_get_bytes(temp_buf + 8, ',');
 }
@@ -1203,6 +1205,10 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         uint16_t read_bytes;
         uint32_t timeout;
 
+        uint16_t r_idx =  strlen(rsp_header) + 2;
+        uint8_t rsp_buf[r_idx + 1];
+        rsp_buf[r_idx] = 0x0;
+
         at_command_desc *desc = &tcp_comm[TCP_RCV];
 
         char temp_comm[TEMP_COMM_LIMIT];
@@ -1214,8 +1220,8 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
                                                 &timeout);
         state |= PROC_RSP;
 
-        /* FIXME: clean up here */
-        CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_RCV_FAIL)
+        if (result != AT_SUCCESS)
+                goto done;
 
         read_bytes = uart_rx_available();
 
@@ -1224,19 +1230,14 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
          */
         result = __at_wait_for_bytes(&read_bytes, strlen(rsp_header) + 2,
                                         &timeout);
-        if (result != AT_SUCCESS) {
-                __at_rcv_cleanup(s_id);
-                return AT_TCP_RCV_FAIL;
-        }
+        if (result != AT_SUCCESS)
+                goto done;
 
         if (read_bytes <= 0) {
                 DEBUG_V0("%s: read bytes:%d, failed comm:%s\n", __func__,
                                                 read_bytes, temp_comm);
-                return AT_TCP_RCV_FAIL;
+                goto done;
         }
-        uint16_t r_idx =  strlen(rsp_header) + 2;
-        uint8_t rsp_buf[r_idx + 1];
-        rsp_buf[r_idx] = 0x0;
 
         if (uart_read(rsp_buf, r_idx) != UART_READ_ERR) {
                 if (strncmp((char *)(rsp_buf), desc->rsp_desc[0].rsp,
@@ -1272,25 +1273,27 @@ done:
 }
 
 void at_tcp_close(int s_id) {
-        at_command_desc *desc = &tcp_comm[TCP_CLOSE];
-        if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
+
+        if (s_id < 0)
+                return;
+        if ((state & TCP_CONN_CLOSED) == TCP_CONN_CLOSED) {
                 DEBUG_V0("%s: tcp already closed\n", __func__);
                 return;
         }
-        if (s_id < 0)
-                return;
 
+        at_command_desc *desc = &tcp_comm[TCP_CLOSE];
         char temp_comm[TEMP_COMM_LIMIT];
         snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id);
         desc->comm = temp_comm;
         at_ret_code result = __at_generic_comm_rsp_util(desc, false, true);
         if (result == AT_RSP_TIMEOUT) {
-                DEBUG_V0("%s: tcp close command timeout\n", __func__);
+                DEBUG_V0("%s: tcp close command timedout\n", __func__);
                 return;
         } else if (result == AT_FAILURE)
                 DEBUG_V0("%s: could not close socket,"
                         " connection may be already closed\n", __func__);
 
         state &= ~TCP_CONNECTED;
+        state |= TCP_CONN_CLOSED;
         return;
 }
