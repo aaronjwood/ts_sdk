@@ -1229,12 +1229,6 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         if (result != AT_SUCCESS)
                 goto done;
 
-        if (read_bytes <= 0) {
-                DEBUG_V0("%s: read bytes:%d, failed comm:%s\n", __func__,
-                                                read_bytes, temp_comm);
-                goto done;
-        }
-
         if (uart_read(rsp_buf, r_idx) != UART_READ_ERR) {
                 if (strncmp((char *)(rsp_buf), desc->rsp_desc[0].rsp,
                         r_idx) != 0) {
