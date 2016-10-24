@@ -15,7 +15,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include "dbg.h"
 
 typedef enum at_states {
         IDLE = 1,
