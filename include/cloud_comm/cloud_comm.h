@@ -87,7 +87,7 @@ typedef struct {		/* Cloud communication buffer descriptor */
  * Pointer to callback routine. The callback accepts a buffer descriptor and
  * an event from the source of the callback explaining why it was invoked.
  */
-typedef void (*cc_callback_rtn)(cc_buffer_desc *buf, cc_event status);
+typedef void (*cc_callback_rtn)(cc_buffer_desc *buf, cc_event event);
 
 /*
  * Initialize the cloud communication API. This will in turn initialize any
@@ -194,14 +194,15 @@ cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
  * can be in progress at a time.
  *
  * Parameters:
- * 	buf  : Cloud communication buffer descriptor containing the data to be sent.
- * 	sz   : Size of the data in bytes.
+ * 	buf  : Cloud communication buffer descriptor that will hold the data to
+ * 	       be received.
+ * 	cb   : Callback that will be invoked when a complete message is received.
  *
  * Returns:
  * 	CC_RECV_BUSY    : Can't initiate a receive since one is already in progress.
  * 	CC_RECV_SUCCESS : Successfully initiated a receive.
  */
-cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_data_sz sz);
+cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb);
 
 /*
  * Call this function periodically to advance the time-based activities related
