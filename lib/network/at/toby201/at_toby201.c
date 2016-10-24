@@ -64,7 +64,7 @@ static volatile bool pdp_conf;
 /* Enable this macro to display messages, error will alway be reported if this
  * macro is enabled while V2 and V1 will depend on debug_level setting
  */
-#define DEBUG_AT_LIB
+/*#define DEBUG_AT_LIB */
 
 static int debug_level;
 /* level v2 is normally for extensive debugging need, for example tracing
@@ -127,9 +127,9 @@ static int debug_level;
 #define NET_REG_CHECK_DELAY     10000 /* In mili seconds */
 
 /* Meta data related to at+usord command plus \r\n+UUSORD: x,xxxx\r\n
- * This parameter is highly depends on uart rx buffer at low level, if uart rx
+ * This parameter is depends on uart rx buffer at low level, if uart rx
  * buffer size is equal or less than modem rx buffer size then this define will
- * have effect, adjust this parameter accordingly
+ * have an effect
  */
 #define MAX_RX_META_DATA                50
 #define MAX_CME_ERROR_CODE_DIGIT        4
