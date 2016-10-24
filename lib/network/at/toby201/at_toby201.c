@@ -517,8 +517,6 @@ done:
 static at_ret_code __at_modem_reset()
 {
         at_ret_code result;
-        DEBUG_V1("%s: resetting modem...\n", __func__);
-        #if 0
         result = __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_RESET],
                                                                 false, true);
         if (result == AT_RSP_TIMEOUT || result == AT_TX_FAILURE)
@@ -526,7 +524,7 @@ static at_ret_code __at_modem_reset()
 
         HAL_Delay(MODEM_RESET_DELAY);
         DEBUG_V1("%s: resetting modem done...\n", __func__);
-        #endif
+
         result = __at_generic_comm_rsp_util(
                                 &modem_net_status_comm[ECHO_OFF], false, false);
         if (result == AT_RSP_TIMEOUT || result == AT_TX_FAILURE)
@@ -712,7 +710,6 @@ static int __at_tcp_connect(const char *host, const char *port)
 
 static at_ret_code __at_pdp_conf()
 {
-        return AT_SUCCESS;
         at_ret_code result = __at_generic_comm_rsp_util(
                                         &pdp_conf_comm[SEL_IPV4_PREF],
                                         false, true);
@@ -983,12 +980,12 @@ static at_ret_code __at_wait_for_bytes(uint16_t *rcv_bytes,
                 __at_wait_for_rsp(timeout);
                 state |= WAITING_RESP;
                 /* New total bytes available to read */
-                *rcv_bytes = *rcv_bytes + uart_rx_available();
+                *rcv_bytes = uart_rx_available();
 
         }
         state |= WAITING_RESP;
         if (*timeout == 0) {
-                *rcv_bytes = *rcv_bytes + uart_rx_available();
+                *rcv_bytes = uart_rx_available();
                 if (*rcv_bytes < target_bytes)
                         return AT_FAILURE;
         }
@@ -1091,7 +1088,7 @@ static int __at_parse_rcv_rsp(uint8_t *buf, size_t len, uint32_t *timeout)
                 CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_RCV_FAIL);
                 temp_len = uart_read(buf + temp_len, wanted);
                 if (temp_len < wanted) {
-                        DEBUG_V0("%s: not engh data, avail len (%d),"
+                        DEBUG_V0("%s: not enough data, avail len (%d),"
                                 " wanted (%u)\n", __func__, temp_len, wanted);
                         return AT_TCP_RCV_FAIL;
                 }
