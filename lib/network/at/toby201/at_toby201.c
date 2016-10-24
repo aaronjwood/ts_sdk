@@ -261,7 +261,7 @@ static void __at_process_urc()
                         break;
                 uint8_t urc[read_bytes + 1];
                 urc[read_bytes] = 0x0;
-                if (uart_read(urc, read_bytes) == UART_READ_ERR) {
+                if (uart_read(urc, read_bytes) < 0) {
                         DEBUG_V0("%s: read err (Unlikely)\n", __func__);
                         continue;
                 }
@@ -471,7 +471,7 @@ static at_ret_code __at_generic_comm_rsp_util(const at_command_desc *desc,
                 uint8_t rsp_buf[read_bytes + 1];
                 rsp_buf[read_bytes] = 0x0;
 
-                if (uart_read(rsp_buf, read_bytes) != UART_READ_ERR) {
+                if (uart_read(rsp_buf, read_bytes) > 0) {
                         DEBUG_V1("%s: recvd res: %s\n", __func__,
                                                         (char *)rsp_buf);
                         if (strncmp((char *)rsp_buf, desc->rsp_desc[i].rsp,
@@ -523,7 +523,6 @@ static at_ret_code __at_modem_reset()
 
         HAL_Delay(MODEM_RESET_DELAY);
         DEBUG_V1("%s: resetting modem done...\n", __func__);
-
         result = __at_generic_comm_rsp_util(
                                 &modem_net_status_comm[ECHO_OFF], false, false);
         if (result == AT_RSP_TIMEOUT || result == AT_TX_FAILURE)
@@ -1049,7 +1048,7 @@ static void __at_parse_rcv_err(uint16_t r_idx, at_command_desc *desc,
         char rcv;
         bool found = false;
         while ((!found) && ((r_idx + count) < temp_len))  {
-                if (uart_read(&rcv, 1) == UART_READ_ERR) {
+                if (uart_read(&rcv, 1) <= 0) {
                         DEBUG_V0("%s:%d read error (unlikely)\n",
                                 __func__, __LINE__);
                         return;
@@ -1137,7 +1136,7 @@ static int __at_find_rcvd_len(uint16_t len, uint16_t r_idx,
         bool found = false;
         uint16_t count = 0;
         while ((count < wanted) && (!found)) {
-                if (uart_read(temp_buf + count, 1) != UART_READ_ERR) {
+                if (uart_read(temp_buf + count, 1) > 0) {
                         if (temp_buf[count] == '"')
                                 found = true;
                         else
@@ -1229,7 +1228,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         if (result != AT_SUCCESS)
                 goto done;
 
-        if (uart_read(rsp_buf, r_idx) != UART_READ_ERR) {
+        if (uart_read(rsp_buf, r_idx) > 0) {
                 if (strncmp((char *)(rsp_buf), desc->rsp_desc[0].rsp,
                         r_idx) != 0) {
                         if (strncmp((char *)rsp_buf, desc->err, r_idx) != 0) {
