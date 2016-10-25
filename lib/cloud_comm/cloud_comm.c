@@ -194,6 +194,7 @@ static resp_status expect_response_from_cloud(bool invoke_send_callback)
 			if (invoke_send_callback)
 				INVOKE_SEND_CALLBACK(outgoing_conn.buf, CC_STS_ACK);
 			INVOKE_RECV_CALLBACK(incoming_conn.buf, evt);
+			incoming_conn.recv_in_progress = false;
 			return CC_MSG_AVAIL;
 		} else if (OTT_FLAG_IS_SET(c_flags, CF_NACK)) {
 			if (invoke_send_callback)
@@ -206,8 +207,7 @@ static resp_status expect_response_from_cloud(bool invoke_send_callback)
 			ott_close_connection();
 			return CC_QUIT;
 		}
-
-	} /* OTT_NO_MSG left unhandled */
+	}
 	return CC_NO_MSG;
 }
 
@@ -271,7 +271,7 @@ void cc_close_session(void)
 cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 		cc_callback_rtn cb)
 {
-	/* Ensure a connection has already been established */
+	/* Ensure a connection has already been established and authenticated */
 	if (!session.connection_established || !session.auth_done)
 		return CC_SEND_FAILED;
 
@@ -283,6 +283,32 @@ cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 
 	/* Store a pointer to the data to be sent */
 	outgoing_conn.buf = buf;
+
+	/* Send the status message to the cloud */
+	if (ott_send_status_to_cloud(CF_PENDING, sz,
+				(const uint8_t *)buf->buf_ptr + OTT_OVERHEAD_SZ)
+			!= OTT_OK) {
+		CLEANLY_CLOSE_CONN();
+		return CC_SEND_FAILED;
+	}
+
+	/* Wait for the cloud's response and process it */
+	uint32_t start = platform_get_tick_ms();
+	uint32_t end;
+	do {
+		resp_status rsp = expect_response_from_cloud(true);
+		if (rsp == CC_RCV_ERR)
+			return false;
+		else if (rsp == CC_MSG_AVAIL)
+			break;
+		else if (rsp == CC_NO_MSG)
+			end = platform_get_tick_ms();
+	} while (end - start < RECV_TIMEOUT_MS);
+
+	if (end - start >= RECV_TIMEOUT_MS) {	/* Timed out */
+		INVOKE_SEND_CALLBACK((cc_buffer_desc *)buf, CC_STS_SEND_TIMEOUT);
+		return CC_SEND_FAILED;
+	}
 
 	outgoing_conn.send_in_progress = false;
 
