@@ -104,6 +104,17 @@ bool uart_tx(uint8_t *data, buf_sz size, uint16_t timeout_ms);
 buf_sz uart_rx_available(void);
 
 /*
+ * Return the maximum receive buffer size in bytes
+ *
+ * Paramters:
+ * 	None
+ *
+ * Returns:
+ * 	size of the low level receive buffer
+ */
+buf_sz uart_get_rx_buf_size(void);
+
+/*
  * Return the number of bytes that makes a complete line. A line is defined
  * as a string that begins with a specified header and ends with a specified
  * trailer.

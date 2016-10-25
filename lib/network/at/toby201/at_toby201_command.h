@@ -22,9 +22,11 @@ static void __at_parse_tcp_conf_rsp(void *rcv_rsp, int rcv_rsp_len,
                                         const char *stored_rsp, void *data);
 static void __at_parse_tcp_send_rsp(void *rcv_rsp, int rcv_rsp_len,
                                         const char *stored_rsp, void *data);
-static void __at_parse_read_qry_rsp(void *rcv_rsp, int rcv_rsp_len,
+static void __at_parse_tcp_read_qry_rsp(void *rcv_rsp, int rcv_rsp_len,
                                         const char *stored_rsp, void *data);
 static void __at_parse_tcp_sock_stat(void *rcv_rsp, int rcv_rsp_len,
+                                        const char *stored_rsp, void *data);
+static void __at_parse_tcp_get_err(void *rcv_rsp, int rcv_rsp_len,
                                         const char *stored_rsp, void *data);
 
 /** Unsolicited result codes */
@@ -34,6 +36,7 @@ typedef enum at_urc {
         NO_CARRIER,
         DATA_READ, /** TCP read available urc */
         TCP_CLOSED, /** TCP close */
+        PDP_DEACT, /** PDP connection is deactivated by network */
         URC_END
 } at_urc;
 
@@ -41,6 +44,7 @@ typedef enum at_urc {
 typedef enum at_modem_stat_command {
         MODEM_OK = 0, /** simple modem check command i.e. at */
         ECHO_OFF,
+        CME_CONF,
         MODEM_RESET,
         NET_STAT, /** turn on network status urc */
         EPS_STAT, /** turn on data network status urc */
@@ -69,6 +73,7 @@ typedef enum at_tcp_command {
         TCP_RCV_QRY,
         TCP_SOCK_STAT,
         TCP_CLOSE,
+        TCP_GET_ERR,
         TCP_END,
 } at_tcp_command;
 
@@ -78,7 +83,8 @@ static const char *at_urcs[URC_END] = {
                 [EPS_STAT_URC] = "\r\n+UREG: ",
                 [NO_CARRIER] = "\r\nNO CARRIER\r\n",
                 [DATA_READ] = "\r\n+UUSORD: ",
-                [TCP_CLOSED] = "\r\n+UUSOCL: "
+                [TCP_CLOSED] = "\r\n+UUSOCL: ",
+                [PDP_DEACT] = "\r\n+UUPSDD: "
 };
 
 static const at_command_desc modem_net_status_comm[MOD_END] = {
@@ -104,6 +110,18 @@ static const at_command_desc modem_net_status_comm[MOD_END] = {
                         }
                 },
                 .err = "\r\nERROR\r\n",
+                .comm_timeout = 100
+        },
+        [CME_CONF] = {
+                .comm = "at+cmee=1\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        }
+                },
+                .err = NULL,
                 .comm_timeout = 100
         },
         [MODEM_RESET] = {
@@ -185,7 +203,7 @@ static const at_command_desc modem_net_status_comm[MOD_END] = {
                                 .data = NULL
                         }
                 },
-                .err = "\r\nERROR\r\n",
+                .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 15000
         },
         [NET_REG_STAT] = {
@@ -234,7 +252,7 @@ static const at_command_desc pdp_conf_comm[PDP_END] = {
                                 .data = NULL
                         }
                 },
-                .err = "\r\nERROR\r\n",
+                .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 100
         },
         [ACT_PDP] = {
@@ -251,7 +269,7 @@ static const at_command_desc pdp_conf_comm[PDP_END] = {
                                 .data = NULL
                         }
                 },
-                .err = "\r\nERROR\r\n",
+                .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 190000
         }
 };
@@ -271,7 +289,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err = "\r\nERROR\r\n",
+                .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 100
         },
         [TCP_CONN] = {
@@ -283,7 +301,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err = "\r\nERROR\r\n",
+                .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 25000
         },
         [TCP_SEND] = {
@@ -300,7 +318,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err = "\r\nERROR\r\n",
+                .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 15000
         },
         [TCP_WRITE_PROMPT] = {
@@ -312,7 +330,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err = "\r\nERROR\r\n",
+                .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 15000
         },
         [TCP_RCV] = {
@@ -324,7 +342,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err = "\r\nERROR\r\n",
+                .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 15000
         },
         [TCP_RCV_QRY] = {
@@ -332,7 +350,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .rsp_desc = {
                         {
                                 .rsp = "\r\n+USORD: ",
-                                .rsp_handler = __at_parse_read_qry_rsp,
+                                .rsp_handler = __at_parse_tcp_read_qry_rsp,
                                 .data = NULL
                         },
                         {
@@ -341,7 +359,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err = "\r\nERROR\r\n",
+                .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 10000
         },
         [TCP_SOCK_STAT] = {
@@ -358,7 +376,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err = "\r\nERROR\r\n",
+                .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 100
         },
         [TCP_CLOSE] = {
@@ -370,8 +388,25 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .data = NULL
                         }
                 },
-                .err = "\r\nERROR\r\n",
+                .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 15000
+        },
+        [TCP_GET_ERR] = {
+                .comm = "at+usoer\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\n+USOER: ",
+                                .rsp_handler = __at_parse_tcp_get_err,
+                                .data = NULL
+                        },
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        }
+                },
+                .err = "\r\n+CME ERROR: ",
+                .comm_timeout = 100
         }
 };
 #endif /* at_toby201_command.h */

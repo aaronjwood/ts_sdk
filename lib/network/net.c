@@ -13,6 +13,7 @@
 #include MBEDTLS_CONFIG_FILE
 #endif
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stm32f4xx_hal.h>
@@ -75,10 +76,13 @@ int mbedtls_net_connect(mbedtls_net_context *ctx, const char *host,
                 return MBEDTLS_ERR_NET_SOCKET_FAILED;
 
         ret = at_tcp_connect(host, port);
-        if (ret < 0)
+        if (ret == AT_CONNECT_FAILED)
+                return MBEDTLS_ERR_NET_CONNECT_FAILED;
+        else if (ret == AT_SOCKET_FAILED)
                 return MBEDTLS_ERR_NET_SOCKET_FAILED;
+
         ctx->fd = ret;
-        return ret;
+        return 0;
 }
 
 /*
@@ -100,8 +104,13 @@ int mbedtls_net_recv(void *ctx, unsigned char *buf, size_t len)
         if (ret < 0) {
                 if (ret == AT_TCP_CONNECT_DROPPED) {
                         DEBUG("%s: connection dropped\n", __func__);
-                        return MBEDTLS_ERR_NET_CONN_RESET;
+                        return MBEDTLS_ERR_SSL_WANT_READ;
                 }
+                if (errno == EPIPE || errno == ECONNRESET)
+                        return MBEDTLS_ERR_NET_CONN_RESET;
+
+                if (errno == EINTR)
+                        return MBEDTLS_ERR_SSL_WANT_READ;
                 return MBEDTLS_ERR_NET_RECV_FAILED;
         }
         return ret;
@@ -157,19 +166,20 @@ int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len)
         int ret;
         int fd = ((mbedtls_net_context *) ctx)->fd;
 
-        if( fd < 0 )
+        if (fd < 0)
                 return MBEDTLS_ERR_NET_INVALID_CONTEXT;
 
         ret = write(fd, buf, len);
         if (ret < 0) {
                 if (ret == AT_TCP_CONNECT_DROPPED) {
-                        printf("%s: connection dropped\n", __func__);
-                        return MBEDTLS_ERR_NET_CONN_RESET;
+                        DEBUG("%s: connection dropped\n", __func__);
+                        return MBEDTLS_ERR_SSL_WANT_WRITE;
                 }
-                /* FIXME: Figure out if this is possible with AT layer
+                if (errno == EPIPE || errno == ECONNRESET)
+                        return MBEDTLS_ERR_NET_CONN_RESET;
+
                 if (errno == EINTR)
-                        return MBEDTLS_ERR_SSL_WANT_READ;
-                */
+                        return MBEDTLS_ERR_SSL_WANT_WRITE;
 
                 return MBEDTLS_ERR_NET_SEND_FAILED;
         }
