@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #endif
 
-#include "mbedtls/net.h" /* XXX - need different header for NET over AT cmds? */
+#include "mbedtls/net.h"
 #include "mbedtls/ssl.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
@@ -184,8 +184,7 @@ int main(int argc, char *argv[])
 			dbg_printf("EOF\n");
 			break;
 		} else
-			dbg_printf("\n==== Read %d bytes\n\n%s",
-				   len, (char *)buf);
+			dbg_printf("%s",(char *)buf);
 
 	} while (1);
 

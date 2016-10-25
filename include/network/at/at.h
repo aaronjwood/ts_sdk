@@ -19,9 +19,21 @@
 extern "C" {
 #endif
 
+/** tcp read/write api related error codes */
+/** send failure */
 #define AT_TCP_SEND_FAIL   -1
+/** receive failure */
 #define AT_TCP_RCV_FAIL    -1
+#define AT_TCP_INVALID_PARA -3
+
+/** connect dropped may be between connect and read or write or in middle of
+ * write
+ */
 #define AT_TCP_CONNECT_DROPPED  -2
+
+/** TCP connect related error codes */
+#define AT_CONNECT_FAILED       -1
+#define AT_SOCKET_FAILED        -2
 
 /**
  * \brief       Initializes underlying hardware i.e. UART etc...and modem
@@ -35,7 +47,8 @@ bool at_init();
  * \param[in] host    Host to connect to
  * \param[in] port    Port to connect to
  *
- * \return      socket or session id number if successful or -1 for failure
+ * \return      socket or session id number if successful or
+ *              AT_CONNECT_FAILED/AT_SOCKET_FAILED for failure
  *
  */
 int at_tcp_connect(const char *host, const char *port);

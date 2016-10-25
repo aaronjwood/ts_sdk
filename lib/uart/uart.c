@@ -325,6 +325,11 @@ buf_sz uart_rx_available(void)
 	return rx.num_unread;
 }
 
+buf_sz uart_get_rx_buf_size(void)
+{
+	return UART_RX_BUFFER_SIZE;
+}
+
 void TIM2_IRQHandler(void)
 {
 	HAL_TIM_IRQHandler(&idle_timer);

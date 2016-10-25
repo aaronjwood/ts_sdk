@@ -1,15 +1,12 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
+#include <stdlib.h>
 #include <inttypes.h>
 #include "dbg.h"
 #include "ott_protocol.h"
 #include "platform.h"
 
-#ifdef BUILD_TARGET_OSX
-#include <stdlib.h>
-#endif
-
-#if 0
+#if 1
 #define SERVER_PORT "443"
 #define SERVER_NAME "testott.vzbi.com"
 #else
