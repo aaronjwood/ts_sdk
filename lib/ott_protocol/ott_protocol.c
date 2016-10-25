@@ -19,7 +19,7 @@
 #define VERSION_BYTE		((uint8_t)0x01)
 #define TIMEOUT_MS		5000
 
-#if 0
+#if 1
 #include "verizon_ott_ca.h"
 #else
 #include "dst_root_ca_x3.h"
