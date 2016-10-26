@@ -171,10 +171,12 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 ott_status ott_close_connection(void)
 {
 	/* Close the connection and notify the peer. */
-	if (mbedtls_ssl_close_notify(&ssl) == 0)
-		return OTT_OK;
+	int s = mbedtls_ssl_close_notify(&ssl);
 	mbedtls_ssl_session_reset(&ssl);
-	return OTT_ERROR;
+	if (s == 0)
+		return OTT_OK;
+	else
+		return OTT_ERROR;
 }
 
 static ott_status write_tls(const uint8_t *buf, uint16_t len)
@@ -231,11 +233,11 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 	ott_status ret;
 
 	/* The version byte is sent before the very first message. */
-	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&bytes, 1, ret);
+	WRITE_AND_RETURN_ON_ERROR((unsigned char *)bytes, 1, ret);
 
 	/* Send the command byte */
-	bytes[0] = (uint8_t)(c_flags << 4 | MT_AUTH);
-	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&bytes, 1, ret);
+	bytes[0] = (uint8_t)(c_flags | MT_AUTH);
+	WRITE_AND_RETURN_ON_ERROR((unsigned char *)bytes, 1, ret);
 
 	/* Send the device ID */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)dev_id, OTT_UUID_SZ, ret);
@@ -243,7 +245,7 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 	/* Send the device secret size in little endian format */
 	bytes[0] = (uint8_t)(dev_sec_sz & 0xFF);
 	bytes[1] = (uint8_t)((dev_sec_sz >> 8) & 0xFF);
-	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&bytes, sizeof(uint16_t), ret);
+	WRITE_AND_RETURN_ON_ERROR((unsigned char *)bytes, sizeof(uint16_t), ret);
 
 	/* Send the device secret */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)dev_sec, dev_sec_sz, ret);
@@ -264,13 +266,13 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 	uint8_t bytes[2];
 
 	/* Send the command byte */
-	bytes[0] = (uint8_t)(c_flags << 4 | MT_STATUS);
-	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&bytes, 1, ret);
+	bytes[0] = (uint8_t)(c_flags | MT_STATUS);
+	WRITE_AND_RETURN_ON_ERROR((unsigned char *)bytes, 1, ret);
 
 	/* Send the status length field in little endian format */
 	bytes[0] = (uint8_t)(status_sz & 0xFF);
 	bytes[1] = (uint8_t)((status_sz >> 8) & 0xFF);
-	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&bytes, sizeof(uint16_t), ret);
+	WRITE_AND_RETURN_ON_ERROR((unsigned char *)bytes, sizeof(uint16_t), ret);
 
 	/* Send the actual status data */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)status, status_sz, ret);
@@ -285,7 +287,7 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 		return OTT_INV_PARAM;
 
 	ott_status ret;
-	unsigned char byte = (uint8_t)(c_flags << 4 | MT_NONE);
+	unsigned char byte = (uint8_t)(c_flags | MT_NONE);
 
 	/* Send the command byte */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&byte, 1, ret);

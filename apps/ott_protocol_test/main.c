@@ -16,7 +16,7 @@
 #endif
 
 static msg_t *msg;
-#define RECV_TIMEOUT_MS		7000
+#define RECV_TIMEOUT_MS		1000
 #define BUF_SZ		512
 
 /* Wait for a response from the cloud. If none, return. */
@@ -43,9 +43,23 @@ do { \
 	} \
 } while(0)
 
+#define NUM_TRIES	3
+
+static const uint8_t d_ID[] = {
+	0x92, 0x94, 0x78, 0xe7, 0x55, 0x1d, 0x46, 0xe7,
+	0xb3, 0x76, 0x9c, 0xbc, 0xde, 0xb4, 0x8b, 0x7e
+};
+
+static const uint8_t d_sec[] = {
+	0x53, 0x9a, 0x89, 0xa1, 0xb0, 0xac, 0xf4, 0xfd,
+	0xd1, 0x32, 0xfe, 0x8e, 0x02, 0x57, 0x4e, 0xbf,
+	0xfa, 0x3b, 0xa4, 0xb3, 0xd8, 0xdf, 0xd8, 0xe0,
+	0x5e, 0x37, 0xab, 0x87, 0x64, 0x03, 0x5a, 0x3b
+};
+
 bool test_scenario_1(void)
 {
-	/* Scenario 1: Device has status to report, Cloud has nothing pending */
+	/* Scenario 1: Device has status(es) to report, Cloud has nothing pending */
 
 	c_flags_t c_flags;
 	/* 1 - Initiate the TCP/TLS session */
@@ -56,15 +70,6 @@ bool test_scenario_1(void)
 	}
 
 	/* 2 & 3 - Send the version byte and authenticate the device with the cloud. */
-	uint8_t d_ID[] = {
-		0xcf, 0xb7, 0x8d, 0x8e, 0x5e, 0xdd, 0x49, 0x67,
-		0xa0, 0xe7, 0x5d, 0x56, 0x95, 0x47, 0xba, 0xe9
-	};
-	uint8_t d_sec[] = {
-		0x0e, 0x88, 0x7c, 0x06, 0x95, 0x8c, 0xbe, 0x23, 0x3f, 0x87, 0xbf,
-		0x40, 0x29, 0xf9, 0x5b, 0x9e, 0x2a, 0x03, 0x57, 0x53, 0x89, 0x0c,
-		0x1f, 0x81, 0x3a, 0x75, 0x7b, 0x50, 0xd1, 0xb9, 0x15, 0x0f
-	};
 	dbg_printf("Sending version byte and authentication message\n");
 	ASSERT(ott_send_auth_to_cloud(CF_PENDING, d_ID, sizeof(d_sec), d_sec)
 			== OTT_OK);
@@ -76,23 +81,25 @@ bool test_scenario_1(void)
 	EXPECT_ACK_FROM_CLOUD(msg, c_flags);
 	dbg_printf("\tAuthenticated with the cloud.\n");
 
-	/* 5 - Send the status of the sensors attached to the device. */
+	/* 5 - Send multiple statuses to the cloud */
 	uint8_t status[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-	dbg_printf("Sending device status to the cloud\n");
-	ASSERT(ott_send_status_to_cloud(CF_NONE, sizeof(status), status) == OTT_OK);
+	for (int i = 0; i < NUM_TRIES; i++) {
+		dbg_printf("Sending device status (%d) to the cloud\n", i + 1);
+		ASSERT(ott_send_status_to_cloud(CF_PENDING, sizeof(status), status)
+				== OTT_OK);
 
-	/* 6 - Wait for a timeout before checking for a message from the cloud. */
-	EXPECT_RESPONSE_FROM_CLOUD(msg, BUF_SZ);
+		/* 6 - Wait for a timeout before checking for a message from the cloud. */
+		EXPECT_RESPONSE_FROM_CLOUD(msg, BUF_SZ);
 
-	/* Make sure the previous message was ACKed. */
-	EXPECT_ACK_FROM_CLOUD(msg, c_flags);
-	dbg_printf("\tDevice status delivered to the cloud.\n");
+		/* Make sure the previous message was ACKed. */
+		EXPECT_ACK_FROM_CLOUD(msg, c_flags);
+		dbg_printf("\tDevice status delivered to the cloud.\n");
+	}
 
 	/* 7 - In this scenario, the cloud sets the QUIT flag. */
-	OTT_LOAD_FLAGS(*(uint8_t *)msg, c_flags);
-	ASSERT(OTT_FLAG_IS_SET(c_flags, CF_QUIT));
-	dbg_printf("Closing secure connection.\n");
+	ASSERT(ott_send_ctrl_msg(CF_QUIT) == OTT_OK);
 	ASSERT(ott_close_connection() == OTT_OK);
+	dbg_printf("Closed secure connection.\n");
 
 	return true;
 }
@@ -110,15 +117,6 @@ bool test_scenario_2(void)
 	}
 
 	/* 2 & 3 - Send the version byte and authenticate the device with the cloud. */
-	uint8_t d_ID[] = {
-		0xcf, 0xb7, 0x8d, 0x8e, 0x5e, 0xdd, 0x49, 0x67,
-		0xa0, 0xe7, 0x5d, 0x56, 0x95, 0x47, 0xba, 0xe9
-	};
-	uint8_t d_sec[] = {
-		0x0e, 0x88, 0x7c, 0x06, 0x95, 0x8c, 0xbe, 0x23, 0x3f, 0x87, 0xbf,
-		0x40, 0x29, 0xf9, 0x5b, 0x9e, 0x2a, 0x03, 0x57, 0x53, 0x89, 0x0c,
-		0x1f, 0x81, 0x3a, 0x75, 0x7b, 0x50, 0xd1, 0xb9, 0x15, 0x0f
-	};
 	dbg_printf("Sending version byte and authentication message\n");
 	ASSERT(ott_send_auth_to_cloud(CF_PENDING, d_ID, sizeof(d_sec), d_sec)
 			== OTT_OK);
@@ -174,15 +172,6 @@ bool test_scenario_3(void)
 	}
 
 	/* 2 & 3 - Send the version byte and authenticate the device with the cloud. */
-	uint8_t d_ID[] = {
-		0xcf, 0xb7, 0x8d, 0x8e, 0x5e, 0xdd, 0x49, 0x67,
-		0xa0, 0xe7, 0x5d, 0x56, 0x95, 0x47, 0xba, 0xe9
-	};
-	uint8_t d_sec[] = {
-		0x0e, 0x88, 0x7c, 0x06, 0x95, 0x8c, 0xbe, 0x23, 0x3f, 0x87, 0xbf,
-		0x40, 0x29, 0xf9, 0x5b, 0x9e, 0x2a, 0x03, 0x57, 0x53, 0x89, 0x0c,
-		0x1f, 0x81, 0x3a, 0x75, 0x7b, 0x50, 0xd1, 0xb9, 0x15, 0x0f
-	};
 	dbg_printf("Sending version byte and authentication message\n");
 	ASSERT(ott_send_auth_to_cloud(CF_NONE, d_ID, sizeof(d_sec), d_sec)
 			== OTT_OK);
@@ -210,7 +199,7 @@ bool test_scenario_3(void)
 	return true;
 }
 
-#define DELAY_MS	2500
+#define DELAY_MS	5000
 
 #ifdef BUILD_TARGET_OSX
 extern void ott_protocol_deinit(void);
