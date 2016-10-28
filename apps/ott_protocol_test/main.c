@@ -20,8 +20,14 @@
 #define SERVER_NAME "www.tapr.org"
 #endif
 
-#define RECV_TIMEOUT_MS		7000
-#define BUF_SZ			512
+#define RECV_TIMEOUT_MS		7000	/* Receive timeout in ms */
+#define BUF_SZ			512	/* Receive buffer size in bytes */
+#define INIT_PI_MS		5000	/* Initial polling interval in ms */
+#define NUM_STATUSES		3	/* Number of statuses to send */
+#define INTERVAL_MULT		1000	/* Interval multiplier */
+
+/* Select which device credentials to use: 0 or 1 */
+#define DEVICE_NUMBER		0
 
 /* Wait for a response from the cloud. On timeout, return with an error. */
 #define EXPECT_RESPONSE_FROM_CLOUD(_msg_ptr, _sz) \
@@ -49,6 +55,7 @@ do { \
 } while(0)
 
 /* Device ID and device secret */
+#if DEVICE_NUMBER == 0
 static const uint8_t d_ID[] = {
 	0x92, 0x94, 0x78, 0xe7, 0x55, 0x1d, 0x46, 0xe7,
 	0xb3, 0x76, 0x9c, 0xbc, 0xde, 0xb4, 0x8b, 0x7e
@@ -60,8 +67,20 @@ static const uint8_t d_sec[] = {
 	0xfa, 0x3b, 0xa4, 0xb3, 0xd8, 0xdf, 0xd8, 0xe0,
 	0x5e, 0x37, 0xab, 0x87, 0x64, 0x03, 0x5a, 0x3b
 };
+#elif DEVICE_NUMBER == 1
+static const uint8_t d_ID[] = {
+	0x29, 0x7f, 0xa6, 0x68, 0x86, 0x69, 0x4b, 0x30,
+	0xb0, 0x3a, 0xe2, 0xb3, 0xf7, 0x08, 0x00, 0xfb
+};
 
-#define NUM_STATUSES	3	/* Number of statuses to send */
+static const uint8_t d_sec[] = {
+	0x2d, 0xe1, 0x3f, 0xfb, 0xba, 0x2e, 0x94, 0xc3,
+	0xcd, 0x9a, 0xf2, 0xde, 0xc8, 0xff, 0xbc, 0xab,
+	0x30, 0xf6, 0x09, 0xfc, 0x33, 0x35, 0x16, 0xb0,
+	0x2d, 0xed, 0xf7, 0xea, 0xc3, 0x1c, 0x6b, 0x9f
+};
+#endif
+
 static volatile bool run;
 
 #ifdef BUILD_TARGET_OSX
@@ -79,32 +98,66 @@ void SIGINT_Handler(int dummy)
 static uint32_t p_int_ms;	/* Polling interval in milliseconds */
 static uint32_t sl_int_ms;	/* Sleep interval in milliseconds */
 
+static void interpret_type_flags(c_flags_t c_flags, m_type_t m_type)
+{
+	dbg_printf("\tMessage type: ");
+	if (m_type == MT_NONE)
+		dbg_printf("MT_NONE\n");
+	else if (m_type == MT_AUTH)
+		dbg_printf("MT_AUTH\n");
+	else if (m_type == MT_STATUS)
+		dbg_printf("MT_STATUS\n");
+	else if (m_type == MT_UPDATE)
+		dbg_printf("MT_UPDATE\n");
+	else if (m_type == MT_CMD_PI)
+		dbg_printf("MT_CMD_PI\n");
+	else if (m_type == MT_CMD_SL)
+		dbg_printf("MT_CMD_SL\n");
+	else
+		dbg_printf("Invalid message type\n");
+
+	dbg_printf("\tFlags set: ");
+	if (OTT_FLAG_IS_SET(c_flags, CF_NONE))
+		dbg_printf("CF_NONE\n");
+	if (OTT_FLAG_IS_SET(c_flags, CF_NACK))
+		dbg_printf("CF_NACK\n");
+	if (OTT_FLAG_IS_SET(c_flags, CF_ACK))
+		dbg_printf("CF_ACK\n");
+	if (OTT_FLAG_IS_SET(c_flags, CF_PENDING))
+		dbg_printf("CF_PENDING\n");
+	if (OTT_FLAG_IS_SET(c_flags, CF_QUIT))
+		dbg_printf("CF_QUIT\n");
+}
+
 /* Interpret the received message. If the message is empty, return false */
 static bool interpret_message(msg_t *msg)
 {
 	if (!msg)
 		return false;
 	m_type_t m_type;
+	c_flags_t c_flags;
 	OTT_LOAD_MTYPE(*(uint8_t *)msg, m_type);
+	OTT_LOAD_FLAGS(*(uint8_t *)msg, c_flags);
+	interpret_type_flags(c_flags, m_type);
 	switch (m_type) {
 	case MT_UPDATE:
 		/* Received an update message from the cloud */
 		dbg_printf("\tSize : %d\n", msg->data.array.sz);
 		dbg_printf("\tData :\n");
 		for (uint8_t i = 0; i < msg->data.array.sz; i++)
-			dbg_printf("\t0x%2X\n", i);
+			dbg_printf("\t0x%02x\n", i);
 		return true;
 	case MT_CMD_SL:
 		/* Received FAA sleep interval */
 		sl_int_ms = msg->data.interval;
 		dbg_printf("\tSleep interval (secs): %d\n", sl_int_ms);
-		sl_int_ms *= 1000;
+		sl_int_ms *= INTERVAL_MULT;
 		return true;
 	case MT_CMD_PI:
 		/* Received polling interval */
 		p_int_ms = msg->data.interval;
 		dbg_printf("\tPolling interval (secs): %d\n", p_int_ms);
-		p_int_ms *= 1000;
+		p_int_ms *= INTERVAL_MULT;
 		return true;
 	case MT_NONE:
 		/* Fall through */
@@ -236,7 +289,7 @@ int main(int argc, char *argv[])
 	dbg_printf("Begin:\n");
 
 	run = true;
-	p_int_ms = 10000;	/* Initial polling interval set to 10 seconds */
+	p_int_ms = INIT_PI_MS;
 	uint32_t start_time_ms = platform_get_tick_ms();
 	bool ack_pending = false;
 
@@ -251,9 +304,9 @@ int main(int argc, char *argv[])
 		dbg_printf("\n");
 
 		/* Wait until the next polling time */
+		start_time_ms = platform_get_tick_ms();
 		while (platform_get_tick_ms() - start_time_ms < p_int_ms)
 			continue;
-		start_time_ms = platform_get_tick_ms();
 	}
 
 #ifndef BUILD_TARGET_OSX

@@ -43,7 +43,8 @@ typedef enum  {			/* Defines message type flags. */
 } m_type_t;
 
 /* Helper macros to query if certain flag bits are set in the command byte. */
-#define OTT_FLAG_IS_SET(var, flag)	(((var) & (flag)) == (flag))
+#define OTT_FLAG_IS_SET(var, flag)	\
+	(((flag) == CF_NONE) ? ((var) == CF_NONE) : ((var) & (flag)) == (flag))
 
 /* Helper macros to interpret the command byte. */
 #define OTT_LOAD_FLAGS(cmd, f_var)	((f_var) = (uint8_t)(cmd) & 0xF0)
