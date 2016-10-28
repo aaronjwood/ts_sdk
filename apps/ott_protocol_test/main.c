@@ -1,5 +1,6 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include "dbg.h"
@@ -98,6 +99,7 @@ void SIGINT_Handler(int dummy)
 static uint32_t p_int_ms;	/* Polling interval in milliseconds */
 static uint32_t sl_int_ms;	/* Sleep interval in milliseconds */
 
+/* Interpret the type and flag fields of the command byte */
 static void interpret_type_flags(c_flags_t c_flags, m_type_t m_type)
 {
 	dbg_printf("\tMessage type: ");
@@ -118,15 +120,16 @@ static void interpret_type_flags(c_flags_t c_flags, m_type_t m_type)
 
 	dbg_printf("\tFlags set: ");
 	if (OTT_FLAG_IS_SET(c_flags, CF_NONE))
-		dbg_printf("CF_NONE\n");
+		dbg_printf("CF_NONE ");
 	if (OTT_FLAG_IS_SET(c_flags, CF_NACK))
-		dbg_printf("CF_NACK\n");
+		dbg_printf("CF_NACK ");
 	if (OTT_FLAG_IS_SET(c_flags, CF_ACK))
-		dbg_printf("CF_ACK\n");
+		dbg_printf("CF_ACK ");
 	if (OTT_FLAG_IS_SET(c_flags, CF_PENDING))
-		dbg_printf("CF_PENDING\n");
+		dbg_printf("CF_PENDING ");
 	if (OTT_FLAG_IS_SET(c_flags, CF_QUIT))
-		dbg_printf("CF_QUIT\n");
+		dbg_printf("CF_QUIT ");
+	dbg_printf("\n");
 }
 
 /* Interpret the received message. If the message is empty, return false */
@@ -141,22 +144,19 @@ static bool interpret_message(msg_t *msg)
 	interpret_type_flags(c_flags, m_type);
 	switch (m_type) {
 	case MT_UPDATE:
-		/* Received an update message from the cloud */
-		dbg_printf("\tSize : %d\n", msg->data.array.sz);
+		dbg_printf("\tSize : %"PRIu16"\n", msg->data.array.sz);
 		dbg_printf("\tData :\n");
 		for (uint8_t i = 0; i < msg->data.array.sz; i++)
 			dbg_printf("\t0x%02x\n", i);
 		return true;
 	case MT_CMD_SL:
-		/* Received FAA sleep interval */
 		sl_int_ms = msg->data.interval;
-		dbg_printf("\tSleep interval (secs): %d\n", sl_int_ms);
+		dbg_printf("\tSleep interval (secs): %"PRIu32"\n", sl_int_ms);
 		sl_int_ms *= INTERVAL_MULT;
 		return true;
 	case MT_CMD_PI:
-		/* Received polling interval */
 		p_int_ms = msg->data.interval;
-		dbg_printf("\tPolling interval (secs): %d\n", p_int_ms);
+		dbg_printf("\tPolling interval (secs): %"PRIu32"\n", p_int_ms);
 		p_int_ms *= INTERVAL_MULT;
 		return true;
 	case MT_NONE:
@@ -177,14 +177,12 @@ static bool authenticate_device(msg_t *msg, bool *ack_pending)
 	c_flags_t c_flags;
 	uint32_t start_time;
 
-	/* Initiate the TCP/TLS session */
 	dbg_printf("Initiating a secure connection to the cloud\n");
 	if (ott_initiate_connection(SERVER_NAME, SERVER_PORT) != OTT_OK) {
 		dbg_printf("\tCould not connect to the cloud.\n");
 		return false;
 	}
 
-	/* Send the version byte and authenticate the device with the cloud. */
 	dbg_printf("Sending version byte and authentication message\n");
 	ASSERT(ott_send_auth_to_cloud(CF_PENDING, d_ID, sizeof(d_sec), d_sec)
 			== OTT_OK);
@@ -216,7 +214,7 @@ static bool transact_msgs(msg_t *msg, uint8_t num_statuses, bool ack_pending)
 	uint8_t start_time;
 	uint8_t status[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
-	for (uint8_t i = 0; i < num_statuses; i++) {
+	for (int i = 0; i < num_statuses; i++) {
 		dbg_printf("Sending device status (%d) to the cloud\n", i + 1);
 		ASSERT(ott_send_status_to_cloud(c_flags_send | CF_PENDING,
 						sizeof(status),

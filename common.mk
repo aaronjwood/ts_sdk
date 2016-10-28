@@ -28,7 +28,7 @@ DBG_OP_USER_FLAGS = -g -ggdb3 -O0
 DBG_OP_LIB_FLAGS = -Os
 
 # The following invokes an unused sections garbage collector
-NOSYSLIB =  -Wl,--gc-sections -Wl,--as-needed --specs=nosys.specs
+NOSYSLIB =  -Wl,--gc-sections -Wl,--as-needed --specs=nosys.specs --specs=nano.specs
 
 # Machine specific compiler and assembler settings
 ARCHFLAGS = -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
