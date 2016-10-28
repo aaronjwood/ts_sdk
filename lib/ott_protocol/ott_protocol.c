@@ -19,8 +19,12 @@
 #define VERSION_BYTE		((uint8_t)0x01)
 #define TIMEOUT_MS		5000
 
+/*
+ * The certificate for the dev-net server:
+ * #include "verizon_ott_ca.h"
+ */
 #if 1
-#include "verizon_ott_ca.h"
+#include "verizon_ott_inet_ca.h"
 #else
 #include "dst_root_ca_x3.h"
 #endif
@@ -69,6 +73,7 @@ static inline void cleanup_mbedtls(void)
 #ifdef BUILD_TARGET_OSX
 void ott_protocol_deinit(void)
 {
+	ott_close_connection();
 	cleanup_mbedtls();
 }
 #endif

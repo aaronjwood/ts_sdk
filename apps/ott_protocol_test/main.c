@@ -6,9 +6,14 @@
 #include "ott_protocol.h"
 #include "platform.h"
 
+/*
+ * The dev-net server used for testing:
+ * #define SERVER_PORT "443"
+ * #define SERVER_NAME "testott.vzbi.com"
+ */
 #if 1
 #define SERVER_PORT "443"
-#define SERVER_NAME "testott.vzbi.com"
+#define SERVER_NAME "test1.ott.uu.net"
 #else
 /* Temporary - a site that happens to speak our single crypto suite. */
 #define SERVER_PORT "443"
@@ -208,6 +213,7 @@ static bool close_connection(msg_t *msg)
 	 * If the cloud initiated the QUIT, end the connection. Else, send a
 	 * control message with the QUIT flag and then end the connection.
 	 */
+	dbg_printf("Closing connection.\n");
 	c_flags_t c_flags;
 	OTT_LOAD_FLAGS(*(uint8_t *)msg, c_flags);
 	if (!OTT_FLAG_IS_SET(c_flags, CF_QUIT))
@@ -234,6 +240,9 @@ int main(int argc, char *argv[])
 	uint32_t start_time_ms = platform_get_tick_ms();
 	bool ack_pending = false;
 
+	dbg_printf("Server name: %s\n", SERVER_NAME);
+	dbg_printf("Server port: %s\n", SERVER_PORT);
+
 	while (run) {
 		EVAL_RETURN(authenticate_device(msg, &ack_pending));
 		EVAL_RETURN(transact_msgs(msg, NUM_STATUSES, ack_pending));
@@ -242,7 +251,7 @@ int main(int argc, char *argv[])
 		dbg_printf("\n");
 
 		/* Wait until the next polling time */
-		while (platform_get_tick_ms() - start_time_ms >= p_int_ms)
+		while (platform_get_tick_ms() - start_time_ms < p_int_ms)
 			continue;
 		start_time_ms = platform_get_tick_ms();
 	}
