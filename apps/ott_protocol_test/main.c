@@ -9,17 +9,11 @@
 
 /*
  * The dev-net server used for testing:
- * #define SERVER_PORT "443"
  * #define SERVER_NAME "testott.vzbi.com"
+ * #define SERVER_PORT "443"
  */
-#if 1
 #define SERVER_PORT "443"
 #define SERVER_NAME "test1.ott.uu.net"
-#else
-/* Temporary - a site that happens to speak our single crypto suite. */
-#define SERVER_PORT "443"
-#define SERVER_NAME "www.tapr.org"
-#endif
 
 #define RECV_TIMEOUT_MS		7000	/* Receive timeout in ms */
 #define BUF_SZ			512	/* Receive buffer size in bytes */

@@ -19,14 +19,8 @@
 #define VERSION_BYTE		((uint8_t)0x01)
 #define TIMEOUT_MS		5000
 
-/*
- * The certificate for the dev-net server:
- */
-#if 1
+/* Certificate that is used with the OTT services */
 #include "verizon_ott_ca.h"
-#else
-#include "dst_root_ca_x3.h"
-#endif
 
 #ifdef MBEDTLS_DEBUG_C
 static void my_debug(void *ctx, int level,
