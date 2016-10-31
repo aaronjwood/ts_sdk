@@ -205,15 +205,18 @@ static bool flags_are_valid(c_flags_t f)
 	 * Following are invalid flag settings:
 	 * NACK + ACK
 	 * NACK + PENDING
+	 * PENDING + QUIT
 	 * NACK + ACK + PENDING
 	 * NACK + PENDING + QUIT
+	 * ACK + PENDING + QUIT
 	 * NACK + ACK + QUIT
 	 * NACK + ACK + PENDING + QUIT
 	 *
-	 * Accounting for the first two takes care of the rest.
+	 * Accounting for the first three takes care of the rest.
 	 */
 	if (OTT_FLAG_IS_SET(f, CF_NACK | CF_ACK) ||
-			OTT_FLAG_IS_SET(f, CF_NACK | CF_PENDING))
+			OTT_FLAG_IS_SET(f, CF_NACK | CF_PENDING) ||
+			OTT_FLAG_IS_SET(f, CF_PENDING | CF_QUIT))
 		return false;
 	return true;
 }
