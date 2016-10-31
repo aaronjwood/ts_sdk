@@ -2,10 +2,11 @@
 
 #include <time.h>
 #include <stdint.h>
+#include <unistd.h>
 #include <mach/mach_time.h>
 
 #define MS_NS_MULT	1000000
-#define S_MS_MULT	1000
+#define MS_US_MULT	1000
 
 static mach_timebase_info_data_t time_base;
 
@@ -17,14 +18,7 @@ void platform_init()
 
 void platform_delay(uint32_t delay_ms)
 {
-	struct timespec time_remaining = {0};
-	struct timespec delay_interval;
-	delay_interval.tv_sec = delay_ms / S_MS_MULT;
-	delay_interval.tv_nsec = (delay_ms % S_MS_MULT) * MS_NS_MULT;
-	do {
-		nanosleep(&delay_interval, &time_remaining);
-		delay_interval = time_remaining;
-	} while(time_remaining.tv_nsec != 0);
+	usleep(delay_ms * MS_US_MULT);
 }
 
 uint32_t platform_get_tick_ms(void)

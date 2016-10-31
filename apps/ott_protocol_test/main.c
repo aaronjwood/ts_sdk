@@ -21,7 +21,7 @@
 #define NUM_STATUSES		3	/* Number of statuses to send */
 #define INTERVAL_MULT		1000	/* Interval multiplier */
 
-/* Select which device credentials to use: 0 or 1 */
+/* Select which device credentials to use: 0, 1 or 2 */
 #define DEVICE_NUMBER		0
 
 /* Wait for a response from the cloud. On timeout, return with an error. */
@@ -82,7 +82,7 @@ static const uint8_t d_sec[] = {
 static const uint8_t d_ID[] = {
 	0xfa, 0x19, 0xd0, 0x84, 0xdd, 0xeb, 0x43, 0xdf,
 	0x99, 0xd3, 0x1a, 0x42, 0xe8, 0x1b, 0x16, 0xff
-}
+};
 
 static const uint8_t d_sec[] = {
 	0x47, 0x35, 0xfa, 0x79, 0xd3, 0x1f, 0x3a, 0x7e,
@@ -295,10 +295,12 @@ int main(int argc, char *argv[])
 	msg_t *msg = malloc(BUF_SZ);
 
 	dbg_printf("Begin:\n");
+#ifdef BUILD_TARGET_OSX
+	dbg_printf("Press Ctrl+C to exit\n");
+#endif
 
 	run = true;
 	p_int_ms = INIT_PI_MS;
-	uint32_t start_time_ms = platform_get_tick_ms();
 	bool ack_pending = false;
 
 	dbg_printf("Server name: %s\n", SERVER_NAME);
@@ -312,9 +314,7 @@ int main(int argc, char *argv[])
 		dbg_printf("\n");
 
 		/* Wait until the next polling time */
-		start_time_ms = platform_get_tick_ms();
-		while (platform_get_tick_ms() - start_time_ms < p_int_ms)
-			continue;
+		platform_delay(p_int_ms);
 	}
 
 #ifndef BUILD_TARGET_OSX
@@ -324,6 +324,7 @@ int main(int argc, char *argv[])
 cleanup:
 	free(msg);
 	ott_protocol_deinit();
+	dbg_printf("Closed connection and exiting test.\n");
 #endif
 	return 0;
 }
