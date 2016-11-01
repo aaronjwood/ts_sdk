@@ -239,15 +239,17 @@ static bool transact_msgs(msg_t *msg, uint8_t num_statuses, bool ack_pending)
 		dbg_printf("\tDevice status delivered to the cloud.\n");
 
 		/* If this message has data, it needs to be ACKed (or NACKed) */
-		c_flags_send = interpret_message(msg) ? CF_ACK : CF_NONE;
+		bool msg_body_present = interpret_message(msg);
+		c_flags_send = msg_body_present ? CF_ACK : CF_NONE;
 
 		/* Check if the cloud has any additional messages to send */
-		keep_alive = OTT_FLAG_IS_SET(c_flags_recv, CF_PENDING);
+		keep_alive = OTT_FLAG_IS_SET(c_flags_recv, CF_PENDING)
+			|| msg_body_present;
 	}
 
 	/* Retrieve additional messages the cloud needs to send and ACK any
 	 * previous data messages. */
-	while (keep_alive || !OTT_FLAG_IS_SET(c_flags_send, CF_NONE)) {
+	while (keep_alive) {
 		ASSERT(ott_send_ctrl_msg(c_flags_send) == OTT_OK);
 
 		/* Timeout if there is no response from the cloud. */
@@ -296,7 +298,7 @@ int main(int argc, char *argv[])
 
 	dbg_printf("Begin:\n");
 #ifdef BUILD_TARGET_OSX
-	dbg_printf("Press Ctrl+C to exit\n");
+	dbg_printf("Press <Ctrl+C> to exit\n");
 #endif
 
 	run = true;
@@ -306,6 +308,12 @@ int main(int argc, char *argv[])
 	dbg_printf("Server name: %s\n", SERVER_NAME);
 	dbg_printf("Server port: %s\n", SERVER_PORT);
 
+	/*
+	 * This test authenticates the device with the cloud, receives any
+	 * commands in return, sends a fixed number of status messages back
+	 * to the cloud and then closes the conenction.
+	 * Any received message is ACKed by default.
+	 */
 	while (run) {
 		EVAL_RETURN(authenticate_device(msg, &ack_pending));
 		EVAL_RETURN(transact_msgs(msg, NUM_STATUSES, ack_pending));

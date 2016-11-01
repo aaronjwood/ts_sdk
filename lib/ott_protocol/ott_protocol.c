@@ -103,11 +103,6 @@ ott_status ott_protocol_init(void)
 		return OTT_ERROR;
 	}
 
-	/*
-	 * XXX: Move this section to ott_initiate_connection() (after connect
-	 * and before setting up the SSL context) if it doesn't work when placed
-	 * here.
-	 */
 	/* Set up the TLS structures */
 	ret = mbedtls_ssl_config_defaults(&conf,
 			MBEDTLS_SSL_IS_CLIENT,
