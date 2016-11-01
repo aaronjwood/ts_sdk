@@ -293,10 +293,12 @@ int main(int argc, char *argv[])
 	platform_init();
 
 	dbg_module_init();
+	dbg_printf("Begin:\n");
+	dbg_printf("Initializing protocol and underlying comm hardware..");
 	ASSERT(ott_protocol_init() == OTT_OK);
+	dbg_printf("Done.\n");
 	msg_t *msg = malloc(BUF_SZ);
 
-	dbg_printf("Begin:\n");
 #ifdef BUILD_TARGET_OSX
 	dbg_printf("Press <Ctrl+C> to exit\n");
 #endif
