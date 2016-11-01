@@ -214,8 +214,7 @@ static at_ret_code __at_process_pdp_tcp_close_urc(char *urc, at_urc u_code)
         if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) == 0) {
                 switch (u_code) {
                 case TCP_CLOSED:
-                        state &= ~TCP_CONNECTED;
-                        state &= ~TCP_READ;
+                        state = IDLE;
                         state |= TCP_CONN_CLOSED;
                         DEBUG_V0("%s: tcp closed\n", __func__);
                         return AT_SUCCESS;
@@ -720,9 +719,11 @@ int at_tcp_connect(const char *host, const char *port)
 
         CHECK_NULL(host, -1)
         if (state > IDLE) {
-                DEBUG_V0("%s: TCP connect not possible, state :%u\n",
-                        __func__, state);
-                return -1;
+                if ((state & TCP_CONN_CLOSED) != TCP_CONN_CLOSED) {
+                        DEBUG_V0("%s: TCP connect not possible, state :%u\n",
+                                __func__, state);
+                        return -1;
+                }
         }
         if (!pdp_conf) {
                 if (__at_pdp_conf() != AT_SUCCESS) {
@@ -1282,7 +1283,7 @@ void at_tcp_close(int s_id) {
                 DEBUG_V0("%s: could not close socket,"
                         " connection may be already closed\n", __func__);
 
-        state &= ~TCP_CONNECTED;
+        state = IDLE;
         state |= TCP_CONN_CLOSED;
         return;
 }
