@@ -3,7 +3,7 @@
 #ifndef __OTT_MSG
 #define __OTT_MSG
 
-/* This header defines limits of the field sizes of a regular OTT message. */
+/* This header defines limits of the field sizes of OTT messages. */
 
 #define OTT_MAX_MSG_SZ		512
 #define OTT_VER_SZ		1
