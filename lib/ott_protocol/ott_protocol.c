@@ -34,7 +34,7 @@ static void my_debug(void *ctx, int level,
 #endif
 
 /*
- * Assumption : Underlying transport protocol is stream oriented. So parts of
+ * Assumption: Underlying transport protocol is stream oriented. So parts of
  * the message can be sent through separate write calls.
  */
 #define WRITE_AND_RETURN_ON_ERROR(buf, len, ret) \
@@ -66,8 +66,11 @@ static inline void cleanup_mbedtls(void)
 #ifdef BUILD_TARGET_OSX
 void ott_protocol_deinit(void)
 {
-	ott_close_connection();
-	cleanup_mbedtls();
+	/* "server_fd" and "ssl" are freed by ott_close_connection() */
+	mbedtls_x509_crt_free(&cacert);
+	mbedtls_ssl_config_free(&conf);
+	mbedtls_ctr_drbg_free(&ctr_drbg);
+	mbedtls_entropy_free(&entropy);
 }
 #endif
 
@@ -103,11 +106,6 @@ ott_status ott_protocol_init(void)
 		return OTT_ERROR;
 	}
 
-	/*
-	 * XXX: Move this section to ott_initiate_connection() (after connect
-	 * and before setting up the SSL context) if it doesn't work when placed
-	 * here.
-	 */
 	/* Set up the TLS structures */
 	ret = mbedtls_ssl_config_defaults(&conf,
 			MBEDTLS_SSL_IS_CLIENT,
@@ -141,8 +139,10 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 
 	/* Set up the SSL context */
 	ret = mbedtls_ssl_setup(&ssl, &conf);
-	if (ret != 0)
+	if (ret != 0) {
+		mbedtls_net_free(&server_fd);
 		return OTT_ERROR;
+	}
 
 	mbedtls_ssl_set_bio(&ssl, &server_fd, mbedtls_net_send,
 			mbedtls_net_recv, NULL);
@@ -154,10 +154,14 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
 				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 			mbedtls_ssl_session_reset(&ssl);
+			mbedtls_ssl_free(&ssl);
+			mbedtls_net_free(&server_fd);
 			return OTT_ERROR;
 		}
 		if (platform_get_tick_ms() - start > TIMEOUT_MS) {
 			mbedtls_ssl_session_reset(&ssl);
+			mbedtls_ssl_free(&ssl);
+			mbedtls_net_free(&server_fd);
 			return OTT_TIMEOUT;
 		}
 		ret = mbedtls_ssl_handshake(&ssl);
@@ -171,6 +175,8 @@ ott_status ott_close_connection(void)
 	/* Close the connection and notify the peer. */
 	int s = mbedtls_ssl_close_notify(&ssl);
 	mbedtls_ssl_session_reset(&ssl);
+	mbedtls_ssl_free(&ssl);
+	mbedtls_net_free(&server_fd);
 	if (s == 0)
 		return OTT_OK;
 	else
@@ -300,12 +306,12 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 static bool msg_is_valid(msg_t *msg)
 {
 	c_flags_t c_flags;
-	OTT_LOAD_FLAGS(*(uint8_t *)msg, c_flags);
+	OTT_LOAD_FLAGS(msg->cmd_byte, c_flags);
 	if (!flags_are_valid(c_flags))
 		return false;
 
 	m_type_t m_type;
-	OTT_LOAD_MTYPE(*(uint8_t *)msg, m_type);
+	OTT_LOAD_MTYPE(msg->cmd_byte, m_type);
 	switch (m_type) {
 	case MT_UPDATE:
 		if (msg->data.array.sz > OTT_DATA_SZ)
@@ -324,12 +330,40 @@ static bool msg_is_valid(msg_t *msg)
 	}
 }
 
+#define UPD_OVR_HEAD		OTT_OVERHEAD_SZ
+#define MIN_UPD_SIZE		(UPD_OVR_HEAD + 1 /* Actual data */)
+#define MIN_CMD_PI_SIZE		(OTT_CMD_SZ + 4 /* uint32_t */)
+#define MIN_CMD_SL_SIZE		(OTT_CMD_SZ + 4 /* uint32_t */)
+#define MIN_MT_NONE_SIZE	OTT_CMD_SZ
+
+/* Return true if a complete message has been received */
+static bool msg_is_complete(msg_t *msg, uint16_t recvd)
+{
+	m_type_t m_type;
+	OTT_LOAD_MTYPE(msg->cmd_byte, m_type);
+
+	if (m_type == MT_NONE)
+		return (recvd == MIN_MT_NONE_SIZE);
+	if (m_type == MT_CMD_PI)
+		return (recvd == MIN_CMD_PI_SIZE);
+	if (m_type == MT_CMD_SL)
+		return (recvd == MIN_CMD_SL_SIZE);
+	if (m_type == MT_UPDATE) {
+		if (recvd < MIN_UPD_SIZE)
+			return false;
+		return (recvd - UPD_OVR_HEAD == msg->data.array.sz);
+	}
+
+	return false;
+}
+
 ott_status ott_retrieve_msg(msg_t *msg, uint16_t sz)
 {
 	if (msg == NULL || sz < 4 || sz > OTT_MAX_MSG_SZ)
 		return OTT_INV_PARAM;
 
-	int ret = mbedtls_ssl_read(&ssl, (unsigned char *)msg, sz);
+	static uint16_t recvd = 0;	/* Number of bytes received so far */
+	int ret = mbedtls_ssl_read(&ssl, (unsigned char *)msg + recvd, sz - recvd);
 	if (ret == MBEDTLS_ERR_SSL_WANT_WRITE ||
 			ret == MBEDTLS_ERR_SSL_WANT_READ)
 		return OTT_NO_MSG;
@@ -345,17 +379,21 @@ ott_status ott_retrieve_msg(msg_t *msg, uint16_t sz)
 		return OTT_ERROR;
 	}
 
-	if (ret > 0) {	/* XXX: Assuming entire message arrives at once */
-		if (!msg_is_valid(msg)) {
-			ott_send_ctrl_msg(CF_NACK | CF_QUIT);
-			if (ott_close_connection() != OTT_OK)
+	if (ret > 0) {
+		recvd += ret;
+		if (msg_is_complete(msg, recvd)) {
+			recvd = 0;
+			if (!msg_is_valid(msg)) {
+				ott_send_ctrl_msg(CF_NACK | CF_QUIT);
+				ott_close_connection();
 				return OTT_ERROR;
-			return OTT_NO_MSG;
+			}
+			return OTT_OK;
 		}
-		return OTT_OK;
+		return OTT_NO_MSG;
 	}
 
-	if (ret == 0)			/* EOF: No more messages to receive */
+	if (ret == 0)            /* EOF: No more messages to receive */
 		return OTT_NO_MSG;
 
 	return OTT_ERROR;

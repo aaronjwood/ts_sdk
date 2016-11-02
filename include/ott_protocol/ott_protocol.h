@@ -71,7 +71,7 @@ typedef struct __attribute__((packed)) {
 /*
  * Initialize the OTT Protocol module. This will initialize the underlying modem
  * / TCP drivers, set up the TLS parameters and initialize any certificates, if
- * needed. This must be called before using any of the APIs in this module.
+ * needed. This must be called once before using any of the APIs in this module.
  *
  * Parameters:
  * 	None
@@ -99,7 +99,8 @@ ott_status ott_protocol_init(void);
 ott_status ott_initiate_connection(const char *host, const char *port);
 
 /*
- * Close the TLS connection and notify the cloud service.
+ * Close the TLS connection and notify the cloud service. This function must
+ * be called before ott_initiate_connection() except for the very first time.
  *
  * Parameters:
  * 	None
@@ -161,7 +162,7 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
  * Send a control message to the cloud service. This message has no data field
  * associated with it, i.e. the message type is MT_NONE. It is used to poll the
  * cloud for pending messages or to notify it about the termination of the
- * connection.
+ * connection or send an ACK / NACK.
  * The pending flag cannot be active for this type of message.
  * This message type may or may not have a response.
  * This call is blocking in nature.
@@ -185,7 +186,7 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags);
  * Parameters:
  * 	msg : Pointer to buffer that will store the message data, type and
  * 	      associated control flags.
- * 	sz  : Size of the buffer.
+ * 	sz  : Maximum size of the buffer.
  *
  * Returns:
  * 	OTT_OK        : Message successfully retrieved

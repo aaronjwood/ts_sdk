@@ -12,14 +12,14 @@
  * #define SERVER_NAME "testott.vzbi.com"
  * #define SERVER_PORT "443"
  */
-#define SERVER_PORT "443"
 #define SERVER_NAME "test1.ott.uu.net"
+#define SERVER_PORT "443"
 
 #define RECV_TIMEOUT_MS		7000	/* Receive timeout in ms */
-#define BUF_SZ			512	/* Receive buffer size in bytes */
+#define BUF_SZ			512	/* Max receive buffer size in bytes */
 #define INIT_PI_MS		5000	/* Initial polling interval in ms */
 #define NUM_STATUSES		3	/* Number of statuses to send */
-#define INTERVAL_MULT		1000	/* Interval multiplier */
+#define INTERVAL_MULT		1000	/* Interval value multiplier */
 
 /* Select which device credentials to use: 0, 1 or 2 */
 #define DEVICE_NUMBER		0
@@ -27,7 +27,8 @@
 /* Wait for a response from the cloud. On timeout, return with an error. */
 #define EXPECT_RESPONSE_FROM_CLOUD(_msg_ptr, _sz) \
 do { \
-	if (ott_retrieve_msg(_msg_ptr, _sz) != OTT_OK) { \
+	ott_status s = ott_retrieve_msg(_msg_ptr, _sz); \
+	if (s != OTT_OK && s != OTT_NO_MSG) { \
 		dbg_printf("\tERR: No response from cloud, closing connection.\n"); \
 		ott_send_ctrl_msg(CF_QUIT); \
 		ott_close_connection(); \
@@ -42,8 +43,8 @@ do { \
 do { \
 	c_flags_t c_flags; \
 	m_type_t m_type; \
-	OTT_LOAD_FLAGS(*(uint8_t *)(_msg_ptr), c_flags); \
-	OTT_LOAD_MTYPE(*(uint8_t *)(_msg_ptr), m_type); \
+	OTT_LOAD_FLAGS(_msg_ptr->cmd_byte, c_flags); \
+	OTT_LOAD_MTYPE(_msg_ptr->cmd_byte, m_type); \
 	if (!OTT_FLAG_IS_SET(c_flags, CF_ACK)) { \
 		dbg_printf("\tERR: Cloud did not ACK previous message.\n"); \
 		interpret_type_flags(m_type, c_flags); \
@@ -98,7 +99,7 @@ static volatile bool run;
 extern void ott_protocol_deinit(void);
 void SIGINT_Handler(int dummy)
 {
-	/* Ensure clean exit from the super loop on Ctrl+C on OS X */
+	/* Ensure clean exit from the super loop on <Ctrl+C> on OS X */
 	run = false;
 }
 #define EVAL_RETURN(x)	do { if (!(x)) goto cleanup; } while(0)
@@ -149,8 +150,8 @@ static bool interpret_message(msg_t *msg)
 		return false;
 	m_type_t m_type;
 	c_flags_t c_flags;
-	OTT_LOAD_MTYPE(*(uint8_t *)msg, m_type);
-	OTT_LOAD_FLAGS(*(uint8_t *)msg, c_flags);
+	OTT_LOAD_MTYPE(msg->cmd_byte, m_type);
+	OTT_LOAD_FLAGS(msg->cmd_byte, c_flags);
 	interpret_type_flags(m_type, c_flags);
 	switch (m_type) {
 	case MT_UPDATE:
@@ -179,12 +180,10 @@ static bool interpret_message(msg_t *msg)
 /* Attempt to establish a secure connection to the cloud */
 static bool authenticate_device(msg_t *msg, bool *ack_pending)
 {
-	if (!msg)
+	if (!msg || !ack_pending)
 		return false;
 
 	memset(msg, 0, BUF_SZ);
-
-	uint32_t start_time;
 
 	dbg_printf("Initiating a secure connection to the cloud\n");
 	if (ott_initiate_connection(SERVER_NAME, SERVER_PORT) != OTT_OK) {
@@ -197,7 +196,7 @@ static bool authenticate_device(msg_t *msg, bool *ack_pending)
 			== OTT_OK);
 
 	/* Timeout if there is no response from the cloud. */
-	start_time = platform_get_tick_ms();
+	uint32_t start_time = platform_get_tick_ms();
 	EXPECT_RESPONSE_FROM_CLOUD(msg, BUF_SZ);
 
 	/* Make sure the previous message was ACKed. */
@@ -220,7 +219,6 @@ static bool transact_msgs(msg_t *msg, uint8_t num_statuses, bool ack_pending)
 
 	c_flags_t c_flags_recv;
 	c_flags_t c_flags_send = ack_pending ? CF_ACK : CF_NONE;
-	uint8_t start_time;
 	uint8_t status[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
 	for (int i = 0; i < num_statuses; i++) {
@@ -230,32 +228,34 @@ static bool transact_msgs(msg_t *msg, uint8_t num_statuses, bool ack_pending)
 						status) == OTT_OK);
 
 		/* Timeout if there is no response from the cloud. */
-		start_time = platform_get_tick_ms();
+		uint32_t start_time = platform_get_tick_ms();
 		EXPECT_RESPONSE_FROM_CLOUD(msg, BUF_SZ);
 
 		/* Make sure the previous message was ACKed. */
 		EXPECT_ACK_FROM_CLOUD(msg);
-		OTT_LOAD_FLAGS(*(uint8_t *)msg, c_flags_recv);
+		OTT_LOAD_FLAGS(msg->cmd_byte, c_flags_recv);
 		dbg_printf("\tDevice status delivered to the cloud.\n");
 
 		/* If this message has data, it needs to be ACKed (or NACKed) */
-		c_flags_send = interpret_message(msg) ? CF_ACK : CF_NONE;
+		bool msg_body_present = interpret_message(msg);
+		c_flags_send = msg_body_present ? CF_ACK : CF_NONE;
 
 		/* Check if the cloud has any additional messages to send */
-		keep_alive = OTT_FLAG_IS_SET(c_flags_recv, CF_PENDING);
+		keep_alive = OTT_FLAG_IS_SET(c_flags_recv, CF_PENDING)
+			|| msg_body_present;
 	}
 
 	/* Retrieve additional messages the cloud needs to send and ACK any
 	 * previous data messages. */
-	while (keep_alive || !OTT_FLAG_IS_SET(c_flags_send, CF_NONE)) {
+	while (keep_alive) {
 		ASSERT(ott_send_ctrl_msg(c_flags_send) == OTT_OK);
 
 		/* Timeout if there is no response from the cloud. */
-		start_time = platform_get_tick_ms();
+		uint32_t start_time = platform_get_tick_ms();
 		EXPECT_RESPONSE_FROM_CLOUD(msg, BUF_SZ);
 
 		/* Check for the pending flag */
-		OTT_LOAD_FLAGS(*(uint8_t *)msg, c_flags_recv);
+		OTT_LOAD_FLAGS(msg->cmd_byte, c_flags_recv);
 		keep_alive = OTT_FLAG_IS_SET(c_flags_recv, CF_PENDING);
 
 		/* Print any data attached to this message */
@@ -276,7 +276,7 @@ static bool close_connection(msg_t *msg)
 	 */
 	dbg_printf("Closing connection.\n");
 	c_flags_t c_flags;
-	OTT_LOAD_FLAGS(*(uint8_t *)msg, c_flags);
+	OTT_LOAD_FLAGS(msg->cmd_byte, c_flags);
 	if (!OTT_FLAG_IS_SET(c_flags, CF_QUIT))
 		ASSERT(ott_send_ctrl_msg(CF_QUIT) == OTT_OK);
 	ASSERT(ott_close_connection() == OTT_OK);
@@ -291,12 +291,14 @@ int main(int argc, char *argv[])
 	platform_init();
 
 	dbg_module_init();
+	dbg_printf("Begin:\n");
+	dbg_printf("Initializing protocol and underlying comm hardware..");
 	ASSERT(ott_protocol_init() == OTT_OK);
+	dbg_printf("Done.\n");
 	msg_t *msg = malloc(BUF_SZ);
 
-	dbg_printf("Begin:\n");
 #ifdef BUILD_TARGET_OSX
-	dbg_printf("Press Ctrl+C to exit\n");
+	dbg_printf("Press <Ctrl+C> to exit\n");
 #endif
 
 	run = true;
@@ -306,6 +308,14 @@ int main(int argc, char *argv[])
 	dbg_printf("Server name: %s\n", SERVER_NAME);
 	dbg_printf("Server port: %s\n", SERVER_PORT);
 
+	/*
+	 * This test authenticates the device with the cloud, receives any
+	 * commands in return, sends a fixed number of status messages back
+	 * to the cloud (while receiving any pending commands / updates) and
+	 * then closes the connection.
+	 * Any received message is ACKed by default.
+	 * In this test, the device always has data to send while polling.
+	 */
 	while (run) {
 		EVAL_RETURN(authenticate_device(msg, &ack_pending));
 		EVAL_RETURN(transact_msgs(msg, NUM_STATUSES, ack_pending));
