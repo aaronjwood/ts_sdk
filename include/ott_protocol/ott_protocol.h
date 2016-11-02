@@ -162,7 +162,7 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
  * Send a control message to the cloud service. This message has no data field
  * associated with it, i.e. the message type is MT_NONE. It is used to poll the
  * cloud for pending messages or to notify it about the termination of the
- * connection.
+ * connection or send an ACK / NACK.
  * The pending flag cannot be active for this type of message.
  * This message type may or may not have a response.
  * This call is blocking in nature.

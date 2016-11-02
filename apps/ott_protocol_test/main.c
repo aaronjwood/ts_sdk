@@ -27,7 +27,8 @@
 /* Wait for a response from the cloud. On timeout, return with an error. */
 #define EXPECT_RESPONSE_FROM_CLOUD(_msg_ptr, _sz) \
 do { \
-	if (ott_retrieve_msg(_msg_ptr, _sz) != OTT_OK) { \
+	ott_status s = ott_retrieve_msg(_msg_ptr, _sz); \
+	if (s != OTT_OK && s != OTT_NO_MSG) { \
 		dbg_printf("\tERR: No response from cloud, closing connection.\n"); \
 		ott_send_ctrl_msg(CF_QUIT); \
 		ott_close_connection(); \
