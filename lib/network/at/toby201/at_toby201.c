@@ -1189,6 +1189,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         }
         if ((state & TCP_READ) != TCP_READ) {
                 DEBUG_V0("%s: read not possible at this time\n", __func__);
+                errno = EAGAIN;
                 return AT_TCP_RCV_FAIL;
         }
 
