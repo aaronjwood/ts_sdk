@@ -240,9 +240,12 @@ static bool transact_msgs(msg_t *msg, uint8_t num_statuses, bool ack_pending)
 		bool msg_body_present = interpret_message(msg);
 		c_flags_send = msg_body_present ? CF_ACK : CF_NONE;
 
-		/* Check if the cloud has any additional messages to send */
-		keep_alive = OTT_FLAG_IS_SET(c_flags_recv, CF_PENDING)
-			|| msg_body_present;
+		/*
+		 * Check if the cloud has any additional messages to send or if
+		 * the current message needs to be responded to.
+		 */
+		keep_alive = OTT_FLAG_IS_SET(c_flags_recv, CF_PENDING) ||
+			msg_body_present;
 	}
 
 	/* Retrieve additional messages the cloud needs to send and ACK any
@@ -256,10 +259,17 @@ static bool transact_msgs(msg_t *msg, uint8_t num_statuses, bool ack_pending)
 
 		/* Check for the pending flag */
 		OTT_LOAD_FLAGS(msg->cmd_byte, c_flags_recv);
-		keep_alive = OTT_FLAG_IS_SET(c_flags_recv, CF_PENDING);
 
 		/* Print any data attached to this message */
-		c_flags_send = interpret_message(msg) ? CF_ACK : CF_NONE;
+		bool msg_body_present = interpret_message(msg);
+		c_flags_send = msg_body_present ? CF_ACK : CF_NONE;
+
+		/*
+		 * Check if the cloud has any additional messages to send or if
+		 * the current message needs to be responded to.
+		 */
+		keep_alive = OTT_FLAG_IS_SET(c_flags_recv, CF_PENDING) ||
+			msg_body_present;
 	}
 
 	return true;
