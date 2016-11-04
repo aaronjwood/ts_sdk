@@ -91,6 +91,11 @@ void platform_delay(uint32_t delay_ms)
         HAL_Delay(delay_ms);
 }
 
+uint32_t platform_get_tick_ms(void)
+{
+	return HAL_GetTick();
+}
+
 /* Increments the SysTick value. */
 void SysTick_Handler(void)
 {
