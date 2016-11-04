@@ -174,7 +174,6 @@ ott_status ott_close_connection(void)
 {
 	/* Close the connection and notify the peer. */
 	int s = mbedtls_ssl_close_notify(&ssl);
-	mbedtls_ssl_session_reset(&ssl);
 	mbedtls_ssl_free(&ssl);
 	mbedtls_net_free(&server_fd);
 	if (s == 0)

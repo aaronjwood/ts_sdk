@@ -31,6 +31,7 @@ typedef enum {
 } cc_send_result;
 
 typedef enum {
+	CC_RECV_FAILED,
 	CC_RECV_BUSY,
 	CC_RECV_SUCCESS
 } cc_recv_result;
@@ -42,8 +43,6 @@ typedef enum {
 	CC_STS_SEND_TIMEOUT,	/* Timed out waiting for a response */
 
 	/* Incoming path events: */
-	CC_STS_RCV_CTRL,	/* Received a control message from the cloud */
-	CC_STS_RCV_CMD_PI,	/* Received polling interval from the cloud */
 	CC_STS_RCV_CMD_SL,	/* Received sleep time from the cloud */
 	CC_STS_RCV_UPD		/* Received an update message from the cloud */
 } cc_event;
@@ -107,6 +106,20 @@ typedef void (*cc_callback_rtn)(cc_buffer_desc *buf, cc_event event);
 bool cc_init(const uint8_t *d_ID, uint16_t d_sec_sz, const uint8_t *d_sec);
 
 /*
+ * Set the host name and host port to communicate with. This must be called
+ * at least once before attempting to send messages.
+ *
+ * Parameters:
+ * 	host : A NULL terminated string specifying the host name.
+ * 	port : A NULL terminated string specifying the host port.
+ *
+ * Returns:
+ *	True  : Host name and port were set properly.
+ *	False : Failed to set the host name / host port.
+ */
+bool cc_set_remote_host(const char *host, const char *port);
+
+/*
  * Get a pointer to the internal send buffer from the buffer descriptor. The
  * data to be sent should be written onto this buffer before calling
  * cc_send_bytes_to_cloud().
@@ -129,7 +142,7 @@ uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf);
  * Returns:
  * 	Pointer to the internal receive buffer.
  */
-uint8_t *cc_get_recv_buffer_ptr(cc_buffer_desc *buf);
+const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf);
 
 /*
  * Retrieve the length of the last message received.
@@ -140,35 +153,7 @@ uint8_t *cc_get_recv_buffer_ptr(cc_buffer_desc *buf);
  * Returns:
  * 	Number of bytes of data in the receive buffer.
  */
-cc_data_sz cc_get_receive_data_len(cc_buffer_desc *buf);
-
-/*
- * Establish a secure connection with the cloud services. This must be called
- * before any transactions take place over the network. Every call to this
- * function must be paired with a call to cc_close_session().
- *
- * Parameters:
- * 	host : A NULL terminated string specifying the host server.
- * 	port : A NULL terminated string specifying the host port.
- *
- * Returns:
- * 	True  : A secure connection has been established.
- * 	False : Failed to establish a secure connection.
- */
-bool cc_establish_session(const char *host, const char *port);
-
-/*
- * Close the connection to the cloud services. Call this function to gracefully
- * end communications with the cloud services. This function must be paired with
- * every call to cc_establish_session().
- *
- * Parameters:
- * 	None
- *
- * Returns:
- * 	None
- */
-void cc_close_session(void);
+cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf);
 
 /*
  * Send bytes to the cloud. The data is wrapped in protocol headers and sent
@@ -191,7 +176,7 @@ cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 
 /*
  * Initiate an asynchronous receive of bytes from the cloud. Only one receive
- * can be in progress at a time.
+ * can be scheduled at a time.
  *
  * Parameters:
  * 	buf  : Cloud communication buffer descriptor that will hold the data to
@@ -199,6 +184,7 @@ cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
  * 	cb   : Callback that will be invoked when a complete message is received.
  *
  * Returns:
+ * 	CC_RECV_FAILED  : Failed to schedule a receive.
  * 	CC_RECV_BUSY    : Can't initiate a receive since one is already in progress.
  * 	CC_RECV_SUCCESS : Successfully initiated a receive.
  */
@@ -220,4 +206,30 @@ cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb)
  * 	                 be called again.
  */
 int32_t cc_service_send_receive(int32_t current_timestamp);
+
+/*
+ * Acknowledge the message last received from the cloud services. The actual
+ * acknowledgement is transmitted in the next send or as a part of the servicing
+ * call.
+ *
+ * Parameters:
+ * 	None
+ *
+ * Returns:
+ * 	None
+ */
+void cc_ack_bytes(void);
+
+/*
+ * NACK the message last received from the cloud services. Use this when there
+ * was an error processing the message. This message is sent immediately to the
+ * cloud services.
+ *
+ * Parameters:
+ * 	None
+ *
+ * Returns:
+ * 	None
+ */
+void cc_nak_bytes(void);
 #endif
