@@ -28,13 +28,21 @@
 
 #if 1
 #include "verizon_ott_ca.h"
+/*
+ * The DevNet test server.
+ * #define SERVER_NAME "testott.vzbi.com"
+ * #define SERVER_PORT "443"
+ */
+
+/* The external test server */
+#define SERVER_NAME "test1.ott.uu.net"
 #define SERVER_PORT "443"
-#define SERVER_NAME "testott.vzbi.com"
+
 #else
 /* Temporary - a site that happens to speak our single crypto suite. */
 #include "dst_root_ca_x3.h"
-#define SERVER_PORT "443"
 #define SERVER_NAME "www.tapr.org"
+#define SERVER_PORT "443"
 #endif
 
 #define GET_REQUEST "GET / HTTP/1.0\r\n\r\n"
@@ -141,6 +149,15 @@ int main(int argc, char *argv[])
 	mbedtls_ssl_set_bio(&ssl, &server_fd, mbedtls_net_send,
 			    mbedtls_net_recv, NULL);
 
+	/*
+	 * Set the server identity (hostname) that must be present in its
+	 * certificate CN or SubjectAltName.
+	 */
+	dbg_printf("Setting required server identity...\n");
+	ret = mbedtls_ssl_set_hostname(&ssl, SERVER_NAME);
+	if (ret != 0)
+		goto done;
+	   
 	dbg_printf("Performing TLS handshake...\n");
 	ret = mbedtls_ssl_handshake(&ssl);
 	while (ret != 0) {

@@ -147,6 +147,15 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 	mbedtls_ssl_set_bio(&ssl, &server_fd, mbedtls_net_send,
 			mbedtls_net_recv, NULL);
 
+	/*
+	 * Set the server identity (hostname) that must be present in its
+	 * certificate CN or SubjectAltName.
+	 */
+	dbg_printf("Setting required server identity\n");
+	ret = mbedtls_ssl_set_hostname(&ssl, host);
+	if (ret != 0)
+		return OTT_ERROR;
+	   
 	/* Perform TLS handshake */
 	ret = mbedtls_ssl_handshake(&ssl);
 	uint32_t start = platform_get_tick_ms();
