@@ -1,8 +1,8 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
-#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "dbg.h"
 #include "ott_protocol.h"
 #include "platform.h"
@@ -135,7 +135,7 @@ static bool interpret_message(msg_t *msg)
 		dbg_printf("\tSize : %"PRIu16"\n", msg->data.array.sz);
 		dbg_printf("\tData :\n");
 		for (uint8_t i = 0; i < msg->data.array.sz; i++)
-			dbg_printf("\t0x%02x\n", i);
+			dbg_printf("\t0x%02x\n", msg->data.array.bytes[i]);
 		return true;
 	case MT_CMD_SL:
 		sl_int_ms = msg->data.interval;

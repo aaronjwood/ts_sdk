@@ -9,8 +9,8 @@
 #include "dbg.h"
 
 #define RECV_TIMEOUT_MS		5000
-#define MAX_HOST_LEN		25
-#define MAX_PORT_LEN		5
+#define MULT			1000
+#define INIT_POLLLING_MS	((int32_t)10000)
 
 static struct {				/* Store authentication data */
 	uint8_t dev_ID[OTT_UUID_SZ];	/* 16 byte Device ID */
@@ -21,63 +21,67 @@ static struct {
 	bool send_in_progress;		/* Set if a message is currently being sent */
 	const cc_buffer_desc *buf;	/* Outgoing data buffer */
 	cc_callback_rtn cb;		/* "Send" callback */
-	bool send_ack;			/* Set if the current message should ACK
-					 * the last received message.
-					 */
-} outgoing_conn;
+} conn_out;
 
 static struct {
-	bool recv_in_progress;		/* Set if an async receive was scheduled */
+	bool recv_in_progress;		/* Set if a receive was scheduled */
 	cc_buffer_desc *buf;		/* Incoming data buffer */
 	cc_callback_rtn cb;		/* "Receive" callback */
-} incoming_conn;
+} conn_in;
 
 static struct {
 	bool auth_done;			/* Auth was sent for this session */
-	bool keep_alive;		/* Cloud has a pending message / Device
-					 * has to respond to the last message
-					 * received, keep the connection alive.
-					 */
+	bool pend_bit;			/* Cloud has a pending message */
+	bool pend_ack;			/* Set if the device needs to ACK prev msg */
 	char host[MAX_HOST_LEN + 1];	/* Store the host name */
 	char port[MAX_PORT_LEN + 1];	/* Store the host port */
 } session;
 
+static struct {
+	uint32_t polling_ts;		/* Earliest timestamp for the next polling */
+	int32_t polling_int_ms;		/* Polling interval in milliseconds */
+	bool new_interval_set;		/* Set if a new interval was received */
+} timekeep;
+
 #define INVOKE_SEND_CALLBACK(_buf, _evt) \
 	do { \
-		if (outgoing_conn.cb) \
-			outgoing_conn.cb((cc_buffer_desc *)(_buf), (_evt)); \
+		if (conn_out.cb) \
+			conn_out.cb((cc_buffer_desc *)(_buf), (_evt)); \
 	} while(0)
 
 #define INVOKE_RECV_CALLBACK(_buf, _evt) \
 	do { \
-		if (incoming_conn.cb) \
-			incoming_conn.cb((cc_buffer_desc *)(_buf), (_evt)); \
+		if (conn_in.cb) \
+			conn_in.cb((cc_buffer_desc *)(_buf), (_evt)); \
 	} while(0)
 
-/* Functions that reset the internal state and close the connection */
+/* Reset the connection (incoming and outgoing) and session structures */
 static inline void reset_conn_and_session_states(void)
 {
-	outgoing_conn.send_in_progress = false;
-	incoming_conn.recv_in_progress = false;
-	outgoing_conn.send_ack = false;
+	conn_out.send_in_progress = false;
+	conn_in.recv_in_progress = false;
 	session.auth_done = false;
-	session.keep_alive = false;
+	session.pend_bit = false;
+	session.pend_ack = false;
 }
 
+/* Reset the callbacks and buffers */
 static inline void reset_callbacks_and_buffers(void)
 {
-	outgoing_conn.buf = NULL;
-	outgoing_conn.cb = NULL;
-	incoming_conn.buf = NULL;
-	incoming_conn.cb = NULL;
+	conn_out.buf = NULL;
+	conn_out.cb = NULL;
+	conn_in.buf = NULL;
+	conn_in.cb = NULL;
 }
 
+/* Called on receiving a quit; Close the connection and reset the state */
 static inline void on_recv_quit(void)
 {
 	ott_close_connection();
 	reset_conn_and_session_states();
 }
 
+/* Send a QUIT or NACK + QUIT and then close the connection and reset the state */
 static inline void initiate_quit(bool send_nack)
 {
 	if (!session.auth_done)
@@ -92,11 +96,15 @@ static inline void init_state(void)
 {
 	reset_callbacks_and_buffers();
 	reset_conn_and_session_states();
+	session.host[0] = 0x00;
+	session.port[0] = 0x00;
+	timekeep.polling_ts = 0;
+	timekeep.polling_int_ms = INIT_POLLLING_MS;
+	timekeep.new_interval_set = true;
 }
 
 bool cc_init(const uint8_t *d_ID, uint16_t d_sec_sz, const uint8_t *d_sec)
 {
-	/* Check for invalid parameters */
 	if (d_ID == NULL || d_sec == NULL || d_sec_sz == 0 ||
 			(d_sec_sz + OTT_UUID_SZ > OTT_DATA_SZ))
 		return false;
@@ -111,9 +119,6 @@ bool cc_init(const uint8_t *d_ID, uint16_t d_sec_sz, const uint8_t *d_sec)
 		return false;
 
 	init_state();
-
-	session.host[0] = 0x00;
-	session.port[0] = 0x00;
 
 	return true;
 }
@@ -199,7 +204,7 @@ bool cc_set_remote_host(const char *host, const char *port)
 
 void cc_ack_bytes(void)
 {
-	outgoing_conn.send_ack = true;
+	session.pend_ack = true;
 }
 
 void cc_nak_bytes(void)
@@ -212,43 +217,54 @@ void cc_nak_bytes(void)
  * user provided callbacks this function invokes. In addition, it sets some
  * internal flags to decide the state of the session in the future. Calling the
  * send callback is optional and is decided through "invoke_send_cb".
+ * On receiving a NACK or sending a NACK through the "send" callback, return
+ * "false". Otherwise, return "true".
  */
-static void process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
+static bool process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
 {
-	incoming_conn.recv_in_progress = false;
+	conn_in.recv_in_progress = false;
 
 	c_flags_t c_flags;
 	m_type_t m_type;
+	bool no_nack_detected = true;
 
 	OTT_LOAD_FLAGS(msg_ptr->cmd_byte, c_flags);
 	OTT_LOAD_MTYPE(msg_ptr->cmd_byte, m_type);
 
 	/* Keep the session alive if the cloud has more messages to send */
-	session.keep_alive = OTT_FLAG_IS_SET(c_flags, CF_PENDING);
+	session.pend_bit = OTT_FLAG_IS_SET(c_flags, CF_PENDING);
 
 	if (OTT_FLAG_IS_SET(c_flags, CF_ACK)) {
 		cc_event evt = CC_STS_RCV_UPD;
-		/* Messages with a body need to be ACKed / NACKed in the future */
-		session.keep_alive = true;
-		if (m_type == MT_NONE)
-			session.keep_alive = false;
-		else if (m_type == MT_UPDATE)
+		/* Messages with a body need to be ACKed in the future */
+		session.pend_ack = false;
+		if (m_type == MT_UPDATE) {
 			evt = CC_STS_RCV_UPD;
-		else if (m_type == MT_CMD_SL)
+		} else if (m_type == MT_CMD_SL) {
 			evt = CC_STS_RCV_CMD_SL;
+		} else if (m_type == MT_CMD_PI) {
+			timekeep.polling_int_ms = msg_ptr->data.interval * MULT;
+			timekeep.new_interval_set = true;
+			session.pend_ack = true;
+		}
 
 		/* Call the callbacks with the type of message received */
 		if (invoke_send_cb)
-			INVOKE_SEND_CALLBACK(outgoing_conn.buf, CC_STS_ACK);
-		if (m_type != MT_NONE)
-			INVOKE_RECV_CALLBACK(incoming_conn.buf, evt);
+			INVOKE_SEND_CALLBACK(conn_out.buf, CC_STS_ACK);
+		if (m_type == MT_UPDATE || m_type == MT_CMD_SL) {
+			INVOKE_RECV_CALLBACK(conn_in.buf, evt);
+			no_nack_detected = session.pend_ack;
+		}
 	} else if (OTT_FLAG_IS_SET(c_flags, CF_NACK)) {
+		no_nack_detected = false;
 		if (invoke_send_cb)
-			INVOKE_SEND_CALLBACK(outgoing_conn.buf, CC_STS_NACK);
+			INVOKE_SEND_CALLBACK(conn_out.buf, CC_STS_NACK);
 	}
 
 	if (OTT_FLAG_IS_SET(c_flags, CF_QUIT))
 		on_recv_quit();
+
+	return no_nack_detected;
 }
 
 /*
@@ -258,24 +274,22 @@ static void process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
  * "invoke_send_cb" decides if the send callback should be invoked on a valid
  * response. When expecting a response for an auth message (or any internal
  * message), this should be false.
- * On successfully receiving a valid response, this function will return "true",
- * otherwise "false".
+ * On successfully receiving a valid response, this function will return "true".
+ * On receiving or sending a NACK or timeout, return "false".
  */
-static bool recv_response_within_timeout(uint32_t timeout, bool invoke_send_cb)
+static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 {
-	/* The "send" is said to be in progress until a valid response arrives
-	 * or until timeout, whichever happens first.
-	 */
-	outgoing_conn.send_in_progress = true;
+	conn_out.send_in_progress = true;
 
 	uint32_t start = platform_get_tick_ms();
 	uint32_t end = start;
+	bool no_nack;
+	msg_t *msg_ptr = (msg_t *)conn_in.buf->buf_ptr;
 	do {
-		msg_t *msg_ptr = (msg_t *)incoming_conn.buf->buf_ptr;
-		ott_status s = ott_retrieve_msg(msg_ptr, incoming_conn.buf->bufsz);
+		ott_status s = ott_retrieve_msg(msg_ptr, conn_in.buf->bufsz);
 
 		if (s == OTT_INV_PARAM || s == OTT_ERROR) {
-			outgoing_conn.send_in_progress = false;
+			conn_out.send_in_progress = false;
 			return false;
 		}
 		if (s == OTT_NO_MSG) {
@@ -283,25 +297,24 @@ static bool recv_response_within_timeout(uint32_t timeout, bool invoke_send_cb)
 			continue;
 		}
 		if (s == OTT_OK) {
-			process_recvd_msg(msg_ptr, invoke_send_cb);
+			no_nack = process_recvd_msg(msg_ptr, invoke_send_cb);
 			break;
 		}
 	} while(end - start < timeout);
 
-	outgoing_conn.send_in_progress = false;
+	conn_out.send_in_progress = false;
 
 	if (end - start >= timeout)
 		return false;
 
-	return true;
+	return no_nack;
 }
 
 static bool establish_session(const char *host, const char *port, bool polling)
 {
-	/* Check for invalid parameters */
-	if (host == NULL || port == NULL || incoming_conn.buf == NULL ||
-			incoming_conn.buf->buf_ptr == NULL ||
-			!incoming_conn.recv_in_progress)
+	if (host == NULL || port == NULL || conn_in.buf == NULL ||
+			conn_in.buf->buf_ptr == NULL ||
+			!conn_in.recv_in_progress)
 		return false;
 
 	if (ott_initiate_connection(host, port) != OTT_OK)
@@ -318,12 +331,14 @@ static bool establish_session(const char *host, const char *port, bool polling)
 		return false;
 	}
 
-	if (!recv_response_within_timeout(RECV_TIMEOUT_MS, false)) {
+	/* This call should not invoke the send callback */
+	if (!recv_resp_within_timeout(RECV_TIMEOUT_MS, false)) {
 		initiate_quit(true);
 		return false;
 	}
 
 	session.auth_done = true;
+
 	return true;
 }
 
@@ -339,7 +354,7 @@ static inline void close_session(void)
 cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 		cc_callback_rtn cb)
 {
-	if (outgoing_conn.send_in_progress)
+	if (conn_out.send_in_progress)
 		return CC_SEND_BUSY;
 
 	if (!buf || !buf->buf_ptr || sz == 0)
@@ -357,11 +372,11 @@ cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 			return CC_SEND_FAILED;
 
 	/*
-	 * If the user ACKed, set the flag in this message. Also, make sure the
-	 * PENDING flag is always set so that the device has full control on
-	 * when to disconnect.
+	 * If the user ACKed a previous message, set the flag in this message.
+	 * Also, make sure the PENDING flag is always set so that the device has
+	 * full control on when to disconnect.
 	 */
-	c_flags_t c_flags = outgoing_conn.send_ack ? (CF_PENDING | CF_ACK) :
+	c_flags_t c_flags = session.pend_ack ? (CF_PENDING | CF_ACK) :
 		CF_PENDING;
 	if (ott_send_status_to_cloud(c_flags, sz,
 				(const uint8_t *)buf->buf_ptr) != OTT_OK) {
@@ -369,10 +384,12 @@ cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 		return CC_SEND_FAILED;
 	}
 
-	outgoing_conn.buf = buf;
-	outgoing_conn.send_ack = false;
+	conn_out.cb = cb;
+	conn_out.buf = buf;
+	session.pend_ack = false;
 
-	if (!recv_response_within_timeout(RECV_TIMEOUT_MS, true)) {
+	/* Receive a message within a timeout and invoke the send callback */
+	if (!recv_resp_within_timeout(RECV_TIMEOUT_MS, true)) {
 		initiate_quit(true);
 		return CC_SEND_FAILED;
 	}
@@ -382,50 +399,74 @@ cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 
 cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb)
 {
-	/* Check for invalid parameters */
 	if (!buf || !buf->buf_ptr)
 		return CC_RECV_FAILED;
 
-	/* Allow for only one receive to be outstanding */
-	if (incoming_conn.recv_in_progress)
+	if (conn_in.recv_in_progress)
 		return CC_RECV_BUSY;
 
-	incoming_conn.recv_in_progress = true;
-	incoming_conn.buf = buf;
+	conn_in.recv_in_progress = true;
+	conn_in.buf = buf;
+	conn_in.cb = cb;
 
 	memset(buf->buf_ptr, 0, buf->bufsz + OTT_OVERHEAD_SZ);
 	return CC_RECV_SUCCESS;
 }
 
-int32_t cc_service_send_receive(int32_t current_timestamp)
+/*
+ * Receive any pending messages from the cloud or ACK any previous message. If
+ * the message was to be NACKed, it would have been already done through the
+ * receive callback.
+ */
+static void poll_cloud_for_messages(void)
 {
-#if 0
-	uint32_t start = HAL_GetTick();
-	bool timeout_error = true;
-	while (HAL_GetTick() - start <= TCP_TIMEOUT_MS) {
-		ott_status s = ott_retrieve_msg(&msg);
-		if (s == OTT_OK) {
-			timeout_error = false;
-			msg_recvd = true;
-			break;
-		} else if (s == OTT_NO_MSG)
-			continue;
-		else
-			break;
+	while (session.pend_bit || session.pend_ack) {
+		c_flags_t c_flags = session.pend_ack ? CF_ACK : CF_NONE;
+		c_flags |= ((!session.pend_bit) ? CF_QUIT : CF_NONE);
+		ott_send_ctrl_msg(c_flags);
+		if (!session.pend_bit) {	/* If last message in session */
+			ott_close_connection();
+			reset_conn_and_session_states();
+			return;
+		}
+		if (!recv_resp_within_timeout(RECV_TIMEOUT_MS, true)) {
+			initiate_quit(true);
+			return;
+		}
+	}
+}
+
+/*
+ * This call retrieves any pending messages the cloud has to send. It also
+ * polls the cloud if the polling interval was hit and updates the time when the
+ * cloud should be called next.
+ */
+int32_t cc_service_send_receive(uint32_t cur_ts)
+{
+	int32_t next_call_time_ms = -1;
+
+	/*
+	 * Poll for messages / ACK any previous messages if the connection is
+	 * still open or if the polling interval was hit.
+	 */
+	if (session.auth_done || cur_ts >= timekeep.polling_ts) {
+		if (!session.auth_done)
+			establish_session(session.host, session.port, true);
+		poll_cloud_for_messages();
 	}
 
-	/* No response from the cloud: Attempt to send NACK+QUIT & close conn. */
-	if (timeout_error) {
-		ott_send_ctrl_msg(CF_NACK | CF_QUIT);
-		ASSERT(ott_close_connection() == OTT_OK);
-		return CC_SEND_FAILED;
+	/* Compute when this function needs to be called next */
+	if (cur_ts >= timekeep.polling_ts || timekeep.new_interval_set) {
+		timekeep.new_interval_set = false;
+		next_call_time_ms = timekeep.polling_int_ms;
+		timekeep.polling_ts = cur_ts + timekeep.polling_int_ms;
 	}
 
-	/* Cloud replied with a NACK (+QUIT): Close connection */
-	if (OTT_FLAG_IS_SET(msg.c_flags, CF_NACK)) {
-		ASSERT(ott_close_connection() == OTT_OK);
-		return CC_SEND_FAILED;
-	}
-#endif
-	return 0;
+	close_session();
+	return next_call_time_ms;
+}
+
+void cc_interpret_msg(const cc_buffer_desc *buf, uint8_t tab_level)
+{
+	ott_interpret_msg((msg_t *)buf->buf_ptr, tab_level);
 }

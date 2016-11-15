@@ -163,7 +163,6 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
  * associated with it, i.e. the message type is MT_NONE. It is used to poll the
  * cloud for pending messages or to notify it about the termination of the
  * connection or send an ACK / NACK.
- * The pending flag cannot be active for this type of message.
  * This message type may or may not have a response.
  * This call is blocking in nature.
  *
@@ -172,8 +171,7 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
  *
  * Returns:
  * 	OTT_OK        : Message was sent to the cloud service.
- * 	OTT_INV_PARAM :	Flag parameter is invalid (Eg. ACK+NACK or Pending flag
- *                      is active).
+ * 	OTT_INV_PARAM :	Flag parameter is invalid (Eg. ACK+NACK)
  * 	OTT_ERROR     : Sending the message failed due to a TCP/TLS error.
  * 	OTT_TIMEOUT   : Timed out sending the message. Sending failed.
  */
@@ -195,4 +193,18 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags);
  * 	OTT_ERROR     : An error occurred in the TCP/TLS layer.
  */
 ott_status ott_retrieve_msg(msg_t *msg, uint16_t sz);
+
+/*
+ * Debug function to print the string representation of the message type and
+ * flag fields of the command byte along with the details about the body of the
+ * message.
+ *
+ * Parameters:
+ *	msg : An OTT message
+ *
+ * Returns:
+ * 	True  : If the message needs to be ACKed / NACKed
+ * 	False : If the message does not need to be responded with an ACK / NACK
+ */
+bool ott_interpret_msg(msg_t *msg, uint8_t tab_level);
 #endif

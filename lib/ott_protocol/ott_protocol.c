@@ -1,8 +1,9 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
-#include "platform.h"
 #include <string.h>
+
 #include "dbg.h"
+#include "platform.h"
 #include "ott_protocol.h"
 
 #include "mbedtls/net.h"
@@ -289,7 +290,7 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 {
 	/* Check for correct parameters */
-	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_PENDING))
+	if (!flags_are_valid(c_flags))
 		return OTT_INV_PARAM;
 
 	ott_status ret;
@@ -393,7 +394,79 @@ ott_status ott_retrieve_msg(msg_t *msg, uint16_t sz)
 	}
 
 	if (ret == 0)            /* EOF: No more messages to receive */
-		return OTT_NO_MSG;
+		return OTT_OK;
 
 	return OTT_ERROR;
+}
+
+/* Debug functions follow */
+
+static void interpret_type_flags(m_type_t m_type, c_flags_t c_flags)
+{
+	dbg_printf("\t\tMessage type: ");
+	if (m_type == MT_NONE)
+		dbg_printf("MT_NONE\n");
+	else if (m_type == MT_AUTH)
+		dbg_printf("MT_AUTH\n");
+	else if (m_type == MT_STATUS)
+		dbg_printf("MT_STATUS\n");
+	else if (m_type == MT_UPDATE)
+		dbg_printf("MT_UPDATE\n");
+	else if (m_type == MT_CMD_PI)
+		dbg_printf("MT_CMD_PI\n");
+	else if (m_type == MT_CMD_SL)
+		dbg_printf("MT_CMD_SL\n");
+	else
+		dbg_printf("Invalid message type\n");
+
+	dbg_printf("\t\tFlags set: ");
+	if (OTT_FLAG_IS_SET(c_flags, CF_NONE))
+		dbg_printf("CF_NONE ");
+	if (OTT_FLAG_IS_SET(c_flags, CF_NACK))
+		dbg_printf("CF_NACK ");
+	if (OTT_FLAG_IS_SET(c_flags, CF_ACK))
+		dbg_printf("CF_ACK ");
+	if (OTT_FLAG_IS_SET(c_flags, CF_PENDING))
+		dbg_printf("CF_PENDING ");
+	if (OTT_FLAG_IS_SET(c_flags, CF_QUIT))
+		dbg_printf("CF_QUIT ");
+	dbg_printf("\n");
+}
+
+static inline void set_tab_level(uint8_t n)
+{
+	for (uint8_t i = 0; i < n; i++)
+		dbg_printf("\t");
+}
+
+bool ott_interpret_msg(msg_t *msg, uint8_t tab_level)
+{
+	if (!msg)
+		return false;
+	m_type_t m_type;
+	c_flags_t c_flags;
+	uint32_t sl_int_sec;
+
+	OTT_LOAD_MTYPE(msg->cmd_byte, m_type);
+	OTT_LOAD_FLAGS(msg->cmd_byte, c_flags);
+	interpret_type_flags(m_type, c_flags);
+	switch (m_type) {
+	case MT_UPDATE:
+		set_tab_level(tab_level);
+		dbg_printf("Size : %"PRIu16"\n", msg->data.array.sz);
+		set_tab_level(tab_level);
+		dbg_printf("Data :\n");
+		for (uint8_t i = 0; i < msg->data.array.sz; i++) {
+			set_tab_level(tab_level + 1);
+			dbg_printf("0x%02x\n", msg->data.array.bytes[i]);
+		}
+		return true;
+	case MT_CMD_SL:
+		sl_int_sec = msg->data.interval;
+		set_tab_level(tab_level);
+		dbg_printf("Sleep interval (secs): %"PRIu32"\n", sl_int_sec);
+		return true;
+	default:
+		return false;
+	}
 }
