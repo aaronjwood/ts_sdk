@@ -363,6 +363,9 @@ cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 	if (strlen(session.host) == 0 || strlen(session.port) == 0)
 		return CC_SEND_FAILED;
 
+	if (!conn_in.recv_in_progress)
+		return CC_SEND_FAILED;
+
 	/*
 	 * If a session hasn't been established, initiate a connection. This
 	 * leads to the device being authenticated.

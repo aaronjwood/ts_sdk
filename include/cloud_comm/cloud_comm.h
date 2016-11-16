@@ -202,7 +202,9 @@ cc_send_result cc_resend_init_config(cc_callback_rtn cb);
 
 /*
  * Initiate a receive of bytes from the cloud. Only one receive can be scheduled
- * at a time.
+ * at a time. A receive must be scheduled before sending status data to the
+ * cloud services. Scheduling the receive ensures there is a place to receive
+ * any response and the appropriate callbacks are invoked.
  *
  * Parameters:
  * 	buf  : Pointer to the cloud communication buffer descriptor that will
