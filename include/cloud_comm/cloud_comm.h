@@ -184,6 +184,23 @@ cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 		cc_callback_rtn cb);
 
 /*
+ * Ask the cloud to send over the initial configuration of the device. This API
+ * call is used when the device has undergone a reset and is no longer in the
+ * state the cloud services thinks it is in. A successful call will result in the
+ * cloud sending over the initial configuration in subsequent messages and
+ * resynching the state between the two.
+ *
+ * Parameters:
+ * 	None
+ *
+ * Returns:
+ * 	CC_SEND_FAILED  : Failed to send the message.
+ * 	CC_SEND_BUSY    : A send is in progress.
+ * 	CC_SEND_SUCCESS : Message was sent, waiting for a response from the cloud.
+ */
+cc_send_result cc_resend_init_config(cc_callback_rtn cb);
+
+/*
  * Initiate a receive of bytes from the cloud. Only one receive can be scheduled
  * at a time.
  *

@@ -302,6 +302,17 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 	return OTT_OK;
 }
 
+ott_status ott_send_restarted(void)
+{
+	ott_status ret;
+	unsigned char byte = (uint8_t)(MT_RESTARTED);
+
+	/* Send the command byte */
+	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&byte, 1, ret);
+
+	return OTT_OK;
+}
+
 /* Return "false" if the message has invalid data, else return "true". */
 static bool msg_is_valid(msg_t *msg)
 {
@@ -412,6 +423,8 @@ static void interpret_type_flags(m_type_t m_type, c_flags_t c_flags)
 		dbg_printf("MT_STATUS\n");
 	else if (m_type == MT_UPDATE)
 		dbg_printf("MT_UPDATE\n");
+	else if (m_type == MT_RESTARTED)
+		dbg_printf("MT_RESTARTED\n");
 	else if (m_type == MT_CMD_PI)
 		dbg_printf("MT_CMD_PI\n");
 	else if (m_type == MT_CMD_SL)

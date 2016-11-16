@@ -216,6 +216,7 @@ function create_ott_device()
 		exit_on_error "Could not provision the device" "$PROVVAL" "$?"
 
 		# XXX: NGINX is unstable here, might return Service Unavailable instead of JSON, hence the redirection to /dev/null
+		# Due to the instability, this command might need to be run multiple times before before the server responds correctly
 		QRCODE=$(echo "$PROVVAL" | python -c "import json, sys; print json.load(sys.stdin)['devices'][0]['qrCode']" 2> /dev/null)
 		exit_on_error "Could not retrieve the QR Code" "$QRCODE" "$?"
 		local OTTDEVID=$(echo "$PROVVAL" | python -c "import json, sys; print json.load(sys.stdin)['devices'][0]['id']" 2> /dev/null)
@@ -283,7 +284,12 @@ function read_ott_status()
 			-d "{\"\$limitnumber\" : $NUMSTAT}" \
 			$TS_ADDR/api/v2/devices/$TSDEVID/fields/status/actions/history)
 		exit_on_error "Unable to read the device status" "$STVAL" "$?"
-		echo "$STVAL" | python -m json.tool
+		local N=$(echo "$STVAL" | python -c "import json, sys; print len(json.load(sys.stdin))" 2> /dev/null)
+		echo "Statuses available to be read = $N"
+		for i in $(seq 0 $((N-1))); do
+			echo -n "$((i+1))) "
+			echo "$STVAL" | python -c "import json, sys; print json.load(sys.stdin)[$i]['fields']['status']" 2> /dev/null | base64 -D | xxd -p
+		done
 	else
 		echo "Please enter a valid positive integer for number of statuses to read"
 		exit 1

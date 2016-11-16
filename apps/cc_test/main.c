@@ -1,5 +1,9 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
+/*
+ * Minimal OTT application program. It resends any NUM_STATUS number of messages
+ * that are 10 bytes or smaller message back to the cloud.
+ */
 #include <string.h>
 
 #include "platform.h"
@@ -22,6 +26,8 @@ static const uint8_t d_sec[] = {
 	0x9d, 0x8b, 0x6c, 0xab, 0xfc, 0x32, 0x62, 0xac
 };
 
+static cc_data_sz send_data_sz = sizeof(status);
+
 #define SERVER_NAME	"test1.ott.uu.net"
 #define SERVER_PORT	"443"
 #define NUM_STATUSES	((uint8_t)3)
@@ -41,13 +47,19 @@ static void recv_cb(const cc_buffer_desc *buf, cc_event event)
 	dbg_printf("\t\tReceived a message:\n");
 	if (event == CC_STS_RCV_UPD || event == CC_STS_RCV_CMD_SL)
 		cc_interpret_msg(buf, 3);
+
 	if (event == CC_STS_RCV_UPD) {	/* Implement loopback */
 		cc_data_sz sz = cc_get_receive_data_len(buf);
+		send_data_sz = (sz > sizeof(status)) ? sizeof(status) : sz;
 		const uint8_t *recvd = cc_get_recv_buffer_ptr(buf);
-		memcpy(status, recvd, sz);
+		memcpy(status, recvd, send_data_sz);
 	}
+
+	/* ACK all messages by default */
 	dbg_printf("\t\tSending an ACK in response\n");
-	cc_ack_bytes();	/* ACK all messages by default */
+	cc_ack_bytes();
+
+	/* Reschedule a receive */
 	ASSERT(cc_recv_bytes_from_cloud(&recv_buffer, recv_cb) == CC_RECV_SUCCESS);
 }
 
@@ -65,22 +77,24 @@ int main(int argc, char *argv[])
 	uint32_t cur_ts;
 	uint32_t wake_up_time = 10000;	/* Time in milliseconds */
 
+	dbg_printf("Setting initial value of status message\n");
+	uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer);
+	memcpy(send_dptr, status, sizeof(status));
+
 	dbg_printf("Beginning CC API test\n\n");
 	while (1) {
-		dbg_printf("Reading sensor measurements\n");
-		uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer);
-		memcpy(send_dptr, status, sizeof(status));
-
 		dbg_printf("Scheduling a receive\n");
 		ASSERT(cc_recv_bytes_from_cloud(&recv_buffer, recv_cb) ==
 				CC_RECV_SUCCESS);
 
 		dbg_printf("Sending out status messages\n");
 		for (uint8_t i = 0; i < NUM_STATUSES; i++) {
+			uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer);
+			memcpy(send_dptr, status, send_data_sz);
 			dbg_printf("\tStatus (%u/%u)\n",
 					i + 1, NUM_STATUSES);
 			ASSERT(cc_send_bytes_to_cloud(&send_buffer,
-						sizeof(status),
+						send_data_sz,
 						send_cb));
 		}
 

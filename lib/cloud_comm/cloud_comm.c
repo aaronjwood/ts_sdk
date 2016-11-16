@@ -397,6 +397,47 @@ cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 	return CC_SEND_SUCCESS;
 }
 
+cc_send_result cc_resend_init_config(cc_callback_rtn cb)
+{
+	if (conn_out.send_in_progress)
+		return CC_SEND_BUSY;
+
+	if (strlen(session.host) == 0 || strlen(session.port) == 0)
+		return CC_SEND_FAILED;
+
+	/*
+	 * If a session hasn't been established, initiate a connection. This
+	 * leads to the device being authenticated.
+	 */
+	if (!session.auth_done)
+		if (!establish_session(session.host, session.port, false))
+			return CC_SEND_FAILED;
+
+	/*
+	 * If the user ACKed a previous message, set the flag in this message.
+	 * Also, make sure the PENDING flag is always set so that the device has
+	 * full control on when to disconnect.
+	 */
+	c_flags_t c_flags = session.pend_ack ? (CF_PENDING | CF_ACK) :
+		CF_PENDING;
+	if (ott_send_restarted() != OTT_OK) {
+		initiate_quit(false);
+		return CC_SEND_FAILED;
+	}
+
+	conn_out.cb = cb;
+	conn_out.buf = NULL;
+	session.pend_ack = false;
+
+	/* Receive a message within a timeout and invoke the send callback */
+	if (!recv_resp_within_timeout(RECV_TIMEOUT_MS, true)) {
+		initiate_quit(true);
+		return CC_SEND_FAILED;
+	}
+
+	return CC_SEND_SUCCESS;
+}
+
 cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb)
 {
 	if (!buf || !buf->buf_ptr)

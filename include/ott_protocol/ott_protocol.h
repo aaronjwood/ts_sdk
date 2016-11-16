@@ -38,6 +38,7 @@ typedef enum  {			/* Defines message type flags. */
 	MT_AUTH = 1,		/* Authentication message sent by device */
 	MT_STATUS = 2,		/* Status report sent by device */
 	MT_UPDATE = 3,		/* Update message received by device */
+	MT_RESTARTED = 4,	/* Lets the cloud know device rebooted */
 	MT_CMD_PI = 10,		/* Cloud instructs to set new polling interval */
 	MT_CMD_SL = 11		/* Cloud instructs device to sleep */
 } m_type_t;
@@ -166,16 +167,33 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
  * This message type may or may not have a response.
  * This call is blocking in nature.
  *
- * Paramaters:
+ * Parameters:
  * 	c_flags : Control flags
  *
  * Returns:
  * 	OTT_OK        : Message was sent to the cloud service.
- * 	OTT_INV_PARAM :	Flag parameter is invalid (Eg. ACK+NACK)
+ * 	OTT_INV_PARAM :	Flag parameter is invalid (Eg. ACK+NACK).
  * 	OTT_ERROR     : Sending the message failed due to a TCP/TLS error.
  * 	OTT_TIMEOUT   : Timed out sending the message. Sending failed.
  */
 ott_status ott_send_ctrl_msg(c_flags_t c_flags);
+
+/*
+ * Notify the cloud service that the device has restarted and needs to retrieve
+ * its initial data. A restart could be a result of a number of things, such as
+ * a watch dog timeout, power glitch etc.
+ * This message type does have a response.
+ * This call is blocking in nature.
+ *
+ * Parameters:
+ * 	None
+ *
+ * Returns:
+ * 	OTT_OK      : Message was sent to the cloud service.
+ * 	OTT_ERROR   : Sending the message failed due to a TCP/TLS error.
+ * 	OTT_TIMEOUT : Timed out sending the message. Sending failed.
+ */
+ott_status ott_send_restarted(void);
 
 /*
  * Retrieve the cloud service's most recent response, if any. This call is non-
