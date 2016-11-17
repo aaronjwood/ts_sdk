@@ -10,7 +10,7 @@
 
 #define RECV_TIMEOUT_MS		5000
 #define MULT			1000
-#define INIT_POLLLING_MS	((int32_t)10000)
+#define INIT_POLLLING_MS	((int32_t)20000)
 
 static struct {				/* Store authentication data */
 	uint8_t dev_ID[OTT_UUID_SZ];	/* 16 byte Device ID */
@@ -63,11 +63,6 @@ static inline void reset_conn_and_session_states(void)
 	session.auth_done = false;
 	session.pend_bit = false;
 	session.pend_ack = false;
-}
-
-/* Reset the callbacks and buffers */
-static inline void reset_callbacks_and_buffers(void)
-{
 	conn_out.buf = NULL;
 	conn_out.cb = NULL;
 	conn_in.buf = NULL;
@@ -94,7 +89,6 @@ static inline void initiate_quit(bool send_nack)
 
 static inline void init_state(void)
 {
-	reset_callbacks_and_buffers();
 	reset_conn_and_session_states();
 	session.host[0] = 0x00;
 	session.port[0] = 0x00;
@@ -152,6 +146,18 @@ const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf)
 		/* XXX: Unlikely because of checks in ott_retrieve_msg() */
 		return NULL;
 	}
+}
+
+uint32_t cc_get_sleep_interval(const cc_buffer_desc *buf)
+{
+	m_type_t m_type;
+	const msg_t *ptr_to_msg = (const msg_t *)(buf->buf_ptr);
+	OTT_LOAD_MTYPE(ptr_to_msg->cmd_byte, m_type);
+
+	if (m_type == MT_CMD_SL)
+		return ptr_to_msg->data.interval;
+	else
+		return 0;
 }
 
 cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf)
@@ -235,7 +241,7 @@ static bool process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
 	session.pend_bit = OTT_FLAG_IS_SET(c_flags, CF_PENDING);
 
 	if (OTT_FLAG_IS_SET(c_flags, CF_ACK)) {
-		cc_event evt = CC_STS_RCV_UPD;
+		cc_event evt = CC_STS_NONE;
 		/* Messages with a body need to be ACKed in the future */
 		session.pend_ack = false;
 		if (m_type == MT_UPDATE) {
@@ -249,12 +255,12 @@ static bool process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
 		}
 
 		/* Call the callbacks with the type of message received */
-		if (invoke_send_cb)
-			INVOKE_SEND_CALLBACK(conn_out.buf, CC_STS_ACK);
 		if (m_type == MT_UPDATE || m_type == MT_CMD_SL) {
 			INVOKE_RECV_CALLBACK(conn_in.buf, evt);
 			no_nack_detected = session.pend_ack;
 		}
+		if (invoke_send_cb)
+			INVOKE_SEND_CALLBACK(conn_out.buf, CC_STS_ACK);
 	} else if (OTT_FLAG_IS_SET(c_flags, CF_NACK)) {
 		no_nack_detected = false;
 		if (invoke_send_cb)
@@ -348,7 +354,6 @@ static inline void close_session(void)
 		return;
 
 	initiate_quit(false);
-	reset_callbacks_and_buffers();
 }
 
 cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
@@ -406,6 +411,9 @@ cc_send_result cc_resend_init_config(cc_callback_rtn cb)
 		return CC_SEND_BUSY;
 
 	if (strlen(session.host) == 0 || strlen(session.port) == 0)
+		return CC_SEND_FAILED;
+
+	if (!conn_in.recv_in_progress)
 		return CC_SEND_FAILED;
 
 	/*
@@ -512,5 +520,7 @@ int32_t cc_service_send_receive(uint32_t cur_ts)
 
 void cc_interpret_msg(const cc_buffer_desc *buf, uint8_t tab_level)
 {
+	if (!buf || !buf->buf_ptr)
+		return;
 	ott_interpret_msg((msg_t *)buf->buf_ptr, tab_level);
 }

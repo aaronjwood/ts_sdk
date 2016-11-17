@@ -37,6 +37,7 @@ typedef enum {
 } cc_recv_result;
 
 typedef enum {
+	CC_STS_NONE,		/* Default value; No message body */
 	/* Outgoing message events: */
 	CC_STS_ACK,		/* Received an ACK for the last message sent */
 	CC_STS_NACK,		/* Received a NACK for the last message sent */
@@ -85,8 +86,6 @@ typedef struct {		/* Cloud communication buffer descriptor */
 			name##_does_not_have_a_valid_size_on_line); \
 	uint8_t name##_bytes[(max_sz)]; \
 	cc_buffer_desc name = {(max_sz), &(name##_bytes)}
-
-#define CC_PARSE_SL_INT(buf) (buf[0] | buf[1] << 8 | buf[2] << 16 | buf[3] << 24)
 
 /*
  * Pointer to callback routine. The callback accepts a buffer descriptor and
@@ -151,6 +150,19 @@ uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf);
  * 	Pointer to the internal receive buffer.
  */
 const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf);
+
+/*
+ * Get the value of the sleep interval (in seconds) from the received message.
+ * Attempting to retrieve the value from a message that does not contain the
+ * sleep interval is unsupported.
+ *
+ * Parameters:
+ * 	buf : A cloud communication buffer descriptor.
+ *
+ * Returns:
+ * 	Value of the sleep interval in seconds.
+ */
+uint32_t cc_get_sleep_interval(const cc_buffer_desc *buf);
 
 /*
  * Retrieve the length of the last message received.
@@ -263,8 +275,8 @@ void cc_ack_bytes(void);
 void cc_nak_bytes(void);
 
 /*
- * Debug function to print the string representation of the contents of the
- * message.
+ * Debug helper function to print the string representation of the contents of
+ * the message.
  *
  * Parameters:
  * 	buf       : Pointer to the cloud communication buffer descriptor

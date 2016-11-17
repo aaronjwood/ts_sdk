@@ -1,7 +1,7 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
 /*
- * Minimal OTT application program. It resends any NUM_STATUS number of messages
+ * Minimal OTT application program. It resends NUM_STATUS number of messages
  * that are 10 bytes or smaller message back to the cloud.
  */
 #include <string.h>
@@ -30,17 +30,7 @@ static cc_data_sz send_data_sz = sizeof(status);
 
 #define SERVER_NAME	"test1.ott.uu.net"
 #define SERVER_PORT	"443"
-#define NUM_STATUSES	((uint8_t)3)
-
-static void send_cb(const cc_buffer_desc *buf, cc_event event)
-{
-	if (event == CC_STS_ACK)
-		dbg_printf("\t\tReceived an ACK\n");
-	else if (event == CC_STS_NACK)
-		dbg_printf("\t\tReceived a NACK\n");
-	else if (event == CC_STS_SEND_TIMEOUT)
-		dbg_printf("\t\tTimed out trying to send message\n");
-}
+#define NUM_STATUSES	((uint8_t)4)
 
 static void recv_cb(const cc_buffer_desc *buf, cc_event event)
 {
@@ -60,7 +50,20 @@ static void recv_cb(const cc_buffer_desc *buf, cc_event event)
 	cc_ack_bytes();
 
 	/* Reschedule a receive */
-	ASSERT(cc_recv_bytes_from_cloud(&recv_buffer, recv_cb) == CC_RECV_SUCCESS);
+	cc_recv_bytes_from_cloud(&recv_buffer, recv_cb);
+}
+
+static void send_cb(const cc_buffer_desc *buf, cc_event event)
+{
+	if (event == CC_STS_ACK)
+		dbg_printf("\t\tReceived an ACK\n");
+	else if (event == CC_STS_NACK)
+		dbg_printf("\t\tReceived a NACK\n");
+	else if (event == CC_STS_SEND_TIMEOUT)
+		dbg_printf("\t\tTimed out trying to send message\n");
+
+	/* Reschedule a receive */
+	cc_recv_bytes_from_cloud(&recv_buffer, recv_cb);
 }
 
 int main(int argc, char *argv[])
@@ -75,7 +78,7 @@ int main(int argc, char *argv[])
 	ASSERT(cc_set_remote_host(SERVER_NAME, SERVER_PORT));
 	int32_t next_wakeup_time = -1;
 	uint32_t cur_ts;
-	uint32_t wake_up_time = 10000;	/* Time in milliseconds */
+	uint32_t wake_up_time = 20000;	/* Time in milliseconds */
 
 	dbg_printf("Setting initial value of status message\n");
 	uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer);
