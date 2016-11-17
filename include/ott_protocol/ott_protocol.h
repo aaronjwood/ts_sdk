@@ -186,14 +186,14 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags);
  * This call is blocking in nature.
  *
  * Parameters:
- * 	None
+ * 	c_flags : Flags to send with this message.
  *
  * Returns:
  * 	OTT_OK      : Message was sent to the cloud service.
  * 	OTT_ERROR   : Sending the message failed due to a TCP/TLS error.
  * 	OTT_TIMEOUT : Timed out sending the message. Sending failed.
  */
-ott_status ott_send_restarted(void);
+ott_status ott_send_restarted(c_flags_t c_flags);
 
 /*
  * Retrieve the cloud service's most recent response, if any. This call is non-
@@ -213,9 +213,9 @@ ott_status ott_send_restarted(void);
 ott_status ott_retrieve_msg(msg_t *msg, uint16_t sz);
 
 /*
- * Debug function to print the string representation of the message type and
- * flag fields of the command byte along with the details about the body of the
- * message.
+ * Debug helper function to print the string representation of the message type
+ * and flag fields of the command byte along with the details about the body of
+ * the message.
  *
  * Parameters:
  *	msg : An OTT message

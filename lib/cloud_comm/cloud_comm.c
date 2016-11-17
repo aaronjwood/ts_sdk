@@ -10,7 +10,7 @@
 
 #define RECV_TIMEOUT_MS		5000
 #define MULT			1000
-#define INIT_POLLLING_MS	((int32_t)20000)
+#define INIT_POLLLING_MS	((int32_t)15000)
 
 static struct {				/* Store authentication data */
 	uint8_t dev_ID[OTT_UUID_SZ];	/* 16 byte Device ID */
@@ -431,7 +431,7 @@ cc_send_result cc_resend_init_config(cc_callback_rtn cb)
 	 */
 	c_flags_t c_flags = session.pend_ack ? (CF_PENDING | CF_ACK) :
 		CF_PENDING;
-	if (ott_send_restarted() != OTT_OK) {
+	if (ott_send_restarted(c_flags) != OTT_OK) {
 		initiate_quit(false);
 		return CC_SEND_FAILED;
 	}
