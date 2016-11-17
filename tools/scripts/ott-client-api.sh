@@ -516,7 +516,10 @@ function print_usage()
 $prg_name is a script to manage ThingSpace accounts & OTT devices.
 Copyright (C) 2016 Verizon. All rights reserved.
 NOTE: Any output the user should note down will be colored green.
-If an optional parameter is not provided, it will be read from the conf file : $cfg
+If an optional parameter (enclosed in square brackets) is not provided, it will
+be read from the conf file : $cfg
+Begin by creating an account and at least one device. Information about only one
+account and one device can be stored in the configuration file at a time.
 
 Creation APIs:
 $prg_name account <e-mail> <password>
@@ -526,8 +529,10 @@ $prg_name account <e-mail> <password>
 
 $prg_name dev <device-name> [qr-code] [user-access-token] [app-cl-token]
 	Create an OTT device with the given name and register it to the
-	ThingSpace user account. If a QR code is provided, register the previously
-	provisioned OTT device.
+	ThingSpace user account. If a QR code is provided, this already
+	provisioned OTT device will be registered with ThingSpace. There is no
+	way to retrieve the OTT device secret and device ID later on so please
+	take note of them.
 
 
 Query APIs:

@@ -38,7 +38,7 @@ typedef enum  {			/* Defines message type flags. */
 	MT_AUTH = 1,		/* Authentication message sent by device */
 	MT_STATUS = 2,		/* Status report sent by device */
 	MT_UPDATE = 3,		/* Update message received by device */
-	MT_RESTARTED = 4,	/* Lets the cloud know device rebooted */
+	MT_RESTARTED = 4,	/* Lets the cloud know the device restarted */
 	MT_CMD_PI = 10,		/* Cloud instructs to set new polling interval */
 	MT_CMD_SL = 11		/* Cloud instructs device to sleep */
 } m_type_t;
@@ -218,11 +218,11 @@ ott_status ott_retrieve_msg(msg_t *msg, uint16_t sz);
  * the message.
  *
  * Parameters:
- *	msg : An OTT message
+ *	msg       : A pointer to an OTT message
+ *	tab_level : Tab level at which the message should be printed
  *
  * Returns:
- * 	True  : If the message needs to be ACKed / NACKed
- * 	False : If the message does not need to be responded with an ACK / NACK
+ * 	None
  */
-bool ott_interpret_msg(msg_t *msg, uint8_t tab_level);
+void ott_interpret_msg(msg_t *msg, uint8_t tab_level);
 #endif

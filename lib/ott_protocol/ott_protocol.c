@@ -458,10 +458,10 @@ static void interpret_type_flags(m_type_t m_type, c_flags_t c_flags, uint8_t t)
 	dbg_printf("\n");
 }
 
-bool ott_interpret_msg(msg_t *msg, uint8_t t)
+void ott_interpret_msg(msg_t *msg, uint8_t t)
 {
 	if (!msg)
-		return false;
+		return;
 	m_type_t m_type;
 	c_flags_t c_flags;
 	uint32_t sl_int_sec;
@@ -479,13 +479,13 @@ bool ott_interpret_msg(msg_t *msg, uint8_t t)
 			set_tab_level(t + 1);
 			dbg_printf("0x%02x\n", msg->data.array.bytes[i]);
 		}
-		return true;
+		return;
 	case MT_CMD_SL:
 		sl_int_sec = msg->data.interval;
 		set_tab_level(t);
 		dbg_printf("Sleep interval (secs): %"PRIu32"\n", sl_int_sec);
-		return true;
+		return;
 	default:
-		return false;
+		return;
 	}
 }

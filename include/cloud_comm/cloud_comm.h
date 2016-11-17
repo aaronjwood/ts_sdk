@@ -7,7 +7,8 @@
 #include <stdbool.h>
 #include "ott_limits.h"
 
-/* Cloud communication API:
+/*
+ * Cloud communication API:
  * This module forms the device facing API to communicate with the cloud.
  * Sending data to the cloud is a blocking operation. The API accepts raw bytes
  * that need to be transmitted, wraps them in the protocol headers and sends
@@ -38,6 +39,7 @@ typedef enum {
 
 typedef enum {
 	CC_STS_NONE,		/* Default value; No message body */
+
 	/* Outgoing message events: */
 	CC_STS_ACK,		/* Received an ACK for the last message sent */
 	CC_STS_NACK,		/* Received a NACK for the last message sent */
@@ -199,8 +201,7 @@ cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
  * Ask the cloud to send over the initial configuration of the device. This API
  * call is used when the device has undergone a reset and is no longer in the
  * state the cloud services thinks it is in. A successful call will result in the
- * cloud sending over the initial configuration in subsequent messages and
- * resynching the state between the two.
+ * cloud sending over the initial configuration in a future message.
  *
  * Parameters:
  * 	None
@@ -216,7 +217,7 @@ cc_send_result cc_resend_init_config(cc_callback_rtn cb);
  * Initiate a receive of bytes from the cloud. Only one receive can be scheduled
  * at a time. A receive must be scheduled before sending status data to the
  * cloud services. Scheduling the receive ensures there is a place to receive
- * any response and the appropriate callbacks are invoked.
+ * a response and the appropriate callbacks are invoked.
  *
  * Parameters:
  * 	buf  : Pointer to the cloud communication buffer descriptor that will
@@ -239,7 +240,7 @@ cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb)
  * to service a time based event.
  *
  * Parameters:
- * 	cur_ts : The current timestamp representing the system tick time.
+ * 	cur_ts : The current timestamp representing the system tick time in ms.
  *
  * Returns:
  * 	-1             : No time based calls are currently needed.
@@ -249,8 +250,8 @@ cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb)
 int32_t cc_service_send_receive(uint32_t cur_ts);
 
 /*
- * Acknowledge the message last received from the cloud services. The actual
- * acknowledgement is transmitted in the next send or as  part of the servicing
+ * Acknowledge the last message received from the cloud services. The actual
+ * acknowledgement is transmitted in the next send or as part of the servicing
  * call.
  *
  * Parameters:
@@ -262,8 +263,8 @@ int32_t cc_service_send_receive(uint32_t cur_ts);
 void cc_ack_bytes(void);
 
 /*
- * NACK the message last received from the cloud services. Use this when there
- * was an error processing the message. This message is sent immediately to the
+ * NACK the last message received from the cloud services. Call this when there
+ * is an error processing the message. This message is sent immediately to the
  * cloud services.
  *
  * Parameters:
