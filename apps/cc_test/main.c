@@ -17,15 +17,15 @@ CC_RECV_BUFFER(recv_buffer, OTT_DATA_SZ);
 #define STATUS_SZ	10
 static uint8_t status[STATUS_SZ] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 static const uint8_t d_ID[] = {		/* Device ID */
-	0x8d, 0xff, 0xec, 0x58, 0x40, 0x04, 0x40, 0x29,
-	0xae, 0x91, 0x0c, 0x1a, 0x95, 0x5b, 0xcf, 0x18
+	0x4b, 0x21, 0xa8, 0x56, 0x85, 0x45, 0x4a, 0x8d,
+	0x98, 0x44, 0x88, 0xfd, 0xf7, 0xd4, 0x9d, 0x97
 };
 
 static const uint8_t d_sec[] = {	/* Device Secret */
-	0xea, 0xa9, 0xda, 0xd5, 0x62, 0x29, 0x39, 0x55,
-	0x32, 0x32, 0x2e, 0xa0, 0xf9, 0xbf, 0xb2, 0x2e,
-	0x6c, 0x63, 0x9a, 0x84, 0x0a, 0x38, 0x42, 0x9a,
-	0x9d, 0x8b, 0x6c, 0xab, 0xfc, 0x32, 0x62, 0xac
+	0x20, 0x4e, 0xa0, 0xdd, 0xeb, 0xb2, 0xb6, 0xbb,
+	0x68, 0x81, 0x57, 0xd0, 0xea, 0x78, 0x28, 0x2e,
+	0xfd, 0x47, 0x18, 0x86, 0xe0, 0x58, 0x00, 0xb1,
+	0xf2, 0xa6, 0xa1, 0x08, 0x81, 0x0f, 0x1d, 0x07
 };
 
 static cc_data_sz send_data_sz = sizeof(status);
@@ -38,14 +38,16 @@ static cc_data_sz send_data_sz = sizeof(status);
 static void recv_cb(const cc_buffer_desc *buf, cc_event event)
 {
 	dbg_printf("\t\t[RECV CB] Received a message:\n");
-	if (event == CC_STS_RCV_UPD || event == CC_STS_RCV_CMD_SL)
+	if (event == CC_STS_RCV_UPD) {
 		cc_interpret_msg(buf, 3);
-
-	if (event == CC_STS_RCV_UPD) {	/* Implement loopback */
+		/* Make the new status message to be the received update message */
 		cc_data_sz sz = cc_get_receive_data_len(buf);
 		send_data_sz = (sz > sizeof(status)) ? sizeof(status) : sz;
 		const uint8_t *recvd = cc_get_recv_buffer_ptr(buf);
 		memcpy(status, recvd, send_data_sz);
+	} else if (event == CC_STS_RCV_CMD_SL) {
+		uint32_t sl_sec = cc_get_sleep_interval(buf);
+		dbg_printf("\t\t\tSleep interval (secs): %"PRIu32"\n", sl_sec);
 	}
 
 	/* ACK all messages by default */
@@ -93,11 +95,19 @@ int main(int argc, char *argv[])
 	memcpy(send_dptr, status, sizeof(status));
 
 	dbg_printf("Beginning CC API test\n\n");
-	while (1) {
-		dbg_printf("Scheduling a receive\n");
-		ASSERT(cc_recv_bytes_from_cloud(&recv_buffer, recv_cb) ==
-				CC_RECV_SUCCESS);
+	dbg_printf("Scheduling a receive\n");
+	ASSERT(cc_recv_bytes_from_cloud(&recv_buffer, recv_cb) == CC_RECV_SUCCESS);
 
+	/*
+	 * Let the cloud services know the device is powering up, possibly after
+	 * a restart. This call is redundant when the device hasn't been activated
+	 * since the net effect will be to receive the initial configuration and
+	 * polling interval twice.
+	 */
+	dbg_printf("Sending \"restarted\" message\n");
+	ASSERT(cc_resend_init_config(send_cb) == CC_SEND_SUCCESS);
+
+	while (1) {
 		dbg_printf("Sending out status messages\n");
 		for (uint8_t i = 0; i < NUM_STATUSES; i++) {
 			/* Mimics reading a value from the sensor */
@@ -109,14 +119,6 @@ int main(int argc, char *argv[])
 			ASSERT(cc_send_bytes_to_cloud(&send_buffer,
 						send_data_sz,
 						send_cb));
-			/*
-			 * Simulate a device restart. A normal flow should not
-			 * have this.
-			 */
-			if (i == NUM_STATUSES / 2) {
-				dbg_printf("\tDevice requesting a restart\n");
-				cc_resend_init_config(send_cb);
-			}
 		}
 
 		cur_ts = platform_get_tick_ms();
@@ -129,7 +131,7 @@ int main(int argc, char *argv[])
 			wake_up_interval = next_wakeup_interval;
 		}
 
-		dbg_printf("Sleeping for %"PRIi32" seconds\n\n",
+		dbg_printf("Powering down for %"PRIi32" seconds\n\n",
 				wake_up_interval / 1000);
 		platform_delay(wake_up_interval);
 	}

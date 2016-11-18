@@ -59,14 +59,11 @@ static struct {
 static inline void reset_conn_and_session_states(void)
 {
 	conn_out.send_in_progress = false;
-	conn_in.recv_in_progress = false;
+	conn_out.buf = NULL;
+	conn_out.cb = NULL;
 	session.auth_done = false;
 	session.pend_bit = false;
 	session.pend_ack = false;
-	conn_out.buf = NULL;
-	conn_out.cb = NULL;
-	conn_in.buf = NULL;
-	conn_in.cb = NULL;
 }
 
 /* Called on receiving a quit; Close the connection and reset the state */
