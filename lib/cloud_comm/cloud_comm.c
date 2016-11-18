@@ -200,10 +200,8 @@ bool cc_set_remote_host(const char *host, const char *port)
 	if (plen > MAX_PORT_LEN || plen == 0)
 		return false;
 
-	strncpy(session.host, host, hlen);
-	session.host[MAX_HOST_LEN] = 0x00;
-	strncpy(session.port, port, plen);
-	session.port[MAX_PORT_LEN] = 0x00;
+	strncpy(session.host, host, sizeof(session.host));
+	strncpy(session.port, port, sizeof(session.port));
 
 	return true;
 }

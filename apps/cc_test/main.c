@@ -84,9 +84,9 @@ int main(int argc, char *argv[])
 	dbg_printf("Setting remote host and port\n");
 	ASSERT(cc_set_remote_host(SERVER_NAME, SERVER_PORT));
 
-	int32_t next_wakeup_time = -1;
-	uint32_t cur_ts;
-	uint32_t wake_up_time = 15000;	/* Time in milliseconds */
+	int32_t next_wakeup_interval = -1;	/* Interval value in ms */
+	uint32_t cur_ts;			/* Current timestamp in ms */
+	int32_t wake_up_interval = 15000;	/* Interval value in ms */
 
 	dbg_printf("Setting initial value of status message\n");
 	uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer);
@@ -109,6 +109,10 @@ int main(int argc, char *argv[])
 			ASSERT(cc_send_bytes_to_cloud(&send_buffer,
 						send_data_sz,
 						send_cb));
+			/*
+			 * Simulate a device restart. A normal flow should not
+			 * have this.
+			 */
 			if (i == NUM_STATUSES / 2) {
 				dbg_printf("\tDevice requesting a restart\n");
 				cc_resend_init_config(send_cb);
@@ -116,18 +120,18 @@ int main(int argc, char *argv[])
 		}
 
 		cur_ts = platform_get_tick_ms();
-		next_wakeup_time = cc_service_send_receive(cur_ts);
-		if (next_wakeup_time != -1) {
-			if (wake_up_time != next_wakeup_time)
+		next_wakeup_interval = cc_service_send_receive(cur_ts);
+		if (next_wakeup_interval != -1) {
+			if (wake_up_interval != next_wakeup_interval)
 				dbg_printf("New wakeup time received\n");
 			dbg_printf("Relative wakeup time set to +%"PRIi32" sec\n",
-					next_wakeup_time / 1000);
-			wake_up_time = next_wakeup_time;
+					next_wakeup_interval / 1000);
+			wake_up_interval = next_wakeup_interval;
 		}
 
-		dbg_printf("Sleeping for %"PRIu32" seconds\n\n",
-				wake_up_time / 1000);
-		platform_delay(wake_up_time);
+		dbg_printf("Sleeping for %"PRIi32" seconds\n\n",
+				wake_up_interval / 1000);
+		platform_delay(wake_up_interval);
 	}
 	return 0;
 }
