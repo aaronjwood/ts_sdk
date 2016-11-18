@@ -10,7 +10,7 @@
 #define OTT_CMD_SZ		1
 #define OTT_LEN_SZ		2
 #define OTT_OVERHEAD_SZ		(OTT_CMD_SZ + OTT_LEN_SZ)
-#define OTT_DATA_SZ		(OTT_MAX_MSG_SZ - OTT_OVERHEAD_SZ - OTT_VER_SZ)
+#define OTT_DATA_SZ		(OTT_MAX_MSG_SZ - OTT_OVERHEAD_SZ)
 #define OTT_UUID_SZ		16
 
 #endif

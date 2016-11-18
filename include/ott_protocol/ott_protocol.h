@@ -38,6 +38,7 @@ typedef enum  {			/* Defines message type flags. */
 	MT_AUTH = 1,		/* Authentication message sent by device */
 	MT_STATUS = 2,		/* Status report sent by device */
 	MT_UPDATE = 3,		/* Update message received by device */
+	MT_RESTARTED = 4,	/* Lets the cloud know the device restarted */
 	MT_CMD_PI = 10,		/* Cloud instructs to set new polling interval */
 	MT_CMD_SL = 11		/* Cloud instructs device to sleep */
 } m_type_t;
@@ -163,21 +164,36 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
  * associated with it, i.e. the message type is MT_NONE. It is used to poll the
  * cloud for pending messages or to notify it about the termination of the
  * connection or send an ACK / NACK.
- * The pending flag cannot be active for this type of message.
  * This message type may or may not have a response.
  * This call is blocking in nature.
  *
- * Paramaters:
+ * Parameters:
  * 	c_flags : Control flags
  *
  * Returns:
  * 	OTT_OK        : Message was sent to the cloud service.
- * 	OTT_INV_PARAM :	Flag parameter is invalid (Eg. ACK+NACK or Pending flag
- *                      is active).
+ * 	OTT_INV_PARAM :	Flag parameter is invalid (Eg. ACK+NACK).
  * 	OTT_ERROR     : Sending the message failed due to a TCP/TLS error.
  * 	OTT_TIMEOUT   : Timed out sending the message. Sending failed.
  */
 ott_status ott_send_ctrl_msg(c_flags_t c_flags);
+
+/*
+ * Notify the cloud service that the device has restarted and needs to retrieve
+ * its initial data. A restart could be a result of a number of things, such as
+ * a watch dog timeout, power glitch etc.
+ * This message type does have a response.
+ * This call is blocking in nature.
+ *
+ * Parameters:
+ * 	c_flags : Flags to send with this message.
+ *
+ * Returns:
+ * 	OTT_OK      : Message was sent to the cloud service.
+ * 	OTT_ERROR   : Sending the message failed due to a TCP/TLS error.
+ * 	OTT_TIMEOUT : Timed out sending the message. Sending failed.
+ */
+ott_status ott_send_restarted(c_flags_t c_flags);
 
 /*
  * Retrieve the cloud service's most recent response, if any. This call is non-
@@ -195,4 +211,18 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags);
  * 	OTT_ERROR     : An error occurred in the TCP/TLS layer.
  */
 ott_status ott_retrieve_msg(msg_t *msg, uint16_t sz);
+
+/*
+ * Debug helper function to print the string representation of the message type
+ * and flag fields of the command byte along with the details about the body of
+ * the message.
+ *
+ * Parameters:
+ *	msg       : A pointer to an OTT message
+ *	tab_level : Tab level at which the message should be printed
+ *
+ * Returns:
+ * 	None
+ */
+void ott_interpret_msg(msg_t *msg, uint8_t tab_level);
 #endif
