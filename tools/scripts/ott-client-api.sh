@@ -5,7 +5,7 @@
 prg_name=$(basename "$0")
 
 # ThingSpace API URL
-TS_ADDR=https://198.159.196.186
+TS_ADDR=https://198.159.196.157
 
 # OTT Device API URL
 OTT_ADDR=https://198.159.196.124
@@ -17,7 +17,7 @@ MODEL_ID=\"b63bb02a-a4eb-4aad-a1c3-03c7ce8926d4\"
 DEV_KIND=\"ts.device.ott\"
 
 # OTT Provider ID
-PROV_ID=\"86426cac-6d0e-47ef-aa82-d149aa4fd090\"
+PROV_ID=\"c889b51b-e913-4022-a5e2-1dcfeb23c152\"
 
 # Basic AUTH
 BAUTH=RGFrb3RhQ2xpZW50U2ltQXBwVjI6MGIxNDAwYmQtZTU1OC00NmE2LTlhNTAtYjNhMjgyYWE0ZWMz
