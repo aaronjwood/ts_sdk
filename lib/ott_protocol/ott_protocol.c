@@ -152,7 +152,7 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 	 * Set the server identity (hostname) that must be present in its
 	 * certificate CN or SubjectAltName.
 	 */
-	dbg_printf("Setting required server identity\n");
+	dbg_printf("\tSetting required server identity\n");
 	ret = mbedtls_ssl_set_hostname(&ssl, host);
 	if (ret != 0)
 		return OTT_ERROR;
