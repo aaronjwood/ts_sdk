@@ -210,7 +210,9 @@ void cc_ack_bytes(void)
 
 void cc_nak_bytes(void)
 {
-	initiate_quit(true);
+	ott_send_ctrl_msg(CF_NACK | CF_QUIT);
+	ott_close_connection();
+	reset_conn_and_session_states();
 }
 
 /*
