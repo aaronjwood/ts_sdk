@@ -109,7 +109,7 @@ int mbedtls_net_recv(void *ctx, unsigned char *buf, size_t len)
                 if (errno == EPIPE || errno == ECONNRESET)
                         return MBEDTLS_ERR_NET_CONN_RESET;
 
-                if (errno == EINTR)
+                if (errno == EINTR || errno == EAGAIN)
                         return MBEDTLS_ERR_SSL_WANT_READ;
                 return MBEDTLS_ERR_NET_RECV_FAILED;
         }
