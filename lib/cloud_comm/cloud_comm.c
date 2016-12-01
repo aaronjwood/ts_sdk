@@ -30,6 +30,7 @@ static struct {
 } conn_in;
 
 static struct {
+	bool conn_done;			/* TCP connection was established */
 	bool auth_done;			/* Auth was sent for this session */
 	bool pend_bit;			/* Cloud has a pending message */
 	bool pend_ack;			/* Set if the device needs to ACK prev msg */
@@ -61,6 +62,7 @@ static inline void reset_conn_and_session_states(void)
 	conn_out.send_in_progress = false;
 	conn_out.buf = NULL;
 	conn_out.cb = NULL;
+	session.conn_done = false;
 	session.auth_done = false;
 	session.pend_bit = false;
 	session.pend_ack = false;
@@ -76,7 +78,7 @@ static inline void on_recv_quit(void)
 /* Send a QUIT or NACK + QUIT and then close the connection and reset the state */
 static inline void initiate_quit(bool send_nack)
 {
-	if (!session.auth_done)
+	if (!session.conn_done)
 		return;
 	c_flags_t c_flags = send_nack ? (CF_NACK | CF_QUIT) : CF_QUIT;
 	ott_send_ctrl_msg(c_flags);
@@ -210,9 +212,7 @@ void cc_ack_bytes(void)
 
 void cc_nak_bytes(void)
 {
-	ott_send_ctrl_msg(CF_NACK | CF_QUIT);
-	ott_close_connection();
-	reset_conn_and_session_states();
+	initiate_quit(true);
 }
 
 /*
@@ -323,6 +323,7 @@ static bool establish_session(const char *host, const char *port, bool polling)
 	if (ott_initiate_connection(host, port) != OTT_OK)
 		return false;
 
+	session.conn_done = true;
 	/* Send the authentication message to the cloud. If this is a call to
 	 * simply poll the cloud for possible messages, do not set the PENDING
 	 * flag.
