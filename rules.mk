@@ -6,6 +6,7 @@
 # Remove files common to both debug and non-debug library sources
 LIB_SRC := $(filter-out $(DBG_LIB_SRC), $(LIB_SRC))
 CLOUD_COMM_SRC := $(filter-out $(DBG_LIB_SRC), $(CLOUD_COMM_SRC))
+CORELIB_SRC := $(filter-out $(DBG_LIB_SRC), $(CORELIB_SRC))
 
 # Create lists of object files to be generated from the sources
 OBJ_USER = $(addsuffix .o, $(basename $(notdir $(USER_SRC))))

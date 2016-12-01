@@ -181,13 +181,15 @@ int uart_read(uint8_t *buf, buf_sz sz)
 	 * Copy bytes into the supplied buffer and perform the necessary
 	 * book-keeping.
 	 */
+	__disable_irq();
 	buf_sz n_bytes = (sz > rx.num_unread) ? rx.num_unread : sz;
+	__enable_irq();
 	buf_sz i = 0;
-	while ((n_bytes - i) > 0) {
-		buf[i++] = rx.buffer[rx.ridx];
-		rx.ridx = (rx.ridx + 1) % UART_RX_BUFFER_SIZE;
-		rx.num_unread--;
-	}
+	memcpy(buf, (const void *)&rx.buffer[rx.ridx], n_bytes);
+	rx.ridx = (rx.ridx + n_bytes) % UART_RX_BUFFER_SIZE;
+	__disable_irq();
+	rx.num_unread -= n_bytes;
+	__enable_irq();
 	return n_bytes;
 }
 
@@ -217,6 +219,7 @@ void USART2_IRQHandler(void)
 		rx.buffer[rx.widx] = comm_uart.Instance->DR;
 		rx.widx = (rx.widx + 1) % UART_RX_BUFFER_SIZE;
 		rx.num_unread++;
+		__DSB();
 	} else {
 		INVOKE_CALLBACK(UART_EVENT_RX_OVERFLOW);
 	}
