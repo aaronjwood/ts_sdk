@@ -122,7 +122,9 @@ static int debug_level;
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 
 #define IDLE_CHARS	        10
-#define MODEM_RESET_DELAY       60000 /* In mili seconds */
+#define MODEM_RESET_DELAY       10000 /* In mili seconds */
+/* in mili seconds, polling for modem to come out from reset */
+#define CHECK_MODEM_UP_DELAY    10000
 #define NET_REG_CHECK_DELAY     10000 /* In mili seconds */
 
 /* Meta data related to at+usord command plus \r\n+UUSORD: x,xxxx\r\n
@@ -399,6 +401,31 @@ static at_ret_code __at_handle_error_rsp(uint8_t *rsp_buf, uint16_t read_bytes,
         return result;
 }
 
+static at_ret_code __at_wait_for_bytes(uint16_t *rcv_bytes,
+                                        uint16_t target_bytes,
+                                        uint32_t *timeout)
+{
+        while ((*rcv_bytes < target_bytes) && (*timeout > 0)) {
+                /* Modem may be busy and could not send whole response that
+                 * we are looking for, wait here to give another chance
+                 */
+                __at_wait_for_rsp(timeout);
+                state |= WAITING_RESP;
+                /* New total bytes available to read */
+                *rcv_bytes = uart_rx_available();
+
+        }
+        state |= WAITING_RESP;
+        if (*timeout == 0) {
+                *rcv_bytes = uart_rx_available();
+                if (*rcv_bytes < target_bytes)
+                        return AT_FAILURE;
+        }
+        DEBUG_V1("%s: data available (%u), wanted (%u), waited for %u time\n",
+                                __func__, *rcv_bytes, target_bytes, *timeout);
+        return AT_SUCCESS;
+}
+
 /* Generic utility to send command, wait for the response, and process response.
  * It is best suited for responses bound by delimiters with the exceptions
  * for write prompt command for tcp write
@@ -512,27 +539,126 @@ done:
         return result;
 }
 
+static at_ret_code __at_uart_waited_read(char *rsp_buf, uint16_t wanted,
+                                        uint32_t *timeout)
+{
+        at_ret_code result = AT_FAILURE;
+        uint16_t rcvd = uart_rx_available();
+        if (rcvd == 0) {
+                DEBUG_V0("%s: Unlikely read available error\n", __func__);
+                return AT_FAILURE;
+        }
+        result = __at_wait_for_bytes(&rcvd, wanted, timeout);
+        if (result != AT_SUCCESS)
+                return AT_FAILURE;
+
+        if (uart_read((uint8_t *)rsp_buf, wanted) < wanted) {
+                DEBUG_V0("%s: Unlikely read error\n", __func__);
+                return AT_FAILURE;
+        }
+        return AT_SUCCESS;
+}
+/* resetting modem is a special case where its response depends on the previous
+ * setting of the echo in the modem, where if echo is on it sends
+ * command plus OK or OK otherwise as a response
+ */
+static at_ret_code __at_modem_reset_comm()
+{
+        at_ret_code result = AT_FAILURE;
+
+        const at_command_desc *desc = &modem_net_status_comm[MODEM_RESET];
+        char *comm = desc->comm;
+        uint32_t timeout = desc->comm_timeout;
+        uint16_t rcvd, wanted;
+        char *rsp = "\r\nOK\r\n";
+        char alt_rsp[strlen(comm) + strlen(rsp) + 1];
+        char *temp_rsp = NULL;
+        strcpy(alt_rsp, comm);
+        strcat(alt_rsp, rsp);
+
+        int max_bytes = (strlen(rsp) > strlen(alt_rsp)) ?
+                                        strlen(rsp):strlen(alt_rsp);
+
+        char rsp_buf[max_bytes + 1];
+        rsp_buf[max_bytes] = 0x0;
+
+        result = __at_comm_send_and_wait_rsp(comm, strlen(comm), &timeout);
+        if (result != AT_SUCCESS)
+                goto done;
+
+        state |= PROC_RSP;
+        /* read for /r/nO or at+ */
+        wanted = 3;
+        result = __at_uart_waited_read(rsp_buf, wanted, &timeout);
+        if (result != AT_SUCCESS)
+                goto done;
+
+        if (strncmp(rsp_buf, rsp, wanted) == 0) {
+                temp_rsp = rsp + wanted;
+                wanted = strlen(rsp) - wanted;
+        } else if (strncmp(rsp_buf, alt_rsp, wanted) == 0) {
+                temp_rsp = alt_rsp + wanted;
+                wanted = strlen(alt_rsp) - wanted;
+        } else {
+                result = AT_FAILURE;
+                DEBUG_V0("%s: Unkwn resp\n", __func__);
+                goto done;
+        }
+
+        result = __at_uart_waited_read(rsp_buf, wanted, &timeout);
+        if (result != AT_SUCCESS)
+                goto done;
+        if (strncmp(rsp_buf, temp_rsp, wanted) != 0) {
+                DEBUG_V0("%s: Unlikely comparison error\n", __func__);
+                result = AT_FAILURE;
+        } else
+                result = AT_SUCCESS;
+
+done:
+        state &= ~WAITING_RESP;
+        state &= ~PROC_RSP;
+        HAL_Delay(20);
+        /* check to see if we have urcs while command was executing
+         */
+        DEBUG_V1("%s: Processing URCS outside call back\n", __func__);
+        state |= PROC_URC;
+        __at_process_urc();
+        state &= ~PROC_URC;
+        __at_uart_rx_flush();
+        return result;
+}
+
 static at_ret_code __at_modem_reset()
 {
         at_ret_code result;
-        result = __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_RESET],
-                                                                false, true);
-        if (result == AT_RSP_TIMEOUT || result == AT_TX_FAILURE)
-                return result;
+        result = __at_modem_reset_comm();
+        CHECK_SUCCESS(result, AT_SUCCESS, result)
 
-        HAL_Delay(MODEM_RESET_DELAY);
+        HAL_Delay(CHECK_MODEM_UP_DELAY);
+        uint32_t start = HAL_GetTick();
+        uint32_t end;
+        result =  __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_OK],
+                                                                false, false);
+        while (result != AT_SUCCESS) {
+                end = HAL_GetTick();
+                if ((end - start) > MODEM_RESET_DELAY) {
+                        DEBUG_V0("%s: timed out\n", __func__);
+                        return result;
+                }
+                result =  __at_generic_comm_rsp_util(
+                                &modem_net_status_comm[MODEM_OK], false, false);
+                HAL_Delay(CHECK_MODEM_UP_DELAY);
+        }
+
         DEBUG_V1("%s: resetting modem done...\n", __func__);
         result = __at_generic_comm_rsp_util(
                                 &modem_net_status_comm[ECHO_OFF], false, false);
-        if (result == AT_RSP_TIMEOUT || result == AT_TX_FAILURE)
-                return result;
+        CHECK_SUCCESS(result, AT_SUCCESS, result)
 
         result = __at_generic_comm_rsp_util(
                                 &modem_net_status_comm[CME_CONF], false, true);
-        if (result == AT_RSP_TIMEOUT || result == AT_TX_FAILURE)
-                return result;
 
-        return AT_SUCCESS;
+        return result;
 }
 
 static at_ret_code __at_check_network_registration()
@@ -606,16 +732,6 @@ static at_ret_code __at_check_modem_conf() {
         return result;
 }
 
-static at_ret_code __at_config_modem() {
-
-        at_ret_code result = AT_SUCCESS;
-        result =  __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_OK],
-                                                                false, true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result)
-
-        return __at_check_modem_conf();
-}
-
 bool at_init()
 {
 
@@ -633,10 +749,10 @@ bool at_init()
         res_modem = __at_modem_reset();
         CHECK_SUCCESS(res_modem, AT_SUCCESS, false)
 
-        res_modem = __at_config_modem();
+        res_modem = __at_check_modem_conf();
         if (res_modem == AT_RECHECK_MODEM) {
                 DEBUG_V1("%s: Rechecking modem config after reset\n", __func__);
-                res_modem = __at_config_modem();
+                res_modem =  __at_check_modem_conf();
         }
 
         if (res_modem != AT_SUCCESS) {
@@ -966,31 +1082,6 @@ int at_read_available(int s_id) {
         CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_RCV_FAIL)
         DEBUG_V1("%s: total read bytes: %d\n", __func__, data);
         return data;
-}
-
-static at_ret_code __at_wait_for_bytes(uint16_t *rcv_bytes,
-                                        uint16_t target_bytes,
-                                        uint32_t *timeout)
-{
-        while ((*rcv_bytes < target_bytes) && (*timeout > 0)) {
-                /* Modem may be busy and could not send whole response that
-                 * we are looking for, wait here to give another chance
-                 */
-                __at_wait_for_rsp(timeout);
-                state |= WAITING_RESP;
-                /* New total bytes available to read */
-                *rcv_bytes = uart_rx_available();
-
-        }
-        state |= WAITING_RESP;
-        if (*timeout == 0) {
-                *rcv_bytes = uart_rx_available();
-                if (*rcv_bytes < target_bytes)
-                        return AT_FAILURE;
-        }
-        DEBUG_V1("%s: data available (%u), wanted (%u), waited for %u time\n",
-                                __func__, *rcv_bytes, target_bytes, *timeout);
-        return AT_SUCCESS;
 }
 
 static void __at_parse_rcv_err(uint16_t r_idx, at_command_desc *desc,
