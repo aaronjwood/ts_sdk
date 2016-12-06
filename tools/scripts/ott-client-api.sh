@@ -258,6 +258,21 @@ function list_ts_devices()
 	exit 0
 }
 
+function check_tokens()
+{
+	# INPUTS:
+	# $1 = User Access Token / Application (client) token
+	#
+	# RETURNS:
+	# JSON Object
+
+	exit_on_error "No token provided" "$1" "0"
+	echo "Checking validity of the following token:"
+	echo "$1"
+	local VALIDITY=$(curl -s -k "$TS_ADDR/oauth2/token/info?access_token="$1"")
+	echo "$VALIDITY" | python -m json.tool
+}
+
 function read_ott_status()
 {
 	# INPUTS:
@@ -539,6 +554,10 @@ Query APIs:
 $prg_name lsdev [user-access-token]
 	List ThingSpace devices associated with the ThingSpace user account.
 
+$prg_name chk <token>
+	Check the validity of the token. The token can either be an application
+	(client) token or a user access token.
+
 
 Read and write APIs:
 $prg_name rdstat <num-to-read> [ts-device-id] [user-access-token]
@@ -600,6 +619,9 @@ case "$1" in
 		;;
 	lsdev)
 		list_ts_devices "$2"
+		;;
+	chk)
+		check_tokens "$2"
 		;;
 	rdstat)
 		read_ott_status "$2" "$3" "$4"

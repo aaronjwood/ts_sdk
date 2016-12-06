@@ -4,9 +4,14 @@
 # STM32F4 platform. Uses the GCC toolchain and the STMicro STM32CubeF4
 # HAL drivers.
 # Note: Library sources are built without debug info and optimized for size
+# PROJ_NAME selects which example to build. By default, the Makefile assumes
+# 'bmp180' as the project. This is equivalent to invoking it as follows:
+# 'make' is equivalent to 'make PROJ_NAME=bmp180'
 
 PROJ_ROOT = $(shell git rev-parse --show-toplevel)
 export PROJ_ROOT
+
+PROJ_NAME ?= bmp180
 
 ifneq (build,$(notdir $(CURDIR)))
 # If not invoked in the build directory, change to that directory and
@@ -22,13 +27,15 @@ include $(PROJ_ROOT)/common.mk
 DBG_MACRO = #-DNO_DEBUG
 
 # Use 'vpath' to search specific directories for library and user sources
-vpath %.c $(SRCDIR):
+vpath %.c $(SRCDIR)/$(PROJ_NAME): \
+	$(SRCDIR):
 
 # User application includes
-INC += -I $(SRCDIR)/include
+INC += -I $(SRCDIR)/$(PROJ_NAME)/include
 
 # User application sources
 USER_SRC = $(wildcard $(SRCDIR)/*.c)
+USER_SRC += $(wildcard $(SRCDIR)/$(PROJ_NAME)/*.c)
 
 # Additional HAL library sources
 LIB_SRC += stm32f4xx_hal_i2c.c

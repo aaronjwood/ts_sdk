@@ -4,16 +4,12 @@
 #define SENSOR_INTERFACE_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /*
- * This module defines an interface to a group of sensors. Individual sensors
- * can be addressed through a bit mask. A value of '1' in the bitmask allows
- * access to the sensor; a value of '0' ignores the sensor for the current
- * call.
+ * This module defines an interface to a group of sensors.
  */
 
-/* Bitmasks are currently 16 bit wide, i.e. able to accommodate 16 sensors. */
-typedef uint16_t mask_t;
 typedef struct {
 	uint8_t sz;		/* Number of bytes contained in the data buffer */
 	uint8_t *bytes;		/* Pointer to the data buffer */
@@ -25,32 +21,28 @@ typedef struct {
  * at most once.
  *
  * Parameters:
- * 	mask   : Bitmask that specifies which sensors are active and which are not
+ * 	None
  *
  * Returns:
- * 	A mask whose bits specify the success / failure of the operation on the
- * 	individual sensors. A bit value of '1' implies success for the particular
- * 	sensor; a bit value of '0' implies failure.
- * 	Ideally, this value should match the mask passed to this function.
+ * 	True  : Initialization was successful
+ * 	False : Initialization failed
  */
-mask_t si_init(mask_t mask);
+bool si_init(void);
 
 /*
  * Read the calibration table(s) into the buffer provided.
  *
  * Parameters:
- * 	mask   : Bitmask that specifies which sensors are active and which are not
+ * 	idx    : Index of the sensor to be read.
  * 	max_sz : Maximum size of the buffer being passed.
  * 	data   : Pointer to an array_t type variable that will hold the raw bytes
  * 	         read from the sensor.
  *
  * Returns:
- * 	A mask whose bits specify the success / failure of the operation on the
- * 	individual sensors. A bit value of '1' implies success for the particular
- * 	sensor; a bit value of '0' implies failure.
- * 	Ideally, this value should match the mask passed to this function.
+ * 	True  : Calibration data read successfully into the buffer
+ * 	False : Failed to read calibration data
  */
-mask_t si_read_calib(mask_t mask, uint16_t max_sz, array_t *data);
+bool si_read_calib(uint8_t idx, uint16_t max_sz, array_t *data);
 
 /*
  * Put the sensor(s) to sleep in order to conserve power.
@@ -59,12 +51,10 @@ mask_t si_read_calib(mask_t mask, uint16_t max_sz, array_t *data);
  * 	mask : Bitmask that specifies which sensors are active and which are not
  *
  * Returns:
- * 	A mask whose bits specify the success / failure of the operation on the
- * 	individual sensors. A bit value of '1' implies success for the particular
- * 	sensor; a bit value of '0' implies failure.
- * 	Ideally, this value should match the mask passed to this function.
+ * 	True  : The sensor was put into sleep mode
+ * 	False : Failed to put the sensor into sleep mode
  */
-mask_t si_sleep(mask_t mask);
+bool si_sleep(void);
 
 /*
  * Wake up the sensor(s) for a read.
@@ -73,28 +63,36 @@ mask_t si_sleep(mask_t mask);
  * 	mask : Bitmask that specifies which sensors are active and which are not
  *
  * Returns:
- * 	A mask whose bits specify the success / failure of the operation on the
- * 	individual sensors. A bit value of '1' implies success for the particular
- * 	sensor; a bit value of '0' implies failure.
- * 	Ideally, this value should match the mask passed to this function.
+ * 	True  : The sensor was successfully woken up
+ * 	False : Failed to wake up the sensor
  */
-mask_t si_wakeup(mask_t mask);
+bool si_wakeup(void);
 
 /*
  * Read raw readings from the sensor(s).
  *
  * Parameters:
- * 	mask   : Bitmask that specifies which sensors are active and which are not
+ * 	idx    : Index of the sensor to be read.
  * 	max_sz : Maximum size of the buffer being passed.
  * 	data   : Pointer to an array_t type variable that will hold the raw bytes
  * 	         read from the sensor.
  *
  * Returns:
- * 	A mask whose bits specify the success / failure of the operation on the
- * 	individual sensors. A bit value of '1' implies success for the particular
- * 	sensor; a bit value of '0' implies failure.
- * 	Ideally, this value should match the mask passed to this function.
+ * 	True  : Sensor data was successfully read in to the buffer
+ * 	False : Failed to read sensor data
  */
-mask_t si_read_data(mask_t mask, uint16_t max_sz, array_t *data);
+bool si_read_data(uint8_t idx, uint16_t max_sz, array_t *data);
+
+/*
+ * Return the number of sensors handled by this module.
+ *
+ * Parameter:
+ * 	None
+ *
+ * Returns:
+ * 	Number of sensors handled by this module. This value will always be
+ * 	greater than 0.
+ */
+uint8_t si_get_num_sensors(void);
 
 #endif

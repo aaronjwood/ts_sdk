@@ -307,8 +307,11 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 
 	conn_out.send_in_progress = false;
 
-	if (end - start >= timeout)
+	if (end - start >= timeout) {
+		if (invoke_send_cb)
+			INVOKE_SEND_CALLBACK(conn_out.buf, CC_STS_SEND_TIMEOUT);
 		return false;
+	}
 
 	return no_nack;
 }

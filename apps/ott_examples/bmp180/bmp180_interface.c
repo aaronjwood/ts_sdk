@@ -1,23 +1,28 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
+/* Sensor module for the BMP180 temperature and pressure sensor */
 #include <stm32f4xx_hal.h>
 #include <stdbool.h>
 
 #include "sensor_interface.h"
 #include "platform.h"
 
-/* Exit on error macro */
-#define EOE(func, mask, dev_bit) \
+/* Exit On Error (EOE) macro */
+#define EOE(func) \
 	do { \
 		if (!(func)) \
-			return (mask & ~(1 << (dev_bit - 1))); \
+			return false; \
 	} while(0)
 
-#define BMP180_BIT		0x01	/* Bit position of this sensor in the mask */
-#define BMP180_ADDR		0x77	/* I2C device address for BMP180 */
 #define I2C_TIMEOUT		2000	/* 2000ms timeout for I2C response */
 
+static I2C_HandleTypeDef i2c_handle;
+
+#define NUM_SENSORS		1
+#define BMP180_ADDR		0x77	/* I2C device address for BMP180 */
+
 /* Registers and data lengths internal to the sensor */
+#define HEADER_SZ		0x01	/* Header size representing the length */
 #define CALIB_ADDR		0xaa	/* Address of calib table in device */
 #define CALIB_SZ		22	/* Calibration table is 22 bytes long */
 #define MEASURE_CTL		0xf4	/* Measurement control register */
@@ -25,9 +30,8 @@
 #define TEMP_SZ			2	/* Size of temperature reading in bytes */
 #define PRES_SZ			3	/* Size of pressure reading in bytes */
 
-static I2C_HandleTypeDef i2c_handle;
-
-static bool i2c_sensor_write(uint8_t addr, uint8_t *data, uint16_t sz)
+/* I2C Sensor Write */
+static bool i2c_sw(uint8_t addr, uint8_t *data, uint16_t sz)
 {
 	HAL_StatusTypeDef s;
 	s = HAL_I2C_Mem_Write(&i2c_handle, BMP180_ADDR << 1,
@@ -36,7 +40,8 @@ static bool i2c_sensor_write(uint8_t addr, uint8_t *data, uint16_t sz)
 	return (s == HAL_OK);
 }
 
-static bool i2c_sensor_read(uint8_t addr, uint8_t *data, uint16_t sz)
+/* I2C Sensor Read */
+static bool i2c_sr(uint8_t addr, uint8_t *data, uint16_t sz)
 {
 	HAL_StatusTypeDef s;
 	s = HAL_I2C_Mem_Read(&i2c_handle, BMP180_ADDR << 1,
@@ -58,7 +63,7 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef *hi2c)
 	HAL_GPIO_Init(GPIOB, &i2c_pins);
 }
 
-mask_t si_init(mask_t mask)
+bool si_init(void)
 {
 	/* Initialize the I2C bus on the processor */
 	i2c_handle.Instance = I2C1;
@@ -68,46 +73,54 @@ mask_t si_init(mask_t mask)
 	i2c_handle.Init.DutyCycle = I2C_DUTYCYCLE_16_9;
 	i2c_handle.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE ;
 	i2c_handle.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-	EOE((HAL_I2C_Init(&i2c_handle) == HAL_OK), mask, BMP180_BIT);
 
 	/* BMP180 does not need a special initialization sequence */
-	return mask;
+	return HAL_I2C_Init(&i2c_handle) == HAL_OK;
 }
 
-mask_t si_read_calib(mask_t mask, uint16_t max_sz, array_t *data)
+bool si_read_calib(uint8_t idx, uint16_t max_sz, array_t *data)
 {
+	if (idx > NUM_SENSORS - 1)
+		return false;
 	if (max_sz < CALIB_SZ)
-		return ~mask;
+		return false;
 	data->sz = CALIB_SZ;
-	EOE(i2c_sensor_read(CALIB_ADDR, data->bytes, CALIB_SZ), mask, BMP180_BIT);
-	return mask;
+	EOE(i2c_sr(CALIB_ADDR, data->bytes, CALIB_SZ));
+	return true;
 }
 
-mask_t si_sleep(mask_t mask)
+bool si_sleep(void)
 {
 	/* BMP180 does not have a sleep sequence */
-	return mask;
+	return true;
 }
 
-mask_t si_wakeup(mask_t mask)
+bool si_wakeup(void)
 {
 	/* BMP180 does not have a wakeup sequence */
-	return mask;
+	return true;
 }
 
-mask_t si_read_data(mask_t mask, uint16_t max_sz, array_t *data)
+bool si_read_data(uint8_t idx, uint16_t max_sz, array_t *data)
 {
-	static uint8_t temp_cmd = 0x2e;
-	static uint8_t pres_cmd = 0x34;
+	if (idx > NUM_SENSORS - 1)
+		return false;
+	/* Read temperature and pressure off the BMP180 sensor */
+	uint8_t temp_cmd = 0x2e;
+	uint8_t pres_cmd = 0x34;
 	if (max_sz < (PRES_SZ + TEMP_SZ))
-		return ~mask;
+		return false;
 	data->sz = PRES_SZ + TEMP_SZ;
-	EOE(i2c_sensor_write(MEASURE_CTL, &temp_cmd, 1), mask, BMP180_BIT);
+	EOE(i2c_sw(MEASURE_CTL, &temp_cmd, 1));
 	platform_delay(5);
-	EOE(i2c_sensor_read(OUT_MSB, data->bytes, TEMP_SZ), mask, BMP180_BIT);
-	EOE(i2c_sensor_write(MEASURE_CTL, &pres_cmd, 1), mask, BMP180_BIT);
+	EOE(i2c_sr(OUT_MSB, data->bytes, TEMP_SZ));
+	EOE(i2c_sw(MEASURE_CTL, &pres_cmd, 1));
 	platform_delay(5);
-	EOE(i2c_sensor_read(OUT_MSB, data->bytes + TEMP_SZ, PRES_SZ), mask,
-			BMP180_BIT);
-	return mask;
+	EOE(i2c_sr(OUT_MSB, data->bytes + TEMP_SZ, PRES_SZ));
+	return true;
+}
+
+uint8_t si_get_num_sensors(void)
+{
+	return NUM_SENSORS;
 }
