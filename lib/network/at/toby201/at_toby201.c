@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include "dbg.h"
 
 typedef enum at_states {
         IDLE = 1,
@@ -63,7 +64,7 @@ static volatile bool pdp_conf;
 /* Enable this macro to display messages, error will alway be reported if this
  * macro is enabled while V2 and V1 will depend on debug_level setting
  */
-/*#define DEBUG_AT_LIB */
+#define DEBUG_AT_LIB
 
 static int debug_level;
 /* level v2 is normally for extensive debugging need, for example tracing
@@ -173,7 +174,7 @@ static int __at_get_bytes(char *rsp_buf, char tail) {
         return num_bytes;
 }
 
-static void __at_dump_buffer(uint8_t *buf, uint16_t len)
+static void __at_dump_buffer(const char *buf, uint16_t len)
 {
         if (!buf) {
                 int bytes = uart_rx_available();
@@ -427,7 +428,7 @@ static at_ret_code __at_wait_for_bytes(uint16_t *rcv_bytes,
         return AT_SUCCESS;
 }
 
-static at_ret_code __at_uart_waited_read(char *rsp_buf, uint16_t wanted,
+static at_ret_code __at_uart_waited_read(char *buf, uint16_t wanted,
                                         uint32_t *timeout)
 {
         uint16_t rcvd = uart_rx_available();
@@ -440,7 +441,7 @@ static at_ret_code __at_uart_waited_read(char *rsp_buf, uint16_t wanted,
                 return AT_FAILURE;
         }
 
-        if (uart_read((uint8_t *)rsp_buf, wanted) < wanted) {
+        if (uart_read((uint8_t *)buf, wanted) < wanted) {
                 DEBUG_V0("%s: Unlikely read error\n", __func__);
                 return AT_FAILURE;
         }
@@ -503,11 +504,11 @@ static at_ret_code __at_generic_comm_rsp_util(const at_command_desc *desc,
                         tmp_want = 0;
                 } else {
                         /* First three bytes to determine response */
+                        memset(temp_buf, 0, tmp_want);
                         result = __at_uart_waited_read(temp_buf, tmp_want,
                                                         &timeout);
                         if (result != AT_SUCCESS)
                                 break;
-
                         if (strncmp(temp_buf, desc->rsp_desc[i].rsp,
                                                 tmp_want) == 0)
                                 wanted = strlen(desc->rsp_desc[i].rsp) - tmp_want;
@@ -543,10 +544,10 @@ static at_ret_code __at_generic_comm_rsp_util(const at_command_desc *desc,
 
                 /* start processing response */
                 uint8_t rsp_buf[read_bytes + 1];
-                rsp_buf[read_bytes] = 0x0;
+                memset(rsp_buf, 0, read_bytes + 1);
                 if (tmp_want > 0) {
-                        if (tmp_want < read_bytes)
-                                strcpy((char *)rsp_buf, temp_buf);
+                        if (tmp_want <= read_bytes)
+                                strncpy((char *)rsp_buf, temp_buf, tmp_want);
                         else {
                                 DEBUG_V0("%s: Unlikey tmp want value\n",
                                         __func__);
@@ -577,7 +578,7 @@ static at_ret_code __at_generic_comm_rsp_util(const at_command_desc *desc,
                         }
                 } else {
                         DEBUG_V0("%s: uart read failed (unlikely) for"
-                                " command:%s\n", __func__, desc->comm);
+                                " command:%s\n", __func__,desc->comm);
                         result = AT_FAILURE;
                         break;
                 }
@@ -680,7 +681,7 @@ static at_ret_code __at_modem_reset()
         at_ret_code result;
         result = __at_modem_reset_comm();
         CHECK_SUCCESS(result, AT_SUCCESS, result)
-
+        HAL_Delay(2000);
         uint32_t start = HAL_GetTick();
         uint32_t end;
         result = AT_FAILURE;
@@ -811,7 +812,6 @@ bool at_init()
                 state = AT_INVALID;
                 return false;
         }
-
         buf_sz temp_sz = uart_get_rx_buf_size();
         uart_rx_buf_sz = (temp_sz > MAX_AT_TCP_RX_SIZE) ?
                                 (MAX_AT_TCP_RX_SIZE - MAX_RX_META_DATA):
@@ -1036,7 +1036,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         char temp_comm[TEMP_COMM_LIMIT];
         snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id, len);
         desc->comm = temp_comm;
-        DEBUG_V1("%s: sending write prompt\n", __func__);
+        DEBUG_V0("%s: sending write prompt\n", __func__);
         result = __at_generic_comm_rsp_util(desc, false, false);
         if (result != AT_SUCCESS) {
                 DEBUG_V0("%s: command failure, result code: %d\n",
@@ -1080,7 +1080,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         desc->rsp_desc[0].data = &data;
         result = __at_generic_comm_rsp_util(desc, true, true);
         CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_SEND_FAIL)
-        DEBUG_V1("%s: data written: %d\n", __func__, data);
+        DEBUG_V0("%s: data written: %d\n", __func__, data);
         return data;
 }
 
@@ -1355,7 +1355,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id, len);
 
         timeout = desc->comm_timeout;
-        DEBUG_V1("%s: sending command:%s\n", __func__, temp_comm);
+        DEBUG_V0("%s: sending command:%s\n", __func__, temp_comm);
         result = __at_comm_send_and_wait_rsp(temp_comm, strlen(temp_comm),
                                                 &timeout);
         state |= PROC_RSP;
