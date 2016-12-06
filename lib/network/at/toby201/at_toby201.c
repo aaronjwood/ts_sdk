@@ -356,16 +356,26 @@ static at_ret_code __at_comm_send_and_wait_rsp(char *comm, uint16_t len,
         }
         return __at_wait_for_rsp(timeout);
 }
-
-static at_ret_code __at_handle_error_rsp(uint8_t *rsp_buf, uint16_t read_bytes,
-                                const at_command_desc *desc, uint8_t rsp_num)
+static void __at_dump_wrng_rsp(char *rsp_buf, const at_command_desc *desc,
+                                int read_bytes, uint8_t rsp_num)
+#ifdef DEBUG_WRONG_RSP
+        DEBUG_V0("%s: Printing received wrong response:\n", __func__);
+        __at_dump_buffer(rsp_buf, read_bytes);
+        DEBUG_V0("\n");
+        DEBUG_V0("%s: Printing expected response:\n", __func__);
+        __at_dump_buffer(desc->rsp_desc[rsp_num].rsp,
+                                strlen(desc->rsp_desc[rsp_num].rsp));
+        DEBUG_V0("\n");
+        if (strncmp(rsp_buf, desc->rsp_desc[rsp_num].rsp,
+                read_bytes) == 0)
+                DEBUG_V0("%s: Received partial response\n", __func__);
+#endif
+}
+static at_ret_code __at_handle_error_rsp(uint8_t *rsp_buf, const char *err)
 {
-        uint8_t i = 0;
         at_ret_code result = AT_SUCCESS;
-
-        if (desc->err) {
-                if (strncmp((char *)rsp_buf, desc->err,
-                                strlen(desc->err)) != 0) {
+        if (err) {
+                if (strncmp((char *)rsp_buf, err, strlen(err)) != 0) {
                         if (strncmp((char *)rsp_buf, tcp_error,
                                 strlen(tcp_error)) == 0) {
                                 DEBUG_V0("%s: tcp error: %s\n",
@@ -383,21 +393,6 @@ static at_ret_code __at_handle_error_rsp(uint8_t *rsp_buf, uint16_t read_bytes,
                                                 __func__, (char *)rsp_buf);
                 result = AT_WRONG_RSP;
         }
-
-#ifdef DEBUG_WRONG_RSP
-        if (result == AT_WRONG_RSP) {
-                DEBUG_V0("%s: Printing received wrong response:\n", __func__);
-                __at_dump_buffer(rsp_buf, read_bytes);
-                DEBUG_V0("\n");
-                DEBUG_V0("%s: Printing expected response:\n", __func__);
-                __at_dump_buffer(desc->rsp_desc[rsp_num].rsp,
-                                        strlen(desc->rsp_desc[rsp_num].rsp));
-                DEBUG_V0("\n");
-                if (strncmp(rsp_buf, desc->rsp_desc[rsp_num].rsp,
-                        read_bytes) == 0)
-                        DEBUG_V0("%s: Received partial response\n", __func__);
-        }
-#endif
         return result;
 }
 
@@ -426,119 +421,6 @@ static at_ret_code __at_wait_for_bytes(uint16_t *rcv_bytes,
         return AT_SUCCESS;
 }
 
-/* Generic utility to send command, wait for the response, and process response.
- * It is best suited for responses bound by delimiters with the exceptions
- * for write prompt command for tcp write
- */
-
-static at_ret_code __at_generic_comm_rsp_util(const at_command_desc *desc,
-                                        bool skip_comm, bool read_line)
-{
-        CHECK_NULL(desc, AT_FAILURE)
-
-        at_ret_code result = AT_SUCCESS;
-        char *comm;
-        const char *rsp;
-        uint32_t timeout;
-        int read_bytes;
-
-        comm = desc->comm;
-        timeout = desc->comm_timeout;
-
-        if (!skip_comm) {
-                DEBUG_V1("%s: sending %s\n", __func__, comm);
-                result = __at_comm_send_and_wait_rsp(comm, strlen(comm),
-                                                                &timeout);
-                if (result != AT_SUCCESS)
-                        goto done;
-        }
-
-        state |= PROC_RSP;
-        state |= WAITING_RESP;
-
-        for(uint8_t i = 0; i < ARRAY_SIZE(desc->rsp_desc); i++) {
-                if (!desc->rsp_desc[i].rsp)
-                        continue;
-                if (read_line) {
-                        read_bytes = uart_line_avail(rsp_header, rsp_trailer);
-                        /* Scenario where modem stops sending partial response
-                         * before we go out reporting error, give another chance
-                         */
-                        if (read_bytes == 0) {
-                                DEBUG_V1("%s: no line detected yet,"
-                                                " wait again for rsp :%d, "
-                                                "max remaining timeout: %u\n",
-                                                __func__, i, timeout);
-                                /* don't care about timeout error here,
-                                 * wait for at max remaining time left
-                                 */
-                                __at_wait_for_rsp(&timeout);
-                                read_bytes = uart_line_avail(rsp_header,
-                                                                rsp_trailer);
-                                if (read_bytes == 0) {
-                                        DEBUG_V0("%s: no line available, "
-                                                "dumping buffer for debug\n",
-                                                __func__);
-                                        /* Check if it has partial response */
-                                        __at_dump_buffer(NULL, 0);
-                                        result = AT_FAILURE;
-                                        break;
-                                } else
-                                        state |= WAITING_RESP;
-                        }
-                } else
-                        read_bytes = uart_rx_available();
-
-                if (read_bytes <= 0) {
-                        DEBUG_V0("%s: invalid read_bytes:%d for comm: %s\n",
-                                __func__, read_bytes, comm);
-                        break;
-                }
-                uint8_t rsp_buf[read_bytes + 1];
-                rsp_buf[read_bytes] = 0x0;
-
-                if (uart_read(rsp_buf, read_bytes) > 0) {
-                        DEBUG_V1("%s: recvd res: %s\n", __func__,
-                                                        (char *)rsp_buf);
-                        if (strncmp((char *)rsp_buf, desc->rsp_desc[i].rsp,
-                                        strlen(desc->rsp_desc[i].rsp)) != 0) {
-
-                                result = __at_handle_error_rsp(rsp_buf,
-                                                        read_bytes, desc, i);
-                                break;
-                        } else {
-                                if (desc->rsp_desc[i].rsp_handler)
-                                        desc->rsp_desc[i].rsp_handler(rsp_buf,
-                                                read_bytes,
-                                                desc->rsp_desc[i].rsp,
-                                                desc->rsp_desc[i].data);
-                                result = AT_SUCCESS;
-                        }
-                } else {
-                        DEBUG_V0("%s: uart read failed (unlikely)\n", __func__);
-                        result = AT_FAILURE;
-                        break;
-                }
-        }
-        state &= ~PROC_RSP;
-        state &= ~WAITING_RESP;
-        /* Recommeded to wait at least 20ms before proceeding */
-done:
-        HAL_Delay(20);
-
-        /* check to see if we have urcs while command was executing
-         * if result was wrong response, chances are that we are out of sync
-         */
-        DEBUG_V1("%s: Processing URCS outside call back\n", __func__);
-        state |= PROC_URC;
-        __at_process_urc();
-        state &= ~PROC_URC;
-        __at_uart_rx_flush();
-
-        DEBUG_V1("%s: result: %d\n", __func__, result);
-        return result;
-}
-
 static at_ret_code __at_uart_waited_read(char *rsp_buf, uint16_t wanted,
                                         uint32_t *timeout)
 {
@@ -558,6 +440,138 @@ static at_ret_code __at_uart_waited_read(char *rsp_buf, uint16_t wanted,
         }
         return AT_SUCCESS;
 }
+/* Generic utility to send command, wait for the response, and process response.
+ * It is best suited for responses bound by delimiters with the exceptions
+ * for write prompt command for tcp write
+ */
+
+static at_ret_code __at_generic_comm_rsp_util(const at_command_desc *desc,
+                                        bool skip_comm, bool read_line)
+{
+        CHECK_NULL(desc, AT_FAILURE)
+
+        at_ret_code result = AT_SUCCESS;
+        char *comm;
+        const char *rsp;
+        uint32_t timeout;
+        int read_bytes;
+        uint16_t wanted;
+        uint16_t tmp_want;
+        comm = desc->comm;
+        timeout = desc->comm_timeout;
+
+        if (!skip_comm) {
+                DEBUG_V1("%s: sending %s\n", __func__, comm);
+                result = __at_comm_send_and_wait_rsp(comm, strlen(comm),
+                                                                &timeout);
+                if (result != AT_SUCCESS)
+                        goto done;
+        }
+
+        state |= PROC_RSP;
+        for(uint8_t i = 0; i < ARRAY_SIZE(desc->rsp_desc); i++) {
+                if (!desc->rsp_desc[i].rsp)
+                        continue;
+                if (read_line) {
+                        read_bytes = uart_line_avail(rsp_header, rsp_trailer);
+                        /*
+                         * wait till we get whole line or time runs out
+                         */
+                        while (read_bytes == 0) {
+                                result = __at_wait_for_rsp(&timeout);
+                                if (result == AT_RSP_TIMEOUT) {
+                                        DEBUG_V0("%s: timed out, rsp: %s\n",
+                                                __func__,
+                                                desc->rsp_desc[i].rsp);
+                                        goto done;
+                                }
+                                read_bytes = uart_line_avail(rsp_header,
+                                                        rsp_trailer);
+                        }
+                        wanted = 0;
+                        tmp_want = 0;
+                } else {
+                        /* just first three bytes to determine response */
+                        tmp_want = 3;
+                        char temp_buf[tmp_want + 1];
+                        temp_buf[tmp_want] = 0x0;
+                        result = __at_uart_waited_read(temp_buf, tmp_want,
+                                                        &timeout);
+                        if (result != AT_SUCCESS)
+                                break;
+
+                        if (strncmp(temp_buf, desc->rsp_desc[i].rsp,
+                                                        tmp_want) == 0)
+                                wanted = strlen(desc->rsp_desc[i].rsp) - tmp_want;
+
+                        else {
+                                if (desc->err) {
+                                        if (strncmp(temp_buf, desc->err,
+                                                tmp_want) == 0)
+                                                wanted = strlen(desc->err) -
+                                                                        tmp_want;
+                                        else {
+                                                result = AT_WRONG_RSP;
+                                                break;
+                                        }
+                                } else {
+                                        result = AT_WRONG_RSP;
+                                        break;
+                                }
+                        }
+                        read_bytes = uart_rx_available();
+                        result = __at_wait_for_bytes(&read_bytes, wanted,
+                                                        &timeout);
+                        if (result != AT_SUCCESS)
+                                break;
+                }
+
+                /* start processing response */
+                uint8_t rsp_buf[read_bytes + 1];
+                rsp_buf[read_bytes] = 0x0;
+                int rd_b = uart_read(rsp_buf, read_bytes);
+                if (rd_b == read_bytes) {
+                        if (strncmp((char *)rsp_buf,
+                                desc->rsp_desc[i].rsp + tmp_want,
+                                (strlen(desc->rsp_desc[i].rsp) - tmp_want)) != 0) {
+
+                                result = __at_handle_error_rsp(rsp_buf,
+                                                desc->err + tmp_want);
+                                break;
+                        } else {
+                                if (desc->rsp_desc[i].rsp_handler)
+                                        desc->rsp_desc[i].rsp_handler(rsp_buf,
+                                                read_bytes,
+                                                desc->rsp_desc[i].rsp,
+                                                desc->rsp_desc[i].data);
+                                result = AT_SUCCESS;
+                        }
+                } else {
+                        DEBUG_V0("%s: uart read failed (unlikely)\n", __func__);
+                        result = AT_FAILURE;
+                        break;
+                }
+        } /* for loop ends */
+done:
+        state &= ~PROC_RSP;
+        state &= ~WAITING_RESP;
+
+        /* Recommeded to wait at least 20ms before proceeding */
+        HAL_Delay(20);
+
+        /* check to see if we have urcs while command was executing
+         * if result was wrong response, chances are that we are out of sync
+         */
+        DEBUG_V1("%s: Processing URCS outside call back\n", __func__);
+        state |= PROC_URC;
+        __at_process_urc();
+        state &= ~PROC_URC;
+        __at_uart_rx_flush();
+
+        DEBUG_V1("%s: result: %d\n", __func__, result);
+        return result;
+}
+
 /* resetting modem is a special case where its response depends on the previous
  * setting of the echo in the modem, where if echo is on it sends
  * command plus OK or OK otherwise as a response
