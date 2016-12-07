@@ -124,7 +124,7 @@ static int debug_level;
 
 #define IDLE_CHARS	        10
 #define MODEM_RESET_DELAY       15000 /* In mili seconds */
-/* in mili seconds, polling for modem to come out from reset */
+/* in mili seconds, polling for modem */
 #define CHECK_MODEM_DELAY    1000
 /* maximum timeout value in searching for the network coverage */
 #define NET_REG_CHECK_DELAY     60000 /* In mili seconds */
@@ -355,7 +355,6 @@ static at_ret_code __at_comm_send_and_wait_rsp(char *comm, uint16_t len,
         __at_process_urc();
         state &= ~PROC_URC;
         __at_uart_rx_flush();
-
         CHECK_NULL(comm, AT_FAILURE)
 
         if (!__at_uart_write((uint8_t *)comm, len)) {
@@ -700,7 +699,7 @@ static at_ret_code __at_modem_reset()
                 HAL_Delay(CHECK_MODEM_DELAY);
         }
 
-        DEBUG_V1("%s: resetting modem done...\n", __func__);
+        DEBUG_V0("%s: resetting modem done...\n", __func__);
         result = __at_generic_comm_rsp_util(
                                 &modem_net_status_comm[ECHO_OFF], false, false);
         CHECK_SUCCESS(result, AT_SUCCESS, result)
@@ -804,7 +803,10 @@ bool at_init()
         at_ret_code res_modem;
         /* This may take few seconds */
         res_modem = __at_modem_reset();
-        CHECK_SUCCESS(res_modem, AT_SUCCESS, false)
+        if (res_modem != AT_SUCCESS) {
+                DEBUG_V0("%s: modem reset failed\n", __func__);
+                return false;
+        }
 
         res_modem = __at_check_modem_conf();
         if (res_modem == AT_RECHECK_MODEM) {
@@ -873,7 +875,7 @@ static int __at_tcp_connect(const char *host, const char *port)
 
         state |= TCP_CONNECTED;
         state &= ~TCP_CONN_CLOSED;
-        DEBUG_V1("%s: socket:%d created\n", __func__, s_id);
+        DEBUG_V0("%s: socket:%d created\n", __func__, s_id);
         return s_id;
 }
 
