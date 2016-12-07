@@ -16,7 +16,7 @@
 
 typedef uint16_t buf_sz;
 
-#define UART_INV_PARAM	-2	/* Invalid parameter. */
+#define UART_INV_PARAM	-1	/* Invalid parameter. */
 
 #define UART_EN_HW_CTRL		true	/* Enable hardware flow control. */
 #define UART_DIS_HW_CTRL	false	/* Disable hardware flow control. */
