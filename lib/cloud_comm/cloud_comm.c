@@ -34,6 +34,7 @@ static struct {
 	bool auth_done;			/* Auth was sent for this session */
 	bool pend_bit;			/* Cloud has a pending message */
 	bool pend_ack;			/* Set if the device needs to ACK prev msg */
+	bool nack_sent;			/* Set if a NACK was sent from the device */
 	char host[MAX_HOST_LEN + 1];	/* Store the host name */
 	char port[MAX_PORT_LEN + 1];	/* Store the host port */
 } session;
@@ -66,6 +67,7 @@ static inline void reset_conn_and_session_states(void)
 	session.auth_done = false;
 	session.pend_bit = false;
 	session.pend_ack = false;
+	session.nack_sent = false;
 }
 
 /* Called on receiving a quit; Close the connection and reset the state */
@@ -213,6 +215,7 @@ void cc_ack_bytes(void)
 void cc_nak_bytes(void)
 {
 	initiate_quit(true);
+	session.nack_sent = true;
 }
 
 /*
@@ -220,8 +223,7 @@ void cc_nak_bytes(void)
  * user provided callbacks this function invokes. In addition, it sets some
  * internal flags to decide the state of the session in the future. Calling the
  * send callback is optional and is decided through "invoke_send_cb".
- * On receiving a NACK or sending a NACK through the "send" callback, return
- * "false". Otherwise, return "true".
+ * On receiving a NACK return "false". Otherwise, return "true".
  */
 static bool process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
 {
@@ -252,10 +254,8 @@ static bool process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
 		}
 
 		/* Call the callbacks with the type of message received */
-		if (m_type == MT_UPDATE || m_type == MT_CMD_SL) {
+		if (m_type == MT_UPDATE || m_type == MT_CMD_SL)
 			INVOKE_RECV_CALLBACK(conn_in.buf, evt);
-			no_nack_detected = session.pend_ack;
-		}
 		if (invoke_send_cb)
 			INVOKE_SEND_CALLBACK(conn_out.buf, CC_STS_ACK);
 	} else if (OTT_FLAG_IS_SET(c_flags, CF_NACK)) {
@@ -278,7 +278,7 @@ static bool process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
  * response. When expecting a response for an auth message (or any internal
  * message), this should be false.
  * On successfully receiving a valid response, this function will return "true".
- * On receiving or sending a NACK or timeout, return "false".
+ * On receiving a NACK or timeout, return "false".
  */
 static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 {
@@ -323,6 +323,7 @@ static bool establish_session(const char *host, const char *port, bool polling)
 			!conn_in.recv_in_progress)
 		return false;
 
+retry_connection:
 	if (ott_initiate_connection(host, port) != OTT_OK)
 		return false;
 
@@ -342,6 +343,12 @@ static bool establish_session(const char *host, const char *port, bool polling)
 	if (!recv_resp_within_timeout(RECV_TIMEOUT_MS, false)) {
 		initiate_quit(true);
 		return false;
+	}
+
+	/* If we NACKed an incoming message, the session was ended. Retry. */
+	if (session.nack_sent) {
+		session.nack_sent = false;
+		goto retry_connection;
 	}
 
 	session.auth_done = true;
@@ -403,6 +410,9 @@ cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 		return CC_SEND_FAILED;
 	}
 
+	if (session.nack_sent)
+		session.nack_sent = false;
+
 	return CC_SEND_SUCCESS;
 }
 
@@ -447,6 +457,9 @@ cc_send_result cc_resend_init_config(cc_callback_rtn cb)
 		return CC_SEND_FAILED;
 	}
 
+	if (session.nack_sent)
+		session.nack_sent = false;
+
 	return CC_SEND_SUCCESS;
 }
 
@@ -482,10 +495,14 @@ static void poll_cloud_for_messages(void)
 			reset_conn_and_session_states();
 			return;
 		}
+
 		if (!recv_resp_within_timeout(RECV_TIMEOUT_MS, true)) {
 			initiate_quit(true);
 			return;
 		}
+
+		if (session.nack_sent)
+			session.nack_sent = false;
 	}
 }
 
@@ -504,10 +521,12 @@ int32_t cc_service_send_receive(uint32_t cur_ts)
 	 */
 	if (session.auth_done || cur_ts >= timekeep.polling_ts) {
 		if (!session.auth_done)
-			establish_session(session.host, session.port, true);
+			if (!establish_session(session.host, session.port, true))
+				goto next_wakeup;
 		poll_cloud_for_messages();
 	}
 
+next_wakeup:
 	/* Compute when this function needs to be called next */
 	if (cur_ts >= timekeep.polling_ts || timekeep.new_interval_set) {
 		timekeep.new_interval_set = false;
