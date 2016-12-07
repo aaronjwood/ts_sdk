@@ -35,17 +35,17 @@ static void recv_cb(const cc_buffer_desc *buf, cc_event event)
 		const uint8_t *recvd = cc_get_recv_buffer_ptr(buf);
 		if (recvd[0] == RESEND_CALIB && sz == 1) {
 			resend_calibration = true;
-			dbg_printf("\t\t[RECV CB] Will send an ACK in response\n");
+			dbg_printf("\t\t\t[RECV CB] Will send an ACK in response\n");
 			cc_ack_bytes();
 		} else {
 			resend_calibration = false;
-			dbg_printf("\t\t[RECV CB] NACKing an invalid message\n");
+			dbg_printf("\t\t\t[RECV CB] NACKing an invalid message\n");
 			cc_nak_bytes();
 		}
 	} else if (event == CC_STS_RCV_CMD_SL) {
 		uint32_t sl_sec = cc_get_sleep_interval(buf);
 		dbg_printf("\t\t\tSleep interval (secs) : %"PRIu32"\n", sl_sec);
-		dbg_printf("\t\t[RECV CB] Will send an ACK in response\n");
+		dbg_printf("\t\t\t[RECV CB] Will send an ACK in response\n");
 		cc_ack_bytes();
 	}
 

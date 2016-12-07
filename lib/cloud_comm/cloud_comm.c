@@ -227,8 +227,6 @@ void cc_nak_bytes(void)
  */
 static bool process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
 {
-	conn_in.recv_in_progress = false;
-
 	c_flags_t c_flags;
 	m_type_t m_type;
 	bool no_nack_detected = true;
@@ -254,8 +252,10 @@ static bool process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
 		}
 
 		/* Call the callbacks with the type of message received */
-		if (m_type == MT_UPDATE || m_type == MT_CMD_SL)
+		if (m_type == MT_UPDATE || m_type == MT_CMD_SL) {
+			conn_in.recv_in_progress = false;
 			INVOKE_RECV_CALLBACK(conn_in.buf, evt);
+		}
 		if (invoke_send_cb)
 			INVOKE_SEND_CALLBACK(conn_out.buf, CC_STS_ACK);
 	} else if (OTT_FLAG_IS_SET(c_flags, CF_NACK)) {
@@ -349,6 +349,14 @@ retry_connection:
 	if (session.nack_sent) {
 		session.nack_sent = false;
 		goto retry_connection;
+	}
+
+	/* If neither side has nothing to send while polling, the connection
+	 * would have been terminated in recv_resp_within_timeout().
+	 */
+	if (polling && !session.conn_done) {
+		session.auth_done = false;
+		return false;
 	}
 
 	session.auth_done = true;
