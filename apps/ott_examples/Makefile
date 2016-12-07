@@ -5,8 +5,8 @@
 # HAL drivers.
 # Note: Library sources are built without debug info and optimized for size
 # PROJ_NAME selects which example to build. By default, the Makefile assumes
-# 'bmp180' as the project. This is equivalent to invoking it as follows:
-# 'make' is equivalent to 'make PROJ_NAME=bmp180'
+# 'bmp180' as the project. This means that 'make' is equivalent to
+# 'make PROJ_NAME=bmp180'
 
 PROJ_ROOT = $(shell git rev-parse --show-toplevel)
 export PROJ_ROOT
