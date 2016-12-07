@@ -181,7 +181,7 @@ bool si_init(void)
 bool si_read_calib(uint8_t idx, uint16_t max_sz, array_t *data)
 {
 	/* Only HTS221 has a calibration table */
-	if (idx > HTS221)
+	if (idx != HTS221)
 		return false;
 	if (max_sz < HTS221_CALIB_SZ)
 		return false;
@@ -196,7 +196,7 @@ uint8_t si_get_num_sensors(void)
 }
 
 /*
- * Wait until the value of the register 'reg', of I2C device 'dev',  masked by
+ * Wait until the value of the register 'reg' of I2C device 'dev' masked by
  * 'mask' reads the expected value. In case it takes too long, timeout.
  */
 static bool read_until_matched_byte(uint8_t dev, uint8_t reg,
@@ -209,6 +209,7 @@ static bool read_until_matched_byte(uint8_t dev, uint8_t reg,
 		EOE(i2c_sr(dev, reg, &value, 1));
 		if ((value & mask) == expected)
 			return true;
+		end = platform_get_tick_ms();
 	} while(end - start < READ_MATCH_TIMEOUT);
 	return false;
 }
