@@ -64,7 +64,7 @@ static volatile bool pdp_conf;
 /* Enable this macro to display messages, error will alway be reported if this
  * macro is enabled while V2 and V1 will depend on debug_level setting
  */
-#define DEBUG_AT_LIB
+/*#define DEBUG_AT_LIB*/
 
 static int debug_level;
 /* level v2 is normally for extensive debugging need, for example tracing
@@ -125,7 +125,7 @@ static int debug_level;
 #define IDLE_CHARS	        10
 #define MODEM_RESET_DELAY       15000 /* In mili seconds */
 /* in mili seconds, polling for modem to come out from reset */
-#define CHECK_MODEM_UP_DELAY    1000
+#define CHECK_MODEM_DELAY    1000
 /* maximum timeout value in searching for the network coverage */
 #define NET_REG_CHECK_DELAY     60000 /* In mili seconds */
 
@@ -681,6 +681,10 @@ static at_ret_code __at_modem_reset()
         at_ret_code result;
         result = __at_modem_reset_comm();
         CHECK_SUCCESS(result, AT_SUCCESS, result)
+        /* sending at command right after reset command succeeds which is not
+         * desirable, wait here for few seconds before we send at command to
+         * poll for modem
+         */
         HAL_Delay(2000);
         uint32_t start = HAL_GetTick();
         uint32_t end;
@@ -693,7 +697,7 @@ static at_ret_code __at_modem_reset()
                 }
                 result =  __at_generic_comm_rsp_util(
                                 &modem_net_status_comm[MODEM_OK], false, false);
-                HAL_Delay(CHECK_MODEM_UP_DELAY);
+                HAL_Delay(CHECK_MODEM_DELAY);
         }
 
         DEBUG_V1("%s: resetting modem done...\n", __func__);
@@ -769,7 +773,7 @@ static at_ret_code __at_check_modem_conf() {
                         break;
                 }
                 result = __at_check_network_registration();
-                HAL_Delay(1000);
+                HAL_Delay(CHECK_MODEM_DELAY);
         }
 
         /* Now modem has registered with home network, it is safe to say network
@@ -1132,7 +1136,7 @@ int at_read_available(int s_id) {
         desc->rsp_desc[0].data = &data;
         result = __at_generic_comm_rsp_util(desc, false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_RCV_FAIL)
-        DEBUG_V1("%s: total read bytes: %d\n", __func__, data);
+        DEBUG_V1("%s: next bytes avail: %d\n", __func__, data);
         return data;
 }
 
@@ -1403,6 +1407,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
 
 done:
         __at_rcv_cleanup(s_id);
+        DEBUG_V0("%s: recevied bytes:%d\n", __func__, r_bytes);
         return r_bytes;
 }
 
