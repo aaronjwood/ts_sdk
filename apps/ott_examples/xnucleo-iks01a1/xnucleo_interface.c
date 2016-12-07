@@ -1,11 +1,11 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
 /*
- * Read the following sensors
- * 1) HTS221
- * 2) LSM6DS0
- * 3) LPS25HB
- * 4) LIS3MDL
+ * Sensor module for the following sensors:
+ * 1) HTS221 (Temperature and humidity)
+ * 2) LSM6DS0 (Accelerometer)
+ * 3) LPS25HB (Temperature and pressure)
+ * 4) LIS3MDL (Magnetometer)
  */
 
 #include <stm32f4xx_hal.h>
