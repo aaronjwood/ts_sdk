@@ -430,10 +430,6 @@ static at_ret_code __at_uart_waited_read(char *buf, uint16_t wanted,
                                         uint32_t *timeout)
 {
         uint16_t rcvd = uart_rx_available();
-        if (rcvd == 0) {
-                DEBUG_V0("%s: Unlikely read available error\n", __func__);
-                return AT_FAILURE;
-        }
         if (__at_wait_for_bytes(&rcvd, wanted, timeout) != AT_SUCCESS) {
                 DEBUG_V0("%s: bytes not present\n", __func__);
                 return AT_FAILURE;
