@@ -15,7 +15,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include "dbg.h"
 
 typedef enum at_states {
         IDLE = 1,
@@ -123,7 +122,7 @@ static int debug_level;
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 
 #define IDLE_CHARS	        10
-#define MODEM_RESET_DELAY       15000 /* In mili seconds */
+#define MODEM_RESET_DELAY       25000 /* In mili seconds */
 /* in mili seconds, polling for modem */
 #define CHECK_MODEM_DELAY    1000
 /* maximum timeout value in searching for the network coverage */

@@ -36,7 +36,10 @@ extern "C" {
 #define AT_SOCKET_FAILED        -2
 
 /**
- * \brief       Initializes underlying hardware i.e. UART etc...and modem
+ * \brief       Initializes underlying hardware i.e. UART etc...
+ *              First thing it does is to send software reset command to modem
+ *              before proceeding further, so modem should be up before this API
+ *              executes
  * \return      true if successful or false if fails
  */
 bool at_init();
