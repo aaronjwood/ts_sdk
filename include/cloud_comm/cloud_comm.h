@@ -57,7 +57,7 @@ typedef struct {		/* Cloud communication buffer descriptor */
 	void *buf_ptr;		/* Opaque pointer to the actual data buffer */
 } cc_buffer_desc;
 
-#define MAX_HOST_LEN	25	/* Size of the host address string in bytes */
+#define MAX_HOST_LEN	50	/* Size of the host address string in bytes */
 #define MAX_PORT_LEN	5	/* Size of the port string in bytes */
 
 /*
