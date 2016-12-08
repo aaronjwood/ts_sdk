@@ -31,7 +31,7 @@ vpath %.c $(SRCDIR)/$(PROJ_NAME): \
 	$(SRCDIR):
 
 # User application includes
-INC += -I $(SRCDIR)/$(PROJ_NAME)/include
+INC += -I $(SRCDIR)/include
 
 # User application sources
 USER_SRC = $(wildcard $(SRCDIR)/*.c)

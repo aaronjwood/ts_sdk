@@ -40,7 +40,8 @@ static struct {
 } session;
 
 static struct {
-	uint32_t polling_ts;		/* Earliest timestamp for the next polling */
+	uint32_t start_ts;		/* Polling interval measurement starts
+					 * from this timestamp */
 	int32_t polling_int_ms;		/* Polling interval in milliseconds */
 	bool new_interval_set;		/* Set if a new interval was received */
 } timekeep;
@@ -93,7 +94,7 @@ static inline void init_state(void)
 	reset_conn_and_session_states();
 	session.host[0] = 0x00;
 	session.port[0] = 0x00;
-	timekeep.polling_ts = 0;
+	timekeep.start_ts = 0;
 	timekeep.polling_int_ms = INIT_POLLLING_MS;
 	timekeep.new_interval_set = true;
 }
@@ -522,12 +523,13 @@ static void poll_cloud_for_messages(void)
 int32_t cc_service_send_receive(uint32_t cur_ts)
 {
 	int32_t next_call_time_ms = -1;
+	bool polling_due = cur_ts - timekeep.start_ts >= timekeep.polling_int_ms;
 
 	/*
 	 * Poll for messages / ACK any previous messages if the connection is
 	 * still open or if the polling interval was hit.
 	 */
-	if (session.auth_done || cur_ts >= timekeep.polling_ts) {
+	if (session.auth_done || polling_due) {
 		if (!session.auth_done)
 			if (!establish_session(session.host, session.port, true))
 				goto next_wakeup;
@@ -536,10 +538,10 @@ int32_t cc_service_send_receive(uint32_t cur_ts)
 
 next_wakeup:
 	/* Compute when this function needs to be called next */
-	if (cur_ts >= timekeep.polling_ts || timekeep.new_interval_set) {
+	if (polling_due || timekeep.new_interval_set) {
 		timekeep.new_interval_set = false;
 		next_call_time_ms = timekeep.polling_int_ms;
-		timekeep.polling_ts = cur_ts + timekeep.polling_int_ms;
+		timekeep.start_ts = cur_ts;
 	}
 
 	close_session();

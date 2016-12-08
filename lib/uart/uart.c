@@ -181,15 +181,21 @@ int uart_read(uint8_t *buf, buf_sz sz)
 	 * Copy bytes into the supplied buffer and perform the necessary
 	 * book-keeping.
 	 */
-	__disable_irq();
-	buf_sz n_bytes = (sz > rx.num_unread) ? rx.num_unread : sz;
-	__enable_irq();
+	HAL_NVIC_DisableIRQ(USART2_IRQn);
+	buf_sz num_unread = rx.num_unread;
+	HAL_NVIC_EnableIRQ(USART2_IRQn);
+
+	buf_sz n_bytes = (sz > num_unread) ? num_unread : sz;
 	buf_sz i = 0;
-	memcpy(buf, (const void *)&rx.buffer[rx.ridx], n_bytes);
-	rx.ridx = (rx.ridx + n_bytes) % UART_RX_BUFFER_SIZE;
-	__disable_irq();
+	while ((n_bytes - i) > 0) {
+		buf[i++] = rx.buffer[rx.ridx];
+		rx.ridx = (rx.ridx + 1) % UART_RX_BUFFER_SIZE;
+	}
+
+	HAL_NVIC_DisableIRQ(USART2_IRQn);
 	rx.num_unread -= n_bytes;
-	__enable_irq();
+	HAL_NVIC_EnableIRQ(USART2_IRQn);
+
 	return n_bytes;
 }
 
