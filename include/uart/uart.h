@@ -16,10 +16,7 @@
 
 typedef uint16_t buf_sz;
 
-enum {
-	UART_READ_ERR = -1,	/* Error while reading UART buffer. */
-	UART_INV_PARAM = -2	/* Invalid parameter. */
-};
+#define UART_INV_PARAM	-1	/* Invalid parameter. */
 
 #define UART_EN_HW_CTRL		true	/* Enable hardware flow control. */
 #define UART_DIS_HW_CTRL	false	/* Disable hardware flow control. */
@@ -143,7 +140,6 @@ int uart_line_avail(char *header, char *trailer);
  *
  * Returns:
  * 	Number of bytes actually read into the buffer.
- * 	UART_READ_ERR if there's no unread data.
  * 	UART_INV_PARAM if null pointer is provided for buffer.
  */
 int uart_read(uint8_t *buf, buf_sz sz);

@@ -172,7 +172,7 @@ int uart_read(uint8_t *buf, buf_sz sz)
 	 * null pointer was supplied in place of the buffer.
 	 */
 	if (rx.num_unread == 0)
-		return UART_READ_ERR;
+		return 0;
 
 	if (!buf)
 		return UART_INV_PARAM;

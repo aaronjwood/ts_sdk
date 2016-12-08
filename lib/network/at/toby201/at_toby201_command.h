@@ -92,7 +92,7 @@ static const at_command_desc modem_net_status_comm[MOD_END] = {
                 .comm = "at\r",
                 .rsp_desc = {
                         {
-                                .rsp = "\r\nOK\r\n",
+                                .rsp = "at\r\r\nOK\r\n",
                                 .rsp_handler = NULL,
                                 .data = NULL
                         }
@@ -125,14 +125,10 @@ static const at_command_desc modem_net_status_comm[MOD_END] = {
                 .comm_timeout = 100
         },
         [MODEM_RESET] = {
+                /* response will be processed in __at_modem_reset_comm
+                 * function
+                 */
                 .comm = "at+cfun=16\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
                 .err = NULL,
                 .comm_timeout = 5000
         },

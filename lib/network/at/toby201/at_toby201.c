@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include "platform.h"
 
 typedef enum at_states {
         IDLE = 1,
@@ -63,7 +64,7 @@ static volatile bool pdp_conf;
 /* Enable this macro to display messages, error will alway be reported if this
  * macro is enabled while V2 and V1 will depend on debug_level setting
  */
-/*#define DEBUG_AT_LIB */
+/*#define DEBUG_AT_LIB*/
 
 static int debug_level;
 /* level v2 is normally for extensive debugging need, for example tracing
@@ -122,8 +123,17 @@ static int debug_level;
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 
 #define IDLE_CHARS	        10
-#define MODEM_RESET_DELAY       60000 /* In mili seconds */
-#define NET_REG_CHECK_DELAY     10000 /* In mili seconds */
+#define MODEM_RESET_DELAY       25000 /* In mili seconds */
+/* in mili seconds, polling for modem */
+#define CHECK_MODEM_DELAY    1000
+/* maximum timeout value in searching for the network coverage */
+#define NET_REG_CHECK_DELAY     60000 /* In mili seconds */
+
+/* Waiting arbitrarily as we do not know for how many
+ * bytes we will be waiting for when modem does not send wrong response in
+ * totality
+ */
+#define WRONG_RSP_BUF_DUMP_DELAY        2000 /* In mili seconds */
 
 /* Meta data related to at+usord command plus \r\n+UUSORD: x,xxxx\r\n
  * This parameter is depends on uart rx buffer at low level, if uart rx
@@ -164,10 +174,10 @@ static int __at_get_bytes(char *rsp_buf, char tail) {
         return num_bytes;
 }
 
-static void __at_dump_buffer(uint8_t *buf, uint16_t len)
+static void __at_dump_buffer(const char *buf, buf_sz len)
 {
         if (!buf) {
-                int bytes = uart_rx_available();
+                buf_sz bytes = uart_rx_available();
                 if (bytes > 0) {
                         uint8_t temp_buf[bytes];
                         uart_read(temp_buf, bytes);
@@ -316,10 +326,10 @@ static at_ret_code __at_wait_for_rsp(uint32_t *timeout)
 
         state |= WAITING_RESP;
         at_ret_code result = AT_SUCCESS;
-        uint32_t start = HAL_GetTick();
+        uint32_t start = platform_get_tick_ms();
         uint32_t end;
         while (!process_rsp) {
-                end = HAL_GetTick();
+                end = platform_get_tick_ms();
                 if ((end - start) > *timeout) {
                         result = AT_RSP_TIMEOUT;
                         DEBUG_V1("%s: RSP_TIMEOUT: out of %u, waited %u\n",
@@ -345,7 +355,6 @@ static at_ret_code __at_comm_send_and_wait_rsp(char *comm, uint16_t len,
         __at_process_urc();
         state &= ~PROC_URC;
         __at_uart_rx_flush();
-
         CHECK_NULL(comm, AT_FAILURE)
 
         if (!__at_uart_write((uint8_t *)comm, len)) {
@@ -355,15 +364,24 @@ static at_ret_code __at_comm_send_and_wait_rsp(char *comm, uint16_t len,
         return __at_wait_for_rsp(timeout);
 }
 
-static at_ret_code __at_handle_error_rsp(uint8_t *rsp_buf, uint16_t read_bytes,
-                                const at_command_desc *desc, uint8_t rsp_num)
+static void __at_dump_wrng_rsp(char *rsp_buf, buf_sz read_bytes, const char *rsp)
 {
-        uint8_t i = 0;
-        at_ret_code result = AT_SUCCESS;
+#ifdef DEBUG_WRONG_RSP
+        DEBUG_V0("%s: Printing received wrong response:\n", __func__);
+        __at_dump_buffer(rsp_buf, read_bytes);
+        DEBUG_V0("\n");
+        DEBUG_V0("%s: Printing expected response:\n", __func__);
+        __at_dump_buffer(rsp, strlen(rsp));
+        DEBUG_V0("\n");
+#endif
+}
 
-        if (desc->err) {
-                if (strncmp((char *)rsp_buf, desc->err,
-                                strlen(desc->err)) != 0) {
+static at_ret_code __at_handle_error_rsp(uint8_t *rsp_buf, buf_sz read_bytes,
+                                        const char *rsp, const char *err)
+{
+        at_ret_code result = AT_SUCCESS;
+        if (err) {
+                if (strncmp((char *)rsp_buf, err, strlen(err)) != 0) {
                         if (strncmp((char *)rsp_buf, tcp_error,
                                 strlen(tcp_error)) == 0) {
                                 DEBUG_V0("%s: tcp error: %s\n",
@@ -377,31 +395,56 @@ static at_ret_code __at_handle_error_rsp(uint8_t *rsp_buf, uint16_t read_bytes,
                 } else
                         result = AT_FAILURE;
         } else {
-                DEBUG_V0("%s: wrong response: %s\n",
-                                                __func__, (char *)rsp_buf);
+                DEBUG_V0("%s: wrong response\n", __func__);
+                __at_dump_wrng_rsp(rsp_buf, read_bytes, rsp);
                 result = AT_WRONG_RSP;
         }
-
-#ifdef DEBUG_WRONG_RSP
-        if (result == AT_WRONG_RSP) {
-                DEBUG_V0("%s: Printing received wrong response:\n", __func__);
-                __at_dump_buffer(rsp_buf, read_bytes);
-                DEBUG_V0("\n");
-                DEBUG_V0("%s: Printing expected response:\n", __func__);
-                __at_dump_buffer(desc->rsp_desc[rsp_num].rsp,
-                                        strlen(desc->rsp_desc[rsp_num].rsp));
-                DEBUG_V0("\n");
-                if (strncmp(rsp_buf, desc->rsp_desc[rsp_num].rsp,
-                        read_bytes) == 0)
-                        DEBUG_V0("%s: Received partial response\n", __func__);
-        }
-#endif
         return result;
 }
 
+static at_ret_code __at_wait_for_bytes(buf_sz *rcv_bytes,
+                                        buf_sz target_bytes,
+                                        uint32_t *timeout)
+{
+        while ((*rcv_bytes < target_bytes) && (*timeout > 0)) {
+                /* Modem may be busy and could not send whole response that
+                 * we are looking for, wait here to give another chance
+                 */
+                __at_wait_for_rsp(timeout);
+                state |= WAITING_RESP;
+                /* New total bytes available to read */
+                *rcv_bytes = uart_rx_available();
+
+        }
+        state |= WAITING_RESP;
+        if (*timeout == 0) {
+                *rcv_bytes = uart_rx_available();
+                if (*rcv_bytes < target_bytes)
+                        return AT_FAILURE;
+        }
+        DEBUG_V1("%s: data available (%u), wanted (%u), waited for %u time\n",
+                                __func__, *rcv_bytes, target_bytes, *timeout);
+        return AT_SUCCESS;
+}
+
+static at_ret_code __at_uart_waited_read(char *buf, buf_sz wanted,
+                                        uint32_t *timeout)
+{
+        buf_sz rcvd = uart_rx_available();
+        if (__at_wait_for_bytes(&rcvd, wanted, timeout) != AT_SUCCESS) {
+                DEBUG_V0("%s: bytes not present\n", __func__);
+                return AT_FAILURE;
+        }
+
+        if (uart_read((uint8_t *)buf, wanted) < wanted) {
+                DEBUG_V0("%s: Unlikely read error\n", __func__);
+                return AT_FAILURE;
+        }
+        return AT_SUCCESS;
+}
 /* Generic utility to send command, wait for the response, and process response.
  * It is best suited for responses bound by delimiters with the exceptions
- * for write prompt command for tcp write
+ * for write prompt command for tcp write, echo_off and modem_ok commands
  */
 
 static at_ret_code __at_generic_comm_rsp_util(const at_command_desc *desc,
@@ -413,7 +456,13 @@ static at_ret_code __at_generic_comm_rsp_util(const at_command_desc *desc,
         char *comm;
         const char *rsp;
         uint32_t timeout;
-        int read_bytes;
+        buf_sz read_bytes;
+        uint16_t wanted;
+        /* temperary wanted bytes and buffer needed when reading method is not
+         * by the line, maximum is 3 as write prompt response is \r\n@
+         */
+        uint8_t tmp_want = 0;
+        char temp_buf[4];
 
         comm = desc->comm;
         timeout = desc->comm_timeout;
@@ -427,57 +476,93 @@ static at_ret_code __at_generic_comm_rsp_util(const at_command_desc *desc,
         }
 
         state |= PROC_RSP;
-        state |= WAITING_RESP;
-
         for(uint8_t i = 0; i < ARRAY_SIZE(desc->rsp_desc); i++) {
                 if (!desc->rsp_desc[i].rsp)
                         continue;
                 if (read_line) {
                         read_bytes = uart_line_avail(rsp_header, rsp_trailer);
-                        /* Scenario where modem stops sending partial response
-                         * before we go out reporting error, give another chance
+                        /*
+                         * wait till we get whole line or time runs out
                          */
-                        if (read_bytes == 0) {
-                                DEBUG_V1("%s: no line detected yet,"
-                                                " wait again for rsp :%d, "
-                                                "max remaining timeout: %u\n",
-                                                __func__, i, timeout);
-                                /* don't care about timeout error here,
-                                 * wait for at max remaining time left
-                                 */
-                                __at_wait_for_rsp(&timeout);
+                        while (read_bytes == 0) {
+                                result = __at_wait_for_rsp(&timeout);
+                                if (result == AT_RSP_TIMEOUT) {
+                                        DEBUG_V0("%s: timed out, rsp: %s\n",
+                                                __func__,
+                                                desc->rsp_desc[i].rsp);
+                                        goto done;
+                                }
                                 read_bytes = uart_line_avail(rsp_header,
-                                                                rsp_trailer);
-                                if (read_bytes == 0) {
-                                        DEBUG_V0("%s: no line available, "
-                                                "dumping buffer for debug\n",
-                                                __func__);
-                                        /* Check if it has partial response */
-                                        __at_dump_buffer(NULL, 0);
-                                        result = AT_FAILURE;
-                                        break;
-                                } else
-                                        state |= WAITING_RESP;
+                                                        rsp_trailer);
                         }
-                } else
-                        read_bytes = uart_rx_available();
+                        wanted = 0;
+                        tmp_want = 0;
+                } else {
+                        /* First three bytes to determine response */
+                        tmp_want = 3;
+                        memset(temp_buf, 0, tmp_want);
+                        result = __at_uart_waited_read(temp_buf, tmp_want,
+                                                        &timeout);
+                        if (result != AT_SUCCESS)
+                                break;
+                        if (strncmp(temp_buf, desc->rsp_desc[i].rsp,
+                                                tmp_want) == 0)
+                                wanted = strlen(desc->rsp_desc[i].rsp) - tmp_want;
 
-                if (read_bytes <= 0) {
-                        DEBUG_V0("%s: invalid read_bytes:%d for comm: %s\n",
-                                __func__, read_bytes, comm);
-                        break;
+                        else {
+                                if (strncmp(temp_buf, tcp_error, tmp_want) == 0)
+                                        wanted = strlen(tcp_error) - tmp_want;
+                                else if (desc->err) {
+                                        if (strncmp(temp_buf, desc->err,
+                                                tmp_want) == 0)
+                                                wanted = strlen(desc->err) -
+                                                                        tmp_want;
+                                        else
+                                                result = AT_WRONG_RSP;
+                                } else
+                                        result = AT_WRONG_RSP;
+                        }
+                        if (result == AT_WRONG_RSP) {
+                                DEBUG_V0("%s: wrong response for command:%s\n",
+                                        __func__, comm);
+                                platform_delay(WRONG_RSP_BUF_DUMP_DELAY);
+                                __at_dump_buffer(NULL, 0);
+                                break;
+                        }
+                        buf_sz rb = uart_rx_available();
+                        result = __at_wait_for_bytes(&rb, wanted,
+                                                        &timeout);
+                        state &= ~WAITING_RESP;
+                        if (result != AT_SUCCESS)
+                                break;
+                        read_bytes = rb + tmp_want;
                 }
+
+                /* start processing response */
                 uint8_t rsp_buf[read_bytes + 1];
-                rsp_buf[read_bytes] = 0x0;
+                memset(rsp_buf, 0, read_bytes + 1);
+                if (tmp_want > 0) {
+                        if (tmp_want <= read_bytes)
+                                strncpy((char *)rsp_buf, temp_buf, tmp_want);
+                        else {
+                                DEBUG_V0("%s: Unlikey tmp want value\n",
+                                        __func__);
+                                result = AT_FAILURE;
+                                break;
+                        }
+                }
 
-                if (uart_read(rsp_buf, read_bytes) > 0) {
-                        DEBUG_V1("%s: recvd res: %s\n", __func__,
-                                                        (char *)rsp_buf);
-                        if (strncmp((char *)rsp_buf, desc->rsp_desc[i].rsp,
-                                        strlen(desc->rsp_desc[i].rsp)) != 0) {
-
+                int rd_b = uart_read(rsp_buf + tmp_want, read_bytes - tmp_want);
+                if (rd_b == (read_bytes - tmp_want)) {
+                        if (strncmp((char *)rsp_buf,
+                                desc->rsp_desc[i].rsp,
+                                strlen(desc->rsp_desc[i].rsp)) != 0) {
+                                DEBUG_V0("%s: Error rsp for command:%s\n",
+                                        __func__, comm);
                                 result = __at_handle_error_rsp(rsp_buf,
-                                                        read_bytes, desc, i);
+                                                        read_bytes,
+                                                        desc->rsp_desc[i].rsp,
+                                                        desc->err);
                                 break;
                         } else {
                                 if (desc->rsp_desc[i].rsp_handler)
@@ -488,16 +573,19 @@ static at_ret_code __at_generic_comm_rsp_util(const at_command_desc *desc,
                                 result = AT_SUCCESS;
                         }
                 } else {
-                        DEBUG_V0("%s: uart read failed (unlikely)\n", __func__);
+                        DEBUG_V0("%s: uart read failed (unlikely) for"
+                                " command:%s\n", __func__,desc->comm);
                         result = AT_FAILURE;
                         break;
                 }
-        }
+
+        } /* for loop ends */
+done:
         state &= ~PROC_RSP;
         state &= ~WAITING_RESP;
+
         /* Recommeded to wait at least 20ms before proceeding */
-done:
-        HAL_Delay(20);
+        platform_delay(20);
 
         /* check to see if we have urcs while command was executing
          * if result was wrong response, chances are that we are out of sync
@@ -512,27 +600,111 @@ done:
         return result;
 }
 
+/* resetting modem is a special case where its response depends on the previous
+ * setting of the echo in the modem, where if echo is on it sends
+ * command plus OK or OK otherwise as a response
+ */
+static at_ret_code __at_modem_reset_comm()
+{
+        at_ret_code result = AT_FAILURE;
+
+        const at_command_desc *desc = &modem_net_status_comm[MODEM_RESET];
+        char *comm = desc->comm;
+        uint32_t timeout = desc->comm_timeout;
+        uint16_t rcvd, wanted;
+        char *rsp = "\r\nOK\r\n";
+        char alt_rsp[strlen(comm) + strlen(rsp) + 1];
+        char *temp_rsp = NULL;
+        strcpy(alt_rsp, comm);
+        strcat(alt_rsp, rsp);
+
+        int max_bytes = (strlen(rsp) > strlen(alt_rsp)) ?
+                                        strlen(rsp):strlen(alt_rsp);
+
+        char rsp_buf[max_bytes + 1];
+        rsp_buf[max_bytes] = 0x0;
+
+        result = __at_comm_send_and_wait_rsp(comm, strlen(comm), &timeout);
+        if (result != AT_SUCCESS)
+                goto done;
+
+        state |= PROC_RSP;
+        /* read for /r/nO or at+ */
+        wanted = 3;
+        result = __at_uart_waited_read(rsp_buf, wanted, &timeout);
+        if (result != AT_SUCCESS)
+                goto done;
+
+        if (strncmp(rsp_buf, rsp, wanted) == 0) {
+                temp_rsp = rsp + wanted;
+                wanted = strlen(rsp) - wanted;
+        } else if (strncmp(rsp_buf, alt_rsp, wanted) == 0) {
+                temp_rsp = alt_rsp + wanted;
+                wanted = strlen(alt_rsp) - wanted;
+        } else {
+                result = AT_FAILURE;
+                DEBUG_V0("%s: wrong resp\n", __func__);
+                platform_delay(WRONG_RSP_BUF_DUMP_DELAY);
+                __at_dump_buffer(NULL, 0);
+                goto done;
+        }
+
+        result = __at_uart_waited_read(rsp_buf, wanted, &timeout);
+        if (result != AT_SUCCESS)
+                goto done;
+        if (strncmp(rsp_buf, temp_rsp, wanted) != 0) {
+                DEBUG_V0("%s: Unlikely comparison error\n", __func__);
+                result = AT_FAILURE;
+        } else
+                result = AT_SUCCESS;
+
+done:
+        state &= ~WAITING_RESP;
+        state &= ~PROC_RSP;
+        platform_delay(20);
+        /* check to see if we have urcs while command was executing
+         */
+        DEBUG_V1("%s: Processing URCS outside call back\n", __func__);
+        state |= PROC_URC;
+        __at_process_urc();
+        state &= ~PROC_URC;
+        __at_uart_rx_flush();
+        return result;
+}
+
 static at_ret_code __at_modem_reset()
 {
         at_ret_code result;
-        result = __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_RESET],
-                                                                false, true);
-        if (result == AT_RSP_TIMEOUT || result == AT_TX_FAILURE)
-                return result;
+        result = __at_modem_reset_comm();
+        CHECK_SUCCESS(result, AT_SUCCESS, result)
+        /* sending at command right after reset command succeeds which is not
+         * desirable, wait here for few seconds before we send at command to
+         * poll for modem
+         */
+        platform_delay(2000);
+        uint32_t start = platform_get_tick_ms();
+        uint32_t end;
+        result = AT_FAILURE;
+        while (result != AT_SUCCESS) {
+                end = platform_get_tick_ms();
+                if ((end - start) > MODEM_RESET_DELAY) {
+                        DEBUG_V0("%s: timed out\n", __func__);
+                        return result;
+                }
+                result =  __at_generic_comm_rsp_util(
+                                &modem_net_status_comm[MODEM_OK], false, false);
+                platform_delay(CHECK_MODEM_DELAY);
+        }
 
-        HAL_Delay(MODEM_RESET_DELAY);
-        DEBUG_V1("%s: resetting modem done...\n", __func__);
+        DEBUG_V0("%s: resetting modem done...\n", __func__);
         result = __at_generic_comm_rsp_util(
                                 &modem_net_status_comm[ECHO_OFF], false, false);
-        if (result == AT_RSP_TIMEOUT || result == AT_TX_FAILURE)
-                return result;
+        CHECK_SUCCESS(result, AT_SUCCESS, result)
 
         result = __at_generic_comm_rsp_util(
                                 &modem_net_status_comm[CME_CONF], false, true);
-        if (result == AT_RSP_TIMEOUT || result == AT_TX_FAILURE)
-                return result;
 
-        return AT_SUCCESS;
+        return result;
 }
 
 static at_ret_code __at_check_network_registration()
@@ -586,11 +758,18 @@ static at_ret_code __at_check_modem_conf() {
                 return AT_RECHECK_MODEM;
         }
 
-        result = __at_check_network_registration();
-        if (result != AT_SUCCESS) {
+        result = AT_FAILURE;
+        uint32_t start = platform_get_tick_ms();
+        uint32_t end;
+        while (result != AT_SUCCESS) {
+                end = platform_get_tick_ms();
                 DEBUG_V0("%s: Rechecking network registration\n", __func__);
-                HAL_Delay(NET_REG_CHECK_DELAY);
+                if ((end - start) > NET_REG_CHECK_DELAY) {
+                        DEBUG_V0("%s: timed out\n", __func__);
+                        break;
+                }
                 result = __at_check_network_registration();
+                platform_delay(CHECK_MODEM_DELAY);
         }
 
         /* Now modem has registered with home network, it is safe to say network
@@ -604,16 +783,6 @@ static at_ret_code __at_check_modem_conf() {
         }
 
         return result;
-}
-
-static at_ret_code __at_config_modem() {
-
-        at_ret_code result = AT_SUCCESS;
-        result =  __at_generic_comm_rsp_util(&modem_net_status_comm[MODEM_OK],
-                                                                false, true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result)
-
-        return __at_check_modem_conf();
 }
 
 bool at_init()
@@ -631,19 +800,21 @@ bool at_init()
         at_ret_code res_modem;
         /* This may take few seconds */
         res_modem = __at_modem_reset();
-        CHECK_SUCCESS(res_modem, AT_SUCCESS, false)
+        if (res_modem != AT_SUCCESS) {
+                DEBUG_V0("%s: modem reset failed\n", __func__);
+                return false;
+        }
 
-        res_modem = __at_config_modem();
+        res_modem = __at_check_modem_conf();
         if (res_modem == AT_RECHECK_MODEM) {
                 DEBUG_V1("%s: Rechecking modem config after reset\n", __func__);
-                res_modem = __at_config_modem();
+                res_modem =  __at_check_modem_conf();
         }
 
         if (res_modem != AT_SUCCESS) {
                 state = AT_INVALID;
                 return false;
         }
-
         buf_sz temp_sz = uart_get_rx_buf_size();
         uart_rx_buf_sz = (temp_sz > MAX_AT_TCP_RX_SIZE) ?
                                 (MAX_AT_TCP_RX_SIZE - MAX_RX_META_DATA):
@@ -701,7 +872,7 @@ static int __at_tcp_connect(const char *host, const char *port)
 
         state |= TCP_CONNECTED;
         state &= ~TCP_CONN_CLOSED;
-        DEBUG_V1("%s: socket:%d created\n", __func__, s_id);
+        DEBUG_V0("%s: socket:%d created\n", __func__, s_id);
         return s_id;
 }
 
@@ -868,7 +1039,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         char temp_comm[TEMP_COMM_LIMIT];
         snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id, len);
         desc->comm = temp_comm;
-        DEBUG_V1("%s: sending write prompt\n", __func__);
+        DEBUG_V0("%s: sending write prompt\n", __func__);
         result = __at_generic_comm_rsp_util(desc, false, false);
         if (result != AT_SUCCESS) {
                 DEBUG_V0("%s: command failure, result code: %d\n",
@@ -882,7 +1053,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         }
 
         /* Recommeneded in datasheet */
-        HAL_Delay(50);
+        platform_delay(50);
 
         for (int i = 0; i < len; i++) {
                 if ((state & TCP_CONNECTED) == TCP_CONNECTED)
@@ -912,7 +1083,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         desc->rsp_desc[0].data = &data;
         result = __at_generic_comm_rsp_util(desc, true, true);
         CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_SEND_FAIL)
-        DEBUG_V1("%s: data written: %d\n", __func__, data);
+        DEBUG_V0("%s: data written: %d\n", __func__, data);
         return data;
 }
 
@@ -964,40 +1135,15 @@ int at_read_available(int s_id) {
         desc->rsp_desc[0].data = &data;
         result = __at_generic_comm_rsp_util(desc, false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_RCV_FAIL)
-        DEBUG_V1("%s: total read bytes: %d\n", __func__, data);
+        DEBUG_V1("%s: next bytes avail: %d\n", __func__, data);
         return data;
-}
-
-static at_ret_code __at_wait_for_bytes(uint16_t *rcv_bytes,
-                                        uint16_t target_bytes,
-                                        uint32_t *timeout)
-{
-        while ((*rcv_bytes < target_bytes) && (*timeout > 0)) {
-                /* Modem may be busy and could not send whole response that
-                 * we are looking for, wait here to give another chance
-                 */
-                __at_wait_for_rsp(timeout);
-                state |= WAITING_RESP;
-                /* New total bytes available to read */
-                *rcv_bytes = uart_rx_available();
-
-        }
-        state |= WAITING_RESP;
-        if (*timeout == 0) {
-                *rcv_bytes = uart_rx_available();
-                if (*rcv_bytes < target_bytes)
-                        return AT_FAILURE;
-        }
-        DEBUG_V1("%s: data available (%u), wanted (%u), waited for %u time\n",
-                                __func__, *rcv_bytes, target_bytes, *timeout);
-        return AT_SUCCESS;
 }
 
 static void __at_parse_rcv_err(uint16_t r_idx, at_command_desc *desc,
                                 bool tcp_err, uint32_t *timeout)
 {
-        uint16_t rcvd = uart_rx_available();
-        uint16_t wanted;
+        buf_sz rcvd = uart_rx_available();
+        buf_sz wanted;
         uint16_t temp_len;
 
         if (!tcp_err) {
@@ -1080,8 +1226,8 @@ static int __at_parse_rcv_rsp(uint8_t *buf, size_t len, uint32_t *timeout)
         at_ret_code result;
 
         int temp_len = uart_read(buf, len);
-        uint16_t wanted = len - temp_len;
-        uint16_t rcd = uart_rx_available();
+        buf_sz wanted = len - temp_len;
+        buf_sz rcd = uart_rx_available();
         if (temp_len < len) {
                 result = __at_wait_for_bytes(&rcd, wanted, timeout);
                 CHECK_SUCCESS(result, AT_SUCCESS, AT_TCP_RCV_FAIL);
@@ -1120,7 +1266,7 @@ static int __at_parse_rcv_rsp(uint8_t *buf, size_t len, uint32_t *timeout)
         return len;
 }
 
-static int __at_find_rcvd_len(uint16_t len, uint16_t r_idx,
+static int __at_find_rcvd_len(buf_sz len, uint16_t r_idx,
                                 at_command_desc *desc, uint32_t *timeout)
 {
         uint16_t rcv = len - r_idx;
@@ -1166,7 +1312,7 @@ static void __at_rcv_cleanup(int s_id)
 {
         state &= ~WAITING_RESP;
         state &= ~PROC_RSP;
-        HAL_Delay(20);
+        platform_delay(20);
         state |= PROC_URC;
         __at_process_urc();
         state &= ~PROC_URC;
@@ -1199,7 +1345,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         at_ret_code result = AT_SUCCESS;
         int r_bytes = AT_TCP_RCV_FAIL;
 
-        uint16_t read_bytes;
+        buf_sz read_bytes;
         uint32_t timeout;
 
         uint16_t r_idx =  strlen(rsp_header) + 2;
@@ -1212,7 +1358,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id, len);
 
         timeout = desc->comm_timeout;
-        DEBUG_V1("%s: sending command:%s\n", __func__, temp_comm);
+        DEBUG_V0("%s: sending command:%s\n", __func__, temp_comm);
         result = __at_comm_send_and_wait_rsp(temp_comm, strlen(temp_comm),
                                                 &timeout);
         state |= PROC_RSP;
@@ -1260,6 +1406,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
 
 done:
         __at_rcv_cleanup(s_id);
+        DEBUG_V0("%s: recevied bytes:%d\n", __func__, r_bytes);
         return r_bytes;
 }
 
