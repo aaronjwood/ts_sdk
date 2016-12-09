@@ -30,15 +30,18 @@ static struct {
 } conn_in;
 
 static struct {
+	bool conn_done;			/* TCP connection was established */
 	bool auth_done;			/* Auth was sent for this session */
 	bool pend_bit;			/* Cloud has a pending message */
 	bool pend_ack;			/* Set if the device needs to ACK prev msg */
+	bool nack_sent;			/* Set if a NACK was sent from the device */
 	char host[MAX_HOST_LEN + 1];	/* Store the host name */
 	char port[MAX_PORT_LEN + 1];	/* Store the host port */
 } session;
 
 static struct {
-	uint32_t polling_ts;		/* Earliest timestamp for the next polling */
+	uint32_t start_ts;		/* Polling interval measurement starts
+					 * from this timestamp */
 	int32_t polling_int_ms;		/* Polling interval in milliseconds */
 	bool new_interval_set;		/* Set if a new interval was received */
 } timekeep;
@@ -61,9 +64,11 @@ static inline void reset_conn_and_session_states(void)
 	conn_out.send_in_progress = false;
 	conn_out.buf = NULL;
 	conn_out.cb = NULL;
+	session.conn_done = false;
 	session.auth_done = false;
 	session.pend_bit = false;
 	session.pend_ack = false;
+	session.nack_sent = false;
 }
 
 /* Called on receiving a quit; Close the connection and reset the state */
@@ -76,7 +81,7 @@ static inline void on_recv_quit(void)
 /* Send a QUIT or NACK + QUIT and then close the connection and reset the state */
 static inline void initiate_quit(bool send_nack)
 {
-	if (!session.auth_done)
+	if (!session.conn_done)
 		return;
 	c_flags_t c_flags = send_nack ? (CF_NACK | CF_QUIT) : CF_QUIT;
 	ott_send_ctrl_msg(c_flags);
@@ -89,7 +94,7 @@ static inline void init_state(void)
 	reset_conn_and_session_states();
 	session.host[0] = 0x00;
 	session.port[0] = 0x00;
-	timekeep.polling_ts = 0;
+	timekeep.start_ts = 0;
 	timekeep.polling_int_ms = INIT_POLLLING_MS;
 	timekeep.new_interval_set = true;
 }
@@ -211,6 +216,7 @@ void cc_ack_bytes(void)
 void cc_nak_bytes(void)
 {
 	initiate_quit(true);
+	session.nack_sent = true;
 }
 
 /*
@@ -218,13 +224,10 @@ void cc_nak_bytes(void)
  * user provided callbacks this function invokes. In addition, it sets some
  * internal flags to decide the state of the session in the future. Calling the
  * send callback is optional and is decided through "invoke_send_cb".
- * On receiving a NACK or sending a NACK through the "send" callback, return
- * "false". Otherwise, return "true".
+ * On receiving a NACK return "false". Otherwise, return "true".
  */
 static bool process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
 {
-	conn_in.recv_in_progress = false;
-
 	c_flags_t c_flags;
 	m_type_t m_type;
 	bool no_nack_detected = true;
@@ -251,8 +254,8 @@ static bool process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
 
 		/* Call the callbacks with the type of message received */
 		if (m_type == MT_UPDATE || m_type == MT_CMD_SL) {
+			conn_in.recv_in_progress = false;
 			INVOKE_RECV_CALLBACK(conn_in.buf, evt);
-			no_nack_detected = session.pend_ack;
 		}
 		if (invoke_send_cb)
 			INVOKE_SEND_CALLBACK(conn_out.buf, CC_STS_ACK);
@@ -276,7 +279,7 @@ static bool process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
  * response. When expecting a response for an auth message (or any internal
  * message), this should be false.
  * On successfully receiving a valid response, this function will return "true".
- * On receiving or sending a NACK or timeout, return "false".
+ * On receiving a NACK or timeout, return "false".
  */
 static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 {
@@ -305,8 +308,11 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 
 	conn_out.send_in_progress = false;
 
-	if (end - start >= timeout)
+	if (end - start >= timeout) {
+		if (invoke_send_cb)
+			INVOKE_SEND_CALLBACK(conn_out.buf, CC_STS_SEND_TIMEOUT);
 		return false;
+	}
 
 	return no_nack;
 }
@@ -318,9 +324,11 @@ static bool establish_session(const char *host, const char *port, bool polling)
 			!conn_in.recv_in_progress)
 		return false;
 
+retry_connection:
 	if (ott_initiate_connection(host, port) != OTT_OK)
 		return false;
 
+	session.conn_done = true;
 	/* Send the authentication message to the cloud. If this is a call to
 	 * simply poll the cloud for possible messages, do not set the PENDING
 	 * flag.
@@ -335,6 +343,20 @@ static bool establish_session(const char *host, const char *port, bool polling)
 	/* This call should not invoke the send callback */
 	if (!recv_resp_within_timeout(RECV_TIMEOUT_MS, false)) {
 		initiate_quit(true);
+		return false;
+	}
+
+	/* If we NACKed an incoming message, the session was ended. Retry. */
+	if (session.nack_sent) {
+		session.nack_sent = false;
+		goto retry_connection;
+	}
+
+	/* If neither side has nothing to send while polling, the connection
+	 * would have been terminated in recv_resp_within_timeout().
+	 */
+	if (polling && !session.conn_done) {
+		session.auth_done = false;
 		return false;
 	}
 
@@ -397,6 +419,9 @@ cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 		return CC_SEND_FAILED;
 	}
 
+	if (session.nack_sent)
+		session.nack_sent = false;
+
 	return CC_SEND_SUCCESS;
 }
 
@@ -441,6 +466,9 @@ cc_send_result cc_resend_init_config(cc_callback_rtn cb)
 		return CC_SEND_FAILED;
 	}
 
+	if (session.nack_sent)
+		session.nack_sent = false;
+
 	return CC_SEND_SUCCESS;
 }
 
@@ -476,10 +504,14 @@ static void poll_cloud_for_messages(void)
 			reset_conn_and_session_states();
 			return;
 		}
+
 		if (!recv_resp_within_timeout(RECV_TIMEOUT_MS, true)) {
 			initiate_quit(true);
 			return;
 		}
+
+		if (session.nack_sent)
+			session.nack_sent = false;
 	}
 }
 
@@ -491,22 +523,25 @@ static void poll_cloud_for_messages(void)
 int32_t cc_service_send_receive(uint32_t cur_ts)
 {
 	int32_t next_call_time_ms = -1;
+	bool polling_due = cur_ts - timekeep.start_ts >= timekeep.polling_int_ms;
 
 	/*
 	 * Poll for messages / ACK any previous messages if the connection is
 	 * still open or if the polling interval was hit.
 	 */
-	if (session.auth_done || cur_ts >= timekeep.polling_ts) {
+	if (session.auth_done || polling_due) {
 		if (!session.auth_done)
-			establish_session(session.host, session.port, true);
+			if (!establish_session(session.host, session.port, true))
+				goto next_wakeup;
 		poll_cloud_for_messages();
 	}
 
+next_wakeup:
 	/* Compute when this function needs to be called next */
-	if (cur_ts >= timekeep.polling_ts || timekeep.new_interval_set) {
+	if (polling_due || timekeep.new_interval_set) {
 		timekeep.new_interval_set = false;
 		next_call_time_ms = timekeep.polling_int_ms;
-		timekeep.polling_ts = cur_ts + timekeep.polling_int_ms;
+		timekeep.start_ts = cur_ts;
 	}
 
 	close_session();

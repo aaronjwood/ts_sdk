@@ -17,6 +17,7 @@ LDFLAGS = -Wl,-map,fw.map
 INC = -I $(PROJ_ROOT)/include/dbg
 INC += -I $(PROJ_ROOT)/include/platform
 INC += -I $(PROJ_ROOT)/include/certs
+INC += -I $(PROJ_ROOT)/include/dev_creds
 
 # mbedtls library header files
 INC += -I $(PROJ_ROOT)/vendor/mbedtls/include

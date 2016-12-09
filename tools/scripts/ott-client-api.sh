@@ -258,6 +258,67 @@ function list_ts_devices()
 	exit 0
 }
 
+function check_tokens()
+{
+	# INPUTS:
+	# $1 = User Access Token / Application (client) token
+	#
+	# RETURNS:
+	# JSON Object
+
+	exit_on_error "No token provided" "$1" "0"
+	echo "Checking validity of the following token:"
+	echo "$1"
+	local VALIDITY=$(curl -s -k "$TS_ADDR/oauth2/token/info?access_token="$1"")
+	echo "$VALIDITY" | python -m json.tool
+}
+
+function check_updates()
+{
+	# INPUTS:
+	# $1 = Number of updates whose states need to be checked (latest update sent, first)
+	# $2 = ThingSpace Device ID
+	# $3 = User Access Token
+	#
+	# RETURNS:
+	# Statuses of the last 'n' update messages sent to the device.
+	# These can take the following value:
+	# pending - Device is yet to read the update message
+	# failed - Device NACKed the update message
+	# update - Device ACKed the update message
+
+	local NUMSTAT=$1
+	local TSDEVID=${2:-$ts_dev}
+	local UATOKEN=${3:-$user_token}
+
+	echo "Getting states of update messages sent"
+	exit_on_error "Not sure how many update messages to query" "$NUMSTAT" "0"
+	exit_on_error "No user access token provided" "$UATOKEN" "0"
+	exit_on_error "No ThingSpace device ID provided" "$TSDEVID" "0"
+
+	if [ "$NUMSTAT" -gt 0 2>/dev/null ]; then
+		local STVAL=$(curl -s -k -X POST \
+			-H "Authorization: Bearer $UATOKEN" \
+			-H "Content-Type: application/json" \
+			-d "{\"\$limitnumber\" : $NUMSTAT}" \
+			$TS_ADDR/api/v2/devices/$TSDEVID/fields/update/actions/history)
+		exit_on_error "Unable to read the update message states" "$STVAL" "$?"
+		local N=$(echo "$STVAL" | python -c "import json, sys; print len(json.load(sys.stdin))" 2> /dev/null)
+		echo "Updates available to be queried = $N"
+		for i in $(seq 0 $((N-1))); do
+			echo -n "$((i+1))) "
+			echo -n "$STVAL" | python -c "import json, sys; print json.load(sys.stdin)[$i]['state']" 2> /dev/null
+			echo -n "   data in hex : "
+			echo "$STVAL" | python -c "import json, sys; print json.load(sys.stdin)[$i]['fields']['update']" 2> /dev/null | base64 -D | xxd -p
+		done
+	else
+		echo "Please enter a valid positive integer for number of updates to query"
+		exit 1
+	fi
+
+	exit 0
+}
+
 function read_ott_status()
 {
 	# INPUTS:
@@ -539,6 +600,17 @@ Query APIs:
 $prg_name lsdev [user-access-token]
 	List ThingSpace devices associated with the ThingSpace user account.
 
+$prg_name chktok <token>
+	Check the validity of the token. The token can either be an application
+	(client) token or a user access token.
+
+$prg_name chkupd <num-to-read> [ts-device-id] [user-access-token]
+	Check the states of the last <num-to-read> update messages sent to the
+	device. These can take the values:
+	pending - Device is yet to read the update message
+	failed - Device NACKed the update message
+	update - Device ACKed the update message
+
 
 Read and write APIs:
 $prg_name rdstat <num-to-read> [ts-device-id] [user-access-token]
@@ -600,6 +672,12 @@ case "$1" in
 		;;
 	lsdev)
 		list_ts_devices "$2"
+		;;
+	chktok)
+		check_tokens "$2"
+		;;
+	chkupd)
+		check_updates "$2"
 		;;
 	rdstat)
 		read_ott_status "$2" "$3" "$4"

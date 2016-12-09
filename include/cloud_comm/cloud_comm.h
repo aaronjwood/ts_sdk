@@ -50,14 +50,14 @@ typedef enum {
 	CC_STS_RCV_UPD		/* Received an update message from the cloud */
 } cc_event;
 
-typedef uint16_t cc_data_sz;
+typedef uint16_t cc_data_sz;	/* Type representing the size of the message */
 
 typedef struct {		/* Cloud communication buffer descriptor */
 	cc_data_sz bufsz;	/* Maximum size of this buffer */
 	void *buf_ptr;		/* Opaque pointer to the actual data buffer */
 } cc_buffer_desc;
 
-#define MAX_HOST_LEN	25	/* Size of the host address string in bytes */
+#define MAX_HOST_LEN	50	/* Size of the host address string in bytes */
 #define MAX_PORT_LEN	5	/* Size of the port string in bytes */
 
 /*
@@ -75,6 +75,12 @@ typedef struct {		/* Cloud communication buffer descriptor */
  * is 5 bytes for the receive buffer, 1 byte for the send buffer.
  * The maximum buffer size is OTT_DATA_SZ.
  */
+
+#define CC_MIN_RECV_BUF_SZ	5
+#define CC_MIN_SEND_BUF_SZ	1
+#define CC_MAX_SEND_BUF_SZ	OTT_DATA_SZ
+#define CC_MAX_RECV_BUF_SZ	OTT_DATA_SZ
+
 #define CC_RECV_BUFFER(name, max_sz) \
 	__compile_time_assert(((max_sz) <= OTT_DATA_SZ) && \
 			((max_sz) >= (OTT_CMD_SZ + sizeof(uint32_t))), \

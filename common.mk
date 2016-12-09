@@ -71,10 +71,16 @@ INC += -I $(GCC_ROOT)/include
 INC += -I $(PROJ_ROOT)/vendor/mbedtls/include
 
 # OTT protocol API header
-INC += -I $(PROJ_ROOT)/include/ott_protocol/
+INC += -I $(PROJ_ROOT)/include/ott_protocol
 
 # Cloud communication API header
-INC += -I $(PROJ_ROOT)/include/cloud_comm/
+INC += -I $(PROJ_ROOT)/include/cloud_comm
+
+# Device credentials header
+INC += -I $(PROJ_ROOT)/include/dev_creds
+
+# Sensor interface header
+INC += -I $(PROJ_ROOT)/include/sensor_interface
 
 export INC
 
