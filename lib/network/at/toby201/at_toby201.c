@@ -26,7 +26,8 @@ typedef enum at_states {
         TCP_READ = 1 << 5,
         PROC_RSP = 1 << 6,
         PROC_URC = 1 << 7,
-        AT_INVALID = 1 << 8
+        DL_MODE = 1 << 8,
+        AT_INVALID = 1 << 9
 } at_states;
 
 typedef enum at_return_codes {
@@ -64,7 +65,7 @@ static volatile bool pdp_conf;
 /* Enable this macro to display messages, error will alway be reported if this
  * macro is enabled while V2 and V1 will depend on debug_level setting
  */
-/*#define DEBUG_AT_LIB*/
+#define DEBUG_AT_LIB
 
 static int debug_level;
 /* level v2 is normally for extensive debugging need, for example tracing
@@ -219,6 +220,16 @@ static at_ret_code __at_process_network_urc(char *urc, at_urc u_code)
         return AT_SUCCESS;
 }
 
+static at_ret_code __at_process_dl_close_urc(char *urc, at_urc u_code)
+{
+        if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) == 0) {
+                state &= ~DL_MODE;
+                DEBUG_V0("%s:%d: direct link mode closed\n", __func__, __LINE__);
+                return AT_SUCCESS;
+        } else
+                return AT_FAILURE;
+}
+
 static at_ret_code __at_process_pdp_tcp_close_urc(char *urc, at_urc u_code)
 {
         if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) == 0) {
@@ -290,6 +301,9 @@ static void __at_process_urc()
                         continue;
 
                 result = __at_process_pdp_tcp_close_urc((char *)urc, TCP_CLOSED);
+                if (result == AT_SUCCESS)
+                        continue;
+                result = __at_process_dl_close_urc((char *)urc, DISCONNECT);
                 if (result == AT_SUCCESS)
                         continue;
                 result = __at_process_pdp_tcp_close_urc((char *)urc, PDP_DEACT);
@@ -468,7 +482,7 @@ static at_ret_code __at_generic_comm_rsp_util(const at_command_desc *desc,
         timeout = desc->comm_timeout;
 
         if (!skip_comm) {
-                DEBUG_V1("%s: sending %s\n", __func__, comm);
+                DEBUG_V0("%s: sending %s\n", __func__, comm);
                 result = __at_comm_send_and_wait_rsp(comm, strlen(comm),
                                                                 &timeout);
                 if (result != AT_SUCCESS)
@@ -585,7 +599,7 @@ done:
         state &= ~WAITING_RESP;
 
         /* Recommeded to wait at least 20ms before proceeding */
-        platform_delay(20);
+        platform_delay(AT_COMM_DELAY_MS);
 
         /* check to see if we have urcs while command was executing
          * if result was wrong response, chances are that we are out of sync
@@ -661,7 +675,7 @@ static at_ret_code __at_modem_reset_comm()
 done:
         state &= ~WAITING_RESP;
         state &= ~PROC_RSP;
-        platform_delay(20);
+        platform_delay(AT_COMM_DELAY_MS);
         /* check to see if we have urcs while command was executing
          */
         DEBUG_V1("%s: Processing URCS outside call back\n", __func__);
@@ -724,7 +738,7 @@ static at_ret_code __at_check_network_registration()
         return AT_FAILURE;
 }
 
-static at_ret_code __at_check_modem_conf() {
+static at_ret_code __at_modem_conf() {
 
         at_ret_code result = AT_SUCCESS;
 
@@ -741,6 +755,14 @@ static at_ret_code __at_check_modem_conf() {
         /* Check if simcard is inserted */
         result = __at_generic_comm_rsp_util(&modem_net_status_comm[SIM_READY],
                                                 false, true);
+        CHECK_SUCCESS(result, AT_SUCCESS, result)
+
+        /* set escape sequence delay */
+        char temp_comm[TEMP_COMM_LIMIT];
+        at_command_desc *desc = &tcp_comm[ESCAPE_TIME_CONF];
+        snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, DL_MODE_ESC_TIME);
+        desc->comm = temp_comm;
+        result = __at_generic_comm_rsp_util(desc, false, true);
         CHECK_SUCCESS(result, AT_SUCCESS, result)
 
         /* Check MNO configuration, if it is not set for the Verizon, configure
@@ -805,10 +827,10 @@ bool at_init()
                 return false;
         }
 
-        res_modem = __at_check_modem_conf();
+        res_modem = __at_modem_conf();
         if (res_modem == AT_RECHECK_MODEM) {
                 DEBUG_V1("%s: Rechecking modem config after reset\n", __func__);
-                res_modem =  __at_check_modem_conf();
+                res_modem =  __at_modem_conf();
         }
 
         if (res_modem != AT_SUCCESS) {
@@ -821,6 +843,43 @@ bool at_init()
                                 (temp_sz - MAX_RX_META_DATA);
 
         return true;
+
+}
+
+static at_ret_code __at_esc_dl_mode()
+{
+        platform_delay(DL_ESC_TIME_MS);
+        at_command_desc *desc = &tcp_comm[ESCAPE_DL_MODE];
+        at_ret_code result = __at_generic_comm_rsp_util(desc, false, true);
+        if (AT_COMM_DELAY_MS < DL_ESC_TIME_MS)
+                platform_delay(DL_ESC_TIME_MS - DL_ESC_TIME_MS);
+
+        if (result != AT_SUCCESS) {
+                DEBUG_V0("%s:%d: unable to exit dl mode\n", __func__, __LINE__);
+        } else {
+                DEBUG_V0("%s:%d: exited from dl mode\n", __func__, __LINE__);
+                state &= ~DL_MODE;
+        }
+        return result;
+}
+
+static at_ret_code __at_set_dl_mode(int s_id)
+{
+        if ((state & TCP_CONNECTED) != TCP_CONNECTED)
+                return AT_FAILURE;
+        at_command_desc *desc = &tcp_comm[TCP_DL_MODE];
+        char temp_comm[TEMP_COMM_LIMIT];
+        snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id);
+
+        desc->comm = temp_comm;
+        at_ret_code result = __at_generic_comm_rsp_util(desc, false, true);
+        if (result == AT_SUCCESS) {
+                state |= DL_MODE;
+                DEBUG_V0("%s:%d: direct mode enabled\n", __func__, __LINE__);
+        } else
+                state &= ~DL_MODE;
+
+        return result;
 
 }
 
@@ -904,7 +963,10 @@ int at_tcp_connect(const char *host, const char *port)
                 pdp_conf = true;
 
         }
-        return __at_tcp_connect(host, port);
+        int s_id = __at_tcp_connect(host, port);
+        if (s_id != -1)
+                 __at_set_dl_mode(s_id);
+        return s_id;
 }
 
 static void __at_parse_tcp_sock_stat(void *rcv_rsp, int rcv_rsp_len,
@@ -1016,10 +1078,32 @@ static int __at_handle_tcp_send_error(int s_id, at_ret_code cur_result)
 
 }
 
+static at_ret_code __at_tcp_tx(const uint8_t *buf, size_t len)
+{
+        for (int i = 0; i < len; i++) {
+                if ((state & TCP_CONNECTED) == TCP_CONNECTED)
+                        __at_uart_write(((uint8_t *)buf + i), 1);
+                else
+                        break;
+        }
+
+        if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
+                DEBUG_V0("%s: tcp got deconnected in middle of the write\n",
+                        __func__);
+                /* URC is already been processed so no need to process it again
+                 *
+                 */
+                /* AT modem returns tcp error 11 which is EAGAIN */
+                state &= ~TCP_CONN_CLOSED;
+                return AT_TCP_CONNECT_DROPPED;
+        }
+        return AT_SUCCESS;
+}
+
 int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
 {
         CHECK_NULL(buf, AT_TCP_INVALID_PARA)
-        if (s_id < 0)
+        if ((s_id < 0) || (len == 0))
                 return AT_TCP_INVALID_PARA;
 
         at_ret_code result;
@@ -1033,6 +1117,16 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         }
         if (len > MAX_AT_TCP_TX_SIZE)
                 len = MAX_AT_TCP_TX_SIZE;
+
+        if ((state & DL_MODE) == DL_MODE) {
+                result = __at_tcp_tx(buf, len);
+                if (result != AT_SUCCESS) {
+                        DEBUG_V0("%s:%d: write failed\n", __func__, __LINE__);
+                        return AT_TCP_SEND_FAIL;
+                }
+                DEBUG_V0("%s: data written: %d\n", __func__, len);
+                return len;
+        }
 
         at_command_desc *desc = &tcp_comm[TCP_WRITE_PROMPT];
 
@@ -1118,6 +1212,11 @@ int at_read_available(int s_id) {
         int data = -1;
         at_ret_code result = AT_SUCCESS;
         at_command_desc *desc = &tcp_comm[TCP_RCV_QRY];
+
+        if ((state & DL_MODE) == DL_MODE) {
+                DEBUG_V0("%s:%d: not possible in dl mode\n", __func__, __LINE__);
+                return AT_TCP_RCV_FAIL;
+        }
 
         if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
                 if ((state & TCP_CONN_CLOSED) == TCP_CONN_CLOSED)
@@ -1312,7 +1411,7 @@ static void __at_rcv_cleanup(int s_id)
 {
         state &= ~WAITING_RESP;
         state &= ~PROC_RSP;
-        platform_delay(20);
+        platform_delay(AT_COMM_DELAY_MS);
         state |= PROC_URC;
         __at_process_urc();
         state &= ~PROC_URC;
@@ -1333,14 +1432,25 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
                 DEBUG_V0("%s: tcp not connected to recv\n", __func__);
                 return AT_TCP_RCV_FAIL;
         }
+
         if ((state & TCP_READ) != TCP_READ) {
-                DEBUG_V0("%s: read not possible at this time\n", __func__);
-                errno = EAGAIN;
-                return AT_TCP_RCV_FAIL;
+                if ((state & DL_MODE) != DL_MODE) {
+                        DEBUG_V0("%s: read not possible at this time\n",
+                                __func__);
+                        errno = EAGAIN;
+                        return AT_TCP_RCV_FAIL;
+                }
         }
 
         if (len > uart_rx_buf_sz)
                 len = uart_rx_buf_sz;
+
+        if ((state & DL_MODE) == DL_MODE) {
+                int rdb = uart_read(buf, len);
+                DEBUG_V0("%s:%d: read:%d in a direct link mode\n",
+                        __func__, __LINE__, rdb);
+                return rdb;
+        }
 
         at_ret_code result = AT_SUCCESS;
         int r_bytes = AT_TCP_RCV_FAIL;
@@ -1414,6 +1524,9 @@ void at_tcp_close(int s_id) {
 
         if (s_id < 0)
                 return;
+        if ((state & DL_MODE) == DL_MODE)
+                __at_esc_dl_mode();
+
         if ((state & TCP_CONN_CLOSED) == TCP_CONN_CLOSED) {
                 DEBUG_V0("%s: tcp already closed\n", __func__);
                 return;
