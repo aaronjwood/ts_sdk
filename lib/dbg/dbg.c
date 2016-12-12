@@ -40,6 +40,7 @@ bool __dbg_module_init(void)
  * The standard C library function printf calls _write to transmit individual
  * characters over the debug UART port.
  */
+__attribute__((used))
 ssize_t _write(int fd, const void *buf, size_t count)
 {
 	if (HAL_UART_Transmit(&dbg_uart,

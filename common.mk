@@ -24,8 +24,11 @@ SIZE = $(GCC_ROOT)/bin/arm-none-eabi-size
 export CC AS AR OBJDUMP OBJCOPY SIZE
 
 # Debug and optimization flags
-DBG_OP_USER_FLAGS = -g -ggdb3 -O0
-DBG_OP_LIB_FLAGS = -Os
+# To reduce the firmware size at the expense of debugging capabilities in
+# the user code, use the following instead:
+#DBG_OP_USER_FLAGS = -Os -flto
+DBG_OP_USER_FLAGS = -g -ggdb3 -O0 -flto
+DBG_OP_LIB_FLAGS = -Os -flto
 
 # The following invokes an unused sections garbage collector
 NOSYSLIB =  -Wl,--gc-sections -Wl,--as-needed --specs=nosys.specs --specs=nano.specs
