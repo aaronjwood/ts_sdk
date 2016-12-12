@@ -275,7 +275,6 @@ cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb)
  *                     time in ms.
  *
  * \returns
- * 	-1             : No time based calls are currently needed.\n
  * 	Positive value : Number of milliseconds after which this function should
  * 	                 be called again.
  *
@@ -285,7 +284,7 @@ cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb)
  * performs any pending activities and indicates when it next needs to be called
  * to service a time based event.
  */
-int32_t cc_service_send_receive(uint32_t cur_ts);
+uint32_t cc_service_send_receive(uint32_t cur_ts);
 
 /**
  * \brief
