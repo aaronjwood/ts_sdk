@@ -92,9 +92,9 @@ shared: libmbedcrypto.$(DLEXT) libmbedx509.$(DLEXT) libmbedtls.$(DLEXT)
 # tls
 libmbedtls.a: $(OBJS_TLS)
 	echo "  AR    $@"
-	$(AR) -rc $@ $(OBJS_TLS)
+	$(AR) --plugin=$(shell arm-none-eabi-gcc --print-file-name=liblto_plugin.so) -rc $@ $(OBJS_TLS)
 	echo "  RL    $@"
-	$(AR) -s $@
+	$(AR) --plugin=$(shell arm-none-eabi-gcc --print-file-name=liblto_plugin.so) -s $@
 
 libmbedtls.$(SOEXT_TLS): $(OBJS_TLS) libmbedx509.so
 	echo "  LD    $@"
@@ -115,9 +115,9 @@ libmbedtls.dll: $(OBJS_TLS) libmbedx509.dll
 # x509
 libmbedx509.a: $(OBJS_X509)
 	echo "  AR    $@"
-	$(AR) -rc $@ $(OBJS_X509)
+	$(AR) --plugin=$(shell arm-none-eabi-gcc --print-file-name=liblto_plugin.so) -rc $@ $(OBJS_X509)
 	echo "  RL    $@"
-	$(AR) -s $@
+	$(AR) --plugin=$(shell arm-none-eabi-gcc --print-file-name=liblto_plugin.so) -s $@
 
 libmbedx509.$(SOEXT_X509): $(OBJS_X509) libmbedcrypto.so
 	echo "  LD    $@"
@@ -138,9 +138,9 @@ libmbedx509.dll: $(OBJS_X509) libmbedcrypto.dll
 # crypto
 libmbedcrypto.a: $(OBJS_CRYPTO)
 	echo "  AR    $@"
-	$(AR) -rc $@ $(OBJS_CRYPTO)
+	$(AR) --plugin=$(shell arm-none-eabi-gcc --print-file-name=liblto_plugin.so) -rc $@ $(OBJS_CRYPTO)
 	echo "  RL    $@"
-	$(AR) -s $@
+	$(AR) --plugin=$(shell arm-none-eabi-gcc --print-file-name=liblto_plugin.so) -s $@
 
 libmbedcrypto.$(SOEXT_CRYPTO): $(OBJS_CRYPTO)
 	echo "  LD    $@"
