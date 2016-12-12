@@ -87,4 +87,12 @@ echo "[Installing stm32cubef4-v1.13.0 library....]"
 	rm -f $STM32F4_CUBE_LIB
 echo "[library installed at $TOOLS_ROOT]"
 
+DOXYGEN_INSTALL=$(which doxygen)
+if [ -z "$DOXYGEN_INSTALL" ]; then
+	echo
+	echo "If you wish to generate API documentation from the source code"
+	echo "install doxygen with the following command:"
+	echo "    brew install doxygen"
+fi
+
 echo "[Done]"
