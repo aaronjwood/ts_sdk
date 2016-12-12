@@ -10,7 +10,7 @@
 
 #define RECV_TIMEOUT_MS		5000
 #define MULT			1000
-#define INIT_POLLLING_MS	((int32_t)15000)
+#define INIT_POLLLING_MS	((uint32_t)15000)
 
 static struct {				/* Store authentication data */
 	uint8_t dev_ID[OTT_UUID_SZ];	/* 16 byte Device ID */
@@ -42,7 +42,7 @@ static struct {
 static struct {
 	uint32_t start_ts;		/* Polling interval measurement starts
 					 * from this timestamp */
-	int32_t polling_int_ms;		/* Polling interval in milliseconds */
+	uint32_t polling_int_ms;	/* Polling interval in milliseconds */
 	bool new_interval_set;		/* Set if a new interval was received */
 } timekeep;
 
@@ -520,9 +520,10 @@ static void poll_cloud_for_messages(void)
  * polls the cloud if the polling interval was hit and updates the time when the
  * cloud should be called next.
  */
-int32_t cc_service_send_receive(uint32_t cur_ts)
+uint32_t cc_service_send_receive(uint32_t cur_ts)
 {
-	int32_t next_call_time_ms = -1;
+	uint32_t next_call_time_ms =
+		timekeep.start_ts + timekeep.polling_int_ms - cur_ts;
 	bool polling_due = cur_ts - timekeep.start_ts >= timekeep.polling_int_ms;
 
 	/*
