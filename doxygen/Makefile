@@ -15,5 +15,6 @@ all:
 	(cd $(PROJ_ROOT); doxygen $(PROJ_ROOT)/doxygen/Doxyfile)
 
 clean:
+	rm -rf $(PROJ_ROOT)/doxygen/build
 
 endif
