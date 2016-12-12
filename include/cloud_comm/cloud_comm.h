@@ -32,34 +32,34 @@
  * Return values for cc_send_bytes_to_cloud().
  */
 typedef enum {
-	CC_SEND_FAILED,		/* Failed to send the message */
-	CC_SEND_BUSY,		/* A message is currently being sent */
-	CC_SEND_SUCCESS		/* Message was sent successfully */
+	CC_SEND_FAILED,		/**< Failed to send the message */
+	CC_SEND_BUSY,		/**< A message is currently being sent */
+	CC_SEND_SUCCESS		/**< Message was sent successfully */
 } cc_send_result;
 
 /**
  * Return values for cc_recv_bytes_from_cloud().
  */
 typedef enum {
-	CC_RECV_FAILED,		/* Failed to schedule a receive */
-	CC_RECV_BUSY,		/* A receive has already been scheduled */
-	CC_RECV_SUCCESS		/* Successfully scheduled a receive */
+	CC_RECV_FAILED,		/**< Failed to schedule a receive */
+	CC_RECV_BUSY,		/**< A receive has already been scheduled */
+	CC_RECV_SUCCESS		/**< Successfully scheduled a receive */
 } cc_recv_result;
 
 /**
  * Events delivered to the send and receive callback routines.
  */
 typedef enum {
-	CC_STS_NONE,		/* Default value; No message body */
+	CC_STS_NONE,		/**< Default value; No message body */
 
 	/* Outgoing message events: */
-	CC_STS_ACK,		/* Received an ACK for the last message sent */
-	CC_STS_NACK,		/* Received a NACK for the last message sent */
-	CC_STS_SEND_TIMEOUT,	/* Timed out waiting for a response */
+	CC_STS_ACK,		/**< Received an ACK for the last message sent */
+	CC_STS_NACK,		/**< Received a NACK for the last message sent */
+	CC_STS_SEND_TIMEOUT,	/**< Timed out waiting for a response */
 
 	/* Incoming message events: */
-	CC_STS_RCV_CMD_SL,	/* Received sleep time from the cloud */
-	CC_STS_RCV_UPD		/* Received an update message from the cloud */
+	CC_STS_RCV_CMD_SL,	/**< Received sleep time from the cloud */
+	CC_STS_RCV_UPD		/**< Received an update message from the cloud */
 } cc_event;
 
 typedef uint16_t cc_data_sz;	/**< Type representing the size of the message */
