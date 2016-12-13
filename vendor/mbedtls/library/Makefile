@@ -44,6 +44,10 @@ ifdef WINDOWS_BUILD
 DLEXT=dll
 endif
 
+ifdef LTOFLAG
+LIBLTO=--plugin=$(shell arm-none-eabi-gcc --print-file-name=liblto_plugin.so)
+endif
+
 OBJS_CRYPTO=	aes.o		aesni.o		arc4.o		\
 		asn1parse.o	asn1write.o	base64.o	\
 		bignum.o	blowfish.o	camellia.o	\
@@ -92,9 +96,9 @@ shared: libmbedcrypto.$(DLEXT) libmbedx509.$(DLEXT) libmbedtls.$(DLEXT)
 # tls
 libmbedtls.a: $(OBJS_TLS)
 	echo "  AR    $@"
-	$(AR) --plugin=$(shell arm-none-eabi-gcc --print-file-name=liblto_plugin.so) -rc $@ $(OBJS_TLS)
+	$(AR) $(LIBLTO) -rc $@ $(OBJS_TLS)
 	echo "  RL    $@"
-	$(AR) --plugin=$(shell arm-none-eabi-gcc --print-file-name=liblto_plugin.so) -s $@
+	$(AR) $(LIBLTO) -s $@
 
 libmbedtls.$(SOEXT_TLS): $(OBJS_TLS) libmbedx509.so
 	echo "  LD    $@"
@@ -115,9 +119,9 @@ libmbedtls.dll: $(OBJS_TLS) libmbedx509.dll
 # x509
 libmbedx509.a: $(OBJS_X509)
 	echo "  AR    $@"
-	$(AR) --plugin=$(shell arm-none-eabi-gcc --print-file-name=liblto_plugin.so) -rc $@ $(OBJS_X509)
+	$(AR) $(LIBLTO) -rc $@ $(OBJS_X509)
 	echo "  RL    $@"
-	$(AR) --plugin=$(shell arm-none-eabi-gcc --print-file-name=liblto_plugin.so) -s $@
+	$(AR) $(LIBLTO) -s $@
 
 libmbedx509.$(SOEXT_X509): $(OBJS_X509) libmbedcrypto.so
 	echo "  LD    $@"
@@ -138,9 +142,9 @@ libmbedx509.dll: $(OBJS_X509) libmbedcrypto.dll
 # crypto
 libmbedcrypto.a: $(OBJS_CRYPTO)
 	echo "  AR    $@"
-	$(AR) --plugin=$(shell arm-none-eabi-gcc --print-file-name=liblto_plugin.so) -rc $@ $(OBJS_CRYPTO)
+	$(AR) $(LIBLTO) -rc $@ $(OBJS_CRYPTO)
 	echo "  RL    $@"
-	$(AR) --plugin=$(shell arm-none-eabi-gcc --print-file-name=liblto_plugin.so) -s $@
+	$(AR) $(LIBLTO) -s $@
 
 libmbedcrypto.$(SOEXT_CRYPTO): $(OBJS_CRYPTO)
 	echo "  LD    $@"

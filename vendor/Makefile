@@ -7,7 +7,7 @@ VENDOR_ROOT=$(PROJ_ROOT)/vendor
 mbedtls:
 	@echo "[Building mbedtls libraries.}"
 	make -C $(VENDOR_ROOT)/mbedtls \
-		CFLAGS='-O2 -flto $(INC) $(ARCHFLAGS) $(MDEF) -fdata-sections -ffunction-sections' \
+		CFLAGS='-O2 $(LTOFLAG) $(INC) $(ARCHFLAGS) $(MDEF) -fdata-sections -ffunction-sections' \
 		lib
 	cp $(VENDOR_ROOT)/mbedtls/library/libmbedcrypto.a $(SRCDIR)/build
 	cp $(VENDOR_ROOT)/mbedtls/library/libmbedtls.a $(SRCDIR)/build
