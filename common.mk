@@ -23,12 +23,16 @@ OBJCOPY = $(GCC_ROOT)/bin/arm-none-eabi-objcopy
 SIZE = $(GCC_ROOT)/bin/arm-none-eabi-size
 export CC AS AR OBJDUMP OBJCOPY SIZE
 
+# Comment this out to disable LTO and enable debug
+#LTOFLAG = -flto
+#export LTOFLAG
+
 # Debug and optimization flags
 # To reduce the firmware size at the expense of debugging capabilities in
 # the user code, use the following instead:
-#DBG_OP_USER_FLAGS = -Os -flto
-DBG_OP_USER_FLAGS = -g -ggdb3 -O0 -flto
-DBG_OP_LIB_FLAGS = -Os -flto
+#DBG_OP_USER_FLAGS = -Os $(LTOFLAG)
+DBG_OP_USER_FLAGS = -g -ggdb3 -O0 $(LTOFLAG)
+DBG_OP_LIB_FLAGS = -Os $(LTOFLAG)
 
 # The following invokes an unused sections garbage collector
 NOSYSLIB =  -Wl,--gc-sections -Wl,--as-needed --specs=nosys.specs --specs=nano.specs

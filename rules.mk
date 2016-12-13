@@ -30,7 +30,7 @@ all build: $(FW_EXEC)
 	$(SIZE) $(FW_EXEC)
 
 $(FW_EXEC): $(OBJ) $(OBJ_STARTUP) vendor_libs
-	$(CC) $(LDFLAGS) $(NOSYSLIB) $(INC) -Os -flto \
+	$(CC) $(LDFLAGS) $(NOSYSLIB) $(INC) -Os $(LTOFLAG) \
 		$(ARCHFLAGS) $(LDSCRIPT) $(OBJ) $(OBJ_STARTUP) \
 		$(VENDOR_LIB_FLAGS) -o $(FW_EXEC)
 
