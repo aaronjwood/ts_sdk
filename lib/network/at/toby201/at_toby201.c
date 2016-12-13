@@ -16,6 +16,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "platform.h"
+#include "dbg.h"
 
 typedef enum at_states {
         IDLE = 1,
@@ -65,7 +66,7 @@ static volatile bool pdp_conf;
 /* Enable this macro to display messages, error will alway be reported if this
  * macro is enabled while V2 and V1 will depend on debug_level setting
  */
-#define DEBUG_AT_LIB
+//#define DEBUG_AT_LIB
 
 static int debug_level;
 /* level v2 is normally for extensive debugging need, for example tracing
@@ -116,7 +117,7 @@ static int debug_level;
 #define CHECK_SUCCESS(x, y, z)	\
                         do { \
                                 if ((x) != (y)) { \
-                                        DEBUG_V1("Fail at line: %d\n", __LINE__); \
+                                        printf("Fail at line: %d\n", __LINE__); \
                                         return (z); \
                                 } \
                         } while (0);
@@ -285,7 +286,7 @@ static void __at_process_urc()
                         DEBUG_V0("%s: read err (Unlikely)\n", __func__);
                         continue;
                 }
-                DEBUG_V1("%s: looking to process urc: %s\n",
+                DEBUG_V0("%s: looking to process urc: %s\n",
                                                 __func__, (char *)urc);
 
                 result = __at_process_network_urc((char *)urc, NET_STAT_URC);
@@ -312,20 +313,23 @@ static void __at_process_urc()
 
 static void at_uart_callback(callback_event ev)
 {
+        DEBUG_V0("%s:event:%d\n", __func__, ev);
         switch (ev) {
         case UART_EVENT_RECVD_BYTES:
                 if ((state & WAITING_RESP) == WAITING_RESP) {
-                        DEBUG_V1("%s: got response\n", __func__);
+                        DEBUG_V0("%s: got response\n", __func__);
                         process_rsp = true;
                 } else if (((state & PROC_RSP) != PROC_RSP) &&
-                        ((state & PROC_URC) != PROC_URC)) {
-                        DEBUG_V1("%s: urc from callback\n", __func__);
+                        ((state & PROC_URC) != PROC_URC) &&
+                        ((state & DL_MODE) != DL_MODE)) {
+                        DEBUG_V0("%s: urc from callback\n", __func__);
                         __at_process_urc();
                 } else
-                        DEBUG_V0("state:%d\n", state);
+                        DEBUG_V0("%s:state:%d\n", __func__, state);
                 break;
         case UART_EVENT_RX_OVERFLOW:
                 DEBUG_V0("%s: rx overflows\n", __func__);
+                ASSERT(0);
                 __at_uart_rx_flush();
                 break;
         default:
@@ -1124,7 +1128,7 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
                         DEBUG_V0("%s:%d: write failed\n", __func__, __LINE__);
                         return AT_TCP_SEND_FAIL;
                 }
-                DEBUG_V0("%s: data written: %d\n", __func__, len);
+                DEBUG_V0("%s: data written in dl mode: %d\n", __func__, len);
                 return len;
         }
 
@@ -1149,23 +1153,9 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         /* Recommeneded in datasheet */
         platform_delay(50);
 
-        for (int i = 0; i < len; i++) {
-                if ((state & TCP_CONNECTED) == TCP_CONNECTED)
-                        __at_uart_write(((uint8_t *)buf + i), 1);
-                else
-                        break;
-        }
+        result = __at_tcp_tx(buf, len);
+        CHECK_SUCCESS(result, AT_SUCCESS, result)
 
-        if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
-                DEBUG_V0("%s: tcp got deconnected in middle of the write\n",
-                        __func__);
-                /* URC is already been processed so no need to process it again
-                 *
-                 */
-                /* AT modem returns tcp error 11 which is EAGAIN */
-                state &= ~TCP_CONN_CLOSED;
-                return AT_TCP_CONNECT_DROPPED;
-        }
         desc = &tcp_comm[TCP_SEND];
         uint32_t timeout = desc->comm_timeout;
 
@@ -1442,15 +1432,18 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
                 }
         }
 
-        if (len > uart_rx_buf_sz)
-                len = uart_rx_buf_sz;
-
         if ((state & DL_MODE) == DL_MODE) {
                 int rdb = uart_read(buf, len);
-                DEBUG_V0("%s:%d: read:%d in a direct link mode\n",
-                        __func__, __LINE__, rdb);
+                DEBUG_V0("%s:%d: read:%d, wanted:%d in a dl\n",
+                        __func__, __LINE__, rdb, len);
+                if (rdb == 0) {
+                        errno = EAGAIN;
+                        return AT_TCP_RCV_FAIL;
+                }
                 return rdb;
         }
+        if (len > uart_rx_buf_sz)
+                len = uart_rx_buf_sz;
 
         at_ret_code result = AT_SUCCESS;
         int r_bytes = AT_TCP_RCV_FAIL;
@@ -1522,6 +1515,7 @@ done:
 
 void at_tcp_close(int s_id) {
 
+        DEBUG_V0("%s:\n", __func__);
         if (s_id < 0)
                 return;
         if ((state & DL_MODE) == DL_MODE)
