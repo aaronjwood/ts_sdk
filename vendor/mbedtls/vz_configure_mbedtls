@@ -208,8 +208,11 @@ c unset MBEDTLS_X509_CSR_WRITE_C
 # Don't need XTEA block cipher
 c unset MBEDTLS_XTEA_C
 
-# OTT protocol has a max frame size of 512, but the cloud-side TLS termination
-# suffers from the OpenSSL minimum buffer size of 4096.
+# OTT protocol has a max frame size of 512.  But even if the cloud side 
+# server is configured for a reduced size, mbedtls can't handle fragmented
+# TLS handshake messages.  We need ~4096 bytes for the largest handshake
+# message with our current certificates, but allow a little more for 
+# slack.
 if ! option "full-msgs"; then
-c set	MBEDTLS_SSL_MAX_CONTENT_LEN 4096
+c set	MBEDTLS_SSL_MAX_CONTENT_LEN 4608
 fi
