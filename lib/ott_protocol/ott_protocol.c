@@ -17,6 +17,12 @@
 #include "mbedtls/debug.h"
 #endif
 
+/*
+ * Define this to profile the OTT functions. The time recorded also includes the
+ * time taken to receive the data over the network.
+ */
+/*#define OTT_TIME_PROFILE*/
+
 #define VERSION_BYTE		((uint8_t)0x01)
 #define TIMEOUT_MS		5000
 
@@ -129,6 +135,9 @@ ott_status ott_protocol_init(void)
 
 ott_status ott_initiate_connection(const char *host, const char *port)
 {
+#ifdef OTT_TIME_PROFILE
+	uint32_t begin = platform_get_tick_ms();
+#endif
 	if (host == NULL || port == NULL)
 		return OTT_INV_PARAM;
 
@@ -177,6 +186,9 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 		ret = mbedtls_ssl_handshake(&ssl);
 	}
 
+#ifdef OTT_TIME_PROFILE
+	dbg_printf("[IC:%u]\n", platform_get_tick_ms() - begin);
+#endif
 	return OTT_OK;
 }
 
@@ -239,6 +251,9 @@ static bool flags_are_valid(c_flags_t f)
 ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 				  uint16_t dev_sec_sz, const uint8_t *dev_sec)
 {
+#ifdef OTT_TIME_PROFILE
+	uint32_t begin = platform_get_tick_ms();
+#endif
 	/* Check for correct parameters */
 	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_QUIT) ||
 			(dev_sec_sz + OTT_UUID_SZ > OTT_DATA_SZ) ||
@@ -266,6 +281,9 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 	/* Send the device secret */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)dev_sec, dev_sec_sz, ret);
 
+#ifdef OTT_TIME_PROFILE
+	dbg_printf("[SA:%u]\n", platform_get_tick_ms() - begin);
+#endif
 	return OTT_OK;
 }
 
@@ -273,6 +291,9 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
                                     uint16_t status_sz,
 				    const uint8_t *status)
 {
+#ifdef OTT_TIME_PROFILE
+	uint32_t begin = platform_get_tick_ms();
+#endif
 	/* Check for correct parameters */
 	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_QUIT) ||
 			(status_sz > OTT_DATA_SZ) || (status == NULL))
@@ -293,11 +314,18 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 	/* Send the actual status data */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)status, status_sz, ret);
 
+#ifdef OTT_TIME_PROFILE
+	dbg_printf("[SS:%u]\n", platform_get_tick_ms() - begin);
+#endif
 	return OTT_OK;
 }
 
 ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 {
+#ifdef OTT_TIME_PROFILE
+	uint32_t begin = platform_get_tick_ms();
+#endif
+
 	/* Check for correct parameters */
 	if (!flags_are_valid(c_flags))
 		return OTT_INV_PARAM;
@@ -308,11 +336,18 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 	/* Send the command byte */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&byte, 1, ret);
 
+#ifdef OTT_TIME_PROFILE
+	dbg_printf("[SC:%u]\n", platform_get_tick_ms() - begin);
+#endif
 	return OTT_OK;
 }
 
 ott_status ott_send_restarted(c_flags_t c_flags)
 {
+#ifdef OTT_TIME_PROFILE
+	uint32_t begin = platform_get_tick_ms();
+#endif
+
 	/* Check for correct parameters */
 	if (!flags_are_valid(c_flags))
 		return OTT_INV_PARAM;
@@ -323,6 +358,9 @@ ott_status ott_send_restarted(c_flags_t c_flags)
 	/* Send the command byte */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&byte, 1, ret);
 
+#ifdef OTT_TIME_PROFILE
+	dbg_printf("[SR:%u]\n", platform_get_tick_ms() - begin);
+#endif
 	return OTT_OK;
 }
 
