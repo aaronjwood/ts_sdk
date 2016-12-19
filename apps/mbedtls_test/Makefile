@@ -1,8 +1,6 @@
 # Copyright(C) 2016 Verizon. All rights reserved.
 
-# Makefile for the TLS library test program for the STM32F4 platform.
-# Uses the GCC toolchain and the STMicro STM32CubeF4 HAL drivers.
-# Note: Library sources are built without debug info and optimized for size
+# Makefile for the TLS library test program.
 PROJ_ROOT = $(shell git rev-parse --show-toplevel)
 export PROJ_ROOT
 
@@ -13,16 +11,9 @@ include $(PROJ_ROOT)/build_in_subdir.mk
 else
 
 # Uncomment to build a host OS version of the test program
+BUILD_TARGET = stm32f4
 #BUILD_TARGET = osx
-#export BUILD_TARGET
-
-# Defines toolchain and common modules & paths
-ifeq ($(BUILD_TARGET),osx)
-include $(PROJ_ROOT)/common_osx.mk
-else
-# Debug and UART communication drivers are included by default
-include $(PROJ_ROOT)/common.mk
-endif
+export BUILD_TARGET
 
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG
@@ -33,23 +24,17 @@ vpath %.c $(SRCDIR):
 # User application includes
 INC += -I $(SRCDIR)/include
 
-# platform specific source file
-PLATFORM_SRC = stm32f4xx_platform.c
-
 # User application sources
 USER_SRC = $(SRCDIR)/main.c
-ifeq ($(BUILD_TARGET),osx)
-CORELIB_SRC := $(filter-out $(PLATFORM_SRC), $(CORELIB_SRC))
-endif
 
+# Library sources are built without debug info and optimized for size.
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
 # debug flag enabled
 # Eg: DBG_LIB_SRC = stm32l0xx_hal_uart.c stm32l0xx_hal_uart_ex.c
 DBG_LIB_SRC =
 
-# Build the  mbed TLS library
-VENDOR_LIB_DIRS += mbedtls
-VENDOR_LIB_FLAGS += -L. -lmbedtls -lmbedx509 -lmbedcrypto
+# Common and per-platform Makefile variables.
+include $(PROJ_ROOT)/common.mk
 
 # Defines the target rules
 include $(PROJ_ROOT)/rules.mk
