@@ -17,6 +17,26 @@
  * The device reports its status to the cloud at another fixed interval.
  */
 
+/*
+ * Define this to profile the OTT functions. The time recorded also includes the
+ * time taken to receive the data over the network. The initialization function
+ * is not profiled.
+ */
+#define OTT_TIME_PROFILE
+
+/*
+ * Define this to explicitly show the time it takes to connect to the network /
+ * send / receive data over the network. This allows for a clearer picture of
+ * how much time is spent in pure crypto computation / preparing and unwrapping
+ * the data packets.
+ * OTT_TIME_PROFILE must be defined for this to work.
+ */
+#define OTT_EXCLUDE_NETWORK_TIME
+
+#ifdef OTT_EXCLUDE_NETWORK_TIME
+extern uint32_t network_time_ms;
+#endif
+
 typedef enum {			/* Defines return codes of this API. */
 	OTT_OK,			/* API call exited without any errors */
 	OTT_ERROR,		/* API call exited with errors */

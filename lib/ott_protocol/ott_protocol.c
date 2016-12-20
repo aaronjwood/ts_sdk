@@ -17,12 +17,6 @@
 #include "mbedtls/debug.h"
 #endif
 
-/*
- * Define this to profile the OTT functions. The time recorded also includes the
- * time taken to receive the data over the network.
- */
-/*#define OTT_TIME_PROFILE*/
-
 #define VERSION_BYTE		((uint8_t)0x01)
 #define TIMEOUT_MS		5000
 
@@ -137,6 +131,9 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 {
 #ifdef OTT_TIME_PROFILE
 	uint32_t begin = platform_get_tick_ms();
+#ifdef OTT_EXCLUDE_NETWORK_TIME
+	network_time_ms = 0;
+#endif
 #endif
 	if (host == NULL || port == NULL)
 		return OTT_INV_PARAM;
@@ -187,17 +184,36 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 	}
 
 #ifdef OTT_TIME_PROFILE
-	dbg_printf("[IC:%u]\n", platform_get_tick_ms() - begin);
+	dbg_printf("[IC:%u]", platform_get_tick_ms() - begin);
+#ifdef OTT_EXCLUDE_NETWORK_TIME
+	dbg_printf(" [NETW:%u]\n", network_time_ms);
+#else
+	dbg_printf("\n");
+#endif
 #endif
 	return OTT_OK;
 }
 
 ott_status ott_close_connection(void)
 {
+#ifdef OTT_TIME_PROFILE
+	uint32_t begin = platform_get_tick_ms();
+#ifdef OTT_EXCLUDE_NETWORK_TIME
+	network_time_ms = 0;
+#endif
+#endif
 	/* Close the connection and notify the peer. */
 	int s = mbedtls_ssl_close_notify(&ssl);
 	mbedtls_ssl_free(&ssl);
 	mbedtls_net_free(&server_fd);
+#ifdef OTT_TIME_PROFILE
+	dbg_printf("[CC:%u]", platform_get_tick_ms() - begin);
+#ifdef OTT_EXCLUDE_NETWORK_TIME
+	dbg_printf(" [NETW:%u]\n", network_time_ms);
+#else
+	dbg_printf("\n");
+#endif
+#endif
 	if (s == 0)
 		return OTT_OK;
 	else
@@ -253,6 +269,9 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 {
 #ifdef OTT_TIME_PROFILE
 	uint32_t begin = platform_get_tick_ms();
+#ifdef OTT_EXCLUDE_NETWORK_TIME
+	network_time_ms = 0;
+#endif
 #endif
 	/* Check for correct parameters */
 	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_QUIT) ||
@@ -282,7 +301,12 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)dev_sec, dev_sec_sz, ret);
 
 #ifdef OTT_TIME_PROFILE
-	dbg_printf("[SA:%u]\n", platform_get_tick_ms() - begin);
+	dbg_printf("[SA:%u]", platform_get_tick_ms() - begin);
+#ifdef OTT_EXCLUDE_NETWORK_TIME
+	dbg_printf(" [NETW:%u]\n", network_time_ms);
+#else
+	dbg_printf("\n");
+#endif
 #endif
 	return OTT_OK;
 }
@@ -293,6 +317,9 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 {
 #ifdef OTT_TIME_PROFILE
 	uint32_t begin = platform_get_tick_ms();
+#ifdef OTT_EXCLUDE_NETWORK_TIME
+	network_time_ms = 0;
+#endif
 #endif
 	/* Check for correct parameters */
 	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_QUIT) ||
@@ -315,7 +342,12 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)status, status_sz, ret);
 
 #ifdef OTT_TIME_PROFILE
-	dbg_printf("[SS:%u]\n", platform_get_tick_ms() - begin);
+	dbg_printf("[SS:%u]", platform_get_tick_ms() - begin);
+#ifdef OTT_EXCLUDE_NETWORK_TIME
+	dbg_printf(" [NETW:%u]\n", network_time_ms);
+#else
+	dbg_printf("\n");
+#endif
 #endif
 	return OTT_OK;
 }
@@ -324,6 +356,9 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 {
 #ifdef OTT_TIME_PROFILE
 	uint32_t begin = platform_get_tick_ms();
+#ifdef OTT_EXCLUDE_NETWORK_TIME
+	network_time_ms = 0;
+#endif
 #endif
 
 	/* Check for correct parameters */
@@ -337,7 +372,12 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&byte, 1, ret);
 
 #ifdef OTT_TIME_PROFILE
-	dbg_printf("[SC:%u]\n", platform_get_tick_ms() - begin);
+	dbg_printf("[SC:%u]", platform_get_tick_ms() - begin);
+#ifdef OTT_EXCLUDE_NETWORK_TIME
+	dbg_printf(" [NETW:%u]\n", network_time_ms);
+#else
+	dbg_printf("\n");
+#endif
 #endif
 	return OTT_OK;
 }
@@ -346,6 +386,9 @@ ott_status ott_send_restarted(c_flags_t c_flags)
 {
 #ifdef OTT_TIME_PROFILE
 	uint32_t begin = platform_get_tick_ms();
+#ifdef OTT_EXCLUDE_NETWORK_TIME
+	network_time_ms = 0;
+#endif
 #endif
 
 	/* Check for correct parameters */
@@ -359,7 +402,12 @@ ott_status ott_send_restarted(c_flags_t c_flags)
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&byte, 1, ret);
 
 #ifdef OTT_TIME_PROFILE
-	dbg_printf("[SR:%u]\n", platform_get_tick_ms() - begin);
+	dbg_printf("[SR:%u]", platform_get_tick_ms() - begin);
+#ifdef OTT_EXCLUDE_NETWORK_TIME
+	dbg_printf(" [NETW:%u]\n", network_time_ms);
+#else
+	dbg_printf("\n");
+#endif
 #endif
 	return OTT_OK;
 }
