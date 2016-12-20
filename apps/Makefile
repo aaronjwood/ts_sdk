@@ -5,11 +5,11 @@
 .PHONY: all clean
 
 all:
-	for f in *; do \
-		[ -d $$f ] && echo "[Building in $$f]" && (cd $$f; make); \
+	@for d in *; do \
+		[ -d $$d ] && echo [Building in $$d] && $(MAKE) -C $$d all ; \
 	done
 
 clean:
-	@for f in *; do \
-		[ -d $$f ] && echo "[Cleaning in $$f]" && (cd $$f; make clean); \
+	@for d in *; do \
+		[ -d $$d ] && echo [Cleaning in $$d] && $(MAKE) -C $$d clean ; \
 	done

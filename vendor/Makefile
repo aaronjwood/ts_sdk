@@ -6,7 +6,7 @@ VENDOR_ROOT=$(PROJ_ROOT)/vendor
 
 mbedtls:
 	@echo "[Building mbedtls libraries.}"
-	make -C $(VENDOR_ROOT)/mbedtls \
+	$(MAKE) -C $(VENDOR_ROOT)/mbedtls \
 		CFLAGS='-O2 $(INC) $(ARCHFLAGS) $(MDEF)' \
 		lib
 	cp $(VENDOR_ROOT)/mbedtls/library/libmbedcrypto.a $(SRCDIR)/build
@@ -15,7 +15,7 @@ mbedtls:
 
 clean:
 	@echo "[Cleaning vendor libraries.]"
-	make -C $(VENDOR_ROOT)/mbedtls clean
+	$(MAKE) -C $(VENDOR_ROOT)/mbedtls clean
 
 # Rebuild our version of the mbedtls config.h file from an unmodified copy.
 # This is one-time configuration when we have a new version of mbedtls.

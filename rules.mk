@@ -52,7 +52,7 @@ endif
 
 clean:
 ifdef VENDOR_LIB_DIRS
-	$(MAKE) -C $(PROJ_ROOT)/vendor clean
+	@$(MAKE) -C $(PROJ_ROOT)/vendor clean
 endif
 	rm -rf $(SRCDIR)/build
 
