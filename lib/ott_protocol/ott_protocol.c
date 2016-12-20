@@ -131,7 +131,7 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 {
 #ifdef OTT_TIME_PROFILE
 	uint32_t begin = platform_get_tick_ms();
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	network_time_ms = 0;
 #endif
 #endif
@@ -185,7 +185,7 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 
 #ifdef OTT_TIME_PROFILE
 	dbg_printf("[IC:%u]", platform_get_tick_ms() - begin);
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	dbg_printf(" [NETW:%u]\n", network_time_ms);
 #else
 	dbg_printf("\n");
@@ -198,7 +198,7 @@ ott_status ott_close_connection(void)
 {
 #ifdef OTT_TIME_PROFILE
 	uint32_t begin = platform_get_tick_ms();
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	network_time_ms = 0;
 #endif
 #endif
@@ -208,7 +208,7 @@ ott_status ott_close_connection(void)
 	mbedtls_net_free(&server_fd);
 #ifdef OTT_TIME_PROFILE
 	dbg_printf("[CC:%u]", platform_get_tick_ms() - begin);
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	dbg_printf(" [NETW:%u]\n", network_time_ms);
 #else
 	dbg_printf("\n");
@@ -269,7 +269,7 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 {
 #ifdef OTT_TIME_PROFILE
 	uint32_t begin = platform_get_tick_ms();
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	network_time_ms = 0;
 #endif
 #endif
@@ -302,7 +302,7 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 
 #ifdef OTT_TIME_PROFILE
 	dbg_printf("[SA:%u]", platform_get_tick_ms() - begin);
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	dbg_printf(" [NETW:%u]\n", network_time_ms);
 #else
 	dbg_printf("\n");
@@ -317,7 +317,7 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 {
 #ifdef OTT_TIME_PROFILE
 	uint32_t begin = platform_get_tick_ms();
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	network_time_ms = 0;
 #endif
 #endif
@@ -343,7 +343,7 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 
 #ifdef OTT_TIME_PROFILE
 	dbg_printf("[SS:%u]", platform_get_tick_ms() - begin);
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	dbg_printf(" [NETW:%u]\n", network_time_ms);
 #else
 	dbg_printf("\n");
@@ -356,7 +356,7 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 {
 #ifdef OTT_TIME_PROFILE
 	uint32_t begin = platform_get_tick_ms();
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	network_time_ms = 0;
 #endif
 #endif
@@ -373,7 +373,7 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 
 #ifdef OTT_TIME_PROFILE
 	dbg_printf("[SC:%u]", platform_get_tick_ms() - begin);
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	dbg_printf(" [NETW:%u]\n", network_time_ms);
 #else
 	dbg_printf("\n");
@@ -386,7 +386,7 @@ ott_status ott_send_restarted(c_flags_t c_flags)
 {
 #ifdef OTT_TIME_PROFILE
 	uint32_t begin = platform_get_tick_ms();
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	network_time_ms = 0;
 #endif
 #endif
@@ -403,7 +403,7 @@ ott_status ott_send_restarted(c_flags_t c_flags)
 
 #ifdef OTT_TIME_PROFILE
 	dbg_printf("[SR:%u]", platform_get_tick_ms() - begin);
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	dbg_printf(" [NETW:%u]\n", network_time_ms);
 #else
 	dbg_printf("\n");

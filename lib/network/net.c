@@ -21,7 +21,7 @@
 #include "mbedtls/net.h"
 
 #include "ott_protocol.h"
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 #include "platform.h"
 uint32_t network_time_ms;
 #endif
@@ -59,7 +59,7 @@ static bool init_flag;
  */
 void mbedtls_net_init(mbedtls_net_context *ctx)
 {
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	uint32_t begin = platform_get_tick_ms();
 #endif
 
@@ -69,7 +69,7 @@ void mbedtls_net_init(mbedtls_net_context *ctx)
         ctx->fd = -1;
         if (at_init())
                 init_flag = true;
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	network_time_ms += (platform_get_tick_ms() - begin);
 #endif
 }
@@ -80,7 +80,7 @@ void mbedtls_net_init(mbedtls_net_context *ctx)
 int mbedtls_net_connect(mbedtls_net_context *ctx, const char *host,
                         const char *port, int proto)
 {
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	uint32_t begin = platform_get_tick_ms();
 #endif
         CHECK_NULL(ctx, MBEDTLS_ERR_NET_INVALID_CONTEXT)
@@ -98,7 +98,7 @@ int mbedtls_net_connect(mbedtls_net_context *ctx, const char *host,
                 return MBEDTLS_ERR_NET_SOCKET_FAILED;
 
         ctx->fd = ret;
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	network_time_ms += (platform_get_tick_ms() - begin);
 #endif
         return 0;
@@ -109,7 +109,7 @@ int mbedtls_net_connect(mbedtls_net_context *ctx, const char *host,
  */
 int mbedtls_net_recv(void *ctx, unsigned char *buf, size_t len)
 {
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	uint32_t begin = platform_get_tick_ms();
 #endif
         CHECK_NULL(ctx, MBEDTLS_ERR_NET_INVALID_CONTEXT)
@@ -126,27 +126,27 @@ int mbedtls_net_recv(void *ctx, unsigned char *buf, size_t len)
         if (ret < 0) {
                 if (ret == AT_TCP_CONNECT_DROPPED) {
                         DEBUG("%s: connection dropped\n", __func__);
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 			network_time_ms += (platform_get_tick_ms() - begin);
 #endif
                         return MBEDTLS_ERR_SSL_WANT_READ;
                 }
                 if (errno == EPIPE || errno == ECONNRESET) {
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 			network_time_ms += (platform_get_tick_ms() - begin);
 #endif
                         return MBEDTLS_ERR_NET_CONN_RESET;
 		}
 
                 if (errno == EINTR || errno == EAGAIN) {
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 			network_time_ms += (platform_get_tick_ms() - begin);
 #endif
                         return MBEDTLS_ERR_SSL_WANT_READ;
 		}
                 return MBEDTLS_ERR_NET_RECV_FAILED;
         }
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	network_time_ms += (platform_get_tick_ms() - begin);
 #endif
         return ret;
@@ -195,7 +195,7 @@ int mbedtls_net_recv_timeout(void *ctx, unsigned char *buf,
  */
 int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len)
 {
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	uint32_t begin = platform_get_tick_ms();
 #endif
         CHECK_NULL(ctx, MBEDTLS_ERR_NET_INVALID_CONTEXT)
@@ -212,20 +212,20 @@ int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len)
         if (ret < 0) {
                 if (ret == AT_TCP_CONNECT_DROPPED) {
                         DEBUG("%s: connection dropped\n", __func__);
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 			network_time_ms += (platform_get_tick_ms() - begin);
 #endif
                         return MBEDTLS_ERR_SSL_WANT_WRITE;
                 }
                 if (errno == EPIPE || errno == ECONNRESET) {
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 			network_time_ms += (platform_get_tick_ms() - begin);
 #endif
                         return MBEDTLS_ERR_NET_CONN_RESET;
 		}
 
                 if (errno == EINTR) {
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 			network_time_ms += (platform_get_tick_ms() - begin);
 #endif
                         return MBEDTLS_ERR_SSL_WANT_WRITE;
@@ -233,7 +233,7 @@ int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len)
 
                 return MBEDTLS_ERR_NET_SEND_FAILED;
         }
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	network_time_ms += (platform_get_tick_ms() - begin);
 #endif
         return ret;
@@ -244,7 +244,7 @@ int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len)
  */
 void mbedtls_net_free(mbedtls_net_context *ctx)
 {
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	uint32_t begin = platform_get_tick_ms();
 #endif
         if (!ctx)
@@ -253,7 +253,7 @@ void mbedtls_net_free(mbedtls_net_context *ctx)
                 return;
         close(ctx->fd);
         ctx->fd = -1;
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	network_time_ms += (platform_get_tick_ms() - begin);
 #endif
 }

@@ -22,7 +22,7 @@
  * time taken to receive the data over the network. The initialization function
  * is not profiled.
  */
-#define OTT_TIME_PROFILE
+/*#define OTT_TIME_PROFILE*/
 
 /*
  * Define this to explicitly show the time it takes to connect to the network /
@@ -31,9 +31,9 @@
  * the data packets.
  * OTT_TIME_PROFILE must be defined for this to work.
  */
-#define OTT_EXCLUDE_NETWORK_TIME
+/*#define OTT_EXPLICIT_NETWORK_TIME*/
 
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 extern uint32_t network_time_ms;
 #endif
 
