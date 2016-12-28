@@ -32,10 +32,6 @@
 
 static void __at_parse_tcp_conf_rsp(void *rcv_rsp, int rcv_rsp_len,
                                         const char *stored_rsp, void *data);
-static void __at_parse_tcp_send_rsp(void *rcv_rsp, int rcv_rsp_len,
-                                        const char *stored_rsp, void *data);
-static void __at_parse_tcp_read_qry_rsp(void *rcv_rsp, int rcv_rsp_len,
-                                        const char *stored_rsp, void *data);
 static void __at_parse_tcp_sock_stat(void *rcv_rsp, int rcv_rsp_len,
                                         const char *stored_rsp, void *data);
 static void __at_parse_tcp_get_err(void *rcv_rsp, int rcv_rsp_len,
@@ -80,10 +76,6 @@ typedef enum at_pdp_command {
 typedef enum at_tcp_command {
         TCP_CONF = 0, /** TCP connection configuration */
         TCP_CONN, /** TCP connection */
-        TCP_SEND,
-        TCP_WRITE_PROMPT, /** TCP write prompt before sending data */
-        TCP_RCV,
-        TCP_RCV_QRY,
         TCP_SOCK_STAT,
         TCP_CLOSE,
         TCP_GET_ERR,
@@ -316,64 +308,6 @@ static at_command_desc tcp_comm[TCP_END] = {
                 },
                 .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 25000
-        },
-        [TCP_SEND] = {
-                .comm_sketch = "at+usowr=%d,%d\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+USOWR: ",
-                                .rsp_handler = __at_parse_tcp_send_rsp,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 15000
-        },
-        [TCP_WRITE_PROMPT] = {
-                .comm_sketch = "at+usowr=%d,%d\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n@",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 15000
-        },
-        [TCP_RCV] = {
-                .comm_sketch = "at+usord=%d,%d\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+USORD: ",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 15000
-        },
-        [TCP_RCV_QRY] = {
-                .comm_sketch = "at+usord=%d,0\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+USORD: ",
-                                .rsp_handler = __at_parse_tcp_read_qry_rsp,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 10000
         },
         [TCP_SOCK_STAT] = {
                 .comm_sketch = "at+usoctl=%d,10\r",
