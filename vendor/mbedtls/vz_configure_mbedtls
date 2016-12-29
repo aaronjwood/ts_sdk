@@ -7,7 +7,7 @@
 
 function usage() {
 	echo "Usage: "
-	echo "    ${0##*/} [help] [debug] [no-net] [full-msgs] [no-hwrng]"
+	echo "    ${0##*/} [help] [debug] [no-net] [full-msgs] [no-hwrng] [heap-prof]"
 	exit 0
 }
 
@@ -95,6 +95,15 @@ fi
 
 # Faster option for mixing in entropy
 c set	MBEDTLS_ENTROPY_FORCE_SHA256
+
+# Not building for x86 / x86-64
+c unset MBEDTLS_PADLOCK_C
+c unset MBEDTLS_AESNI_C
+
+# Enable the use of mbedtls_platform_set_calloc_free() when profiling the heap
+if option "heap-prof"; then
+c set MBEDTLS_PLATFORM_MEMORY
+fi
 
 # No external sources for RSA keys
 c unset MBEDTLS_PK_RSA_ALT_SUPPORT
