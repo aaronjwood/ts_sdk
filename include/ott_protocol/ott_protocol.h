@@ -19,19 +19,26 @@
 
 /*
  * Define this to profile the OTT functions. The time recorded also includes the
- * time taken to receive the data over the network. The initialization function
- * is not profiled.
+ * time taken to receive the data over the network and time spent in the modem.
+ * The initialization function is not profiled.
  */
 /*#define OTT_TIME_PROFILE*/
 
 /*
  * Define this to explicitly show the time it takes to connect to the network /
- * send / receive data over the network. This allows for a clearer picture of
- * how much time is spent in pure crypto computation / preparing and unwrapping
- * the data packets.
+ * send / receive data over the network. This allows to compute how much time is
+ * spent in pure crypto computation / preparing and unwrapping the data packets.
  * OTT_TIME_PROFILE must be defined for this to work.
  */
 /*#define OTT_EXPLICIT_NETWORK_TIME*/
+
+/*
+ * Define this to profile the maximum heap used by mbedTLS. This is done by
+ * providing a custom implementation of calloc(). Everytime the connection is
+ * closed through ott_close_connection(), the maximum amount of heap used until
+ * that point of time is printed to the debug UART.
+ */
+/*#define OTT_HEAP_PROFILE*/
 
 #ifdef OTT_EXPLICIT_NETWORK_TIME
 extern uint32_t network_time_ms;

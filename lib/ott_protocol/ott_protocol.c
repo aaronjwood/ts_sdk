@@ -34,6 +34,27 @@ static void my_debug(void *ctx, int level,
 }
 #endif
 
+#ifdef OTT_HEAP_PROFILE
+#include <stdlib.h>
+#include <inttypes.h>
+#include "mbedtls/platform.h"
+static uintptr_t max_alloc;
+extern int _end;			/* Heap start : Defined in linker script */
+static uintptr_t heap_start = (uintptr_t)&_end;
+extern caddr_t _sbrk(int);		/* Implemented in libnosys */
+
+static void *ott_calloc(size_t num, size_t size)
+{
+	void *p = calloc(num, size);
+	if (p) {
+		uintptr_t s = (uintptr_t)_sbrk(0);
+		s -= heap_start;
+		max_alloc = ((max_alloc > s) ? max_alloc : s);
+	}
+	return p;
+}
+#endif
+
 /*
  * Assumption: Underlying transport protocol is stream oriented. So parts of
  * the message can be sent through separate write calls.
@@ -81,6 +102,10 @@ ott_status ott_protocol_init(void)
 
 #ifdef MBEDTLS_DEBUG_C
 	mbedtls_debug_set_threshold(1);
+#endif
+
+#ifdef OTT_HEAP_PROFILE
+	mbedtls_platform_set_calloc_free(ott_calloc, free);
 #endif
 	/* Initialize TLS structures */
 	mbedtls_net_init(&server_fd);
@@ -213,6 +238,10 @@ ott_status ott_close_connection(void)
 #else
 	dbg_printf("\n");
 #endif
+#endif
+
+#ifdef OTT_HEAP_PROFILE
+	dbg_printf("[HP:%"PRIuPTR"]\n", max_alloc);
 #endif
 	if (s == 0)
 		return OTT_OK;
