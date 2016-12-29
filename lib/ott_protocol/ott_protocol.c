@@ -38,8 +38,8 @@ static void my_debug(void *ctx, int level,
 #include <stdlib.h>
 #include <inttypes.h>
 #include "mbedtls/platform.h"
-static uintptr_t max_alloc;
-extern int _end;			/* Heap start : Defined in linker script */
+static uintptr_t max_alloc = 0;
+extern int _end;			/* Defined in linker script */
 static uintptr_t heap_start = (uintptr_t)&_end;
 extern caddr_t _sbrk(int);		/* Implemented in libnosys */
 
@@ -47,9 +47,10 @@ static void *ott_calloc(size_t num, size_t size)
 {
 	void *p = calloc(num, size);
 	if (p) {
+		/* Get current top of the heap */
 		uintptr_t s = (uintptr_t)_sbrk(0);
 		s -= heap_start;
-		max_alloc = ((max_alloc > s) ? max_alloc : s);
+		max_alloc = ((max_alloc >= s) ? max_alloc : s);
 	}
 	return p;
 }
