@@ -21,7 +21,7 @@
 CC_SEND_BUFFER(send_buffer, SEND_DATA_SZ);
 CC_RECV_BUFFER(recv_buffer, RECV_DATA_SZ);
 
-#define SERVER_NAME	"test1.ott.uu.net"
+#define SERVER_NAME	"iwk.ott.thingspace.verizon.com"
 #define SERVER_PORT	"443"
 
 static bool resend_calibration;		/* Set if RESEND command was received */

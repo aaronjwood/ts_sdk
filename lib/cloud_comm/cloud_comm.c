@@ -285,7 +285,7 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 {
 #ifdef OTT_TIME_PROFILE
 	uint32_t begin = platform_get_tick_ms();
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 	network_time_ms = 0;
 #endif
 #endif
@@ -309,7 +309,7 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 		if (s == OTT_OK) {
 #ifdef OTT_TIME_PROFILE
 			dbg_printf("[RV:%u]", platform_get_tick_ms() - begin);
-#ifdef OTT_EXCLUDE_NETWORK_TIME
+#ifdef OTT_EXPLICIT_NETWORK_TIME
 			dbg_printf(" [NETW:%u]\n", network_time_ms);
 #else
 			dbg_printf("\n");

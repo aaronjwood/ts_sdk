@@ -4,11 +4,14 @@
 
 prg_name=$(basename "$0")
 
+# For a table of endpoints:
+# https://confluence.verizon.com/display/~aaggarwal/gwott-proxy+deployment+info
+
 # ThingSpace API URL
-TS_ADDR=https://198.159.196.157
+TS_ADDR=https://63.98.10.23
 
 # OTT Device API URL
-OTT_ADDR=https://198.159.196.124
+OTT_ADDR=https://63.98.10.12
 
 # OTT Model ID
 MODEL_ID=\"b63bb02a-a4eb-4aad-a1c3-03c7ce8926d4\"
