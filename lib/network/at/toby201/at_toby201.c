@@ -280,11 +280,8 @@ static void __at_cleanup(uint8_t flush_uart)
         state |= PROC_URC;
         __at_process_urc();
         state &= ~PROC_URC;
-        if (flush_uart) {
-                DEBUG_V0("dumping before flussing\n");
-                __at_dump_buffer(NULL, 0);
+        if (flush_uart)
                 __at_uart_rx_flush();
-        }
 
 }
 
@@ -453,7 +450,8 @@ static at_ret_code __at_generic_comm_rsp_util(const at_command_desc *desc,
                                 if (result == AT_RSP_TIMEOUT) {
                                         DEBUG_V0("%s: timed out for rsp: %s\n",
                                                 __func__, desc->rsp_desc[i].rsp);
-                                        DEBUG_V0("%s: dumping buffer\n", __func__);
+                                        DEBUG_V0("%s: dumping buffer\n",
+                                                __func__);
                                         __at_dump_buffer(NULL, 0);
                                         goto done;
                                 }
@@ -795,10 +793,9 @@ static at_ret_code __at_esc_dl_mode()
 
         if (result != AT_SUCCESS)
                 DEBUG_V0("%s:%d: unable to exit dl mode\n", __func__, __LINE__);
-        else {
+        else
                 DEBUG_V0("%s:%d: exited from dl mode\n", __func__, __LINE__);
-                state &= ~DL_MODE;
-        }
+        state &= ~DL_MODE;
         return result;
 }
 
@@ -968,21 +965,14 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
                 DEBUG_V0("%s: tcp not connected\n", __func__);
                 return AT_TCP_SEND_FAIL;
         }
-        /* FIXME: confirm max len in dl mode
 
-        if (len > MAX_AT_TCP_TX_SIZE)
-                len = MAX_AT_TCP_TX_SIZE;
-        */
-
-        /* FIXME: waiting for the clarificaiton in network congetion scenario
-        */
         if ((state & DL_MODE) == DL_MODE) {
                 result = __at_tcp_tx(buf, len);
                 if (result != AT_SUCCESS) {
                         DEBUG_V0("%s:%d: write failed\n", __func__, __LINE__);
                         return AT_TCP_SEND_FAIL;
                 }
-                DEBUG_V0("%s: data written in dl mode: %d\n", __func__, len);
+                DEBUG_V1("%s: data written in dl mode: %d\n", __func__, len);
                 return len;
         } else {
                 DEBUG_V0("%s:%d: data send failed (no dl mode)\n",
@@ -1027,10 +1017,10 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
                 if (line)
                         DEBUG_V0("%s:line avail in read#####:%d\n", __func__, line);
                 int rdb = uart_read(buf, len);
-                DEBUG_V0("%s:%d: read:%d, wanted:%d in a dl\n",
+                DEBUG_V1("%s:%d: read:%d, wanted:%d in a dl\n",
                                 __func__, __LINE__, rdb, len);
                 if (rdb == 0) {
-                        DEBUG_V0("%s:%d: read again\n", __func__, __LINE__);
+                        DEBUG_V1("%s:%d: read again\n", __func__, __LINE__);
                         errno = EAGAIN;
                         return AT_TCP_RCV_FAIL;
                 }
