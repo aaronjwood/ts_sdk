@@ -21,7 +21,6 @@
 
 /* Upper limit for commands which need formatting before sending to modem */
 #define TEMP_COMM_LIMIT              64
-#define TCP_SOCK_STATUS_CODE         4
 
 /* Time interval between sending escape sequence characters to get out from
  * direct link mode, time interval is in fiftieth of second, configure it for
@@ -31,10 +30,6 @@
 #define DL_ESC_TIME_MS             (DL_MODE_ESC_TIME * 20)
 
 static void __at_parse_tcp_conf_rsp(void *rcv_rsp, int rcv_rsp_len,
-                                        const char *stored_rsp, void *data);
-static void __at_parse_tcp_sock_stat(void *rcv_rsp, int rcv_rsp_len,
-                                        const char *stored_rsp, void *data);
-static void __at_parse_tcp_get_err(void *rcv_rsp, int rcv_rsp_len,
                                         const char *stored_rsp, void *data);
 
 /** Unsolicited result codes */
@@ -76,10 +71,9 @@ typedef enum at_pdp_command {
 typedef enum at_tcp_command {
         TCP_CONF = 0, /** TCP connection configuration */
         TCP_CONN, /** TCP connection */
-        TCP_SOCK_STAT,
         TCP_CLOSE,
-        TCP_GET_ERR,
         TCP_DL_MODE,
+        DL_CONG_CONF,
         ESCAPE_DL_MODE,
         ESCAPE_TIME_CONF,
         TCP_END
@@ -309,23 +303,6 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 25000
         },
-        [TCP_SOCK_STAT] = {
-                .comm_sketch = "at+usoctl=%d,10\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+USOCTL: ",
-                                .rsp_handler = __at_parse_tcp_sock_stat,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 100
-        },
         [TCP_CLOSE] = {
                 .comm_sketch = "at+usocl=%d\r",
                 .rsp_desc = {
@@ -337,23 +314,6 @@ static at_command_desc tcp_comm[TCP_END] = {
                 },
                 .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 15000
-        },
-        [TCP_GET_ERR] = {
-                .comm = "at+usoer\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+USOER: ",
-                                .rsp_handler = __at_parse_tcp_get_err,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 100
         },
         [TCP_DL_MODE] = {
                 .comm_sketch = "at+usodl=%d\r",
@@ -386,6 +346,18 @@ static at_command_desc tcp_comm[TCP_END] = {
         },
         [ESCAPE_TIME_CONF] = {
                 .comm_sketch = "ats12=%d\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        },
+                },
+                .err = "\r\n+CME ERROR: ",
+                .comm_timeout = 100
+        },
+        [DL_CONG_CONF] = {
+                .comm_sketch = "at+udconf=8,%d,0\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
