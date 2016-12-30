@@ -56,6 +56,10 @@ static void *ott_calloc(size_t num, size_t size)
 }
 #endif
 
+#ifdef OTT_TIME_PROFILE
+static uint32_t ott_begin;
+#endif
+
 /*
  * Assumption: Underlying transport protocol is stream oriented. So parts of
  * the message can be sent through separate write calls.
@@ -155,12 +159,7 @@ ott_status ott_protocol_init(void)
 
 ott_status ott_initiate_connection(const char *host, const char *port)
 {
-#ifdef OTT_TIME_PROFILE
-	uint32_t begin = platform_get_tick_ms();
-#ifdef OTT_EXPLICIT_NETWORK_TIME
-	network_time_ms = 0;
-#endif
-#endif
+	OTT_TIME_PROFILE_BEGIN();
 	if (host == NULL || port == NULL)
 		return OTT_INV_PARAM;
 
@@ -209,41 +208,23 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 		ret = mbedtls_ssl_handshake(&ssl);
 	}
 
-#ifdef OTT_TIME_PROFILE
-	dbg_printf("[IC:%u]", platform_get_tick_ms() - begin);
-#ifdef OTT_EXPLICIT_NETWORK_TIME
-	dbg_printf(" [NETW:%u]\n", network_time_ms);
-#else
-	dbg_printf("\n");
-#endif
-#endif
+	OTT_TIME_PROFILE_END("IC");
 	return OTT_OK;
 }
 
 ott_status ott_close_connection(void)
 {
-#ifdef OTT_TIME_PROFILE
-	uint32_t begin = platform_get_tick_ms();
-#ifdef OTT_EXPLICIT_NETWORK_TIME
-	network_time_ms = 0;
-#endif
-#endif
+	OTT_TIME_PROFILE_BEGIN();
 	/* Close the connection and notify the peer. */
 	int s = mbedtls_ssl_close_notify(&ssl);
 	mbedtls_ssl_free(&ssl);
 	mbedtls_net_free(&server_fd);
-#ifdef OTT_TIME_PROFILE
-	dbg_printf("[CC:%u]", platform_get_tick_ms() - begin);
-#ifdef OTT_EXPLICIT_NETWORK_TIME
-	dbg_printf(" [NETW:%u]\n", network_time_ms);
-#else
-	dbg_printf("\n");
-#endif
-#endif
+	OTT_TIME_PROFILE_END("CC");
 
 #ifdef OTT_HEAP_PROFILE
 	dbg_printf("[HP:%"PRIuPTR"]\n", max_alloc);
 #endif
+
 	if (s == 0)
 		return OTT_OK;
 	else
@@ -297,12 +278,7 @@ static bool flags_are_valid(c_flags_t f)
 ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 				  uint16_t dev_sec_sz, const uint8_t *dev_sec)
 {
-#ifdef OTT_TIME_PROFILE
-	uint32_t begin = platform_get_tick_ms();
-#ifdef OTT_EXPLICIT_NETWORK_TIME
-	network_time_ms = 0;
-#endif
-#endif
+	OTT_TIME_PROFILE_BEGIN();
 	/* Check for correct parameters */
 	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_QUIT) ||
 			(dev_sec_sz + OTT_UUID_SZ > OTT_DATA_SZ) ||
@@ -330,14 +306,7 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 	/* Send the device secret */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)dev_sec, dev_sec_sz, ret);
 
-#ifdef OTT_TIME_PROFILE
-	dbg_printf("[SA:%u]", platform_get_tick_ms() - begin);
-#ifdef OTT_EXPLICIT_NETWORK_TIME
-	dbg_printf(" [NETW:%u]\n", network_time_ms);
-#else
-	dbg_printf("\n");
-#endif
-#endif
+	OTT_TIME_PROFILE_END("SA");
 	return OTT_OK;
 }
 
@@ -345,12 +314,7 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
                                     uint16_t status_sz,
 				    const uint8_t *status)
 {
-#ifdef OTT_TIME_PROFILE
-	uint32_t begin = platform_get_tick_ms();
-#ifdef OTT_EXPLICIT_NETWORK_TIME
-	network_time_ms = 0;
-#endif
-#endif
+	OTT_TIME_PROFILE_BEGIN();
 	/* Check for correct parameters */
 	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_QUIT) ||
 			(status_sz > OTT_DATA_SZ) || (status == NULL))
@@ -371,26 +335,13 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 	/* Send the actual status data */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)status, status_sz, ret);
 
-#ifdef OTT_TIME_PROFILE
-	dbg_printf("[SS:%u]", platform_get_tick_ms() - begin);
-#ifdef OTT_EXPLICIT_NETWORK_TIME
-	dbg_printf(" [NETW:%u]\n", network_time_ms);
-#else
-	dbg_printf("\n");
-#endif
-#endif
+	OTT_TIME_PROFILE_END("SS");
 	return OTT_OK;
 }
 
 ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 {
-#ifdef OTT_TIME_PROFILE
-	uint32_t begin = platform_get_tick_ms();
-#ifdef OTT_EXPLICIT_NETWORK_TIME
-	network_time_ms = 0;
-#endif
-#endif
-
+	OTT_TIME_PROFILE_BEGIN();
 	/* Check for correct parameters */
 	if (!flags_are_valid(c_flags))
 		return OTT_INV_PARAM;
@@ -401,26 +352,13 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 	/* Send the command byte */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&byte, 1, ret);
 
-#ifdef OTT_TIME_PROFILE
-	dbg_printf("[SC:%u]", platform_get_tick_ms() - begin);
-#ifdef OTT_EXPLICIT_NETWORK_TIME
-	dbg_printf(" [NETW:%u]\n", network_time_ms);
-#else
-	dbg_printf("\n");
-#endif
-#endif
+	OTT_TIME_PROFILE_END("SC");
 	return OTT_OK;
 }
 
 ott_status ott_send_restarted(c_flags_t c_flags)
 {
-#ifdef OTT_TIME_PROFILE
-	uint32_t begin = platform_get_tick_ms();
-#ifdef OTT_EXPLICIT_NETWORK_TIME
-	network_time_ms = 0;
-#endif
-#endif
-
+	OTT_TIME_PROFILE_BEGIN();
 	/* Check for correct parameters */
 	if (!flags_are_valid(c_flags))
 		return OTT_INV_PARAM;
@@ -431,14 +369,7 @@ ott_status ott_send_restarted(c_flags_t c_flags)
 	/* Send the command byte */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&byte, 1, ret);
 
-#ifdef OTT_TIME_PROFILE
-	dbg_printf("[SR:%u]", platform_get_tick_ms() - begin);
-#ifdef OTT_EXPLICIT_NETWORK_TIME
-	dbg_printf(" [NETW:%u]\n", network_time_ms);
-#else
-	dbg_printf("\n");
-#endif
-#endif
+	OTT_TIME_PROFILE_END("SR");
 	return OTT_OK;
 }
 

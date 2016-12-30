@@ -44,6 +44,36 @@
 extern uint32_t network_time_ms;
 #endif
 
+#ifdef OTT_TIME_PROFILE
+#ifdef OTT_EXPLICIT_NETWORK_TIME
+
+#define OTT_TIME_PROFILE_BEGIN() do { \
+	ott_begin = platform_get_tick_ms(); \
+	network_time_ms = 0; \
+} while(0)
+
+#define OTT_TIME_PROFILE_END(label) do { \
+	dbg_printf("["label":%u]", platform_get_tick_ms() - ott_begin); \
+	dbg_printf(" [NETW:%u]\n", network_time_ms); \
+} while(0)
+
+#else
+
+#define OTT_TIME_PROFILE_BEGIN() \
+	ott_begin = platform_get_tick_ms()
+
+#define OTT_TIME_PROFILE_END(label) \
+	dbg_printf("["label":%u]\n", platform_get_tick_ms() - ott_begin)
+
+#endif	/* OTT_EXPLICIT_NETWORK_TIME */
+
+#else
+
+#define OTT_TIME_PROFILE_BEGIN()
+#define OTT_TIME_PROFILE_END(label)
+
+#endif	/* OTT_TIME_PROFILE */
+
 typedef enum {			/* Defines return codes of this API. */
 	OTT_OK,			/* API call exited without any errors */
 	OTT_ERROR,		/* API call exited with errors */
