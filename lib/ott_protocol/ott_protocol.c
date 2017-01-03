@@ -34,6 +34,32 @@ static void my_debug(void *ctx, int level,
 }
 #endif
 
+#ifdef OTT_HEAP_PROFILE
+#include <stdlib.h>
+#include <inttypes.h>
+#include "mbedtls/platform.h"
+static uintptr_t max_alloc = 0;
+extern int _end;			/* Defined in linker script */
+static uintptr_t heap_start = (uintptr_t)&_end;
+extern caddr_t _sbrk(int);		/* Implemented in libnosys */
+
+static void *ott_calloc(size_t num, size_t size)
+{
+	void *p = calloc(num, size);
+	if (p) {
+		/* Get current top of the heap */
+		uintptr_t s = (uintptr_t)_sbrk(0);
+		s -= heap_start;
+		max_alloc = ((max_alloc >= s) ? max_alloc : s);
+	}
+	return p;
+}
+#endif
+
+#ifdef OTT_TIME_PROFILE
+static uint32_t ott_begin;
+#endif
+
 /*
  * Assumption: Underlying transport protocol is stream oriented. So parts of
  * the message can be sent through separate write calls.
@@ -82,6 +108,10 @@ ott_status ott_protocol_init(void)
 #ifdef MBEDTLS_DEBUG_C
 	mbedtls_debug_set_threshold(1);
 #endif
+
+#ifdef OTT_HEAP_PROFILE
+	mbedtls_platform_set_calloc_free(ott_calloc, free);
+#endif
 	/* Initialize TLS structures */
 	mbedtls_net_init(&server_fd);
 	mbedtls_ssl_init(&ssl);
@@ -129,6 +159,7 @@ ott_status ott_protocol_init(void)
 
 ott_status ott_initiate_connection(const char *host, const char *port)
 {
+	OTT_TIME_PROFILE_BEGIN();
 	if (host == NULL || port == NULL)
 		return OTT_INV_PARAM;
 
@@ -177,15 +208,23 @@ ott_status ott_initiate_connection(const char *host, const char *port)
 		ret = mbedtls_ssl_handshake(&ssl);
 	}
 
+	OTT_TIME_PROFILE_END("IC");
 	return OTT_OK;
 }
 
 ott_status ott_close_connection(void)
 {
+	OTT_TIME_PROFILE_BEGIN();
 	/* Close the connection and notify the peer. */
 	int s = mbedtls_ssl_close_notify(&ssl);
 	mbedtls_ssl_free(&ssl);
 	mbedtls_net_free(&server_fd);
+	OTT_TIME_PROFILE_END("CC");
+
+#ifdef OTT_HEAP_PROFILE
+	dbg_printf("[HP:%"PRIuPTR"]\n", max_alloc);
+#endif
+
 	if (s == 0)
 		return OTT_OK;
 	else
@@ -239,6 +278,7 @@ static bool flags_are_valid(c_flags_t f)
 ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 				  uint16_t dev_sec_sz, const uint8_t *dev_sec)
 {
+	OTT_TIME_PROFILE_BEGIN();
 	/* Check for correct parameters */
 	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_QUIT) ||
 			(dev_sec_sz + OTT_UUID_SZ > OTT_DATA_SZ) ||
@@ -266,6 +306,7 @@ ott_status ott_send_auth_to_cloud(c_flags_t c_flags, const uint8_t *dev_id,
 	/* Send the device secret */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)dev_sec, dev_sec_sz, ret);
 
+	OTT_TIME_PROFILE_END("SA");
 	return OTT_OK;
 }
 
@@ -273,6 +314,7 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
                                     uint16_t status_sz,
 				    const uint8_t *status)
 {
+	OTT_TIME_PROFILE_BEGIN();
 	/* Check for correct parameters */
 	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_QUIT) ||
 			(status_sz > OTT_DATA_SZ) || (status == NULL))
@@ -293,11 +335,13 @@ ott_status ott_send_status_to_cloud(c_flags_t c_flags,
 	/* Send the actual status data */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)status, status_sz, ret);
 
+	OTT_TIME_PROFILE_END("SS");
 	return OTT_OK;
 }
 
 ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 {
+	OTT_TIME_PROFILE_BEGIN();
 	/* Check for correct parameters */
 	if (!flags_are_valid(c_flags))
 		return OTT_INV_PARAM;
@@ -308,11 +352,13 @@ ott_status ott_send_ctrl_msg(c_flags_t c_flags)
 	/* Send the command byte */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&byte, 1, ret);
 
+	OTT_TIME_PROFILE_END("SC");
 	return OTT_OK;
 }
 
 ott_status ott_send_restarted(c_flags_t c_flags)
 {
+	OTT_TIME_PROFILE_BEGIN();
 	/* Check for correct parameters */
 	if (!flags_are_valid(c_flags))
 		return OTT_INV_PARAM;
@@ -323,6 +369,7 @@ ott_status ott_send_restarted(c_flags_t c_flags)
 	/* Send the command byte */
 	WRITE_AND_RETURN_ON_ERROR((unsigned char *)&byte, 1, ret);
 
+	OTT_TIME_PROFILE_END("SR");
 	return OTT_OK;
 }
 
