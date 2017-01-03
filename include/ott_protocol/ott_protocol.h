@@ -40,12 +40,10 @@
  */
 /*#define OTT_HEAP_PROFILE*/
 
-#ifdef OTT_EXPLICIT_NETWORK_TIME
-extern uint32_t network_time_ms;
-#endif
-
 #ifdef OTT_TIME_PROFILE
 #ifdef OTT_EXPLICIT_NETWORK_TIME
+
+extern uint32_t network_time_ms;
 
 #define OTT_TIME_PROFILE_BEGIN() do { \
 	ott_begin = platform_get_tick_ms(); \
