@@ -20,6 +20,8 @@ static int tcp_connect()
 
 	while (s_id < 0 && count < NUM_RETRIES) {
 		s_id = at_tcp_connect(host, port);
+		if (s_id >= 0)
+			break;
 		platform_delay(DELAY_MS);
 		count++;
 	}
@@ -63,29 +65,17 @@ static void tcp_send(int s_id, uint8_t *send_buf, size_t len)
 
 static void tcp_rcv(int s_id)
 {
-	int r_b;
-	uint8_t count = 0;
-	while (count < NUM_RETRIES) {
-		r_b = at_read_available(s_id);
-		printf("Read available:%d\n", r_b);
-		if (r_b > 0)
-			break;
-		platform_delay(DELAY_MS);
-		count++;
-	}
-	if (r_b <= 0) {
-		dbg_printf("Read failed, code:%d, looping forever\n", r_b);
-		ASSERT(0);
-	}
 
+	uint8_t count = 0;
 	uint8_t read_buf[RECV_BUFFER];
+	memset(read_buf, 0, RECV_BUFFER);
 	int bytes;
-	while (1) {
-		memset(read_buf, 0, RECV_BUFFER);
+	while (count < NUM_RETRIES) {
 		bytes = at_tcp_recv(s_id, read_buf, RECV_BUFFER);
-		if (bytes < 0) {
-			dbg_printf("###### Read completed ######\n");
-			break;
+		if (bytes <= 0) {
+			platform_delay(DELAY_MS);
+			count++;
+			continue;
 		}
 		read_buf[bytes] = 0x0;
 		printf("%s", (char *)read_buf);
