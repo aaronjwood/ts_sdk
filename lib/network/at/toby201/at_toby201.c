@@ -26,8 +26,15 @@ typedef enum at_states {
         PROC_RSP = 1 << 5,
         PROC_URC = 1 << 6,
         DL_MODE = 1 << 7,
-        AT_INVALID = 1 << 8
+        TCP_TX = 1 << 8,
+        AT_INVALID = 1 << 9
 } at_states;
+
+typedef enum dis_states {
+        DIS_IDLE = 0,
+        DIS_PARTIAL = 1,
+        DIS_FULL = 2
+} dis_states;
 
 typedef enum at_return_codes {
         AT_SUCCESS = 0,
@@ -48,7 +55,15 @@ static char *rsp_trailer = "\r\n";
  */
 static const char *tcp_error = "\r\nERROR\r\n";
 
+static volatile struct {
+	const char *dis_str;
+        int found;
+        uint8_t itr;
+} dl;
+
 static volatile at_states state;
+static volatile dis_states dis_state;
+
 static volatile bool process_rsp;
 /* Flag to indicate one time packet data network enable procedure */
 static volatile bool pdp_conf;
@@ -56,7 +71,7 @@ static volatile bool pdp_conf;
 /* Enable this macro to display messages, error will alway be reported if this
  * macro is enabled while V2 and V1 will depend on debug_level setting
  */
-/*#define DEBUG_AT_LIB*/
+#define DEBUG_AT_LIB
 
 static int debug_level;
 /* level v2 is normally for extensive debugging need, for example tracing
@@ -236,6 +251,34 @@ static void __at_process_urc()
         }
 }
 
+/* FIXME: test with partial pattern plus include /r/nasdsad and somewhere /r/ndisconnect
+ * and test if that succeeds
+ */
+static void __at_lookup_dl_esc_str()
+{
+        int cur_f = dl.found;
+        int nw_f;
+        uint8_t itr = 0;
+        for (; itr < strlen(dl.dis_str); itr++) {
+                nw_f = uart_find_pattern(cur_f, dis_str, itr + 1);
+                if (nw_f == -1) {
+                        if (itr == 0) {
+                                dis_state = DIS_IDLE;
+                                dl.found = -1;
+                                dl.itr = 0;
+                        } else {
+                                dis_state = DIS_PARTIAL;
+                                dl.found = cur_f;
+                                dl.itr = itr - 1;
+                        }
+                        return;
+                } else
+                        cur_f = nw_f;
+        }
+        dis_state = DIS_FULL;
+        dl.found = nw_f;
+}
+
 static void at_uart_callback(callback_event ev)
 {
         switch (ev) {
@@ -243,6 +286,9 @@ static void at_uart_callback(callback_event ev)
                 if ((state & WAITING_RESP) == WAITING_RESP) {
                         DEBUG_V1("%s: got response\n", __func__);
                         process_rsp = true;
+                } else if ((state & TCP_TX) == TCP_TX) {
+                        if (dis_state < DIS_FULL)
+                                __at_lookup_dl_esc_str();
                 } else if (((state & PROC_RSP) != PROC_RSP) &&
                         ((state & PROC_URC) != PROC_URC) &&
                         ((state & DL_MODE) != DL_MODE)) {
@@ -738,12 +784,16 @@ static at_ret_code __at_modem_conf() {
 
 bool at_init()
 {
+        dl.dis_str = "\r\nDISCONNECT\r\n\r\nOK\r\n";
+        dl.found = -1;
+        dl.itr = 0;
 
         bool res = uart_module_init(UART_EN_HW_CTRL, IDLE_CHARS);
         CHECK_SUCCESS(res, true, false)
 
         uart_set_rx_callback(at_uart_callback);
         state = IDLE;
+        dis_state = DIS_IDLE;
         process_rsp = false;
         pdp_conf = false;
         __at_uart_rx_flush();
@@ -907,6 +957,52 @@ int at_tcp_connect(const char *host, const char *port)
         return s_id;
 }
 
+static int __at_lookup_disconnect()
+{
+        buf_sz sz = uart_rx_available();
+        if ((sz == 0 )|| (at_rx_buf.widx == UART_RX_BUFFER_SIZE))
+                return 0;
+        buf_sz avail_space = UART_RX_BUFFER_SIZE - at_rx_buf.widx;
+        if (avail_space == 0)
+                return 0;
+        buf_sz r_len = (sz > avail_space) ? avail_space : sz;
+        int rdb = uart_read(at_rx_buf.buffer + at_rx_buf.widx, r_len);
+
+}
+
+static int __at_tcp_tx(const uint8_t *buf, size_t len)
+{
+        state |= TCP_TX;
+        for (int i = 0; i < len; i++) {
+                /*FIXME: simulate this scenario for dl mode
+                */
+                if (dis_state == DIS_IDLE) {
+                        if (!__at_uart_write(((uint8_t *)buf + i), 1)) {
+                                state &= ~TCP_TX;
+                                return AT_TCP_SEND_FAIL;
+                        }
+                } else
+                        break;
+        }
+        state &= ~TCP_TX;
+
+        if (dis_state != DIS_IDLE) {
+                DEBUG_V0("%s: tcp got deconnected in middle of the write:%d\n",
+                        __func__, dis_state);
+                if (dis_state == DIS_FULL) {
+                        dl.found = -1;
+                        dl.itr = 0;
+                        dis_state = DIS_IDLE;
+                } else {
+                        __at_lookup_dl_esc_str();
+                        
+                }
+                state &= ~TCP_CONN_CLOSED;
+                return AT_TCP_CONNECT_DROPPED;
+        }
+        return 0;
+}
+
 int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
 {
         CHECK_NULL(buf, AT_TCP_INVALID_PARA)
@@ -923,9 +1019,12 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         }
 
         if ((state & DL_MODE) == DL_MODE) {
-                if (!__at_uart_write((uint8_t *)buf, len))
-                        return AT_TCP_SEND_FAIL;
-                DEBUG_V0("%s: data written in dl mode: %d\n", __func__, len);
+                int result = __at_tcp_tx(buf, len);
+                if (result != 0) {
+                        DEBUG_V0("%s:%d: write failed\n", __func__, __LINE__);
+                        return result;
+                }
+                DEBUG_V1("%s: data written in dl mode: %d\n", __func__, len);
                 return len;
         } else {
                 DEBUG_V0("%s:%d: data send failed (no dl mode)\n",

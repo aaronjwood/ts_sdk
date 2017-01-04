@@ -4,7 +4,6 @@
 #include <stm32f4xx_hal.h>
 #include "uart.h"
 
-#define UART_RX_BUFFER_SIZE	1024	/* XXX: Reduce this later on? */
 #define BAUD_RATE		115200
 #define CALLBACK_TRIGGER_MARK	((buf_sz)(UART_RX_BUFFER_SIZE * ALMOST_FULL_FRAC))
 #define ALMOST_FULL_FRAC	0.6	/* Call the receive callback once this
@@ -231,12 +230,22 @@ void USART2_IRQHandler(void)
 	}
 }
 
+int uart_find_pattern(int start_idx, uint8_t *substr, buf_sz nlen)
+{
+	if (start_idx > UART_RX_BUFFER_SIZE)
+		return -1;
+	if (start_idx == -1)
+		start_idx = rx.ridx;
+	return find_substr_in_ring_buffer(start_idx, substr, nlen);
+}
+
 /*
  * Find the substring 'substr' inside the receive buffer between the index
  * supplied and write index. Return the starting position of the substring if
  * found. Otherwise, return -1.
  */
-static int find_substr_in_ring_buffer(buf_sz idx_start, uint8_t *substr, buf_sz nlen)
+static int find_substr_in_ring_buffer(buf_sz idx_start, uint8_t *substr,
+					buf_sz nlen)
 {
 	if (!substr || nlen == 0)
 		return -1;
@@ -332,11 +341,6 @@ void uart_set_rx_callback(uart_rx_cb cb)
 buf_sz uart_rx_available(void)
 {
 	return rx.num_unread;
-}
-
-buf_sz uart_get_rx_buf_size(void)
-{
-	return UART_RX_BUFFER_SIZE;
 }
 
 void TIM2_IRQHandler(void)
