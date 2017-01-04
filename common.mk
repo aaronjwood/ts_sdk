@@ -1,4 +1,4 @@
-# Copyright(C) 2016 Verizon. All rights reserved.
+# Copyright(C) 2016,2017 Verizon. All rights reserved.
 
 # Define common parameters used by the build process such as paths to the
 # toolchain, compiler and linker flags and names of the core modules needed
