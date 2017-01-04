@@ -39,7 +39,7 @@ if [ -z "$USERNAME" ]; then
 	if [ -z "$answer" ]; then
 		exit 0
 	fi
-	STM32F4_CUBE_LIB=$(printf %q $answer)
+	STM32F4_CUBE_LIB="$answer"
 	if ! [ -f "$STM32F4_CUBE_LIB" ]; then
 		echo "File: $STM32F4_CUBE_LIB not found. Exiting.."
 		exit 1
@@ -65,17 +65,17 @@ if [ -z "$OPENOCD_INSTALL" ]; then
 		echo "brew failed to install openocd..exiting"
 		exit 1
 	fi
+	echo "[Installed openocd at /user/local/bin]"
 	if ! [ -f $STM32F4_CFG_SYS ]; then
 		echo "OpenOCD target configuration file does not exist."
 		exit 1
 	fi
-	echo "[Installed openocd at /user/local/bin]"
 	echo "[PATH environment variable should append /usr/local/bin]"
 	OPENOCD_INSTALL=/usr/local/bin/openocd
 fi
 OPENOCD_VERSION=$($OPENOCD_INSTALL -v 2>&1 | head -n 1)
 echo
-echo "[Installed openocd version is: $OPENOCD_VERSION]"
+echo "[Openocd version is: $OPENOCD_VERSION]"
 
 if [ -d $TOOLS_ROOT ]; then
 	echo "stm32f4 tools are already installed for this repo at:"
