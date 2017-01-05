@@ -18,36 +18,6 @@
 #include "platform.h"
 #include "dbg.h"
 
-/* AT layer internal state machine */
-typedef enum at_states {
-        IDLE = 1,
-        WAITING_RESP = 1 << 1,
-        NETWORK_LOST = 1 << 2,
-        TCP_CONNECTED = 1 << 3,
-        TCP_CONN_CLOSED = 1 << 4,
-        PROC_RSP = 1 << 5,
-        PROC_URC = 1 << 6,
-        DL_MODE = 1 << 7,
-        AT_INVALID = 1 << 8
-} at_states;
-
-/* state machine just to process abrupt remote disconnect sequence in dl mode
- */
-typedef enum dis_states {
-        DIS_IDLE = 0,
-        DIS_PARTIAL = 1,
-        DIS_FULL = 2
-} dis_states;
-
-typedef enum at_return_codes {
-        AT_SUCCESS = 0,
-        AT_RSP_TIMEOUT,
-        AT_FAILURE,
-        AT_TX_FAILURE,
-        AT_TCP_FAILURE,
-        AT_WRONG_RSP,
-        AT_RECHECK_MODEM
-} at_ret_code;
 
 static const char *rsp_header = "\r\n";
 static const char *rsp_trailer = "\r\n";
@@ -60,11 +30,10 @@ static const char *tcp_error = "\r\nERROR\r\n";
 
 static volatile struct {
 	const char *dis_str;
-        uint8_t buf[UART_RX_BUFFER_SIZE];
-        buf_sz buf_unread;
         buf_sz l_matched_pos;
         uint8_t matched_bytes;
         dis_states dis_state;
+        at_intr_buf dl_buf;
 } dl;
 
 static volatile at_states state;
@@ -72,89 +41,6 @@ static volatile at_states state;
 static volatile bool process_rsp;
 /* Flag to indicate one time packet data network enable procedure */
 static volatile bool pdp_conf;
-
-/* Enable this macro to display messages, error will alway be reported if this
- * macro is enabled while V2 and V1 will depend on debug_level setting
- */
-#define DEBUG_AT_LIB
-
-static int debug_level;
-/* level v2 is normally for extensive debugging need, for example tracing
- * function calls
- */
-#ifdef DEBUG_AT_LIB
-#define DEBUG_V2(...)	\
-                        do { \
-                                if (debug_level >= 2) \
-                                        printf(__VA_ARGS__); \
-                        } while (0)
-
-/* V1 is normaly used for variables, states which are internal to functions */
-#define DEBUG_V1(...) \
-                        do { \
-                                if (debug_level >= 1) \
-                                        printf(__VA_ARGS__); \
-                        } while (0)
-
-#define DEBUG_V0(...)	printf(__VA_ARGS__)
-#else
-#define DEBUG_V0(...)
-#define DEBUG_V1(...)
-#define DEBUG_V2(...)
-
-#endif
-
-#define DBG_STATE
-#ifdef DBG_STATE
-#define DEBUG_STATE(...) printf("%s: line %d, state: %u\n",\
-                                __func__, __LINE__, (uint32_t)state)
-#else
-#define DEBUG_STATE(...)
-#endif
-
-/* Enable to debug wrong response, this prints expected vs received buffer in
- * raw format
- */
-/*#define DEBUG_WRONG_RSP*/
-
-#define CHECK_NULL(x, y) do { \
-                                if (!((x))) { \
-                                        DEBUG_V1("Fail at line: %d\n", __LINE__); \
-                                        return ((y)); \
-                                } \
-                         } while (0);
-
-#define CHECK_SUCCESS(x, y, z)	\
-                        do { \
-                                if ((x) != (y)) { \
-                                        printf("Fail at line: %d\n", __LINE__); \
-                                        return (z); \
-                                } \
-                        } while (0);
-
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
-
-#define IDLE_CHARS	        10
-#define MODEM_RESET_DELAY       25000 /* In mili seconds */
-/* in mili seconds, polling for modem */
-#define CHECK_MODEM_DELAY    1000
-/* maximum timeout value in searching for the network coverage */
-#define NET_REG_CHECK_DELAY     60000 /* In mili seconds */
-
-/* Waiting arbitrarily as we do not know for how many
- * bytes we will be waiting for when modem does not send wrong response in
- * totality
- */
-#define RSP_BUF_DELAY        2000 /* In mili seconds */
-
-/* It will be used when partial matched bytes are the only left to read out */
-#define DL_PARTIAL_WAIT      1000 /* In mili seconds */
-
-/* Error codes just to process partial escape or disconnect from dl mode
- * sequence when tcp receive is being called
- */
-#define DL_PARTIAL_TO_FULL      -4
-#define DL_PARTIAL_ERROR        0
 
 static void __at_dump_buffer(const char *buf, buf_sz len)
 {
@@ -270,15 +156,11 @@ static void __at_lookup_dl_esc_str(void)
         int nw_f;
         int cur_f;
         uint8_t itr = 0;
-
         for (; itr < strlen(dl.dis_str); itr++) {
                 nw_f = uart_find_pattern(-1, dl.dis_str, itr + 1);
                 if (nw_f == -1) {
                         if (dl.dis_state == DIS_IDLE) {
-                                /* Next state only when first 4 bytes of the
-                                 * pattern i.e. /r/nDI matches
-                                 */
-                                if (itr > 4) {
+                                if (itr > 0) {
                                         /* this may happen when string
                                          * truely is partially received and
                                          * buffer is scanned completely
@@ -288,7 +170,7 @@ static void __at_lookup_dl_esc_str(void)
                                         dl.l_matched_pos = cur_f;
                                 }
                         } else if (dl.dis_state == DIS_PARTIAL) {
-                                if (itr < 4) {
+                                if (itr == 0) {
                                         /* this condition is possible if tcp
                                          * rcv happend before this
                                          * and new chunk does not match
@@ -348,27 +230,30 @@ static void __at_lookup_dl_esc_str(void)
 
 static void __at_xfer_to_buf()
 {
+        dl.dl_buf.ridx = 0;
         buf_sz sz = uart_rx_available();
         if (sz == 0) {
                 DEBUG_V0("%d:UER#$\n", __LINE__);
-                dl.buf_unread = 0;
+                dl.dl_buf.buf_unread = 0;
                 return;
         }
         DEBUG_V0("%d:SZ_A:%d\n", __LINE__, sz);
         /* 3 is to account for trailing x\r\n, where x is socket id */
         sz = sz - (strlen(dl.dis_str) + 3);
         DEBUG_V0("%d:SZ_A:%d\n", __LINE__, sz);
-        if (sz == 0) {
+        if (sz == 0)
                 __at_uart_rx_flush();
-        } else {
-                int rdb = uart_read((uint8_t *)dl.buf, sz);
+        else {
+                int rdb = uart_read((uint8_t *)dl.dl_buf.buf, sz);
                 if (rdb < sz) {
                         DEBUG_V0("%d:UER#$$\n", __LINE__);
-                        dl.buf_unread = 0;
+                        dl.dl_buf.buf_unread = 0;
+                        dl.dl_buf.ridx = 0;
                         __at_uart_rx_flush();
                         return;
                 }
-                dl.buf_unread = rdb;
+                dl.dl_buf.buf_unread = rdb;
+                __at_uart_rx_flush();
         }
 }
 
@@ -888,7 +773,8 @@ bool at_init()
         dl.dis_str = "\r\nDISCONNECT\r\n\r\nOK\r\n\r\n+UUSOCL: ";
         dl.l_matched_pos = -1;
         dl.matched_bytes = 0;
-        dl.buf_unread = 0;
+        dl.dl_buf.buf_unread = 0;
+        dl.dl_buf.ridx= 0;
 
         bool res = uart_module_init(UART_EN_HW_CTRL, IDLE_CHARS);
         CHECK_SUCCESS(res, true, false)
@@ -924,7 +810,8 @@ bool at_init()
 static void __at_reset_dl_state(void)
 {
         dl.dis_state = DIS_IDLE;
-        dl.buf_unread = 0;
+        dl.dl_buf.buf_unread = 0;
+        dl.dl_buf.ridx = 0;
         dl.l_matched_pos = -1;
         dl.matched_bytes = 0;
 }
@@ -1156,19 +1043,16 @@ static buf_sz __at_calc_new_len(void)
 
 static int __at_process_intr_buffer(unsigned char *buf, size_t len)
 {
-        if (dl.buf_unread > 0) {
-                size_t read_b = (len < dl.buf_unread) ? len : dl.buf_unread;
-                int a_rdb = uart_read(buf, read_b);
-                if (a_rdb < read_b) {
-                        DEBUG_V0("%s:%d:Unlikely read error, "
-                                "wanted (%d), got (%d)\n",
-                                __func__, __LINE__, read_b, a_rdb);
-                        return AT_TCP_RCV_FAIL;
-                }
-                dl.buf_unread = dl.buf_unread - read_b;
-                return a_rdb;
+        if (dl.dl_buf.buf_unread == 0) {
+                dl.dl_buf.ridx = 0;
+                return 0;
         }
-        return 0;
+
+        size_t read_b = (len < dl.dl_buf.buf_unread) ? len : dl.dl_buf.buf_unread;
+        memcpy(buf, (uint8_t *)dl.dl_buf.buf + dl.dl_buf.ridx, read_b);
+        dl.dl_buf.buf_unread = dl.dl_buf.buf_unread - read_b;
+        dl.dl_buf.ridx += read_b;
+        return read_b;
 }
 
 static int __at_process_rcv_dl_partial(size_t len)
@@ -1307,7 +1191,8 @@ void at_tcp_close(int s_id)
         if (s_id < 0)
                 return;
 
-        dl.buf_unread = 0;
+        dl.dl_buf.buf_unread = 0;
+        dl.dl_buf.ridx = 0;
 
         if ((state & IDLE) == IDLE) {
                 DEBUG_V0("%s:%d: tcp already closed\n", __func__, __LINE__);
