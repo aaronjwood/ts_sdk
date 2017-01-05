@@ -18,6 +18,7 @@
 #include "platform.h"
 #include "dbg.h"
 
+/* AT layer internal state machine */
 typedef enum at_states {
         IDLE = 1,
         WAITING_RESP = 1 << 1,
@@ -30,6 +31,8 @@ typedef enum at_states {
         AT_INVALID = 1 << 8
 } at_states;
 
+/* state machine just to process abrupt remote disconnect sequence in dl mode
+ */
 typedef enum dis_states {
         DIS_IDLE = 0,
         DIS_PARTIAL = 1,
@@ -61,11 +64,10 @@ static volatile struct {
         buf_sz buf_unread;
         buf_sz l_matched_pos;
         uint8_t matched_bytes;
-
+        dis_states dis_state;
 } dl;
 
 static volatile at_states state;
-static volatile dis_states dis_state;
 
 static volatile bool process_rsp;
 /* Flag to indicate one time packet data network enable procedure */
@@ -145,6 +147,15 @@ static int debug_level;
  */
 #define RSP_BUF_DELAY        2000 /* In mili seconds */
 
+/* It will be used when partial matched bytes are the only left to read out */
+#define DL_PARTIAL_WAIT      1000 /* In mili seconds */
+
+/* Error codes just to process partial escape or disconnect from dl mode
+ * sequence when tcp receive is being called
+ */
+#define DL_PARTIAL_TO_FULL      -4
+#define DL_PARTIAL_ERROR        0
+
 static void __at_dump_buffer(const char *buf, buf_sz len)
 {
         if (!buf) {
@@ -162,7 +173,7 @@ static void __at_dump_buffer(const char *buf, buf_sz len)
         DEBUG_V0("\n");
 }
 
-static void __at_uart_rx_flush() {
+static void __at_uart_rx_flush(void) {
         uart_flush_rx_buffer();
 }
 
@@ -219,7 +230,7 @@ static at_ret_code __at_process_pdp_tcp_close_urc(char *urc, at_urc u_code)
                 return AT_FAILURE;
 }
 
-static void __at_process_urc()
+static void __at_process_urc(void)
 {
 
         while (1) {
@@ -254,32 +265,36 @@ static void __at_process_urc()
         }
 }
 
-static void __at_lookup_dl_esc_str()
+static void __at_lookup_dl_esc_str(void)
 {
         int nw_f;
         int cur_f;
         uint8_t itr = 0;
+
         for (; itr < strlen(dl.dis_str); itr++) {
                 nw_f = uart_find_pattern(-1, dl.dis_str, itr + 1);
                 if (nw_f == -1) {
-                        if (dis_state == DIS_IDLE) {
-                                if (itr > 0) {
+                        if (dl.dis_state == DIS_IDLE) {
+                                /* Next state only when first 4 bytes of the
+                                 * pattern i.e. /r/nDI matches
+                                 */
+                                if (itr > 4) {
                                         /* this may happen when string
                                          * truely is partially received and
                                          * buffer is scanned completely
                                          */
-                                        dis_state = DIS_PARTIAL;
+                                        dl.dis_state = DIS_PARTIAL;
                                         dl.matched_bytes = itr;
                                         dl.l_matched_pos = cur_f;
                                 }
-                        } else if (dis_state == DIS_PARTIAL) {
-                                if (itr == 0) {
+                        } else if (dl.dis_state == DIS_PARTIAL) {
+                                if (itr < 4) {
                                         /* this condition is possible if tcp
                                          * rcv happend before this
                                          * and new chunk does not match
                                          * in that case back to reset
                                          */
-                                         dis_state = DIS_IDLE;
+                                         dl.dis_state = DIS_IDLE;
                                          dl.matched_bytes = 0;
                                          dl.l_matched_pos = -1;
                                 } else {
@@ -297,7 +312,7 @@ static void __at_lookup_dl_esc_str()
                                          */
                                         if (dl.matched_bytes == itr) {
                                                 if (dl.l_matched_pos == cur_f) {
-                                                        dis_state = DIS_IDLE;
+                                                        dl.dis_state = DIS_IDLE;
                                                         dl.matched_bytes = 0;
                                                         dl.l_matched_pos = -1;
                                                 } else {
@@ -326,7 +341,7 @@ static void __at_lookup_dl_esc_str()
                 } else
                         cur_f = nw_f;
         }
-        dis_state = DIS_FULL;
+        dl.dis_state = DIS_FULL;
         dl.matched_bytes = 0;
         dl.l_matched_pos = -1;
 }
@@ -365,12 +380,12 @@ static void at_uart_callback(callback_event ev)
                         DEBUG_V1("%s: got response\n", __func__);
                         process_rsp = true;
                 } else if ((state & DL_MODE) == DL_MODE) {
-                        if (dis_state < DIS_FULL) {
+                        if (dl.dis_state < DIS_FULL) {
                                 __at_lookup_dl_esc_str();
-                                if (dis_state == DIS_FULL) {
+                                if (dl.dis_state == DIS_FULL) {
                                         state = IDLE;
                                         __at_xfer_to_buf();
-                                        dis_state = DIS_IDLE;
+                                        dl.dis_state = DIS_IDLE;
                                         dl.l_matched_pos = -1;
                                         dl.matched_bytes = 0;
                                 }
@@ -880,7 +895,7 @@ bool at_init()
 
         uart_set_rx_callback(at_uart_callback);
         state = IDLE;
-        dis_state = DIS_IDLE;
+        dl.dis_state = DIS_IDLE;
         process_rsp = false;
         pdp_conf = false;
         __at_uart_rx_flush();
@@ -906,7 +921,15 @@ bool at_init()
 
 }
 
-static at_ret_code __at_esc_dl_mode()
+static void __at_reset_dl_state(void)
+{
+        dl.dis_state = DIS_IDLE;
+        dl.buf_unread = 0;
+        dl.l_matched_pos = -1;
+        dl.matched_bytes = 0;
+}
+
+static at_ret_code __at_esc_dl_mode(void)
 {
         platform_delay(DL_ESC_TIME_MS);
         at_command_desc *desc = &tcp_comm[ESCAPE_DL_MODE];
@@ -1002,7 +1025,7 @@ static int __at_tcp_connect(const char *host, const char *port)
         return s_id;
 }
 
-static at_ret_code __at_pdp_conf()
+static at_ret_code __at_pdp_conf(void)
 {
         at_ret_code result = __at_generic_comm_rsp_util(
                                         &pdp_conf_comm[SEL_IPV4_PREF],
@@ -1046,9 +1069,7 @@ int at_tcp_connect(const char *host, const char *port)
                         return AT_CONNECT_FAILED;
                 }
         }
-        dis_state = DIS_IDLE;
-        dl.l_matched_pos = -1;
-        dl.matched_bytes = 0;
+        __at_reset_dl_state();
         return s_id;
 }
 
@@ -1118,21 +1139,36 @@ int at_read_available(int s_id)
         return uart_rx_available();
 }
 
-static buf_sz __at_calc_new_len()
+static buf_sz __at_calc_new_len(void)
 {
         buf_sz n_sz = uart_rx_available();
         if (dl.matched_bytes > n_sz) {
                 DEBUG_V0("%s:%d: Unlkly error\n",
                         __func__, __LINE__);
-                return 0;
+                __at_reset_dl_state();
+                return DL_PARTIAL_ERROR;
         }
         buf_sz a_avail = n_sz - dl.matched_bytes;
-        DEBUG_V0("%s:%d: New available bytes in"
-                " partial mode:%u, new matched"
-                " bytes:%u\n",
-                __func__, __LINE__, a_avail,
-                dl.matched_bytes);
+        DEBUG_V0("%s:%d: New avail in partial mode:%u, matched bytes:%u\n",
+                __func__, __LINE__, a_avail, dl.matched_bytes);
         return a_avail;
+}
+
+static int __at_process_intr_buffer(unsigned char *buf, size_t len)
+{
+        if (dl.buf_unread > 0) {
+                size_t read_b = (len < dl.buf_unread) ? len : dl.buf_unread;
+                int a_rdb = uart_read(buf, read_b);
+                if (a_rdb < read_b) {
+                        DEBUG_V0("%s:%d:Unlikely read error, "
+                                "wanted (%d), got (%d)\n",
+                                __func__, __LINE__, read_b, a_rdb);
+                        return AT_TCP_RCV_FAIL;
+                }
+                dl.buf_unread = dl.buf_unread - read_b;
+                return a_rdb;
+        }
+        return 0;
 }
 
 static int __at_process_rcv_dl_partial(size_t len)
@@ -1144,12 +1180,15 @@ static int __at_process_rcv_dl_partial(size_t len)
         buf_sz sz = uart_rx_available();
 
         if (prev_matched > sz) {
-                DEBUG_V0("%s:%d: Unlikely error\n", __func__, __LINE__);
-                return 0;
+                DEBUG_V0("%s:%d: matched bytes (%u) greater then avail (%u)\n",
+                        __func__, __LINE__, prev_matched, sz);
+                __at_reset_dl_state();
+                return DL_PARTIAL_ERROR;
         }
         buf_sz a_avail = sz - prev_matched;
         DEBUG_V0("%s:%d: bytes available in partial mode:%u,bytes matched:%u\n",
                 __func__, __LINE__, a_avail, prev_matched);
+
         /* we have read it out all the bytes but the partial
          * response, wait for some time here to check if
          * partial response is really a part of the dl escape
@@ -1160,42 +1199,51 @@ static int __at_process_rcv_dl_partial(size_t len)
                 DEBUG_V0("%s:%d: Only partial response is available\n",
                         __func__, __LINE__);
 
-                platform_delay(RSP_BUF_DELAY);
+                platform_delay(DL_PARTIAL_WAIT);
+
+                if (dl.dis_state == DIS_FULL) {
+                        DEBUG_V0("%s:%d: Unlikely error\n", __func__, __LINE__);
+                        __at_reset_dl_state();
+                        return DL_PARTIAL_ERROR;
+                }
+
+                if (dl.dis_state == DIS_IDLE) {
+                        DEBUG_V0("%s:%d: got full disconnect\n",
+                                __func__, __LINE__);
+                        return DL_PARTIAL_TO_FULL;
+                }
+
                 /* chances that last bytes are binary remnants , check if it
                  * still partial state assuming during that delay new bytes have
                  * arrived
                  */
-                if (dis_state == DIS_PARTIAL) {
-                        if (prev_pos != dl.l_matched_pos) {
-                                a_avail = __at_calc_new_len();
-                                DEBUG_V0("%s:%d: new available: (%u)\n",
-                                        __func__, __LINE__, a_avail);
-                                if (a_avail == 0)
-                                        return 0;
+                if (prev_pos != dl.l_matched_pos) {
+                        a_avail = __at_calc_new_len();
+                        DEBUG_V0("%s:%d: new available: (%u)\n",
+                                __func__, __LINE__, a_avail);
+                        if (a_avail == DL_PARTIAL_ERROR)
+                                return DL_PARTIAL_ERROR;
+                } else {
+                        if (prev_matched == dl.matched_bytes) {
+                                /* no change in data, consider this as a
+                                 * binary blob and reset dl escape mode
+                                 * state machine
+                                 */
+                                a_avail = uart_rx_available();
+                                __at_reset_dl_state();
+                        } else if (dl.matched_bytes > prev_matched) {
+                                DEBUG_V0("%s:%d: Escape response"
+                                        " is still in progress\n",
+                                        __func__, __LINE__);
+                                errno = EAGAIN;
+                                return AT_TCP_RCV_FAIL;
                         } else {
-                                if (prev_matched == dl.matched_bytes) {
-                                        /* no change in data, consider this as a
-                                         * binary blob and reset dl escape mode
-                                         * state machine
-                                         */
-                                        a_avail = uart_rx_available();
-                                        dis_state = DIS_IDLE;
-                                        dl.buf_unread = 0;
-                                        dl.l_matched_pos = -1;
-                                        dl.matched_bytes = 0;
-                                } else if (dl.matched_bytes > prev_matched) {
-                                        DEBUG_V0("%s:%d: Escape response"
-                                                " is still in progress\n",
-                                                __func__, __LINE__);
-                                        errno = EAGAIN;
-                                        return AT_TCP_RCV_FAIL;
-                                } else {
-                                        DEBUG_V0("%s:%d: Unlikely error\n",
-                                                __func__, __LINE__);
-                                        return 0;
-                                }
-
+                                DEBUG_V0("%s:%d: Unlikely error\n",
+                                        __func__, __LINE__);
+                                __at_reset_dl_state();
+                                return DL_PARTIAL_ERROR;
                         }
+
                 }
         } /* available if ends */
 
@@ -1216,31 +1264,28 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
                  * possiblity that it may have received bytes before remote
                  * site closed connection
                  */
-                if (dl.buf_unread > 0) {
-                        size_t read_b = (len < dl.buf_unread) ? len : dl.buf_unread;
-                        int a_rdb = uart_read(buf, read_b);
-                        if (a_rdb < read_b) {
-                                DEBUG_V0("%s:%d:Unlikely read error, "
-                                        "wanted (%d), got (%d)\n",
-                                        __func__, __LINE__, read_b, a_rdb);
-                                return AT_TCP_RCV_FAIL;
-                        }
-                        dl.buf_unread = dl.buf_unread - read_b;
-                        return a_rdb;
-                }
+                int res = __at_process_intr_buffer(buf, len);
+                if (res != 0)
+                        return res;
                 DEBUG_V0("%s: tcp not connected to recv\n", __func__);
                 return AT_TCP_RCV_FAIL;
         }
 
         if ((state & DL_MODE) == DL_MODE) {
-                if (dis_state == DIS_PARTIAL) {
+                if (dl.dis_state == DIS_PARTIAL) {
                         int res = __at_process_rcv_dl_partial(len);
-                        if (len > res) {
-                                DEBUG_V0("%s:%d: request (%u) more then "
-                                        "available (%u)\n",__func__, __LINE__,
-                                        len, res);
-                                len = res;
-                        }
+                        if (res == DL_PARTIAL_ERROR)
+                                len = uart_rx_available();
+                        else if (res == DL_PARTIAL_TO_FULL)
+                                return __at_process_intr_buffer(buf, len);
+                        else if (res > DL_PARTIAL_ERROR) {
+                                DEBUG_V0("%s:%d: request (%u), available (%u)\n",
+                                        __func__, __LINE__, len, res);
+                                if (len > res)
+                                        len = res;
+                        } else
+                                DEBUG_V0("%s:%d: Unlikly Err\n",
+                                        __func__, __LINE__);
                 }
                 int rdb = uart_read(buf, len);
                 if (rdb == 0) {
