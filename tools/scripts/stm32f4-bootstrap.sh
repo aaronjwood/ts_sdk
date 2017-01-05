@@ -70,7 +70,6 @@ if [ -z "$OPENOCD_INSTALL" ]; then
 		echo "OpenOCD target configuration file does not exist."
 		exit 1
 	fi
-	echo "[PATH environment variable should append /usr/local/bin]"
 	OPENOCD_INSTALL=/usr/local/bin/openocd
 fi
 OPENOCD_VERSION=$($OPENOCD_INSTALL -v 2>&1 | head -n 1)
@@ -125,5 +124,6 @@ if [ -z "$DOXYGEN_INSTALL" ]; then
 	echo "install doxygen with the following command:"
 	echo "    brew install doxygen"
 fi
-
+(echo "$PATH" | egrep -q '^/usr/local/bin:|:/usr/local/bin:|:/usr/local/bin$') ||\
+	echo "[Please add /usr/local/bin to your PATH variable.]"
 echo "[Done]"
