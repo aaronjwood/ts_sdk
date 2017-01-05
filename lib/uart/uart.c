@@ -230,21 +230,12 @@ void USART2_IRQHandler(void)
 	}
 }
 
-int uart_find_pattern(int start_idx, uint8_t *substr, buf_sz nlen)
-{
-	if (start_idx > UART_RX_BUFFER_SIZE)
-		return -1;
-	if (start_idx == -1)
-		start_idx = rx.ridx;
-	return find_substr_in_ring_buffer(start_idx, substr, nlen);
-}
-
 /*
  * Find the substring 'substr' inside the receive buffer between the index
  * supplied and write index. Return the starting position of the substring if
  * found. Otherwise, return -1.
  */
-static int find_substr_in_ring_buffer(buf_sz idx_start, uint8_t *substr,
+static int find_substr_in_ring_buffer(buf_sz idx_start, const uint8_t *substr,
 					buf_sz nlen)
 {
 	if (!substr || nlen == 0)
@@ -279,7 +270,16 @@ static int find_substr_in_ring_buffer(buf_sz idx_start, uint8_t *substr,
 	return -1;					/* No substring found */
 }
 
-int uart_line_avail(char *header, char *trailer)
+int uart_find_pattern(int start_idx, const uint8_t *pattern, buf_sz nlen)
+{
+	if ((start_idx > UART_RX_BUFFER_SIZE) || (!pattern) || (nlen == 0))
+		return -1;
+	if (start_idx == -1)
+		start_idx = rx.ridx;
+	return find_substr_in_ring_buffer(start_idx, pattern, nlen);
+}
+
+int uart_line_avail(const char *header, const char *trailer)
 {
 	if (!trailer)
 		return UART_INV_PARAM;

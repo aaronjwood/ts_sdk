@@ -16,6 +16,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "platform.h"
+#include "dbg.h"
 
 typedef enum at_states {
         IDLE = 1,
@@ -26,8 +27,7 @@ typedef enum at_states {
         PROC_RSP = 1 << 5,
         PROC_URC = 1 << 6,
         DL_MODE = 1 << 7,
-        TCP_TX = 1 << 8,
-        AT_INVALID = 1 << 9
+        AT_INVALID = 1 << 8
 } at_states;
 
 typedef enum dis_states {
@@ -46,8 +46,8 @@ typedef enum at_return_codes {
         AT_RECHECK_MODEM
 } at_ret_code;
 
-static char *rsp_header = "\r\n";
-static char *rsp_trailer = "\r\n";
+static const char *rsp_header = "\r\n";
+static const char *rsp_trailer = "\r\n";
 
 /* TCP operation can fail at tcp level as well operation level which can be
  * caught with +CME ERROR, while tcp level error requires issuing
@@ -57,8 +57,11 @@ static const char *tcp_error = "\r\nERROR\r\n";
 
 static volatile struct {
 	const char *dis_str;
-        int found;
-        uint8_t itr;
+        uint8_t buf[UART_RX_BUFFER_SIZE];
+        buf_sz buf_unread;
+        buf_sz l_matched_pos;
+        uint8_t matched_bytes;
+
 } dl;
 
 static volatile at_states state;
@@ -140,7 +143,7 @@ static int debug_level;
  * bytes we will be waiting for when modem does not send wrong response in
  * totality
  */
-#define WRONG_RSP_BUF_DUMP_DELAY        2000 /* In mili seconds */
+#define RSP_BUF_DELAY        2000 /* In mili seconds */
 
 static void __at_dump_buffer(const char *buf, buf_sz len)
 {
@@ -251,32 +254,107 @@ static void __at_process_urc()
         }
 }
 
-/* FIXME: test with partial pattern plus include /r/nasdsad and somewhere /r/ndisconnect
- * and test if that succeeds
- */
 static void __at_lookup_dl_esc_str()
 {
-        int cur_f = dl.found;
         int nw_f;
+        int cur_f;
         uint8_t itr = 0;
         for (; itr < strlen(dl.dis_str); itr++) {
-                nw_f = uart_find_pattern(cur_f, dis_str, itr + 1);
+                nw_f = uart_find_pattern(-1, dl.dis_str, itr + 1);
                 if (nw_f == -1) {
-                        if (itr == 0) {
-                                dis_state = DIS_IDLE;
-                                dl.found = -1;
-                                dl.itr = 0;
+                        if (dis_state == DIS_IDLE) {
+                                if (itr > 0) {
+                                        /* this may happen when string
+                                         * truely is partially received and
+                                         * buffer is scanned completely
+                                         */
+                                        dis_state = DIS_PARTIAL;
+                                        dl.matched_bytes = itr;
+                                        dl.l_matched_pos = cur_f;
+                                }
+                        } else if (dis_state == DIS_PARTIAL) {
+                                if (itr == 0) {
+                                        /* this condition is possible if tcp
+                                         * rcv happend before this
+                                         * and new chunk does not match
+                                         * in that case back to reset
+                                         */
+                                         dis_state = DIS_IDLE;
+                                         dl.matched_bytes = 0;
+                                         dl.l_matched_pos = -1;
+                                } else {
+                                        /* this is possible when partial pattern
+                                         * just happens to be in the binary data
+                                         * and has not received escape pattern
+                                         * yet
+                                         * reset everything and start over for
+                                         * the new chunk of data arrives
+                                         *
+                                         * there is no possibility that it may
+                                         * find same number of bytes somewhere
+                                         * else since pattern finding logic just
+                                         * returns as soon as it finds position
+                                         */
+                                        if (dl.matched_bytes == itr) {
+                                                if (dl.l_matched_pos == cur_f) {
+                                                        dis_state = DIS_IDLE;
+                                                        dl.matched_bytes = 0;
+                                                        dl.l_matched_pos = -1;
+                                                } else {
+                                                        DEBUG_V0("%d:UERR#@$\n",
+                                                                __LINE__);
+                                                        ASSERT(0);
+                                                }
+
+                                        } else {
+                                        /* new chunk received has matched new
+                                         * set of bytes and may be new
+                                         * position, itr can be greater or less
+                                         * from previously matched bytes based
+                                         * if tcp rcv call happened before this
+                                         * new arrival
+                                         */
+                                                dl.matched_bytes = itr;
+                                                dl.l_matched_pos = cur_f;
+                                        }
+                                }
                         } else {
-                                dis_state = DIS_PARTIAL;
-                                dl.found = cur_f;
-                                dl.itr = itr - 1;
+                                 DEBUG_V0("%d:UERR#@$\n", __LINE__);
+                                 ASSERT(0);
                         }
                         return;
                 } else
                         cur_f = nw_f;
         }
         dis_state = DIS_FULL;
-        dl.found = nw_f;
+        dl.matched_bytes = 0;
+        dl.l_matched_pos = -1;
+}
+
+static void __at_xfer_to_buf()
+{
+        buf_sz sz = uart_rx_available();
+        if (sz == 0) {
+                DEBUG_V0("%d:UER#$\n", __LINE__);
+                dl.buf_unread = 0;
+                return;
+        }
+        DEBUG_V0("%d:SZ_A:%d\n", __LINE__, sz);
+        /* 3 is to account for trailing x\r\n, where x is socket id */
+        sz = sz - (strlen(dl.dis_str) + 3);
+        DEBUG_V0("%d:SZ_A:%d\n", __LINE__, sz);
+        if (sz == 0) {
+                __at_uart_rx_flush();
+        } else {
+                int rdb = uart_read((uint8_t *)dl.buf, sz);
+                if (rdb < sz) {
+                        DEBUG_V0("%d:UER#$$\n", __LINE__);
+                        dl.buf_unread = 0;
+                        __at_uart_rx_flush();
+                        return;
+                }
+                dl.buf_unread = rdb;
+        }
 }
 
 static void at_uart_callback(callback_event ev)
@@ -286,9 +364,17 @@ static void at_uart_callback(callback_event ev)
                 if ((state & WAITING_RESP) == WAITING_RESP) {
                         DEBUG_V1("%s: got response\n", __func__);
                         process_rsp = true;
-                } else if ((state & TCP_TX) == TCP_TX) {
-                        if (dis_state < DIS_FULL)
+                } else if ((state & DL_MODE) == DL_MODE) {
+                        if (dis_state < DIS_FULL) {
                                 __at_lookup_dl_esc_str();
+                                if (dis_state == DIS_FULL) {
+                                        state = IDLE;
+                                        __at_xfer_to_buf();
+                                        dis_state = DIS_IDLE;
+                                        dl.l_matched_pos = -1;
+                                        dl.matched_bytes = 0;
+                                }
+                        }
                 } else if (((state & PROC_RSP) != PROC_RSP) &&
                         ((state & PROC_URC) != PROC_URC) &&
                         ((state & DL_MODE) != DL_MODE)) {
@@ -331,7 +417,7 @@ static at_ret_code __at_wait_for_rsp(uint32_t *timeout)
                 if ((end - start) > *timeout) {
                         result = AT_RSP_TIMEOUT;
                         DEBUG_V1("%s: RSP_TIMEOUT: out of %u, waited %u\n",
-                        __func__, *timeout, (end - start));
+                                __func__, *timeout, (end - start));
                         *timeout = 0;
                         break;
                 }
@@ -522,7 +608,7 @@ static at_ret_code __at_generic_comm_rsp_util(const at_command_desc *desc,
                         if (result == AT_WRONG_RSP) {
                                 DEBUG_V0("%s: wrong response for command:%s\n",
                                         __func__, comm);
-                                platform_delay(WRONG_RSP_BUF_DUMP_DELAY);
+                                platform_delay(RSP_BUF_DELAY);
                                 __at_dump_buffer(NULL, 0);
                                 break;
                         }
@@ -637,7 +723,7 @@ static at_ret_code __at_modem_reset_comm()
         } else {
                 result = AT_FAILURE;
                 DEBUG_V0("%s: wrong resp\n", __func__);
-                platform_delay(WRONG_RSP_BUF_DUMP_DELAY);
+                platform_delay(RSP_BUF_DELAY);
                 __at_dump_buffer(NULL, 0);
                 goto done;
         }
@@ -784,9 +870,10 @@ static at_ret_code __at_modem_conf() {
 
 bool at_init()
 {
-        dl.dis_str = "\r\nDISCONNECT\r\n\r\nOK\r\n";
-        dl.found = -1;
-        dl.itr = 0;
+        dl.dis_str = "\r\nDISCONNECT\r\n\r\nOK\r\n\r\n+UUSOCL: ";
+        dl.l_matched_pos = -1;
+        dl.matched_bytes = 0;
+        dl.buf_unread = 0;
 
         bool res = uart_module_init(UART_EN_HW_CTRL, IDLE_CHARS);
         CHECK_SUCCESS(res, true, false)
@@ -928,6 +1015,11 @@ int at_tcp_connect(const char *host, const char *port)
 {
 
         CHECK_NULL(host, -1)
+        if ((state & DL_MODE) == DL_MODE) {
+                DEBUG_V0("%s: Direct link mode is already on, tcp connect not "
+                        "possible, state :%u\n",__func__, state);
+                return -1;
+        }
         if (state > IDLE) {
                 if ((state & TCP_CONN_CLOSED) != TCP_CONN_CLOSED) {
                         DEBUG_V0("%s: TCP connect not possible, state :%u\n",
@@ -954,51 +1046,26 @@ int at_tcp_connect(const char *host, const char *port)
                         return AT_CONNECT_FAILED;
                 }
         }
+        dis_state = DIS_IDLE;
+        dl.l_matched_pos = -1;
+        dl.matched_bytes = 0;
         return s_id;
-}
-
-static int __at_lookup_disconnect()
-{
-        buf_sz sz = uart_rx_available();
-        if ((sz == 0 )|| (at_rx_buf.widx == UART_RX_BUFFER_SIZE))
-                return 0;
-        buf_sz avail_space = UART_RX_BUFFER_SIZE - at_rx_buf.widx;
-        if (avail_space == 0)
-                return 0;
-        buf_sz r_len = (sz > avail_space) ? avail_space : sz;
-        int rdb = uart_read(at_rx_buf.buffer + at_rx_buf.widx, r_len);
-
 }
 
 static int __at_tcp_tx(const uint8_t *buf, size_t len)
 {
-        state |= TCP_TX;
         for (int i = 0; i < len; i++) {
                 /*FIXME: simulate this scenario for dl mode
                 */
-                if (dis_state == DIS_IDLE) {
-                        if (!__at_uart_write(((uint8_t *)buf + i), 1)) {
-                                state &= ~TCP_TX;
+                if ((state & TCP_CONNECTED) == TCP_CONNECTED) {
+                        if (!__at_uart_write(((uint8_t *)buf + i), 1))
                                 return AT_TCP_SEND_FAIL;
-                        }
-                } else
-                        break;
-        }
-        state &= ~TCP_TX;
-
-        if (dis_state != DIS_IDLE) {
-                DEBUG_V0("%s: tcp got deconnected in middle of the write:%d\n",
-                        __func__, dis_state);
-                if (dis_state == DIS_FULL) {
-                        dl.found = -1;
-                        dl.itr = 0;
-                        dis_state = DIS_IDLE;
                 } else {
-                        __at_lookup_dl_esc_str();
-                        
+                        DEBUG_V0("%s: diconnected in middle of the write\n",
+                                __func__);
+                        state &= ~TCP_CONN_CLOSED;
+                        return AT_TCP_CONNECT_DROPPED;
                 }
-                state &= ~TCP_CONN_CLOSED;
-                return AT_TCP_CONNECT_DROPPED;
         }
         return 0;
 }
@@ -1051,6 +1118,90 @@ int at_read_available(int s_id)
         return uart_rx_available();
 }
 
+static buf_sz __at_calc_new_len()
+{
+        buf_sz n_sz = uart_rx_available();
+        if (dl.matched_bytes > n_sz) {
+                DEBUG_V0("%s:%d: Unlkly error\n",
+                        __func__, __LINE__);
+                return 0;
+        }
+        buf_sz a_avail = n_sz - dl.matched_bytes;
+        DEBUG_V0("%s:%d: New available bytes in"
+                " partial mode:%u, new matched"
+                " bytes:%u\n",
+                __func__, __LINE__, a_avail,
+                dl.matched_bytes);
+        return a_avail;
+}
+
+static int __at_process_rcv_dl_partial(size_t len)
+{
+        DEBUG_V0("%s:%d: Processing rcv\n", __func__, __LINE__);
+
+        buf_sz prev_matched = dl.matched_bytes;
+        buf_sz prev_pos = dl.l_matched_pos;
+        buf_sz sz = uart_rx_available();
+
+        if (prev_matched > sz) {
+                DEBUG_V0("%s:%d: Unlikely error\n", __func__, __LINE__);
+                return 0;
+        }
+        buf_sz a_avail = sz - prev_matched;
+        DEBUG_V0("%s:%d: bytes available in partial mode:%u,bytes matched:%u\n",
+                __func__, __LINE__, a_avail, prev_matched);
+        /* we have read it out all the bytes but the partial
+         * response, wait for some time here to check if
+         * partial response is really a part of the dl escape
+         * sequence or just binary blob happen to be residing
+         * at the bottom of buffer matching partially
+         */
+        if (a_avail == 0) {
+                DEBUG_V0("%s:%d: Only partial response is available\n",
+                        __func__, __LINE__);
+
+                platform_delay(RSP_BUF_DELAY);
+                /* chances that last bytes are binary remnants , check if it
+                 * still partial state assuming during that delay new bytes have
+                 * arrived
+                 */
+                if (dis_state == DIS_PARTIAL) {
+                        if (prev_pos != dl.l_matched_pos) {
+                                a_avail = __at_calc_new_len();
+                                DEBUG_V0("%s:%d: new available: (%u)\n",
+                                        __func__, __LINE__, a_avail);
+                                if (a_avail == 0)
+                                        return 0;
+                        } else {
+                                if (prev_matched == dl.matched_bytes) {
+                                        /* no change in data, consider this as a
+                                         * binary blob and reset dl escape mode
+                                         * state machine
+                                         */
+                                        a_avail = uart_rx_available();
+                                        dis_state = DIS_IDLE;
+                                        dl.buf_unread = 0;
+                                        dl.l_matched_pos = -1;
+                                        dl.matched_bytes = 0;
+                                } else if (dl.matched_bytes > prev_matched) {
+                                        DEBUG_V0("%s:%d: Escape response"
+                                                " is still in progress\n",
+                                                __func__, __LINE__);
+                                        errno = EAGAIN;
+                                        return AT_TCP_RCV_FAIL;
+                                } else {
+                                        DEBUG_V0("%s:%d: Unlikely error\n",
+                                                __func__, __LINE__);
+                                        return 0;
+                                }
+
+                        }
+                }
+        } /* available if ends */
+
+        return a_avail;
+}
+
 int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
 {
         if (s_id < 0 || !buf) {
@@ -1061,19 +1212,44 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
         if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
                 if ((state & TCP_CONN_CLOSED) == TCP_CONN_CLOSED)
                         return 0;
+                /* Look into intermediate buffer before returning an error
+                 * possiblity that it may have received bytes before remote
+                 * site closed connection
+                 */
+                if (dl.buf_unread > 0) {
+                        size_t read_b = (len < dl.buf_unread) ? len : dl.buf_unread;
+                        int a_rdb = uart_read(buf, read_b);
+                        if (a_rdb < read_b) {
+                                DEBUG_V0("%s:%d:Unlikely read error, "
+                                        "wanted (%d), got (%d)\n",
+                                        __func__, __LINE__, read_b, a_rdb);
+                                return AT_TCP_RCV_FAIL;
+                        }
+                        dl.buf_unread = dl.buf_unread - read_b;
+                        return a_rdb;
+                }
                 DEBUG_V0("%s: tcp not connected to recv\n", __func__);
                 return AT_TCP_RCV_FAIL;
         }
 
         if ((state & DL_MODE) == DL_MODE) {
+                if (dis_state == DIS_PARTIAL) {
+                        int res = __at_process_rcv_dl_partial(len);
+                        if (len > res) {
+                                DEBUG_V0("%s:%d: request (%u) more then "
+                                        "available (%u)\n",__func__, __LINE__,
+                                        len, res);
+                                len = res;
+                        }
+                }
                 int rdb = uart_read(buf, len);
-                DEBUG_V1("%s:%d: read:%d, wanted:%d in a dl\n",
-                                __func__, __LINE__, rdb, len);
                 if (rdb == 0) {
                         DEBUG_V1("%s:%d: read again\n", __func__, __LINE__);
                         errno = EAGAIN;
                         return AT_TCP_RCV_FAIL;
                 }
+                DEBUG_V0("%s:%d: read:%d, wanted:%d in a dl\n",
+                                __func__, __LINE__, rdb, len);
                 return rdb;
         } else {
                 DEBUG_V0("%s:%d: dl mode not on\n", __func__, __LINE__);
@@ -1083,9 +1259,16 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
 
 void at_tcp_close(int s_id)
 {
-
         if (s_id < 0)
                 return;
+
+        dl.buf_unread = 0;
+
+        if ((state & IDLE) == IDLE) {
+                DEBUG_V0("%s:%d: tcp already closed\n", __func__, __LINE__);
+                __at_cleanup(1);
+                return;
+        }
         if ((state & DL_MODE) == DL_MODE)
                 __at_esc_dl_mode();
 
