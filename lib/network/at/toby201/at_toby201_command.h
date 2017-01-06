@@ -12,15 +12,15 @@
 
 #include "at_defs.h"
 
-#define AT_UART_TX_WAIT_MS           10000
+#define AT_UART_TX_WAIT_MS         10000
 
 /* Delay between successive commands in milisecond, datasheet recommends atleast
  * 20mS
  */
-#define AT_COMM_DELAY_MS        20
+#define AT_COMM_DELAY_MS           20
 
 /* Upper limit for commands which need formatting before sending to modem */
-#define TEMP_COMM_LIMIT              64
+#define TEMP_COMM_LIMIT            64
 
 /* Time interval between sending escape sequence characters to get out from
  * direct link mode, time interval is in fiftieth of second, configure it for

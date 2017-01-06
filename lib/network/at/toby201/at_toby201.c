@@ -16,8 +16,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include "platform.h"
-#include "dbg.h"
-
 
 static const char *rsp_header = "\r\n";
 static const char *rsp_trailer = "\r\n";
@@ -196,11 +194,9 @@ static void __at_lookup_dl_esc_str(void)
                                                         dl.dis_state = DIS_IDLE;
                                                         dl.matched_bytes = 0;
                                                         dl.l_matched_pos = -1;
-                                                } else {
+                                                } else
                                                         DEBUG_V0("%d:UERR#@$\n",
                                                                 __LINE__);
-                                                        ASSERT(0);
-                                                }
 
                                         } else {
                                         /* new chunk received has matched new
@@ -214,10 +210,8 @@ static void __at_lookup_dl_esc_str(void)
                                                 dl.l_matched_pos = cur_f;
                                         }
                                 }
-                        } else {
-                                 DEBUG_V0("%d:UERR#@$\n", __LINE__);
-                                 ASSERT(0);
-                        }
+                        } else
+                                DEBUG_V0("%d:UERR\n", __LINE__);
                         return;
                 } else
                         cur_f = nw_f;
@@ -232,20 +226,19 @@ static void __at_xfer_to_buf()
         dl.dl_buf.ridx = 0;
         buf_sz sz = uart_rx_available();
         if (sz == 0) {
-                DEBUG_V0("%d:UER#$\n", __LINE__);
+                DEBUG_V0("%d:UERR\n", __LINE__);
                 dl.dl_buf.buf_unread = 0;
                 return;
         }
         DEBUG_V0("%d:SZ_A:%d\n", __LINE__, sz);
         /* 3 is to account for trailing x\r\n, where x is socket id */
         sz = sz - (strlen(dl.dis_str) + 3);
-        DEBUG_V0("%d:SZ_A:%d\n", __LINE__, sz);
         if (sz == 0)
                 __at_uart_rx_flush();
         else {
                 int rdb = uart_read((uint8_t *)dl.dl_buf.buf, sz);
                 if (rdb < sz) {
-                        DEBUG_V0("%d:UER#$$\n", __LINE__);
+                        DEBUG_V0("%d:UERR\n", __LINE__);
                         dl.dl_buf.buf_unread = 0;
                         dl.dl_buf.ridx = 0;
                         __at_uart_rx_flush();
@@ -1054,24 +1047,22 @@ static int __at_process_intr_buffer(unsigned char *buf, size_t len)
 static int __at_test_dl_partial_state()
 {
         if (dl.dis_state == DIS_PARTIAL) {
-                DEBUG_V0("%s:%d: unchanged state\n",__func__, __LINE__);
+                DEBUG_V1("%s:%d: unchanged state\n",__func__, __LINE__);
                 return DL_PARTIAL_SUC;
         }
         if (dl.dis_state == DIS_FULL) {
-                DEBUG_V0("%s:%d: partial became full\n", __func__, __LINE__);
+                DEBUG_V1("%s:%d: partial became full\n", __func__, __LINE__);
                 return DL_PARTIAL_TO_FULL;
         }
 
         if (dl.dis_state == DIS_IDLE) {
-                DEBUG_V0("%s:%d: fake partial detected\n",__func__, __LINE__);
+                DEBUG_V1("%s:%d: fake partial detected\n",__func__, __LINE__);
                 return DL_PARTIAL_ERROR;
         }
 }
 
 static int __at_process_rcv_dl_partial(size_t len)
 {
-        DEBUG_V0("%s:%d: Processing rcv\n", __func__, __LINE__);
-
         buf_sz prev_matched = dl.matched_bytes;
         buf_sz prev_pos = dl.l_matched_pos;
         buf_sz sz = uart_rx_available();
@@ -1083,7 +1074,7 @@ static int __at_process_rcv_dl_partial(size_t len)
                 return DL_PARTIAL_ERROR;
         }
         buf_sz a_avail = sz - prev_matched;
-        DEBUG_V0("%s:%d: bytes available in partial mode:%u,bytes matched:%u\n",
+        DEBUG_V0("%s:%d: In partial mode:%u,bytes matched:%u\n",
                 __func__, __LINE__, a_avail, prev_matched);
 
         /* we have read it out all the bytes but the matched partial
@@ -1181,7 +1172,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
                         else if (res == DL_PARTIAL_TO_FULL)
                                 return __at_process_intr_buffer(buf, len);
                         else if (res > DL_PARTIAL_ERROR) {
-                                DEBUG_V0("%s:%d: request (%u), available (%u)\n",
+                                DEBUG_V1("%s:%d: request (%u), available (%u)\n",
                                         __func__, __LINE__, len, res);
                                 if (len > res)
                                         len = res;
@@ -1195,7 +1186,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
                         errno = EAGAIN;
                         return AT_TCP_RCV_FAIL;
                 }
-                DEBUG_V0("%s:%d: read:%d, wanted:%d in a dl\n",
+                DEBUG_V1("%s:%d: read:%d, wanted:%d in a dl\n",
                                 __func__, __LINE__, rdb, len);
                 return rdb;
         } else {

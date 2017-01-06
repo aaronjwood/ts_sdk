@@ -18,14 +18,29 @@
 /* AT layer internal state machine */
 typedef enum at_states {
         IDLE = 1,
+        /* Indicates command has been issued and now waiting for the response */
         WAITING_RESP = 1 << 1,
+        /* Network lost indication from cereg and ureg */
         NETWORK_LOST = 1 << 2,
+        /* TCP successfully connected */
         TCP_CONNECTED = 1 << 3,
+        /* TCP closed gracefully */
         TCP_CONN_CLOSED = 1 << 4,
+        /* AT layer now processing response */
         PROC_RSP = 1 << 5,
+        /* AT layer processing urc outside of the interrupt context or callback
+         * from uart layer
+         */
         PROC_URC = 1 << 6,
+        /* Connected in Direct link (DL) mode which makes socket to UART
+         * connection transperent
+         */
         DL_MODE = 1 << 7,
+        /* Processing TCP receive call at the moment */
         TCP_DL_RX = 1 << 8,
+        /* remote side disconnected, to handle this scenario in DL mode, new set
+         * of disconnect state machine is being used as below
+         */
         TCP_REMOTE_DISCONN = 1 << 9,
         AT_INVALID = 1 << 10
 } at_states;
@@ -34,6 +49,7 @@ typedef enum at_states {
  */
 typedef enum dis_states {
         DIS_IDLE = 1,
+        /* disconnect or dl mode escape sequence is partially received */
         DIS_PARTIAL = 2,
         DIS_FULL = 3
 } dis_states;
@@ -52,7 +68,7 @@ typedef enum at_return_codes {
 /* Enable this macro to display messages, error will alway be reported if this
  * macro is enabled while V2 and V1 will depend on debug_level setting
  */
-#define DEBUG_AT_LIB
+/*#define DEBUG_AT_LIB*/
 
 static int debug_level;
 /* level v2 is normally for extensive debugging need, for example tracing
@@ -95,7 +111,7 @@ static int debug_level;
 
 #define CHECK_NULL(x, y) do { \
                                 if (!((x))) { \
-                                        DEBUG_V1("Fail at line: %d\n", __LINE__); \
+                                        printf("Fail at line: %d\n", __LINE__); \
                                         return ((y)); \
                                 } \
                          } while (0);
