@@ -26,7 +26,9 @@ static const char *rsp_trailer = "\r\n";
  */
 static const char *tcp_error = "\r\nERROR\r\n";
 
+/* structure to hold dl mode related information */
 static volatile struct {
+        /* dl mode escape indication string from modem */
 	const char *dis_str;
         buf_sz l_matched_pos;
         uint8_t matched_bytes;
