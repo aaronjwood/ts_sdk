@@ -272,7 +272,7 @@ static int find_substr_in_ring_buffer(buf_sz idx_start, const uint8_t *substr,
 
 int uart_find_pattern(int start_idx, const uint8_t *pattern, buf_sz nlen)
 {
-	if ((start_idx > UART_RX_BUFFER_SIZE) || (!pattern) || (nlen == 0))
+	if ((start_idx >= UART_RX_BUFFER_SIZE) || (!pattern) || (nlen == 0))
 		return -1;
 	if (start_idx == -1)
 		start_idx = rx.ridx;
