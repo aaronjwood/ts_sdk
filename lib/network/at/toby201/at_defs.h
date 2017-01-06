@@ -149,13 +149,13 @@ static int debug_level;
 #define DL_PARTIAL_ERROR        -5
 #define DL_PARTIAL_SUC          0
 
-/** Intermediate buffer to hold data from uart buffer when disconnect string
- *  is detected fully
+/* Intermediate buffer to hold data from uart buffer when disconnect string
+ * is detected fully, disconnect string is from the dl mode
  */
 typedef struct _at_intr_buf {
-        /** This buffer can not overflow as it is only being filled when whole
-         *  dl disconnect string sequence is detected, total capacity of this
-         *  buffer can not exceed beyond UART_RX_BUFFER_SIZE - disconnect string
+        /* This buffer does not overflow as it is only being filled when whole
+         * dl disconnect string sequence is detected, total capacity of this
+         * buffer can not exceed beyond UART_RX_BUFFER_SIZE - disconnect string
          */
         uint8_t buf[UART_RX_BUFFER_SIZE];
         buf_sz ridx;
