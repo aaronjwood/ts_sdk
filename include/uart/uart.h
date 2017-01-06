@@ -112,6 +112,7 @@ buf_sz uart_rx_available(void);
  *		    value where if supplied, it starts with begining of the ring
  *		    buffer
  * 	pattern - Null terminated string.
+ *	nlen - length of the pattern to be matched
  *
  * Returns:
  * 	-1 if no such string is found inside the read buffer or parameters are
