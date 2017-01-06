@@ -287,13 +287,12 @@ static void at_uart_callback(callback_event ev)
 
 }
 
-static void __at_cleanup(uint8_t flush_uart)
+static void __at_cleanup(void)
 {
         state |= PROC_URC;
         __at_process_urc();
         state &= ~PROC_URC;
-        if (flush_uart)
-                __at_uart_rx_flush();
+        __at_uart_rx_flush();
 
 }
 
@@ -327,7 +326,7 @@ static at_ret_code __at_comm_send_and_wait_rsp(char *comm, uint16_t len,
         /* Process urcs if any before we send down new command
          * and empty buffer
          */
-        __at_cleanup(1);
+        __at_cleanup();
         CHECK_NULL(comm, AT_FAILURE)
 
         if (!__at_uart_write((uint8_t *)comm, len)) {
@@ -566,7 +565,7 @@ done:
          * if result was wrong response, chances are that we are out of sync
          */
         DEBUG_V1("%s: Processing URCS outside call back\n", __func__);
-        __at_cleanup(1);
+        __at_cleanup();
         DEBUG_V1("%s: result: %d\n", __func__, result);
         return result;
 }
@@ -636,7 +635,7 @@ done:
         /* check to see if we have urcs while command was executing
          */
         DEBUG_V1("%s: Processing URCS outside call back\n", __func__);
-        __at_cleanup(1);
+        __at_cleanup();
         return result;
 }
 
@@ -1208,7 +1207,7 @@ void at_tcp_close(int s_id)
         if ((state & TCP_REMOTE_DISCONN) == TCP_REMOTE_DISCONN) {
                 DEBUG_V0("%s:%d: tcp already closed\n", __func__, __LINE__);
                 __at_reset_dl_state();
-                __at_cleanup(1);
+                __at_cleanup();
                 state = IDLE;
                 return;
         }
