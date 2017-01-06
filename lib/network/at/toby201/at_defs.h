@@ -33,7 +33,7 @@ typedef enum at_states {
          */
         PROC_URC = 1 << 6,
         /* Connected in Direct link (DL) mode which makes socket to UART
-         * connection transperent
+         * connection transparent
          */
         DL_MODE = 1 << 7,
         /* Processing TCP receive call at the moment */
@@ -96,7 +96,8 @@ static int debug_level;
 
 #endif
 
-#define DBG_STATE
+/*#define DBG_STATE*/
+
 #ifdef DBG_STATE
 #define DEBUG_STATE(...) printf("%s: line %d, state: %u\n",\
                                 __func__, __LINE__, (uint32_t)state)
