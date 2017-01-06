@@ -25,15 +25,17 @@ typedef enum at_states {
         PROC_RSP = 1 << 5,
         PROC_URC = 1 << 6,
         DL_MODE = 1 << 7,
-        AT_INVALID = 1 << 8
+        TCP_DL_RX = 1 << 8,
+        TCP_REMOTE_DISCONN = 1 << 9,
+        AT_INVALID = 1 << 10
 } at_states;
 
 /* state machine just to process abrupt remote disconnect sequence in dl mode
  */
 typedef enum dis_states {
-        DIS_IDLE = 0,
-        DIS_PARTIAL = 1,
-        DIS_FULL = 2
+        DIS_IDLE = 1,
+        DIS_PARTIAL = 2,
+        DIS_FULL = 3
 } dis_states;
 
 typedef enum at_return_codes {
@@ -128,7 +130,8 @@ static int debug_level;
  * sequence when tcp receive is being called
  */
 #define DL_PARTIAL_TO_FULL      -4
-#define DL_PARTIAL_ERROR        0
+#define DL_PARTIAL_ERROR        -5
+#define DL_PARTIAL_SUC          0
 
 /** Intermediate buffer to hold data from uart buffer when disconnect string
  *  is detected fully

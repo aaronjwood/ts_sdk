@@ -102,8 +102,7 @@ static at_ret_code __at_process_pdp_tcp_close_urc(char *urc, at_urc u_code)
         if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) == 0) {
                 switch (u_code) {
                 case TCP_CLOSED:
-                        state = IDLE;
-                        state |= TCP_CONN_CLOSED;
+                        state = TCP_REMOTE_DISCONN;
                         DEBUG_V0("%s: tcp closed\n", __func__);
                         return AT_SUCCESS;
                 case PDP_DEACT:
@@ -264,15 +263,13 @@ static void at_uart_callback(callback_event ev)
                 if ((state & WAITING_RESP) == WAITING_RESP) {
                         DEBUG_V1("%s: got response\n", __func__);
                         process_rsp = true;
-                } else if ((state & DL_MODE) == DL_MODE) {
+                } else if (((state & DL_MODE) == DL_MODE) &&
+                        ((state & TCP_DL_RX) != TCP_DL_RX)) {
                         if (dl.dis_state < DIS_FULL) {
                                 __at_lookup_dl_esc_str();
                                 if (dl.dis_state == DIS_FULL) {
-                                        state = IDLE;
+                                        state = TCP_REMOTE_DISCONN;
                                         __at_xfer_to_buf();
-                                        dl.dis_state = DIS_IDLE;
-                                        dl.l_matched_pos = -1;
-                                        dl.matched_bytes = 0;
                                 }
                         }
                 } else if (((state & PROC_RSP) != PROC_RSP) &&
@@ -775,13 +772,13 @@ bool at_init()
         dl.matched_bytes = 0;
         dl.dl_buf.buf_unread = 0;
         dl.dl_buf.ridx= 0;
+        dl.dis_state = DIS_IDLE;
 
         bool res = uart_module_init(UART_EN_HW_CTRL, IDLE_CHARS);
         CHECK_SUCCESS(res, true, false)
 
         uart_set_rx_callback(at_uart_callback);
         state = IDLE;
-        dl.dis_state = DIS_IDLE;
         process_rsp = false;
         pdp_conf = false;
         __at_uart_rx_flush();
@@ -963,8 +960,6 @@ int at_tcp_connect(const char *host, const char *port)
 static int __at_tcp_tx(const uint8_t *buf, size_t len)
 {
         for (int i = 0; i < len; i++) {
-                /*FIXME: simulate this scenario for dl mode
-                */
                 if ((state & TCP_CONNECTED) == TCP_CONNECTED) {
                         if (!__at_uart_write(((uint8_t *)buf + i), 1))
                                 return AT_TCP_SEND_FAIL;
@@ -1015,6 +1010,8 @@ int at_read_available(int s_id)
         if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
                 if ((state & TCP_CONN_CLOSED) == TCP_CONN_CLOSED)
                         return 0;
+                if (dl.dl_buf.buf_unread > 0)
+                        return dl.dl_buf.buf_unread;
                 DEBUG_V0("%s: tcp not connected to read\n", __func__);
                 return AT_TCP_RCV_FAIL;
         }
@@ -1030,8 +1027,7 @@ static buf_sz __at_calc_new_len(void)
 {
         buf_sz n_sz = uart_rx_available();
         if (dl.matched_bytes > n_sz) {
-                DEBUG_V0("%s:%d: Unlkly error\n",
-                        __func__, __LINE__);
+                DEBUG_V0("%s:%d: Unlkly error\n", __func__, __LINE__);
                 __at_reset_dl_state();
                 return DL_PARTIAL_ERROR;
         }
@@ -1055,6 +1051,23 @@ static int __at_process_intr_buffer(unsigned char *buf, size_t len)
         return read_b;
 }
 
+static int __at_test_dl_partial_state()
+{
+        if (dl.dis_state == DIS_PARTIAL) {
+                DEBUG_V0("%s:%d: unchanged state\n",__func__, __LINE__);
+                return DL_PARTIAL_SUC;
+        }
+        if (dl.dis_state == DIS_FULL) {
+                DEBUG_V0("%s:%d: partial became full\n", __func__, __LINE__);
+                return DL_PARTIAL_TO_FULL;
+        }
+
+        if (dl.dis_state == DIS_IDLE) {
+                DEBUG_V0("%s:%d: fake partial detected\n",__func__, __LINE__);
+                return DL_PARTIAL_ERROR;
+        }
+}
+
 static int __at_process_rcv_dl_partial(size_t len)
 {
         DEBUG_V0("%s:%d: Processing rcv\n", __func__, __LINE__);
@@ -1073,29 +1086,33 @@ static int __at_process_rcv_dl_partial(size_t len)
         DEBUG_V0("%s:%d: bytes available in partial mode:%u,bytes matched:%u\n",
                 __func__, __LINE__, a_avail, prev_matched);
 
-        /* we have read it out all the bytes but the partial
-         * response, wait for some time here to check if
-         * partial response is really a part of the dl escape
-         * sequence or just binary blob happen to be residing
-         * at the bottom of buffer matching partially
+        /* we have read it out all the bytes but the matched partial
+         * response bytes, look for escape string again and check state machine
+         * if it has not changed, give a last try wait for some time to check if
+         * partial response is really a part of the dl escape sequence or just
+         * binary blob happen to be residing at the bottom of buffer matching
+         * partially
          */
         if (a_avail == 0) {
-                DEBUG_V0("%s:%d: Only partial response is available\n",
+                DEBUG_V0("%s:%d: Only partial matched byte is available\n",
+                        __func__, __LINE__);
+
+                state |= TCP_DL_RX;
+                __at_lookup_dl_esc_str();
+                state &= ~TCP_DL_RX;
+
+                int r = __at_test_dl_partial_state();
+                if (r != DL_PARTIAL_SUC)
+                        return r;
+
+                DEBUG_V0("%s:%d: Waiting for more bytes if any\n",
                         __func__, __LINE__);
 
                 platform_delay(DL_PARTIAL_WAIT);
 
-                if (dl.dis_state == DIS_FULL) {
-                        DEBUG_V0("%s:%d: Unlikely error\n", __func__, __LINE__);
-                        __at_reset_dl_state();
-                        return DL_PARTIAL_ERROR;
-                }
-
-                if (dl.dis_state == DIS_IDLE) {
-                        DEBUG_V0("%s:%d: got full disconnect\n",
-                                __func__, __LINE__);
-                        return DL_PARTIAL_TO_FULL;
-                }
+                r = __at_test_dl_partial_state();
+                if (r != DL_PARTIAL_SUC)
+                        return r;
 
                 /* chances that last bytes are binary remnants , check if it
                  * still partial state assuming during that delay new bytes have
@@ -1157,6 +1174,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
 
         if ((state & DL_MODE) == DL_MODE) {
                 if (dl.dis_state == DIS_PARTIAL) {
+
                         int res = __at_process_rcv_dl_partial(len);
                         if (res == DL_PARTIAL_ERROR)
                                 len = uart_rx_available();
@@ -1194,20 +1212,17 @@ void at_tcp_close(int s_id)
         dl.dl_buf.buf_unread = 0;
         dl.dl_buf.ridx = 0;
 
-        if ((state & IDLE) == IDLE) {
+        if ((state & TCP_REMOTE_DISCONN) == TCP_REMOTE_DISCONN) {
                 DEBUG_V0("%s:%d: tcp already closed\n", __func__, __LINE__);
+                __at_reset_dl_state();
                 __at_cleanup(1);
+                state = IDLE;
                 return;
         }
+
         if ((state & DL_MODE) == DL_MODE)
                 __at_esc_dl_mode();
 
-        if ((state & TCP_CONN_CLOSED) == TCP_CONN_CLOSED) {
-                DEBUG_V0("%s: tcp already closed\n", __func__);
-                state = IDLE;
-                __at_cleanup(1);
-                return;
-        }
 
         at_command_desc *desc = &tcp_comm[TCP_CLOSE];
         char temp_comm[TEMP_COMM_LIMIT];
@@ -1223,5 +1238,6 @@ void at_tcp_close(int s_id)
 
         state = IDLE;
         state |= TCP_CONN_CLOSED;
+        __at_reset_dl_state();
         return;
 }
