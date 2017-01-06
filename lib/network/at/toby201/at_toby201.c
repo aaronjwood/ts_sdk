@@ -3,7 +3,7 @@
  *
  *  \brief AT command functions for u-blox toby201 lte modem
  *
- *  \copyright Copyright (C) 2016, Verizon. All rights reserved.
+ *  \copyright Copyright (C) 2016, 2017 Verizon. All rights reserved.
  *
  */
 

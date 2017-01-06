@@ -3,7 +3,7 @@
  *
  * \brief AT command table definations for ublox-toby201 LTE modem functions
  *
- * \copyright Copyright (C) 2016, Verizon. All rights reserved.
+ * \copyright Copyright (C) 2016, 2017 Verizon. All rights reserved.
  *
  *
  */

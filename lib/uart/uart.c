@@ -1,4 +1,4 @@
-/* Copyright(C) 2016 Verizon. All rights reserved. */
+/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
 #include <string.h>
 #include <stm32f4xx_hal.h>

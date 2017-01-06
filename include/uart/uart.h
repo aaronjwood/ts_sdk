@@ -1,4 +1,4 @@
-/* Copyright(C) 2016 Verizon. All rights reserved. */
+/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
 #ifndef __UART_H
 #define __UART_H

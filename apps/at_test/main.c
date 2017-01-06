@@ -1,4 +1,4 @@
-/* Copyright(C) 2016 Verizon. All rights reserved. */
+/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
 #include <string.h>
 #include "dbg.h"
@@ -110,7 +110,6 @@ int main(int argc, char *argv[])
 
 	/* step 5: tcp close */
 	at_tcp_close(s_id);
-
 	while (1)
 		;
 	return 0;
