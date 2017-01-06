@@ -36,8 +36,6 @@ static void __at_parse_tcp_conf_rsp(void *rcv_rsp, int rcv_rsp_len,
 typedef enum at_urc {
         NET_STAT_URC = 0, /** network status */
         EPS_STAT_URC, /** data network status */
-        NO_CARRIER,
-        DATA_READ, /** TCP read available urc */
         TCP_CLOSED, /** TCP close */
         PDP_DEACT, /** PDP connection is deactivated by network */
         DISCONNECT, /** disconnect from direct link mode */
@@ -83,8 +81,6 @@ typedef enum at_tcp_command {
 static const char *at_urcs[URC_END] = {
                 [NET_STAT_URC] = "\r\n+CEREG: ",
                 [EPS_STAT_URC] = "\r\n+UREG: ",
-                [NO_CARRIER] = "\r\nNO CARRIER\r\n",
-                [DATA_READ] = "\r\n+UUSORD: ",
                 [TCP_CLOSED] = "\r\n+UUSOCL: ",
                 [PDP_DEACT] = "\r\n+UUPSDD: ",
                 [DISCONNECT] = "\r\nDISCONNECT\r\n"
