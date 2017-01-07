@@ -973,8 +973,6 @@ int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
         if ((s_id < 0) || (len == 0))
                 return AT_TCP_INVALID_PARA;
 
-        (void)(s_id);
-
         if ((state & TCP_CONNECTED) != TCP_CONNECTED) {
                 if ((state & TCP_CONN_CLOSED) == TCP_CONN_CLOSED)
                         return 0;
