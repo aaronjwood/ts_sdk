@@ -223,31 +223,108 @@ static void __at_lookup_dl_esc_str(void)
         dl.l_matched_pos = -1;
 }
 
+/* Function will be called when full disconnect string is detected when remote
+ * side closes connection abruptly
+ * It will transfer binary data into AT layer intermediate buffer till
+ * end of the disconnect string by comparing every character it reads to the
+ * hardcoded disconnect string, after that it will process all remaining bytes
+ * from the uart buffer as it may contain URCs while in a DL mode
+ * For example: UART buffer possible state as below:
+ *		[<binary data>,<disconnect string>,<URCs>]
+ *		Function will transfer "binary data " to intermediate buffer
+ *		Optionally can proces "URCs" if present
+ */
+
 static void __at_xfer_to_buf()
 {
-        dl.dl_buf.ridx = 0;
-        buf_sz sz = uart_rx_available();
-        if (sz == 0) {
-                DEBUG_V0("%d:UERR\n", __LINE__);
-                dl.dl_buf.buf_unread = 0;
-                return;
-        }
-        DEBUG_V0("%d:SZ_A:%d\n", __LINE__, sz);
-        /* 3 is to account for trailing x\r\n, where x is socket id */
-        sz = sz - (strlen(dl.dis_str) + 3);
-        if (sz == 0)
-                __at_uart_rx_flush();
-        else {
-                int rdb = uart_read((uint8_t *)dl.dl_buf.buf, sz);
-                if (rdb < sz) {
-                        DEBUG_V0("%d:UERR\n", __LINE__);
-                        dl.dl_buf.buf_unread = 0;
-                        dl.dl_buf.ridx = 0;
-                        __at_uart_rx_flush();
-                        return;
-                }
-                dl.dl_buf.buf_unread = rdb;
-                __at_uart_rx_flush();
+	dl.dl_buf.ridx = 0;
+	buf_sz sz = uart_rx_available();
+	if (sz == 0) {
+		DEBUG_V0("%d:UERR\n", __LINE__);
+		dl.dl_buf.buf_unread = 0;
+		return;
+	}
+	DEBUG_V0("%d:SZ_A:%d\n", __LINE__, sz);
+	/* 3 is to account for trailing x\r\n, where x is socket id */
+	if ((sz - (strlen(dl.dis_str) + 3)) == 0)
+		__at_uart_rx_flush();
+	else {
+		buf_sz start_idx = 0;
+		/* Index to keep track matched characters from dl.dis_str string
+		*/
+		buf_sz match_idx = 0;
+		/* Index to starting position of the matched string, we need
+		 * this to use it as a size of binary data as from found_idx till
+		 * strlen(dl.dis_str) + 3 will be disconnect string and will be
+		 * ignored
+		 */
+		buf_sz found_idx = 0;
+		bool found_start = false;
+		/* This will be set to reset match_idx when partial disconnect
+		 * string (can be binary data) and actual disconnect string are
+		 * adjacent, for example: "matcmatched", where "matched" is the
+		 * string we are looking for and "matc" just happens to be binary
+		 * data placed togather
+		 */
+		bool skip_read = false;
+		while (1) {
+			if (start_idx >= sz)
+				break;
+			if (!skip_read) {
+				if (uart_read((uint8_t *)dl.dl_buf.buf +
+							start_idx, 1) != 1)
+					break;
+			}
+			if (dl.dis_str[match_idx] == dl.dl_buf.buf[start_idx]) {
+				if (!found_start) {
+					found_start = true;
+					found_idx = start_idx;
+				}
+				match_idx++;
+				start_idx++;
+				skip_read = false;
+			} else {
+				if (found_start) {
+					found_start = false;
+					skip_read = true;
+				} else {
+					start_idx++;
+					skip_read = false;
+				}
+				found_idx = 0;
+				match_idx = 0;
+			}
+			if (found_start && (match_idx == strlen(dl.dis_str)))
+				break;
+		}
+
+		if (!found_start || (found_idx == 0)) {
+			DEBUG_V0("%d:UERR\n", __LINE__);
+			goto done;
+		}
+		/* we are only interested in data till found_idx as after that it
+		 * will be dl.dl_str string which we don't care
+		 */
+		dl.dl_buf.buf_unread = found_idx;
+		/* 3 is to account for trailing x\r\n, where x is socket id */
+		uint8_t temp_buf[3];
+		if (uart_read(temp_buf, 3) != 3) {
+			DEBUG_V0("%d:UERR\n", __LINE__);
+			goto done;
+		}
+		/* Since we processed all the disconnect string, there may be
+		 * other URCs buffered in the modem while we were in DL Mode
+		 */
+		state |= PROC_URC;
+		__at_process_urc();
+		state &= ~PROC_URC;
+
+		return;
+done:
+		dl.dl_buf.buf_unread = 0;
+		dl.dl_buf.ridx = 0;
+		__at_uart_rx_flush();
+		return;
         }
 }
 
