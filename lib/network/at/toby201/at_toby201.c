@@ -225,7 +225,7 @@ static void __at_lookup_dl_esc_str(void)
 
 static void __at_xfer_to_buf()
 {
-        dl.dl_buf.ridx = 0;
+	dl.dl_buf.ridx = 0;
         buf_sz sz = uart_rx_available();
         if (sz == 0) {
                 DEBUG_V0("%d:UERR\n", __LINE__);
@@ -234,20 +234,70 @@ static void __at_xfer_to_buf()
         }
         DEBUG_V0("%d:SZ_A:%d\n", __LINE__, sz);
         /* 3 is to account for trailing x\r\n, where x is socket id */
-        sz = sz - (strlen(dl.dis_str) + 3);
-        if (sz == 0)
+        if ((sz - (strlen(dl.dis_str) + 3)) == 0)
                 __at_uart_rx_flush();
         else {
-                int rdb = uart_read((uint8_t *)dl.dl_buf.buf, sz);
-                if (rdb < sz) {
-                        DEBUG_V0("%d:UERR\n", __LINE__);
-                        dl.dl_buf.buf_unread = 0;
-                        dl.dl_buf.ridx = 0;
-                        __at_uart_rx_flush();
-                        return;
-                }
-                dl.dl_buf.buf_unread = rdb;
-                __at_uart_rx_flush();
+		buf_sz start_idx = 0;
+		buf_sz match_idx = 0;
+		buf_sz found_idx = 0;
+		bool found_start = false;
+		bool skip_read = false;
+		while (1) {
+			if (start_idx >= sz)
+				break;
+			if (!skip_read) {
+				if (uart_read((uint8_t *)dl.dl_buf.buf +
+							start_idx, 1) != 1)
+					break;
+			}
+			if (dl.dis_str[match_idx] == dl.dl_buf.buf[start_idx]) {
+				if (!found_start) {
+					found_start = true;
+					found_idx = start_idx;
+				}
+				match_idx++;
+				start_idx++;
+				skip_read = false;
+			} else {
+				if (found_start) {
+					found_start = false;
+					skip_read = true;
+				} else {
+					start_idx++;
+					skip_read = false;
+				}
+				found_idx = 0;
+				match_idx = 0;
+			}
+			if (found_start && (match_idx == strlen(dl.dis_str)))
+				break;
+		}
+
+                if (!found_start || (found_idx == 0)) {
+			DEBUG_V0("%d:UERR\n", __LINE__);
+			goto done;
+		}
+
+                dl.dl_buf.buf_unread = found_idx;
+		/* 3 is to account for trailing x\r\n, where x is socket id */
+		uint8_t temp_buf[3];
+		if (uart_read(temp_buf, 3) != 3) {
+			DEBUG_V0("%d:UERR\n", __LINE__);
+			goto done;
+		}
+		/* Since we processed all the disconnect string, there may be
+		 * other URCs buffered in the modem while we were in DL Mode
+		 */
+		state |= PROC_URC;
+	        __at_process_urc();
+	        state &= ~PROC_URC;
+
+		return;
+done:
+		dl.dl_buf.buf_unread = 0;
+		dl.dl_buf.ridx = 0;
+		__at_uart_rx_flush();
+		return;
         }
 }
 
