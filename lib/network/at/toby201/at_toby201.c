@@ -238,17 +238,17 @@ static void __at_lookup_dl_esc_str(void)
 static void __at_xfer_to_buf()
 {
 	dl.dl_buf.ridx = 0;
-        buf_sz sz = uart_rx_available();
-        if (sz == 0) {
-                DEBUG_V0("%d:UERR\n", __LINE__);
-                dl.dl_buf.buf_unread = 0;
-                return;
-        }
-        DEBUG_V0("%d:SZ_A:%d\n", __LINE__, sz);
-        /* 3 is to account for trailing x\r\n, where x is socket id */
-        if ((sz - (strlen(dl.dis_str) + 3)) == 0)
-                __at_uart_rx_flush();
-        else {
+	buf_sz sz = uart_rx_available();
+	if (sz == 0) {
+		DEBUG_V0("%d:UERR\n", __LINE__);
+		dl.dl_buf.buf_unread = 0;
+		return;
+	}
+	DEBUG_V0("%d:SZ_A:%d\n", __LINE__, sz);
+	/* 3 is to account for trailing x\r\n, where x is socket id */
+	if ((sz - (strlen(dl.dis_str) + 3)) == 0)
+		__at_uart_rx_flush();
+	else {
 		buf_sz start_idx = 0;
 		/* Index to keep track matched characters from dl.dis_str string
 		*/
@@ -298,14 +298,14 @@ static void __at_xfer_to_buf()
 				break;
 		}
 
-                if (!found_start || (found_idx == 0)) {
+		if (!found_start || (found_idx == 0)) {
 			DEBUG_V0("%d:UERR\n", __LINE__);
 			goto done;
 		}
 		/* we are only interested in data till found_idx as after that it
 		 * will be dl.dl_str string which we don't care
 		 */
-                dl.dl_buf.buf_unread = found_idx;
+		dl.dl_buf.buf_unread = found_idx;
 		/* 3 is to account for trailing x\r\n, where x is socket id */
 		uint8_t temp_buf[3];
 		if (uart_read(temp_buf, 3) != 3) {
@@ -316,8 +316,8 @@ static void __at_xfer_to_buf()
 		 * other URCs buffered in the modem while we were in DL Mode
 		 */
 		state |= PROC_URC;
-	        __at_process_urc();
-	        state &= ~PROC_URC;
+		__at_process_urc();
+		state &= ~PROC_URC;
 
 		return;
 done:
