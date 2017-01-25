@@ -1,15 +1,19 @@
-# Copyright(C) 2016 Verizon. All rights reserved.
+# Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
 # Build all the test and sample applications with their default configurations.
 
-.PHONY: all clean
+DIRS=$(shell find . -type d -depth 1)
+clean_DIRS=$(addprefix clean_,$(DIRS))
 
-all:
-	@for d in *; do \
-		[ -d $$d ] && echo [Building in $$d] && $(MAKE) -C $$d all ; \
-	done
+.PHONY: all clean $(DIRS) $(clean_DIRS)
 
-clean:
-	@for d in *; do \
-		[ -d $$d ] && echo [Cleaning in $$d] && $(MAKE) -C $$d clean ; \
-	done
+all: $(DIRS)
+
+clean: $(clean_DIRS)
+
+$(DIRS):
+	@echo [Building in $@] && $(MAKE) -C $@ all
+
+$(clean_DIRS):
+	@echo [Cleaning in $(patsubst clean_%,%,$@)] && \
+		$(MAKE) -C $(patsubst clean_%,%,$@) clean
