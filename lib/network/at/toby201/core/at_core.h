@@ -1,58 +1,18 @@
 /**
- * \file at_defs.h
+ * \file at_core.h
  *
- * \brief AT command table definations for ublox-toby201 LTE modem functions
+ * \brief Functions that aid in communicating with a generic modem's AT interface
  *
  * \copyright Copyright (C) 2016, 2017 Verizon. All rights reserved.
  *
- *
  */
 
-#ifndef AT_TOBY_H
-#define AT_TOBY_H
+#ifndef AT_CORE_H
+#define AT_CORE_H
 
 #include <stdint.h>
 #include <stdbool.h>
 #include "uart.h"
-
-/* AT layer internal state machine */
-typedef enum at_states {
-        IDLE = 1,
-        /* Indicates command has been issued and now waiting for the response */
-        WAITING_RESP = 1 << 1,
-        /* Network lost indication from cereg and ureg */
-        NETWORK_LOST = 1 << 2,
-        /* TCP successfully connected */
-        TCP_CONNECTED = 1 << 3,
-        /* TCP closed gracefully */
-        TCP_CONN_CLOSED = 1 << 4,
-        /* AT layer now processing response */
-        PROC_RSP = 1 << 5,
-        /* AT layer processing urc outside of the interrupt context or callback
-         * from uart layer
-         */
-        PROC_URC = 1 << 6,
-        /* Connected in Direct link (DL) mode which makes socket to UART
-         * connection transparent
-         */
-        DL_MODE = 1 << 7,
-        /* Processing TCP receive call at the moment */
-        TCP_DL_RX = 1 << 8,
-        /* remote side disconnected, to handle this scenario in DL mode, new set
-         * of disconnect state machine is being used as below
-         */
-        TCP_REMOTE_DISCONN = 1 << 9,
-        AT_INVALID = 1 << 10
-} at_states;
-
-/* state machine just to process abrupt remote disconnect sequence in dl mode
- */
-typedef enum dis_states {
-        DIS_IDLE = 1,
-        /* disconnect or dl mode escape sequence is partially received */
-        DIS_PARTIAL = 2,
-        DIS_FULL = 3
-} dis_states;
 
 typedef enum at_return_codes {
         AT_SUCCESS = 0,
@@ -64,6 +24,12 @@ typedef enum at_return_codes {
         AT_RECHECK_MODEM
 } at_ret_code;
 
+#define AT_UART_TX_WAIT_MS         10000
+
+/* Delay between successive commands in milisecond, datasheet recommends atleast
+ * 20mS
+ */
+#define AT_COMM_DELAY_MS           20
 
 /* Enable this macro to display messages, error will alway be reported if this
  * macro is enabled while V2 and V1 will depend on debug_level setting
@@ -105,11 +71,6 @@ static int debug_level;
 #define DEBUG_STATE(...)
 #endif
 
-/* Enable to debug wrong response, this prints expected vs received buffer in
- * raw format
- */
-/*#define DEBUG_WRONG_RSP*/
-
 #define CHECK_NULL(x, y) do { \
                                 if (!((x))) { \
                                         printf("Fail at line: %d\n", __LINE__); \
@@ -139,16 +100,6 @@ static int debug_level;
  * totality
  */
 #define RSP_BUF_DELAY        2000 /* In mili seconds */
-
-/* It will be used when partial matched bytes are the only left to read out */
-#define DL_PARTIAL_WAIT      1000 /* In mili seconds */
-
-/* Error codes just to process partial escape or disconnect from dl mode
- * sequence when tcp receive is being called
- */
-#define DL_PARTIAL_TO_FULL      -4
-#define DL_PARTIAL_ERROR        -5
-#define DL_PARTIAL_SUC          0
 
 /* Intermediate buffer to hold data from uart buffer when disconnect string
  * is detected fully, disconnect string is from the dl mode
@@ -189,4 +140,4 @@ typedef struct _at_command_desc {
         const char *err;
 } at_command_desc;
 
-#endif /* at_defs.h */
+#endif /* at_core.h */

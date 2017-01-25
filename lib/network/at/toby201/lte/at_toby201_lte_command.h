@@ -1,23 +1,16 @@
 /**
- * \file at_toby201_command.h
+ * \file at_toby201_lte_command.h
  *
- * \brief AT command for ublox-toby201 LTE modem functions
+ * \brief AT commands for the ublox-toby201 modem to communicate over LTE
  *
  * \copyright Copyright (C) 2016, 2017 Verizon. All rights reserved.
  *
  *
  */
-#ifndef AT_TOBY_COMM_H
-#define AT_TOBY_COMM_H
+#ifndef AT_TOBY_LTE_COMM_H
+#define AT_TOBY_LTE_COMM_H
 
-#include "at_defs.h"
-
-#define AT_UART_TX_WAIT_MS         10000
-
-/* Delay between successive commands in milisecond, datasheet recommends atleast
- * 20mS
- */
-#define AT_COMM_DELAY_MS           20
+#include "at_lte_defs.h"
 
 /* Upper limit for commands which need formatting before sending to modem */
 #define TEMP_COMM_LIMIT            64
@@ -365,4 +358,4 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .comm_timeout = 100
         }
 };
-#endif /* at_toby201_command.h */
+#endif /* at_toby201_lte_command.h */

@@ -1,15 +1,15 @@
 /**
- * \file net.h
+ * \file at_lte.h
  *
- * \brief AT command functions to talk to LTE Modems
+ * \brief API that uses AT commands to communicate through TCP over LTE
  *
- * \copyright Copyright (C) 2016, Verizon. All rights reserved.
+ * \copyright Copyright (C) 2016, 2017 Verizon. All rights reserved.
  *
  *
  */
 
-#ifndef OTT_AT_H
-#define OTT_AT_H
+#ifndef AT_LTE_H
+#define AT_LTE_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -106,4 +106,4 @@ void at_tcp_close(int s_id);
 }
 #endif
 
-#endif /* at.h */
+#endif /* at_lte.h */

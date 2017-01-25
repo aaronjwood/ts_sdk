@@ -1,7 +1,7 @@
 /*
- *  \file at_toby201.c, implementing APIs defined in at.h file
+ *  \file at_toby201_lte.c, implementing APIs defined in at_lte.h file
  *
- *  \brief AT command functions for u-blox toby201 lte modem
+ *  \brief API implementation that uses the UBLOX TOBY-L201 modem to communicate over LTE
  *
  *  \copyright Copyright (C) 2016, 2017 Verizon. All rights reserved.
  *
@@ -9,8 +9,8 @@
 
 #include <errno.h>
 #include <stm32f4xx_hal.h>
-#include "at.h"
-#include "at_toby201_command.h"
+#include "at_lte.h"
+#include "at_toby201_lte_command.h"
 #include "uart.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -28,7 +28,7 @@ static const char *tcp_error = "\r\nERROR\r\n";
 
 /* structure to hold dl mode related information */
 static volatile struct {
-        /* dl mode escape indication string from modem */
+	/* dl mode escape indication string from modem */
 	const char *dis_str;
         buf_sz l_matched_pos;
         uint8_t matched_bytes;
@@ -499,7 +499,7 @@ static at_ret_code __at_uart_waited_read(char *buf, buf_sz wanted,
 static at_ret_code __at_generic_comm_rsp_util(const at_command_desc *desc,
                                         bool skip_comm, bool read_line)
 {
-        CHECK_NULL(desc, AT_FAILURE)
+        CHECK_NULL(desc, AT_FAILURE);
 
         at_ret_code result = AT_SUCCESS;
         char *comm;
@@ -767,7 +767,8 @@ static at_ret_code __at_check_network_registration()
         return AT_FAILURE;
 }
 
-static at_ret_code __at_modem_conf() {
+static at_ret_code __at_modem_conf()
+{
 
         at_ret_code result = AT_SUCCESS;
 
@@ -992,7 +993,7 @@ static at_ret_code __at_pdp_conf(void)
 int at_tcp_connect(const char *host, const char *port)
 {
 
-        CHECK_NULL(host, -1)
+        CHECK_NULL(host, -1);
         if ((state & DL_MODE) == DL_MODE) {
                 DEBUG_V0("%s: Direct link mode is already on, tcp connect not "
                         "possible, state :%u\n",__func__, state);
