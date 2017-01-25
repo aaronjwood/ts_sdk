@@ -17,6 +17,61 @@
  * The device reports its status to the cloud at another fixed interval.
  */
 
+/*
+ * Define this to profile the OTT functions. The time recorded also includes the
+ * time taken to receive the data over the network and time spent in the modem.
+ * The initialization function is not profiled.
+ */
+/*#define OTT_TIME_PROFILE*/
+
+/*
+ * Define this to explicitly show the time it takes to connect to the network /
+ * send / receive data over the network. This allows to compute how much time is
+ * spent in pure crypto computation / preparing and unwrapping the data packets.
+ * OTT_TIME_PROFILE must be defined for this to work.
+ */
+/*#define OTT_EXPLICIT_NETWORK_TIME*/
+
+/*
+ * Define this to profile the maximum heap used by mbedTLS. This is done by
+ * providing a custom implementation of calloc(). Everytime the connection is
+ * closed through ott_close_connection(), the maximum amount of heap used until
+ * that point of time is printed to the debug UART.
+ */
+/*#define OTT_HEAP_PROFILE*/
+
+#ifdef OTT_TIME_PROFILE
+#ifdef OTT_EXPLICIT_NETWORK_TIME
+
+extern uint32_t network_time_ms;
+
+#define OTT_TIME_PROFILE_BEGIN() do { \
+	ott_begin = platform_get_tick_ms(); \
+	network_time_ms = 0; \
+} while(0)
+
+#define OTT_TIME_PROFILE_END(label) do { \
+	dbg_printf("["label":%u]", platform_get_tick_ms() - ott_begin); \
+	dbg_printf(" [NETW:%u]\n", network_time_ms); \
+} while(0)
+
+#else
+
+#define OTT_TIME_PROFILE_BEGIN() \
+	ott_begin = platform_get_tick_ms()
+
+#define OTT_TIME_PROFILE_END(label) \
+	dbg_printf("["label":%u]\n", platform_get_tick_ms() - ott_begin)
+
+#endif	/* OTT_EXPLICIT_NETWORK_TIME */
+
+#else
+
+#define OTT_TIME_PROFILE_BEGIN()
+#define OTT_TIME_PROFILE_END(label)
+
+#endif	/* OTT_TIME_PROFILE */
+
 typedef enum {			/* Defines return codes of this API. */
 	OTT_OK,			/* API call exited without any errors */
 	OTT_ERROR,		/* API call exited with errors */

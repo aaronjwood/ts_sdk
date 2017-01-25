@@ -1,4 +1,4 @@
-# Copyright(C) 2016 Verizon. All rights reserved.
+# Copyright(C) 2016,2017 Verizon. All rights reserved.
 
 # Get platform-specific settings
 # This must also define variables needed to locate the toolchain.
@@ -17,8 +17,15 @@ MODEM_TARGET ?= toby201
 CLOUD_PROTOCOL ?= ott
 
 # Debug and optimization flags
-DBG_OP_USER_FLAGS ?= -g -ggdb3 -O0
-DBG_OP_LIB_FLAGS ?= -Os
+# Comment this out to disable LTO and enable debug
+#LTOFLAG = -flto
+#export LTOFLAG
+
+# To reduce the firmware size at the expense of debugging capabilities in
+# the user code, use the following instead:
+#DBG_OP_USER_FLAGS = -Os $(LTOFLAG)
+DBG_OP_USER_FLAGS = -g -ggdb3 -O0 $(LTOFLAG)
+DBG_OP_LIB_FLAGS = -Os $(LTOFLAG)
 
 # Firmware name
 FW_EXEC = firmware.elf

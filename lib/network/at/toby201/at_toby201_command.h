@@ -3,7 +3,7 @@
  *
  * \brief AT command for ublox-toby201 LTE modem functions
  *
- * \copyright Copyright (C) 2016, Verizon. All rights reserved.
+ * \copyright Copyright (C) 2016, 2017 Verizon. All rights reserved.
  *
  *
  */
@@ -12,31 +12,33 @@
 
 #include "at_defs.h"
 
-#define AT_UART_TX_WAIT_MS           10000
+#define AT_UART_TX_WAIT_MS         10000
+
+/* Delay between successive commands in milisecond, datasheet recommends atleast
+ * 20mS
+ */
+#define AT_COMM_DELAY_MS           20
 
 /* Upper limit for commands which need formatting before sending to modem */
-#define TEMP_COMM_LIMIT              64
-#define TCP_SOCK_STATUS_CODE         4
+#define TEMP_COMM_LIMIT            64
+
+/* Time interval between sending escape sequence characters to get out from
+ * direct link mode, time interval is in fiftieth of second, configure it for
+ * 100ms, minimum is 20mS
+ */
+#define DL_MODE_ESC_TIME           5
+#define DL_ESC_TIME_MS             (DL_MODE_ESC_TIME * 20)
 
 static void __at_parse_tcp_conf_rsp(void *rcv_rsp, int rcv_rsp_len,
-                                        const char *stored_rsp, void *data);
-static void __at_parse_tcp_send_rsp(void *rcv_rsp, int rcv_rsp_len,
-                                        const char *stored_rsp, void *data);
-static void __at_parse_tcp_read_qry_rsp(void *rcv_rsp, int rcv_rsp_len,
-                                        const char *stored_rsp, void *data);
-static void __at_parse_tcp_sock_stat(void *rcv_rsp, int rcv_rsp_len,
-                                        const char *stored_rsp, void *data);
-static void __at_parse_tcp_get_err(void *rcv_rsp, int rcv_rsp_len,
                                         const char *stored_rsp, void *data);
 
 /** Unsolicited result codes */
 typedef enum at_urc {
         NET_STAT_URC = 0, /** network status */
         EPS_STAT_URC, /** data network status */
-        NO_CARRIER,
-        DATA_READ, /** TCP read available urc */
         TCP_CLOSED, /** TCP close */
         PDP_DEACT, /** PDP connection is deactivated by network */
+        DISCONNECT, /** disconnect from direct link mode */
         URC_END
 } at_urc;
 
@@ -67,24 +69,21 @@ typedef enum at_pdp_command {
 typedef enum at_tcp_command {
         TCP_CONF = 0, /** TCP connection configuration */
         TCP_CONN, /** TCP connection */
-        TCP_SEND,
-        TCP_WRITE_PROMPT, /** TCP write prompt before sending data */
-        TCP_RCV,
-        TCP_RCV_QRY,
-        TCP_SOCK_STAT,
         TCP_CLOSE,
-        TCP_GET_ERR,
-        TCP_END,
+        TCP_DL_MODE,
+        DL_CONG_CONF,
+        ESCAPE_DL_MODE,
+        ESCAPE_TIME_CONF,
+        TCP_END
 } at_tcp_command;
 
 
 static const char *at_urcs[URC_END] = {
                 [NET_STAT_URC] = "\r\n+CEREG: ",
                 [EPS_STAT_URC] = "\r\n+UREG: ",
-                [NO_CARRIER] = "\r\nNO CARRIER\r\n",
-                [DATA_READ] = "\r\n+UUSORD: ",
                 [TCP_CLOSED] = "\r\n+UUSOCL: ",
-                [PDP_DEACT] = "\r\n+UUPSDD: "
+                [PDP_DEACT] = "\r\n+UUPSDD: ",
+                [DISCONNECT] = "\r\nDISCONNECT\r\n"
 };
 
 static const at_command_desc modem_net_status_comm[MOD_END] = {
@@ -300,81 +299,6 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 25000
         },
-        [TCP_SEND] = {
-                .comm_sketch = "at+usowr=%d,%d\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+USOWR: ",
-                                .rsp_handler = __at_parse_tcp_send_rsp,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 15000
-        },
-        [TCP_WRITE_PROMPT] = {
-                .comm_sketch = "at+usowr=%d,%d\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n@",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 15000
-        },
-        [TCP_RCV] = {
-                .comm_sketch = "at+usord=%d,%d\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+USORD: ",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 15000
-        },
-        [TCP_RCV_QRY] = {
-                .comm_sketch = "at+usord=%d,0\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+USORD: ",
-                                .rsp_handler = __at_parse_tcp_read_qry_rsp,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 10000
-        },
-        [TCP_SOCK_STAT] = {
-                .comm_sketch = "at+usoctl=%d,10\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+USOCTL: ",
-                                .rsp_handler = __at_parse_tcp_sock_stat,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 100
-        },
         [TCP_CLOSE] = {
                 .comm_sketch = "at+usocl=%d\r",
                 .rsp_desc = {
@@ -387,12 +311,24 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 15000
         },
-        [TCP_GET_ERR] = {
-                .comm = "at+usoer\r",
+        [TCP_DL_MODE] = {
+                .comm_sketch = "at+usodl=%d\r",
                 .rsp_desc = {
                         {
-                                .rsp = "\r\n+USOER: ",
-                                .rsp_handler = __at_parse_tcp_get_err,
+                                .rsp = "\r\nCONNECT\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        },
+                },
+                .err = "\r\n+CME ERROR: ",
+                .comm_timeout = 15000
+        },
+        [ESCAPE_DL_MODE] = {
+                .comm = "+++",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nDISCONNECT\r\n",
+                                .rsp_handler = NULL,
                                 .data = NULL
                         },
                         {
@@ -400,6 +336,30 @@ static at_command_desc tcp_comm[TCP_END] = {
                                 .rsp_handler = NULL,
                                 .data = NULL
                         }
+                },
+                .err = "\r\n+CME ERROR: ",
+                .comm_timeout = 2000
+        },
+        [ESCAPE_TIME_CONF] = {
+                .comm_sketch = "ats12=%d\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        },
+                },
+                .err = "\r\n+CME ERROR: ",
+                .comm_timeout = 100
+        },
+        [DL_CONG_CONF] = {
+                .comm_sketch = "at+udconf=8,%d,0\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        },
                 },
                 .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 100

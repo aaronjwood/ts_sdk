@@ -5,7 +5,7 @@
 # Paths to toolchain and HAL root
 TOOLS_ROOT = $(PROJ_ROOT)/tools/installed/stm32f4
 GCC_ROOT = $(TOOLS_ROOT)/gcc-arm-none-eabi-5_4-2016q2
-STM32_LIB_COMMON = $(TOOLS_ROOT)/STM32Cube_FW_F4_V1.13.0
+STM32_LIB_COMMON = $(firstword $(wildcard $(TOOLS_ROOT)/STM32Cube_FW_F4_*))
 
 # Source paths
 STM32_PLIB = $(STM32_LIB_COMMON)/Drivers/STM32F4xx_HAL_Driver/Src

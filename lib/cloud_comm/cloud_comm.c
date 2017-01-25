@@ -8,6 +8,10 @@
 #include "ott_protocol.h"
 #include "dbg.h"
 
+#ifdef OTT_TIME_PROFILE
+static uint32_t ott_begin;
+#endif
+
 #define RECV_TIMEOUT_MS		5000
 #define MULT			1000
 #define INIT_POLLLING_MS	((uint32_t)15000)
@@ -283,6 +287,7 @@ static bool process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
  */
 static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 {
+	OTT_TIME_PROFILE_BEGIN();
 	conn_out.send_in_progress = true;
 
 	uint32_t start = platform_get_tick_ms();
@@ -301,6 +306,7 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 			continue;
 		}
 		if (s == OTT_OK) {
+			OTT_TIME_PROFILE_END("RV");
 			no_nack = process_recvd_msg(msg_ptr, invoke_send_cb);
 			break;
 		}

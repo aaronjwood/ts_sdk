@@ -1,4 +1,4 @@
-/* Copyright(C) 2016 Verizon. All rights reserved. */
+/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
 #ifndef __UART_H
 #define __UART_H
@@ -13,6 +13,8 @@
  * characteristics of the AT command set - there is an idle period after
  * receiving the response of an AT command.
  */
+
+#define UART_RX_BUFFER_SIZE	1024
 
 typedef uint16_t buf_sz;
 
@@ -100,16 +102,25 @@ bool uart_tx(uint8_t *data, buf_sz size, uint16_t timeout_ms);
  */
 buf_sz uart_rx_available(void);
 
+
 /*
- * Return the maximum receive buffer size in bytes
+ * Utility function to scan internal uart ring buffer to find the pattern or
+ * substring
  *
- * Paramters:
- * 	None
+ * Parameters:
+ * 	start_idx - starting index to being scan for the pattern, -1 is special
+ *		    value where if supplied, it starts with begining of the ring
+ *		    buffer
+ * 	pattern - Null terminated string.
+ *	nlen - length of the pattern to be matched
  *
  * Returns:
- * 	size of the low level receive buffer
+ * 	-1 if no such string is found inside the read buffer or parameters are
+ *	wrong
+ * 	On success, returns the starting position within the ring buffer of
+ *	matched pattern
  */
-buf_sz uart_get_rx_buf_size(void);
+int uart_find_pattern(int start_idx, const uint8_t *pattern, buf_sz nlen);
 
 /*
  * Return the number of bytes that makes a complete line. A line is defined
@@ -128,7 +139,7 @@ buf_sz uart_get_rx_buf_size(void);
  * 	and the	trailer bytes.
  * 	UART_INV_PARAM if the trailer is empty.
  */
-int uart_line_avail(char *header, char *trailer);
+int uart_line_avail(const char *header, const char *trailer);
 
 /*
  * Retrieve a set of bytes from the UART's read buffer. The maximum number of
