@@ -5,11 +5,11 @@
 #include "protocol.h"
 #include "platform.h"
 #include "cloud_comm.h"
-#include "cloud_comm_private.h"
 #include "cloud_comm_def.h"
-
+#include "protocol.h"
 #include "dbg.h"
 
+/* Default cloud polling time in miliseconds */
 uint32_t init_polling_ms;
 
 #ifdef PROTO_TIME_PROFILE
