@@ -5,7 +5,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "ott_limits.h"
 
 /**
  * \file cloud_comm.h
@@ -18,7 +17,7 @@
  * A data receive event may occur when the device polls the cloud. The device
  * schedules a receive by specifying a buffer and a callback. The callback is
  * used to report the type of the message received.
- * 
+ *
  * The API deals with 3 types of messages:\n
  *     - Update   : Application specific byte arrays from the cloud\n
  *     - Status   : Application specific byte arrays to the cloud\n
@@ -59,7 +58,8 @@ typedef enum {
 
 	/* Incoming message events: */
 	CC_STS_RCV_CMD_SL,	/**< Received sleep time from the cloud */
-	CC_STS_RCV_UPD		/**< Received an update message from the cloud */
+	CC_STS_RCV_UPD,		/**< Received an update message from the cloud */
+	CC_STS_UNKNOWN
 } cc_event;
 
 typedef uint16_t cc_data_sz;	/**< Type representing the size of the message */
@@ -68,9 +68,6 @@ typedef struct {		/* Cloud communication buffer descriptor */
 	cc_data_sz bufsz;	/* Maximum size of this buffer */
 	void *buf_ptr;		/* Opaque pointer to the actual data buffer */
 } cc_buffer_desc;
-
-#define MAX_HOST_LEN	50	/**< Size of the host address string in bytes */
-#define MAX_PORT_LEN	5	/**< Size of the port string in bytes */
 
 /*
  * Macro framework for asserting at compile time for the C99 standard; Replace
@@ -83,8 +80,8 @@ typedef struct {		/* Cloud communication buffer descriptor */
 
 #define CC_MIN_RECV_BUF_SZ	5
 #define CC_MIN_SEND_BUF_SZ	1
-#define CC_MAX_SEND_BUF_SZ	OTT_DATA_SZ
-#define CC_MAX_RECV_BUF_SZ	OTT_DATA_SZ
+#define CC_MAX_SEND_BUF_SZ	PROTO_DATA_SZ
+#define CC_MAX_RECV_BUF_SZ	PROTO_DATA_SZ
 
 /**
  * The buffer defined by CC_RECV_BUFFER is opaque to the user apart from its
@@ -92,10 +89,10 @@ typedef struct {		/* Cloud communication buffer descriptor */
  * the buffer is CC_MIN_RECV_BUF_SZ and the maximum is CC_MAX_RECV_BUF_SZ.
  */
 #define CC_RECV_BUFFER(name, max_sz) \
-	__compile_time_assert(((max_sz) <= OTT_DATA_SZ) && \
-			((max_sz) >= (OTT_CMD_SZ + sizeof(uint32_t))), \
+	__compile_time_assert(((max_sz) <= PROTO_DATA_SZ) && \
+			((max_sz) >= (PROTO_CMD_SZ + sizeof(uint32_t))), \
 			name##_does_not_have_a_valid_size_on_line); \
-	uint8_t name##_bytes[OTT_OVERHEAD_SZ + (max_sz)]; \
+	uint8_t name##_bytes[PROTO_OVERHEAD_SZ + (max_sz)]; \
 	cc_buffer_desc name = {(max_sz), &(name##_bytes)}
 
 /**
@@ -104,7 +101,7 @@ typedef struct {		/* Cloud communication buffer descriptor */
  * the buffer is CC_MIN_SEND_BUF_SZ and the maximum is CC_MAX_SEND_BUF_SZ.
  */
 #define CC_SEND_BUFFER(name, max_sz) \
-	__compile_time_assert(((max_sz) <= OTT_DATA_SZ) && \
+	__compile_time_assert(((max_sz) <= PROTO_DATA_SZ) && \
 			((max_sz) >= 1), \
 			name##_does_not_have_a_valid_size_on_line); \
 	uint8_t name##_bytes[(max_sz)]; \
@@ -119,10 +116,6 @@ typedef void (*cc_callback_rtn)(const cc_buffer_desc *buf, cc_event event);
 /**
  * \brief
  * Initialize the cloud communication API.
- * 
- * \param[in] d_ID     : Pointer to a 16 byte device ID.
- * \param[in] d_sec_sz : Size of the device secret in bytes.
- * \param[in] d_sec    : Pointer to the buffer holding the device secret.
  *
  * \returns
  *	True  : Initialization was successful.\n
@@ -134,25 +127,45 @@ typedef void (*cc_callback_rtn)(const cc_buffer_desc *buf, cc_event event);
  * to change during the lifetime of the device.
  *
  */
-bool cc_init(const uint8_t *d_ID, uint16_t d_sec_sz, const uint8_t *d_sec);
+bool cc_init(void);
 
 /**
  * \brief
- * Set the host name and host port to communicate with.
+ * Set the remote host name and host port to communicate with. Port will be used
+ * for mostly TCP/IP related protocols and it is optional parameter if low
+ * level transport protocol does not support it.
  *
- * \param[in] host : A NULL terminated string specifying the host name.
- * \param[in] port : A NULL terminated string specifying the host port.
+ * \param[in] host : A NULL terminated string specifying the host which includes
+ 		     tcp/ip host or LTE modem etc...
+ * \param[in] port : Optional null terminated string specifying the host port.
  *
  * \returns
  *	True  : Host name and port were set properly.\n
  *	False : Failed to set the host name / host port.
  *
- * This must be called at least once before attempting to send messages. The
- * lengths of the host name and host port strings are governed by MAX_HOST_LEN
- * and MAX_PORT_LEN, respectively.
+ * This must be called at least once before attempting to send messages.
  */
-bool cc_set_remote_host(const char *host, const char *port);
+bool cc_set_destination(const char *host, const char *port);
 
+/**
+ * \brief
+ * Sets device authorization credentials which will be used to authenticate with
+ * the cloud in all future communications.
+ *
+ * \param[in] d_ID     : Pointer to a 16 byte device ID.
+ * \param[in] d_sec_sz : Size of the device secret in bytes.
+ * \param[in] d_sec    : Pointer to the buffer holding the device secret.
+ *
+ *
+ * \returns
+ *	True  : Host name and port were set properly.\n
+ *	False : Failed to set the host name / host port.
+ *
+ * This API must be called at least once before attempting to attempting to
+ * communicate with the cloud
+ */
+bool cc_set_auth_credentials(const uint8_t *d_ID, uint16_t d_sec_sz,
+			const uint8_t *d_sec);
 /**
  * \brief
  * Get a pointer to the first byte of the send buffer from the buffer
@@ -211,7 +224,7 @@ cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf);
 /**
  * \brief
  * Send bytes to the cloud.
- * 
+ *
  * \param[in] buf : Pointer to the cloud communication buffer descriptor
  *                  containing the data to be sent.
  * \param[in] sz : Size of the data in bytes.
@@ -228,7 +241,7 @@ cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf);
  * A send is said to be active when it is waiting for a response from the
  * cloud services. Only one send can be active at a time.
  */
-cc_send_result cc_send_bytes_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
+cc_send_result cc_send_msg_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 		cc_callback_rtn cb);
 
 /**
@@ -270,7 +283,7 @@ cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb)
 /**
  * \brief
  * Call this function periodically to advance the time-based activities.
- * 
+ *
  * \param[in] cur_ts : The current timestamp representing the system tick
  *                     time in ms.
  *
