@@ -389,9 +389,7 @@ static bool process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
 
 	if (OTT_FLAG_IS_SET(c_flags, CF_QUIT)) {
 		ott_close_connection();
-		session.auth_done = false;
-		session.pend_bit = false;
-		session.pend_ack = false;
+		ott_reset_state();
 		INVOKE_RECV_CALLBACK(NULL, PROTO_RCVD_QUIT);
 	}
 
