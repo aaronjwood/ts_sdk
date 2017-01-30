@@ -56,6 +56,7 @@ MODEM_TRANS = LTE
 
 ifeq ($(MODEM_TARGET),toby201)
 	MODEM_CORE_DIR += $(MODEM_TARGET)/core
+	MODEM_SRC += at_core.c
 ifeq ($(MODEM_TRANS),LTE)
 	MODEM_SRC += at_toby201_lte.c
 	MODEM_DIR += $(MODEM_TARGET)/lte
