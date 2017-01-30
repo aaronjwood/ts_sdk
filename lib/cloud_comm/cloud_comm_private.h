@@ -116,4 +116,13 @@ static inline proto_status proto_set_recv_buffer_cb(void *rcv_buf, uint32_t sz,
 #endif
 }
 
+static void proto_maintenance(bool poll_due)
+{
+#ifdef OTT_PROTOCOL
+        ott_maintenance(poll_due);
+#elseif SMSNAS_PROTOCOL
+        return;
+#endif
+}
+
 #endif

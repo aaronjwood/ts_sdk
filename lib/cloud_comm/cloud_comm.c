@@ -243,10 +243,6 @@ uint32_t cc_service_send_receive(uint32_t cur_ts)
 		timekeep.start_ts + timekeep.polling_int_ms - cur_ts;
 	bool polling_due = cur_ts - timekeep.start_ts >= timekeep.polling_int_ms;
 
-	/*
-	 * Poll for messages / ACK any previous messages if the connection is
-	 * still open or if the polling interval was hit.
-	 */
 	proto_maintenance(polling_due);
 
 	/* Compute when this function needs to be called next */
