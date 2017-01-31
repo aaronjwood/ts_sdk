@@ -1,4 +1,4 @@
-/* Copyright(C) 2016,2017 Verizon. All rights reserved. */
+/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
 #include <string.h>
 #include <stdlib.h>
@@ -6,8 +6,7 @@
 #include "platform.h"
 #include "cloud_comm.h"
 #include "cloud_comm_def.h"
-#include "protocol.h"
-#include "protocol_def.h"
+#include "cloud_protocol_intfc.h"
 #include "dbg.h"
 
 /* Default cloud polling time in miliseconds if supported by the protocol */
@@ -97,10 +96,9 @@ static inline void init_state(void)
 
 bool cc_init()
 {
-	if (proto_init() != PROTO_OK)
-		return false;
+	PROTO_INIT();
 	init_state();
-	init_polling_ms = proto_get_default_polling();
+	init_polling_ms = PROTO_GET_DEFAULT_POLLING();
 	return true;
 }
 
@@ -118,7 +116,7 @@ const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf)
 	 * Depending on the type of message in the buffer and protocol, return
 	 * pointer to binary data
 	 */
-	return proto_get_rcvd_msg_ptr(buf->buf_ptr);
+	return PROTO_GET_RCVD_MSG_PTR(buf->buf_ptr);
 
 }
 
@@ -126,7 +124,7 @@ uint32_t cc_get_sleep_interval(const cc_buffer_desc *buf)
 {
 	if (!buf || !buf->buf_ptr)
 		return NULL;
-	return proto_get_sleep_interval(buf->buf_ptr);
+	PROTO_GET_SLEEP_INTERVAL(buf->buf_ptr);
 }
 
 cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf)
@@ -134,13 +132,12 @@ cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf)
 	/* Check for non-NULL buffer pointers */
 	if (!buf || !buf->buf_ptr)
 		return 0;
-	return proto_get_rcvd_data_len(buf->buf_ptr);
+	PROTO_GET_RCVD_DATA_LEN(buf->buf_ptr);
 }
 
 bool cc_set_destination(const char *host, const char *port)
 {
-	if (proto_set_destination(host, port) != PROTO_OK)
-		return false;
+	PROTO_SET_DESTINATION(host, port);
 	return true;
 }
 
@@ -148,19 +145,18 @@ bool cc_set_auth_credentials(const uint8_t *d_ID, uint16_t d_sec_sz,
 			const uint8_t *d_sec)
 {
 
-	if (proto_set_auth(d_ID, d_sec_sz, d_sec) != PROTO_OK)
-		return false;
+	PROTO_SET_AUTH(d_id, d_id_sz, d_sec, d_sec_sz);
 	return true;
 }
 
 void cc_ack_bytes(void)
 {
-	proto_send_ack();
+	PROTO_SEND_ACK();
 }
 
 void cc_nak_bytes(void)
 {
-	proto_send_nack();
+	PROTO_SEND_NACK();
 }
 
 cc_send_result cc_send_msg_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
@@ -179,10 +175,7 @@ cc_send_result cc_send_msg_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 		return CC_SEND_FAILED;
 
 	conn_out.send_in_progress = true;
-	if (proto_send_msg_to_cloud(buf->buf_ptr, sz, cc_send_cb) != PROTO_OK) {
-		reset_conn_states();
-		return CC_SEND_FAILED;
-	}
+	PROTO_SEND_MSG_TO_CLOUD(buf->buf_ptr, sz, cc_send_cb);
 
 	conn_out.cb = cb;
 	conn_out.buf = buf;
@@ -200,10 +193,8 @@ cc_send_result cc_resend_init_config(cc_callback_rtn cb)
 
 	conn_out.send_in_progress = true;
 
-	if (proto_resend_init_config(cb) != PROTO_OK) {
-		reset_conn_states();
-		return CC_SEND_FAILED;
-	}
+	PROTO_RESEND_INIT_CONFIG(cb);
+
 	conn_out.send_in_progress = false;
 	conn_out.cb = cb;
 	conn_out.buf = NULL;
@@ -220,11 +211,8 @@ cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb)
 		return CC_RECV_BUSY;
 
 	memset(buf->buf_ptr, 0, buf->bufsz + PROTO_OVERHEAD_SZ);
-	proto_result res = proto_set_recv_buffer_cb(buf->buf_ptr,
-						buf->bufsz + PROTO_OVERHEAD_SZ,
-						cc_recv_cb);
-	if (res != PROTO_OK)
-		return CC_RECV_FAILED;
+	PROTO_SET_RECV_BUFFER_CB(buf->buf_ptr, buf->bufsz + PROTO_OVERHEAD_SZ,
+				cc_recv_cb);
 
 	conn_in.recv_in_progress = true;
 	conn_in.buf = buf;
@@ -244,7 +232,7 @@ uint32_t cc_service_send_receive(uint32_t cur_ts)
 		timekeep.start_ts + timekeep.polling_int_ms - cur_ts;
 	bool polling_due = cur_ts - timekeep.start_ts >= timekeep.polling_int_ms;
 
-	proto_maintenance(polling_due);
+	PROTO_MAINTENANCE(polling_due);
 
 	/* Compute when this function needs to be called next */
 	if (polling_due || timekeep.new_interval_set) {
@@ -253,7 +241,7 @@ uint32_t cc_service_send_receive(uint32_t cur_ts)
 		timekeep.start_ts = cur_ts;
 	}
 
-	proto_initiate_quit(false);
+	PROTO_INITIATE_QUIT(false);
 	reset_conn_states();
 	return next_call_time_ms;
 }
@@ -262,5 +250,5 @@ void cc_interpret_msg(const cc_buffer_desc *buf, uint8_t tab_level)
 {
 	if (!buf || !buf->buf_ptr)
 		return;
-	proto_interpret_msg(buf->buf_ptr, tab_level);
+	PROTO_INTERPRET_MSG(buf->buf_ptr, tab_level);
 }

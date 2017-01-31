@@ -441,7 +441,7 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 	return no_nack;
 }
 
-proto_result ott_send_bytes_to_cloud(const void *buf, uint32_t sz,
+proto_result ott_send_msg_to_cloud(const void *buf, uint32_t sz,
                                         proto_callback cb)
 {
 	if (!buf || sz == 0)
@@ -507,7 +507,6 @@ proto_result ott_close_connection(void)
 		return PROTO_ERROR;
 }
 
-/* Send a QUIT or NACK + QUIT and then close the connection and reset the state */
 void ott_initiate_quit(bool send_nack)
 {
 	if (!session.conn_done || !session.auth_done)

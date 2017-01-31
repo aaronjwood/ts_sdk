@@ -5,7 +5,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "protocol.h"
+#include "protocol_def.h"
 
 /**
  * \file cloud_comm.h
