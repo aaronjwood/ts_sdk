@@ -1,10 +1,10 @@
-/* Copyright(C) 2016 Verizon. All rights reserved. */
+/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
 #include <string.h>
 
 #include "dbg.h"
 #include "platform.h"
-#include "protocol.h"
+#include "ott_protocol.h"
 #include "ott_def.h"
 
 #include "mbedtls/net.h"
@@ -111,15 +111,17 @@ void ott_protocol_deinit(void)
 }
 #endif
 
-proto_result ott_set_auth(const uint8_t *d_ID, uint16_t d_sec_sz,
-                        const uint8_t *d_sec)
+proto_result ott_set_auth(const uint8_t *d_id, uint32_t d_id_sz,
+                        const uint8_t *d_sec, uint32_t d_sec_sz)
 {
-        if (d_ID == NULL || d_sec == NULL || d_sec_sz == 0 ||
+	if ((d_id == NULL) || (d_id_sz != OTT_UUID_SZ))
+		return PROTO_INV_PARAM;
+        if (d_sec == NULL || d_sec_sz == 0 ||
 			(d_sec_sz + OTT_UUID_SZ > PROTO_DATA_SZ))
 		return PROTO_INV_PARAM;
 
 	/* Store the auth information for establishing connection to the cloud */
-	memcpy(auth.dev_ID, d_ID, OTT_UUID_SZ);
+	memcpy(auth.dev_ID, d_id, OTT_UUID_SZ);
 	auth.d_sec = malloc(sizeof(array_t) + d_sec_sz * sizeof (uint8_t));
 	auth.d_sec->sz = d_sec_sz;
 	memcpy(auth.d_sec->bytes, d_sec, auth.d_sec->sz);
@@ -240,7 +242,7 @@ proto_result ott_protocol_init(void)
 	return PROTO_OK;
 }
 
-ott_status ott_initiate_connection(const char *host, const char *port)
+proto_result ott_initiate_connection(const char *host, const char *port)
 {
 	PROTO_TIME_PROFILE_BEGIN();
 	if (host == NULL || port == NULL)

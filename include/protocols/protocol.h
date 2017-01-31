@@ -1,4 +1,4 @@
-/* Copyright(C) 2016 Verizon. All rights reserved. */
+/* Copyright(C) 2017 Verizon. All rights reserved. */
 
 #ifndef __PROTOCOL
 #define __PROTOCOL
@@ -6,37 +6,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "dbg.h"
+#include "protocol_def.h"
 
-/* Superset of the protocol API execution results */
-typedef enum {			/* Defines return codes of this API. */
-	PROTO_OK,		/* API call exited without any errors */
-	PROTO_ERROR,		/* API call exited with errors */
-	PROTO_TIMEOUT,		/* Timed out waiting for API to finish */
-	PROTO_NO_MSG,		/* There are no messages to be retrieved */
-	PROTO_INV_PARAM		/* Invalid parameters passed to the API */
-} proto_result;
-
-/*
- * Events delivered to the send and receive callback routines. This will be a
- * superset of all the types of events supported by underlying protocols
- */
-typedef enum {
-	PROTO_RCVD_NONE,		/* Default value; No message body */
-	/* Outgoing message events: */
-	PROTO_RCVD_ACK,		/* Received an ACK for the last message sent */
-	PROTO_RCVD_NACK,		/* Received a NACK for the last message sent */
-	PROTO_SEND_TIMEOUT,	/* Timed out waiting for a response */
-
-	/* Incoming message events: */
-	PROTO_RCVD_CMD_SL,	/* Received sleep time from the cloud */
-	PROTO_RCVD_CMD_PI,	/* Received polling interval from the cloud */
-	PROTO_RCVD_QUIT,	/* Received quit */
-	PROTO_RCVD_RCV_UPD	/* Received an update message from the cloud */
-} proto_event;
-
-typedef uint32_t proto_buf_sz;
-typedef void (*proto_callback)(const void *buf, proto_buf_sz sz,
-                                                proto_event event);
 
 #ifdef OTT_PROTOCOL
 #include "ott_limits.h"
@@ -49,177 +20,264 @@ Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
 #endif
 
 /*
- * Define this to profile the OTT functions. The time recorded also includes the
- * time taken to receive the data over the network and time spent in the modem.
- * The initialization function is not profiled.
+ * Protocol API:
+ * This header lays out the generic Protocol API which is used to communicate
+ * with the cloud. APIs also provide means for the protocols which need polling
+ * to cloud periodically to retriece updates if any. Also, includes API to set
+ * authentication details for the protocols.
  */
-/*#define PROTO_TIME_PROFILE*/
+
 
 /*
- * Define this to explicitly show the time it takes to connect to the network /
- * send / receive data over the network. This allows to compute how much time is
- * spent in pure crypto computation / preparing and unwrapping the data packets.
- * OTT_TIME_PROFILE must be defined for this to work.
+ * Optional API to initialize the Protocol module with device authorization
+ * credential which will be needed in all future communications with the
+ * cloud serivices.
+ * Parameters:
+ * 	d_id     : Pointer to a unique device ID.
+ *      d_id_sz  : size of the unique device id.
+ * 	d_sec_sz : Size of the device secret in bytes.
+ * 	d_sec    : Pointer to the buffer holding the device secret.
+ *
+ * Returns:
+ * 	PROTO_OK    : Setting authorization credentials was successful.
+ * 	PROTO_INV_PARAM : Passed parameters are not valid.
+ * Note: This API must be called before ott_send_auth_to_cloud API. Depending on
+ * 	 the protocol used, d_id or d_sec or can be optional.
  */
-/*#define PROTO_EXPLICIT_NETWORK_TIME*/
+proto_result proto_set_auth(const uint8_t *d_id, uint32_t d_id_sz,
+                         const uint8_t *d_sec, uint32_t d_sec_sz);
 
 /*
- * Define this to profile the maximum heap used by mbedTLS. This is done by
- * providing a custom implementation of calloc(). Everytime the connection is
- * closed through ott_close_connection(), the maximum amount of heap used until
- * that point of time is printed to the debug UART.
+ * Retrieves default polling interval in mili seconds which will be used to
+ * querry cloud for updates if any.
+ * Returns:
+ * 	Interval time in miliseconds if defined or 0
  */
-/*#define PROTO_HEAP_PROFILE*/
+uint32_t proto_get_default_polling();
 
-#ifdef PROTO_TIME_PROFILE
-#ifdef PROTO_EXPLICIT_NETWORK_TIME
+/*
+ * Maintenance of the protocol which can be used to complete any
+ * pending internal protocol activities before upper level possibly Application
+ * decides to sleep for example or relinquish protocol control.
+ * Beside maintenance, it also includes reaching out to
+ * cloud if polling is due to retrieve messages if any
+ * Parameters:
+ * 	poll_due: True if polling of the cloud is require along with protocol
+ *		  protocol maintenance
+ */
+void proto_maintenance(bool poll_due);
 
-extern uint32_t network_time_ms;
+/*
+ * Setting receiving buffer where all the incoming data will be stored and
+ * callback to indicate received data to upper level
+ * Parameters:
+ * 	rcv_buf : Pointer to a buffer.
+ * 	sz : Size of buffer.
+ *	rcv_cb : callback on receiving message
+ * Returns:
+ * 	PROTO_OK    : Setting receive buffer was successful.
+ * 	PROTO_INV_PARAM : Passed parameters are not valid.
+ */
+proto_result proto_set_recv_buffer_cb(void *rcv_buf, uint32_t sz,
+				proto_callback rcv_cb);
 
-#define PROTO_TIME_PROFILE_BEGIN() do { \
-	proto_begin = platform_get_tick_ms(); \
-	network_time_ms = 0; \
-} while(0)
+/*
+ * Initialize the OTT Protocol module with device authorization credential which
+ * will be needed in all future communications with the cloud serivices.
+ * Parameters:
+ * 	host : A NULL terminated string specifying the host name.
+ * 	port : A NULL terminated string specifying the port number.
+ *
+ * Returns:
+ * 	PROTO_OK : Setting host and port was successful.
+ * 	PROTO_INV_PARAM : Passed parameters are not valid.
+ * Note: This must be called at least once before attempting to send messages.
+ */
+proto_result ott_set_destination(const char *host, const char *port);
 
-#define PROTO_TIME_PROFILE_END(label) do { \
-	dbg_printf("["label":%u]", platform_get_tick_ms() - proto_begin); \
-	dbg_printf(" [NETW:%u]\n", network_time_ms); \
-} while(0)
+/*
+ * Initialize the OTT Protocol module. This will initialize the underlying modem
+ * / TCP drivers, set up the TLS parameters and initialize any certificates, if
+ * needed. This must be called once before using any of the APIs in this module.
+ *
+ * Parameters:
+ * 	None
+ *
+ * Returns:
+ * 	PROTO_OK    : The API and underlying drivers were properly initialized.
+ * 	PROTO_ERROR : Initialization failed.
+ */
+proto_result ott_protocol_init(void);
 
-#else
+/*
+ * Initiate a secure connection to the cloud service. This involves starting the
+ * TCP session and performing the TLS handshake.
+ *
+ * Parameters:
+ * 	host : The server to connect to.
+ * 	port : The port to connect to.
+ *
+ * Returns:
+ *	PROTO_OK        : Successfully established a connection.
+ *	PROTO_INV_PARAM : NULL pointers were provided in place of host / port.
+ *	PROTO_ERROR     : There was an error in establishing the connection.
+ *	PROTO_TIMEOUT   : Timed out performing the TLS handshake.
+ */
+proto_result ott_initiate_connection(const char *host, const char *port);
 
-#define PROTO_TIME_PROFILE_BEGIN() \
-	proto_begin = platform_get_tick_ms()
+/*
+ * Close the TLS connection
+ *
+ * Parameters:
+ * 	None
+ *
+ * Returns:
+ * 	PROTO_OK    : Connection closed.
+ * 	PROTO_ERROR : Failed to close connection and notify cloud service.
+ */
+proto_result ott_close_connection(void);
 
-#define PROTO_TIME_PROFILE_END(label) \
-	dbg_printf("["label":%u]\n", platform_get_tick_ms() - proto_begin)
+/*
+ * Sends a message to the cloud service. The message is successfully
+ * delivered if this call exits with the received response has the
+ * ACK flag set. This call is blocking in nature.
+ *
+ * Parameters:
+ *	buf : Message to send.
+ *	sz : Size of the message in bytes.
+ * 	cb : Callback to indicate the event related to send activity.
+ *
+ * Returns:
+ * 	PROTO_OK        : message was sent to the cloud.
+ * 	PROTO_INV_PARAM : Invalid parameters
+ * 	PROTO_ERROR     : Sending the message failed.
+ * 	PROTO_TIMEOUT   : Timed out sending the message. Sending failed.
+ */
+proto_result ott_send_bytes_to_cloud(const void *buf, uint32_t sz,
+                                        proto_callback cb);
 
-#endif	/* PROTO_EXPLICIT_NETWORK_TIME */
+/*
+ * Send a control message to the cloud service. This message has no data field
+ * associated with it, i.e. the message type is MT_NONE. It is used to poll the
+ * cloud for pending messages or to notify it about the termination of the
+ * connection or send an ACK / NACK.
+ * This message type may or may not have a response.
+ * This call is blocking in nature.
+ *
+ * Parameters:
+ * 	c_flags : Control flags
+ *
+ * Returns:
+ * 	PROTO_OK        : Message was sent to the cloud service.
+ * 	PROTO_INV_PARAM :	Flag parameter is invalid (Eg. ACK+NACK).
+ * 	PROTO_ERROR     : Sending the message failed due to a TCP/TLS error.
+ * 	PROTO_TIMEOUT   : Timed out sending the message. Sending failed.
+ */
+proto_result ott_send_ctrl_msg(c_flags_t c_flags);
 
-#else
+/*
+ * Send positive acknowledgment to cloud
+ *
+ * Parameters:
+ *
+ *
+ * Returns:
+ *
+ */
+void ott_send_ack(void);
 
-#define PROTO_TIME_PROFILE_BEGIN()
-#define PROTO_TIME_PROFILE_END(label)
+/*
+ * Send negative acknowledgment to cloud and also notify it about quitting
+ * current connection.
+ *
+ * Parameters:
+ *
+ *
+ * Returns:
+ *
+ */
+void ott_send_nack(void);
 
-#endif	/* PROTO_TIME_PROFILE */
+/*
+ * Notify the cloud service that the device has restarted and needs to retrieve
+ * its initial data. A restart could be a result of a number of things, such as
+ * a watch dog timeout, power glitch etc.
+ * This message type does have a response.
+ * This call is blocking in nature.
+ *
+ * Parameters:
+ * 	cb : callback to indicate send status.
+ *
+ * Returns:
+ * 	PROTO_OK      : Message was sent to the cloud service.
+ * 	PROTO_ERROR   : Sending the message failed.
+ *      PROTO_TIMEOUT   : Timed out sending the message. Sending failed.
+ */
+proto_result ott_resend_init_config(proto_callback cb);
 
-static inline proto_result proto_init()
-{
-#ifdef OTT_PROTOCOL
-                return ott_protocol_init();
-#elseif SMSNAS_PROTOCOL
-                return PROTO_OK;
-#endif
-}
+/*
+ * Retrieve the cloud service's most recent response, if any. This call is non-
+ * blocking in nature.
+ *
+ * Parameters:
+ * 	msg : Pointer to buffer that will store the message data, type and
+ * 	      associated control flags.
+ * 	sz  : Maximum size of the buffer.
+ *
+ * Returns:
+ * 	PROTO_OK        : Message successfully retrieved
+ * 	PROTO_NO_MSG    : No message to retrieve.
+ * 	PROTO_INV_PARAM : A NULL pointer was supplied / invalid maximum buffer size
+ * 	PROTO_ERROR     : An error occurred in the TCP/TLS layer.
+ */
+proto_result ott_retrieve_msg(msg_t *msg, uint16_t sz);
 
-static inline cost uint8_t *proto_get_rcvd_msg_ptr(void *msg)
-{
-#ifdef OTT_PROTOCOL
-        return ott_get_rcv_buffer(msg);
-#elseif SMSNAS_PROTOCOL
-        return NULL;
-#endif
-}
+/*
+ * Retrieve the binary data from the received message
+ *
+ * Parameters:
+ * 	msg : Pointer to received buffer.
+ *
+ * Returns:
+ * 	data pointer or NULL if fails.
+ */
+const uint8_t *ott_get_rcv_buffer(void *msg);
 
-static inline proto_result proto_set_auth(const uint8_t *d_ID,
-                                        uint16_t d_sec_sz, const uint8_t *d_sec)
-{
-#ifdef OTT_PROTOCOL
-        return ott_set_auth(d_ID, d_sec_sz, d_sec);
-#else
-        return PROTO_OK;
-#endif
-}
+/*
+ * Retrieve the sleep interval from the received message
+ *
+ * Parameters:
+ * 	msg : Pointer to received buffer.
+ *
+ * Returns:
+ * 	sleep interval or 0 in case of invalid buffer or msg content
+ */
+uint32_t ott_get_sleep_interval(void *msg);
 
-static inline uint32_t proto_get_default_polling()
-{
-#ifdef OTT_PROTOCOL
-        return ott_get_default_polling();
-#else
-        return 0;
-#endif
-}
+/*
+ * Retrieve the received data size
+ *
+ * Parameters:
+ * 	msg : Pointer to received buffer.
+ *
+ * Returns:
+ * 	data length in bytes or 0 in case of invalid buffer or msg content
+ */
+uint32_t ott_get_rcvd_data_len(void *msg);
 
-static inline void proto_initiate_quit(bool send_nack)
-{
-#ifdef OTT_PROTOCOL
-        ott_initiate_quit(send_nack);
-#endif
-}
+/*
+ * Debug helper function to print the string representation of the message type
+ * and flag fields of the command byte along with the details about the body of
+ * the message.
+ *
+ * Parameters:
+ *	msg       : A pointer to an OTT message
+ *	tab_level : Tab level at which the message should be printed
+ *
+ * Returns:
+ * 	None
+ */
+void ott_interpret_msg(msg_t *msg, uint8_t tab_level);
 
-static inline uint32_t proto_get_sleep_interval(void *msg)
-{
-#ifdef OTT_PROTOCOL
-        return ott_get_sleep_interval(msg);
-#elseif SMSNAS_PROTOCOL
-        return 0;
-#endif
-}
-
-static inline uint32_t proto_get_rcvd_data_len(void *msg)
-{
-#ifdef OTT_PROTOCOL
-        return ott_get_rcvd_data_len(msg);
-#elseif SMSNAS_PROTOCOL
-        return 0;
-#endif
-}
-
-static inline proto_result proto_resend_init_config(proto_callback cb)
-{
-#ifdef OTT_PROTOCOL
-        return ott_resend_init_config(cb);
-#elseif SMSNAS_PROTOCOL
-        return PROTO_OK;
-#endif
-}
-
-static inline proto_result proto_send_msg_to_cloud(void *msg, uint32_t sz,
-                                        proto_callback cb)
-{
-#ifdef OTT_PROTOCOL
-        return ott_send_bytes_to_cloud(msg, sz, cb);
-#elseif SMSNAS_PROTOCOL
-        return PROTO_OK;
-#endif
-}
-
-static inline void proto_send_ack()
-{
-#ifdef OTT_PROTOCOL
-        ott_send_ack();
-#elseif SMSNAS_PROTOCOL
-        return;
-#endif
-}
-
-static inline void proto_send_nack()
-{
-#ifdef OTT_PROTOCOL
-        ott_send_nack();
-#elseif SMSNAS_PROTOCOL
-        return;
-#endif
-}
-
-static inline proto_status proto_set_recv_buffer_cb(void *rcv_buf, uint32_t sz,
-                                                        proto_callback rcv_cb)
-{
-
-#ifdef OTT_PROTOCOL
-        return ott_set_recv_buffer(rcv_buf, sz, rcv_cb);
-#elseif SMSNAS_PROTOCOL
-        return PROTO_OK;
-#endif
-}
-
-static void proto_maintenance(bool poll_due)
-{
-#ifdef OTT_PROTOCOL
-        ott_maintenance(poll_due);
-#elseif SMSNAS_PROTOCOL
-        return;
-#endif
-}
 
 #endif

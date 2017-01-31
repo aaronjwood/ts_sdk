@@ -1,10 +1,11 @@
-/* Copyright(C) 2016 Verizon. All rights reserved. */
+/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
 #ifndef __OTT_PROTOCOL
 #define __OTT_PROTOCOL
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "protocol_def.h"
 
 /*
  * OTT Protocol API:

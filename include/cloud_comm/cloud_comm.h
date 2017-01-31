@@ -1,10 +1,11 @@
-/* Copyright(C) 2016 Verizon. All rights reserved. */
+/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
 #ifndef __CLOUD_COMM
 #define __CLOUD_COMM
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "protocol.h"
 
 /**
  * \file cloud_comm.h

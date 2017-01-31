@@ -3,7 +3,9 @@
 #ifndef __OTT_DEF
 #define __OTT_DEF
 
-#include "protocol.h"
+#include <stdint.h>
+#include <stdbool.h>
+#include "protocol_def.h"
 
 #define RECV_TIMEOUT_MS		5000
 #define MULT			1000
@@ -11,7 +13,7 @@
 #define VERSION_BYTE		((uint8_t)0x01)
 #define TIMEOUT_MS		5000
 
-#define OTT_UUID_SZ                     16
+#define OTT_UUID_SZ             16
 
 typedef enum {			/* Defines control flags. */
 	CF_NONE = 0x00,		/* No flag set */
@@ -76,5 +78,13 @@ static struct {
 	proto_callback rcv_cb;
 	proto_callback send_cb;
 } session;
+
+/*
+ * Define this to profile the maximum heap used by mbedTLS. This is done by
+ * providing a custom implementation of calloc(). Everytime the connection is
+ * closed through ott_close_connection(), the maximum amount of heap used until
+ * that point of time is printed to the debug UART.
+ */
+/*#define OTT_HEAP_PROFILE*/
 
 #endif

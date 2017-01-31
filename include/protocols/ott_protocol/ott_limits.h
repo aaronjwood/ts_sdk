@@ -1,7 +1,7 @@
-/* Copyright(C) 2016 Verizon. All rights reserved. */
+/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
-#ifndef __OTT_MSG
-#define __OTT_MSG
+#ifndef __OTT_LIM
+#define __OTT_LIM
 
 /* Global header defines limits of the field sizes of OTT messages. Macro names
  * will be used globally and must not be changed

@@ -1,4 +1,4 @@
-/* Copyright(C) 2016 Verizon. All rights reserved. */
+/* Copyright(C) 2016,2017 Verizon. All rights reserved. */
 
 #include <string.h>
 #include <stdlib.h>
@@ -7,9 +7,10 @@
 #include "cloud_comm.h"
 #include "cloud_comm_def.h"
 #include "protocol.h"
+#include "protocol_def.h"
 #include "dbg.h"
 
-/* Default cloud polling time in miliseconds */
+/* Default cloud polling time in miliseconds if supported by the protocol */
 uint32_t init_polling_ms;
 
 #ifdef PROTO_TIME_PROFILE
