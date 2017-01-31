@@ -5,6 +5,9 @@
 #include "protocol_def.h"
 #include "protocol.h"
 
+/* Very thin layer sits between cloud_comm api and undelying protocol depending
+ * on the compilation switch
+ */
 proto_result proto_init()
 {
 #ifdef OTT_PROTOCOL
@@ -20,6 +23,15 @@ cost uint8_t *proto_get_rcvd_msg_ptr(void *msg)
         return ott_get_rcv_buffer(msg);
 #elseif SMSNAS_PROTOCOL
         return NULL;
+#endif
+}
+
+proto_result proto_set_destination(const char *host, const char *port)
+{
+#ifdef OTT_PROTOCOL
+        return ott_set_destination(host, port);
+#else
+        return PROTO_OK;
 #endif
 }
 
@@ -119,6 +131,15 @@ void proto_maintenance(bool poll_due)
 {
 #ifdef OTT_PROTOCOL
         ott_maintenance(poll_due);
+#elseif SMSNAS_PROTOCOL
+        return;
+#endif
+}
+
+void proto_interpret_msg(void *msg, uint8_t tab_level)
+{
+#ifdef OTT_PROTOCOL
+        ott_interpret_msg(msg, tab_level);
 #elseif SMSNAS_PROTOCOL
         return;
 #endif

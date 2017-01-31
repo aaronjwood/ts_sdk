@@ -465,10 +465,12 @@ proto_result ott_send_bytes_to_cloud(const void *buf, uint32_t sz,
 	 */
 	c_flags_t c_flags = session.pend_ack ? (CF_PENDING | CF_ACK) :
 		CF_PENDING;
-	if (ott_send_status_to_cloud(c_flags, sz,
-				(const uint8_t *)buf->buf_ptr) != OTT_OK) {
+
+	proto_result res = ott_send_status_to_cloud(c_flags, sz,
+						(const uint8_t *)buf->buf_ptr);
+	if (res != PROTO_OK) {
 		ott_initiate_quit(false);
-		return PROTO_ERROR;
+		return res;
 	}
 
 	session.send_cb = cb;

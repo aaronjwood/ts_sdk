@@ -204,7 +204,7 @@ cc_send_result cc_resend_init_config(cc_callback_rtn cb)
 		reset_conn_states();
 		return CC_SEND_FAILED;
 	}
-
+	conn_out.send_in_progress = false;
 	conn_out.cb = cb;
 	conn_out.buf = NULL;
 
@@ -262,5 +262,5 @@ void cc_interpret_msg(const cc_buffer_desc *buf, uint8_t tab_level)
 {
 	if (!buf || !buf->buf_ptr)
 		return;
-	ott_interpret_msg((msg_t *)buf->buf_ptr, tab_level);
+	proto_interpret_msg(buf->buf_ptr, tab_level);
 }
