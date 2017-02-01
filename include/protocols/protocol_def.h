@@ -5,6 +5,14 @@
 
 #include <stdint.h>
 
+#if defined (OTT_PROTOCOL)
+#include "ott_limits.h"
+#elif defined (SMSNAS_PROTOCOL)
+#include "smsnas_limits.h"
+#else
+Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
+#endif
+
 /* Superset of the protocol API execution results */
 typedef enum {			/* Defines return codes of this API. */
 	PROTO_OK,		/* API call exited without any errors */
@@ -29,7 +37,7 @@ typedef enum {
 	PROTO_RCVD_CMD_SL,	/* Received sleep time from the cloud */
 	PROTO_RCVD_CMD_PI,	/* Received polling interval from the cloud */
 	PROTO_RCVD_QUIT,	/* Received quit */
-	PROTO_RCVD_RCV_UPD	/* Received an update message from the cloud */
+	PROTO_RCVD_UPD         /* Received an update message from the cloud */
 } proto_event;
 
 /*

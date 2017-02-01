@@ -12,10 +12,11 @@
 #include "dbg.h"
 #include "dev_creds.h"
 
-CC_SEND_BUFFER(send_buffer, OTT_DATA_SZ);
-CC_RECV_BUFFER(recv_buffer, OTT_DATA_SZ);
+CC_SEND_BUFFER(send_buffer, PROTO_DATA_SZ);
+CC_RECV_BUFFER(recv_buffer, PROTO_DATA_SZ);
 
-#define STATUS_SZ	10
+#define DEVICE_UUID_SZ_BYTES	16
+#define STATUS_SZ		10
 static uint8_t status[STATUS_SZ] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
 static cc_data_sz send_data_sz = sizeof(status);
@@ -71,10 +72,14 @@ int main(int argc, char *argv[])
 	dbg_printf("Begin:\n");
 
 	dbg_printf("Initializing communications module\n");
-	ASSERT(cc_init(d_ID, sizeof(d_sec), d_sec));
+	ASSERT(cc_init());
 
 	dbg_printf("Setting remote host and port\n");
-	ASSERT(cc_set_remote_host(SERVER_NAME, SERVER_PORT));
+	ASSERT(cc_set_destination(SERVER_NAME, SERVER_PORT));
+
+	dbg_printf("Setting device authentiation credentials\n");
+	ASSERT(cc_set_auth_credentials(d_ID, DEVICE_UUID_SZ_BYTES,
+		d_sec, sizeof(d_sec)));
 
 	int32_t next_wakeup_interval = -1;	/* Interval value in ms */
 	uint32_t cur_ts;			/* Current timestamp in ms */
@@ -106,7 +111,7 @@ int main(int argc, char *argv[])
 
 			dbg_printf("\tStatus (%u/%u)\n",
 					i + 1, NUM_STATUSES);
-			ASSERT(cc_send_bytes_to_cloud(&send_buffer,
+			ASSERT(cc_send_msg_to_cloud(&send_buffer,
 						send_data_sz,
 						send_cb) == CC_SEND_SUCCESS);
 		}

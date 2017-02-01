@@ -151,22 +151,24 @@ bool cc_set_destination(const char *host, const char *port);
 /**
  * \brief
  * Sets device authorization credentials which will be used to authenticate with
- * the cloud in all future communications.
+ * the cloud in all future communications. This API is optional if protocol does
+ * not need authentication with the cloud.
  *
- * \param[in] d_ID     : Pointer to a 16 byte device ID.
- * \param[in] d_sec_sz : Size of the device secret in bytes.
+ * \param[in] d_id     : Pointer to a unique device ID.
+ * \param[in] d_id _sz : size of the d_id
  * \param[in] d_sec    : Pointer to the buffer holding the device secret.
- *
+ * \param[in] d_sec_sz : Size of the device secret in bytes.
  *
  * \returns
- *	True  : Host name and port were set properly.\n
- *	False : Failed to set the host name / host port.
+ *	True  : device secrets were set properly.\n
+ *	False : Failed to set authentication due to wrong parameters.
  *
  * This API must be called at least once before attempting to attempting to
- * communicate with the cloud
+ * communicate with the cloud. Based on protocol d_id/d_sec can be optional.
+ * NOTE: OTT protocol requires all the fields.
  */
-bool cc_set_auth_credentials(const uint8_t *d_ID, uint16_t d_sec_sz,
-			const uint8_t *d_sec);
+bool cc_set_auth_credentials(const uint8_t *d_id, uint32_t d_id_sz,
+ 				const uint8_t *d_sec, uint32_t d_sec_sz);
 /**
  * \brief
  * Get a pointer to the first byte of the send buffer from the buffer

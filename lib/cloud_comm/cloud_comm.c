@@ -141,8 +141,8 @@ bool cc_set_destination(const char *host, const char *port)
 	return true;
 }
 
-bool cc_set_auth_credentials(const uint8_t *d_ID, uint16_t d_sec_sz,
-			const uint8_t *d_sec)
+bool cc_set_auth_credentials(const uint8_t *d_id, uint32_t d_id_sz,
+				const uint8_t *d_sec, uint32_t d_sec_sz)
 {
 
 	PROTO_SET_AUTH(d_id, d_id_sz, d_sec, d_sec_sz);

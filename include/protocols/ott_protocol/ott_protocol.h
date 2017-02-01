@@ -35,17 +35,19 @@ proto_result ott_protocol_init(void);
  * Initialize the OTT Protocol module with device authorization credential which
  * will be needed in all future communications with the cloud serivices.
  * Parameters:
- * 	d_ID     : Pointer to a 16 byte device ID.
+ * 	d_id     : Pointer to a device ID.
+ *      d_id_sz  : Size in bytes of d_id
+ *      d_sec    : Pointer to the buffer holding the device secret.
  * 	d_sec_sz : Size of the device secret in bytes.
- * 	d_sec    : Pointer to the buffer holding the device secret.
+ *
  *
  * Returns:
  * 	PROTO_OK    : Setting authorization credentials was successful.
  * 	PROTO_INV_PARAM : Passed parameters are not valid.
- * Note: This API must be called before ott_send_auth_to_cloud API.
+ * Note: This API must be called before any communication with the cloud.
  */
-proto_result ott_set_auth(const uint8_t *d_ID, uint16_t d_sec_sz,
-                         const uint8_t *d_sec);
+ proto_result ott_set_auth(const uint8_t *d_id, uint32_t d_id_sz,
+                         const uint8_t *d_sec, uint32_t d_sec_sz);
 
 /*
  * Retrieves default polling interval in mili seconds
@@ -206,5 +208,5 @@ uint32_t ott_get_rcvd_data_len(void *msg);
  * Returns:
  * 	None
  */
-void ott_interpret_msg(msg_t *msg, uint8_t tab_level);
+void ott_interpret_msg(void *msg, uint8_t tab_level);
 #endif

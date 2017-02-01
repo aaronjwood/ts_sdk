@@ -7,10 +7,8 @@
 #include <stdbool.h>
 #include "protocol_def.h"
 #ifdef OTT_PROTOCOL
-#include "ott_limits.h"
 #include "ott_protocol.h"
 #elseif SMSNAS_PROTOCOL
-#include "smsnas_limits.h"
 #include "smsnas_protocol.h"
 #else
 Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
@@ -37,7 +35,7 @@ Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
 } while(0)
 
 #define PROTO_SET_AUTH(d_id, d_id_sz, d_sec, d_sec_sz) do { \
-        if (ott_set_auth((d_id), (d_id_sz), (d_sec_sz), (d_sec)) != PROTO_OK) \
+        if (ott_set_auth((d_id), (d_id_sz), (d_sec), (d_sec_sz)) != PROTO_OK) \
 		return false; \
 } while(0)
 
