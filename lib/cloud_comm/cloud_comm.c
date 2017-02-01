@@ -2,7 +2,6 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "protocol.h"
 #include "platform.h"
 #include "cloud_comm.h"
 #include "cloud_comm_def.h"
@@ -28,9 +27,18 @@ static uint32_t proto_begin;
 			conn_in.cb((cc_buffer_desc *)(_buf), (_evt)); \
 	} while(0)
 
-/* Receive callback */
-static void cc_recv_cb(const void *buf, proto_event event)
+/* Reset the connection (incoming and outgoing) and session structures */
+static inline void reset_conn_states(void)
 {
+	conn_out.send_in_progress = false;
+	conn_out.buf = NULL;
+	conn_out.cb = NULL;
+}
+
+/* Receive callback */
+static void cc_recv_cb(const void *buf, uint32_t sz, proto_event event)
+{
+	(void)(sz);
 	switch(event) {
 	case PROTO_RCVD_UPD:
 		INVOKE_RECV_CALLBACK(buf, CC_STS_RCV_UPD);
@@ -56,8 +64,9 @@ static void cc_recv_cb(const void *buf, proto_event event)
 }
 
 /* Send callback */
-static void cc_send_cb(const void *buf, proto_event event)
+static void cc_send_cb(const void *buf, uint32_t sz, proto_event event)
 {
+	(void)(sz);
 	cc_event ev;
 	switch(event) {
 	case PROTO_RCVD_ACK:
@@ -66,7 +75,7 @@ static void cc_send_cb(const void *buf, proto_event event)
 	case PROTO_RCVD_NACK:
 		ev = CC_STS_NACK;
 		break;
-	case PROTO_SEND_TIMEOUT;
+	case PROTO_SEND_TIMEOUT:
 		ev = CC_STS_SEND_TIMEOUT;
 		break;
 	default:
@@ -76,14 +85,6 @@ static void cc_send_cb(const void *buf, proto_event event)
 	}
 	INVOKE_SEND_CALLBACK(buf, ev);
 
-}
-
-/* Reset the connection (incoming and outgoing) and session structures */
-static inline void reset_conn_states(void)
-{
-	conn_out.send_in_progress = false;
-	conn_out.buf = NULL;
-	conn_out.cb = NULL;
 }
 
 static inline void init_state(void)
@@ -116,14 +117,14 @@ const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf)
 	 * Depending on the type of message in the buffer and protocol, return
 	 * pointer to binary data
 	 */
-	return PROTO_GET_RCVD_MSG_PTR(buf->buf_ptr);
+	PROTO_GET_RCVD_MSG_PTR(buf->buf_ptr);
 
 }
 
 uint32_t cc_get_sleep_interval(const cc_buffer_desc *buf)
 {
 	if (!buf || !buf->buf_ptr)
-		return NULL;
+		return 0;
 	PROTO_GET_SLEEP_INTERVAL(buf->buf_ptr);
 }
 
@@ -193,7 +194,7 @@ cc_send_result cc_resend_init_config(cc_callback_rtn cb)
 
 	conn_out.send_in_progress = true;
 
-	PROTO_RESEND_INIT_CONFIG(cb);
+	PROTO_RESEND_INIT_CONFIG(cc_send_cb);
 
 	conn_out.send_in_progress = false;
 	conn_out.cb = cb;

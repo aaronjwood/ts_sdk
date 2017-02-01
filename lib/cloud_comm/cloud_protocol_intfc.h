@@ -6,9 +6,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "protocol_def.h"
-#ifdef OTT_PROTOCOL
+#if defined (OTT_PROTOCOL)
 #include "ott_protocol.h"
-#elseif SMSNAS_PROTOCOL
+#elif defined (SMSNAS_PROTOCOL)
 #include "smsnas_protocol.h"
 #else
 Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
@@ -18,7 +18,7 @@ Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
  * on the compilation switch
  */
 
-#ifdef OTT_PROTOCOL
+#if defined (OTT_PROTOCOL)
 
 #define PROTO_INIT() do { \
         if (ott_protocol_init() != PROTO_OK) \
@@ -64,14 +64,14 @@ Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
 #define PROTO_SEND_NACK() ott_send_nack()
 
 #define PROTO_SET_RECV_BUFFER_CB(rcv_buf, sz, rcv_cb) do { \
-        if (ott_set_recv_buffer_cb((rcv_buf), (sz), (rcv_cb)) != PROTO_OK)
+        if (ott_set_recv_buffer_cb((rcv_buf), (sz), (rcv_cb)) != PROTO_OK) \
                 return CC_RECV_FAILED; \
 } while(0)
 
 #define PROTO_MAINTENANCE(poll_due) ott_maintenance((poll_due))
 #define PROTO_INTERPRET_MSG(msg, tab_level) ott_interpret_msg((msg), (tab_level))
 
-#elseif SMSNAS_PROTOCOL
+#elif defined (SMSNAS_PROTOCOL)
 
 #define PROTO_INIT()
 #define PROTO_GET_RCVD_MSG_PTR(msg)

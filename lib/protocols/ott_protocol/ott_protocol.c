@@ -702,7 +702,7 @@ static proto_result ott_send_status_to_cloud(c_flags_t c_flags,
 	PROTO_TIME_PROFILE_BEGIN();
 	/* Check for correct parameters */
 	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_QUIT) ||
-			(status_sz > OTT_DATA_SZ) || (status == NULL))
+			(status_sz > PROTO_DATA_SZ) || (status == NULL))
 		return PROTO_INV_PARAM;
 
 	proto_result ret;
@@ -738,7 +738,7 @@ proto_result ott_send_msg_to_cloud(const void *buf, uint32_t sz,
 	 * leads to the device being authenticated.
 	 */
 	if (!session.auth_done)
-		if (!establish_session(session.host, session.port, false))
+		if (!establish_session(false))
 			return PROTO_ERROR;
 
 	/*
@@ -749,8 +749,7 @@ proto_result ott_send_msg_to_cloud(const void *buf, uint32_t sz,
 	c_flags_t c_flags = session.pend_ack ? (CF_PENDING | CF_ACK) :
 		CF_PENDING;
 
-	proto_result res = ott_send_status_to_cloud(c_flags, sz,
-						(const uint8_t *)buf->buf_ptr);
+	proto_result res = ott_send_status_to_cloud(c_flags, sz, buf);
 	if (res != PROTO_OK) {
 		ott_initiate_quit(false);
 		return res;
@@ -789,7 +788,7 @@ static proto_result ott_send_restarted(c_flags_t c_flags)
 	if (!flags_are_valid(c_flags))
 		return PROTO_INV_PARAM;
 
-	ott_status ret;
+	proto_result ret;
 	unsigned char byte = (uint8_t)(c_flags | MT_RESTARTED);
 
 	/* Send the command byte */
@@ -809,7 +808,7 @@ proto_result ott_resend_init_config(proto_callback cb)
 	 * leads to the device being authenticated.
 	 */
 	if (!session.auth_done)
-		if (!establish_session(session.host, session.port, false))
+		if (!establish_session(false))
 			return PROTO_ERROR;
 
 	/*
@@ -927,7 +926,7 @@ void ott_maintenance(bool poll_due)
 {
 	if (session.auth_done || poll_due) {
 		if (!session.auth_done)
-			if (!establish_session(session.host, session.port, true))
+			if (!establish_session(true))
 				return;
 		while (session.pend_bit || session.pend_ack) {
 			c_flags_t c_flags = session.pend_ack ? CF_ACK : CF_NONE;
@@ -960,7 +959,7 @@ uint32_t ott_get_rcvd_data_len(void *msg)
 	if (!msg)
 		return 0;
 	m_type_t m_type;
-	msg_t *ptr_to_msg = (msg_t *)(buf->buf_ptr);
+	msg_t *ptr_to_msg = (msg_t *)(msg);
 	OTT_LOAD_MTYPE(ptr_to_msg->cmd_byte, m_type);
 
 	switch (m_type) {
@@ -984,7 +983,7 @@ void ott_interpret_msg(void *buf, uint8_t t)
 	uint32_t sl_int_sec;
 
 	OTT_LOAD_MTYPE(msg->cmd_byte, m_type);
-	OTT_LOAD_FLAGS((msg->cmd_byte, c_flags);
+	OTT_LOAD_FLAGS(msg->cmd_byte, c_flags);
 	interpret_type_flags(m_type, c_flags, t);
 	switch (m_type) {
 	case MT_UPDATE:
