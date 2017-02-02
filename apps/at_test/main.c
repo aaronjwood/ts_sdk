@@ -3,7 +3,7 @@
 #include <string.h>
 #include "dbg.h"
 #include "uart.h"
-#include "at.h"
+#include "at_lte.h"
 #include "platform.h"
 
 const char *host = "httpbin.org";
