@@ -79,10 +79,10 @@ typedef struct {		/* Cloud communication buffer descriptor */
 #define __compile_time_assert(predicate, error_text) \
 	typedef char __get_name(error_text, __LINE__)[2*!!(predicate) - 1]
 
-#define CC_MIN_RECV_BUF_SZ	5
-#define CC_MIN_SEND_BUF_SZ	1
-#define CC_MAX_SEND_BUF_SZ	PROTO_DATA_SZ
-#define CC_MAX_RECV_BUF_SZ	PROTO_DATA_SZ
+#define CC_MIN_RECV_BUF_SZ	PROTO_MIN_RECV_BUF_SZ
+#define CC_MIN_SEND_BUF_SZ	PROTO_MIN_SEND_BUF_SZ
+#define CC_MAX_SEND_BUF_SZ	PROTO_MAX_SEND_BUF_SZ
+#define CC_MAX_RECV_BUF_SZ	PROTO_MAX_RECV_BUF_SZ
 
 /**
  * The buffer defined by CC_RECV_BUFFER is opaque to the user apart from its
@@ -155,7 +155,7 @@ bool cc_set_destination(const char *host, const char *port);
  * not need authentication with the cloud.
  *
  * \param[in] d_id     : Pointer to a unique device ID.
- * \param[in] d_id _sz : size of the d_id
+ * \param[in] d_id_sz  : size of the d_id
  * \param[in] d_sec    : Pointer to the buffer holding the device secret.
  * \param[in] d_sec_sz : Size of the device secret in bytes.
  *

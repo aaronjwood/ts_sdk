@@ -114,7 +114,7 @@ const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf)
 	if (!buf || !buf->buf_ptr)
 		return NULL;
 	/*
-	 * Depending on the type of message in the buffer and protocol, return
+	 * Depending on the type of message and protocol, return
 	 * pointer to binary data
 	 */
 	PROTO_GET_RCVD_MSG_PTR(buf->buf_ptr);

@@ -14,6 +14,11 @@
 #define PROTO_OVERHEAD_SZ		(PROTO_CMD_SZ + PROTO_LEN_SZ)
 #define PROTO_DATA_SZ                   (PROTO_MAX_MSG_SZ - PROTO_OVERHEAD_SZ)
 
+#define PROTO_MIN_RECV_BUF_SZ           5
+#define PROTO_MIN_SEND_BUF_SZ           1
+#define PROTO_MAX_SEND_BUF_SZ           PROTO_DATA_SZ
+#define PROTO_MAX_RECV_BUF_SZ           PROTO_DATA_SZ
+
 /* Private macro defines related to OTT protocol remote host and port maximum
  * length
  */

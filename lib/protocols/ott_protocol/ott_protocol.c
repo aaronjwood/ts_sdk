@@ -233,7 +233,7 @@ proto_result ott_set_destination(const char *host, const char *port)
 proto_result ott_set_recv_buffer_cb(void *rcv_buf, uint32_t sz,
                                 proto_callback rcv_cb)
 {
-        if (!rcv_buf || (sz >= PROTO_MAX_MSG_SZ))
+        if (!rcv_buf || (sz > PROTO_MAX_MSG_SZ))
                 return PROTO_INV_PARAM;
         session.rcv_buf = rcv_buf;
         session.rcv_sz = sz;
