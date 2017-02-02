@@ -37,11 +37,7 @@ typedef enum at_urc {
 
 /** For modem status check and configuration related commands */
 typedef enum at_modem_stat_command {
-        MODEM_OK = 0, /** simple modem check command i.e. at */
-        ECHO_OFF,
-        CME_CONF,
-        MODEM_RESET,
-        NET_STAT, /** turn on network status urc */
+        NET_STAT = 0, /** turn on network status urc */
         EPS_STAT, /** turn on data network status urc */
         MNO_STAT, /** check mobile network opertor */
         MNO_SET, /** set mobile network opertor */
@@ -80,50 +76,6 @@ static const char *at_urcs[URC_END] = {
 };
 
 static const at_command_desc modem_net_status_comm[MOD_END] = {
-        [MODEM_OK] = {
-                .comm = "at\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "at\r\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
-        [ECHO_OFF] = {
-                .comm = "ate0\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "ate0\r\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\nERROR\r\n",
-                .comm_timeout = 100
-        },
-        [CME_CONF] = {
-                .comm = "at+cmee=1\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
-        [MODEM_RESET] = {
-                /* response will be processed in __at_modem_reset_comm
-                 * function
-                 */
-                .comm = "at+cfun=16\r",
-                .err = NULL,
-                .comm_timeout = 5000
-        },
         [NET_STAT] = {
                 .comm = "at+cereg=1\r",
                 .rsp_desc = {

@@ -19,18 +19,22 @@ typedef enum at_return_codes {
         AT_RSP_TIMEOUT,
         AT_FAILURE,
         AT_TX_FAILURE,
-        AT_TCP_FAILURE,
         AT_WRONG_RSP,
         AT_RECHECK_MODEM
 } at_ret_code;
 
-#define AT_UART_TX_WAIT_MS         10000
-
-/* Delay between successive commands in milisecond, datasheet recommends atleast
+/*
+ * Delay between successive commands in milisecond, datasheet recommends atleast
  * 20mS
  */
-#define AT_COMM_DELAY_MS           20
+#define AT_COMM_DELAY_MS	20
 
+/* in mili seconds, polling for modem */
+#define CHECK_MODEM_DELAY	1000
+
+#define MAX_RSP_LINE		2		/* Some command send response plus OK */
+
+#define AT_CORE_INV_PARAM	UART_INV_PARAM	/* Invalid parameter. */
 /* Enable this macro to display messages, error will alway be reported if this
  * macro is enabled while V2 and V1 will depend on debug_level setting
  */
@@ -76,7 +80,7 @@ static int debug_level;
                                         printf("Fail at line: %d\n", __LINE__); \
                                         return ((y)); \
                                 } \
-                         } while (0);
+                         } while (0)
 
 #define CHECK_SUCCESS(x, y, z)	\
                         do { \
@@ -84,37 +88,9 @@ static int debug_level;
                                         printf("Fail at line: %d\n", __LINE__); \
                                         return (z); \
                                 } \
-                        } while (0);
+                        } while (0)
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
-
-#define IDLE_CHARS	        10
-#define MODEM_RESET_DELAY       25000 /* In mili seconds */
-/* in mili seconds, polling for modem */
-#define CHECK_MODEM_DELAY    1000
-/* maximum timeout value in searching for the network coverage */
-#define NET_REG_CHECK_DELAY     60000 /* In mili seconds */
-
-/* Waiting arbitrarily as we do not know for how many
- * bytes we will be waiting for when modem does not send wrong response in
- * totality
- */
-#define RSP_BUF_DELAY        2000 /* In mili seconds */
-
-/* Intermediate buffer to hold data from uart buffer when disconnect string
- * is detected fully, disconnect string is from the dl mode
- */
-typedef struct _at_intr_buf {
-        /* This buffer does not overflow as it is only being filled when whole
-         * dl disconnect string sequence is detected, total capacity of this
-         * buffer can not exceed beyond UART_RX_BUFFER_SIZE - disconnect string
-         */
-        uint8_t buf[UART_RX_BUFFER_SIZE];
-        buf_sz ridx;
-        buf_sz buf_unread;
-} at_intr_buf;
-
-#define MAX_RSP_LINE            2 /* Some command send response plus OK */
 
 /** response descriptor */
 typedef struct _at_rsp_desc {
@@ -140,4 +116,178 @@ typedef struct _at_command_desc {
         const char *err;
 } at_command_desc;
 
+/*
+ * Serial data receive callback.
+ *
+ * Parameters:
+ *
+ * Returns:
+ *	None
+ */
+typedef void (*at_rx_callback)(void);
+
+/*
+ * URC handler.
+ *
+ * Parameters:
+ * 	urc - Pointer to the buffer containing the URC
+ *
+ * Returns:
+ * 	None
+ */
+typedef void (*at_urc_callback)(const char *urc);
+
+/*
+ * Initialize the AT core module
+ *
+ * Parameters:
+ * 	rx_cb  - A pointer to the serial data receive callback
+ * 	urc_cb - A pointer to the URC handler
+ *
+ * Returns:
+ * 	True  - The AT core module was successfully initialized
+ * 	False - There was an error initializing the module
+ */
+bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb);
+
+/*
+ * Reset the modem.
+ *
+ * Parameters:
+ * 	None
+ *
+ * Returns:
+ * 	AT_RSP_TIMEOUT - Timed out trying to reset modem
+ * 	AT_TX_FAILURE  - Could not establish a link over the UART
+ * 	AT_FAILURE     - Failed to restart the modem
+ * 	AT_SUCCESS     - Successfully reset the modem
+ * 	AT_WRONG_RSP   - Received a wrong response from the modem during reset
+ */
+at_ret_code at_core_modem_reset(void);
+
+/*
+ * Write a set of bytes into the UART connecting the MCU and the modem.
+ *
+ * Parameters:
+ * 	buf - Pointer to buffer containing the command
+ * 	len - Length of the data contained in the buffer
+ *
+ * Returns:
+ * 	True  - If the data was sent out successfully
+ * 	False - If there was an error in sending the data
+ */
+bool at_core_write(uint8_t *buf, uint16_t len);
+
+/*
+ * Retrieve a set of bytes from the UART's read buffer. The maximum number of
+ * bytes that can be retrieved is given by the return value of 'at_core_rx_available'.
+ *
+ * Parameters:
+ * 	buf - Pointer to the buffer where the data will be read into.
+ * 	sz  - Maximum size the supplied buffer can store.
+ *
+ * Returns:
+ * 	Number of bytes actually read into the buffer.
+ * 	AT_CORE_INV_PARAM if null pointer is provided for buffer.
+ */
+int at_core_read(uint8_t *buf, buf_sz sz);
+
+/*
+ * Utility function to scan the internal UART ring buffer to find the pattern or
+ * substring.
+ *
+ * Parameters:
+ * 	start_idx - starting index to being scan for the pattern, -1 is special
+ *		    value where if supplied, it starts with begining of the ring
+ *		    buffer
+ * 	pattern   - Null terminated string.
+ *	nlen      - length of the pattern to be matched
+ *
+ * Returns:
+ * 	-1 if no such string is found inside the read buffer or parameters are
+ *	wrong
+ * 	On success, returns the starting position within the ring buffer of
+ *	matched pattern
+ */
+int at_core_find_pattern(int start_idx, const uint8_t *pattern, buf_sz nlen);
+
+/*
+ * Return the number of unread bytes present in the buffer.
+ *
+ * Paramters:
+ * 	None
+ *
+ * Returns:
+ * 	Number of unread bytes in the buffer.
+ */
+buf_sz at_core_rx_available(void);
+
+/*
+ * Clear the receive buffer associated with the UART link between the MCU and
+ * the modem.
+ *
+ * Parameters:
+ * 	None
+ *
+ * Returns:
+ * 	None
+ */
+void at_core_clear_rx(void);
+
+/*
+ * Write an AT command over the UART link to the modem and receive a response.
+ * This routine is not valid for commands that return a prompt and expect
+ * additional input.
+ *
+ * Parameters:
+ * 	desc      - Command to be sent
+ * 	read_line - Expect the response to be contained in a single line
+ * 	            delimited by <CR><LF> before and after the line.
+ *
+ * Returns:
+ * 	AT_SUCCESS     - Executed the command and received the expected response
+ * 	AT_WRONG_RSP   - Executed the command and received a wrong response
+ * 	AT_RSP_TIMEOUT - Timed out waiting for the response
+ * 	AT_FAILURE     - Failed to execute the command
+ */
+at_ret_code at_core_wcmd(const at_command_desc *desc, bool read_line);
+
+/*
+ * Process any pending URCs.
+ *
+ * Parameters:
+ * 	True  - If the function is being called outside the interrupt and UART
+ * 	        callback context.
+ * 	False - If the function is being called from withint an interrupt or UART
+ * 	        callback context.
+ *
+ * Returns:
+ * 	None
+ */
+void at_core_process_urc(bool mode);
+
+/*
+ * Check if this module is processing a URC outside the interrupt / callback
+ * context.
+ *
+ * Parameters:
+ * 	None
+ *
+ * Returns:
+ * 	When the core AT module is processing a URC outside the interrupt /
+ * 	callback context, return true. Otherwise, false.
+ */
+bool at_core_is_proc_urc(void);
+
+/*
+ * Check if this module is processing a response.
+ *
+ * Parameters:
+ * 	None
+ *
+ * Returns:
+ * 	True  - The core AT module is processing a response
+ * 	False - The core AT module is not processing a response
+ */
+bool at_core_is_proc_rsp(void);
 #endif /* at_core.h */
