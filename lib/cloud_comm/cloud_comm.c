@@ -176,11 +176,11 @@ cc_send_result cc_send_msg_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
 		return CC_SEND_FAILED;
 
 	conn_out.send_in_progress = true;
-	PROTO_SEND_MSG_TO_CLOUD(buf->buf_ptr, sz, cc_send_cb);
-
 	conn_out.cb = cb;
 	conn_out.buf = buf;
+	PROTO_SEND_MSG_TO_CLOUD(buf->buf_ptr, sz, cc_send_cb);
 
+	conn_out.send_in_progress = false;
 	return CC_SEND_SUCCESS;
 }
 
@@ -193,12 +193,11 @@ cc_send_result cc_resend_init_config(cc_callback_rtn cb)
 		return CC_SEND_FAILED;
 
 	conn_out.send_in_progress = true;
-
+	conn_out.cb = cb;
+	conn_out.buf = NULL;
 	PROTO_RESEND_INIT_CONFIG(cc_send_cb);
 
 	conn_out.send_in_progress = false;
-	conn_out.cb = cb;
-	conn_out.buf = NULL;
 
 	return CC_SEND_SUCCESS;
 }
