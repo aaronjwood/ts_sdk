@@ -238,7 +238,6 @@ proto_result ott_set_recv_buffer_cb(void *rcv_buf, uint32_t sz,
         session.rcv_buf = rcv_buf;
         session.rcv_sz = sz;
         session.rcv_cb = rcv_cb;
-        session.recv_in_progress = true;
         return PROTO_OK;
 }
 
@@ -631,15 +630,12 @@ static proto_result ott_send_auth_to_cloud(c_flags_t c_flags)
 
 static bool establish_session(bool polling)
 {
-        /* FIXME: do i need to check rcv buf and rcv related stuff here ?*/
-	if (!session.host || !session.port || !session.rcv_buf ||
-                !session.recv_in_progress)
+	if (!session.host || !session.port || !session.rcv_buf)
 		return false;
 
 retry_connection:
 	if (ott_initiate_connection(session.host, session.port) != PROTO_OK)
 		return false;
-
 	session.conn_done = true;
 	/* Send the authentication message to the cloud. If this is a call to
 	 * simply poll the cloud for possible messages, do not set the PENDING

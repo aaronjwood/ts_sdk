@@ -70,7 +70,6 @@ static struct {
 	bool pend_bit;			/* Cloud has a pending message */
 	bool pend_ack;			/* Set if the device needs to ACK prev msg */
 	bool nack_sent;			/* Set if a NACK was sent from the device */
-	bool recv_in_progress;
 	char host[MAX_HOST_LEN + 1];	/* Store the host name */
 	char port[MAX_PORT_LEN + 1];	/* Store the host port */
 	void *rcv_buf;

@@ -21,7 +21,7 @@ static uint8_t status[STATUS_SZ] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
 static cc_data_sz send_data_sz = sizeof(status);
 
-#define SERVER_NAME	"test1.ott.uu.net"
+#define SERVER_NAME	"iwk.ott.thingspace.verizon.com"
 #define SERVER_PORT	"443"
 #define NUM_STATUSES	((uint8_t)4)
 
