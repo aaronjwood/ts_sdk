@@ -861,50 +861,6 @@ proto_result ott_resend_init_config(proto_callback cb)
 	return PROTO_OK;
 }
 
-/* Debug functions follow */
-
-static inline void set_tab_level(uint8_t n)
-{
-	for (uint8_t i = 0; i < n; i++)
-		dbg_printf("\t");
-}
-
-static void interpret_type_flags(m_type_t m_type, c_flags_t c_flags, uint8_t t)
-{
-	set_tab_level(t);
-	dbg_printf("Message type: ");
-	if (m_type == MT_NONE)
-		dbg_printf("MT_NONE\n");
-	else if (m_type == MT_AUTH)
-		dbg_printf("MT_AUTH\n");
-	else if (m_type == MT_STATUS)
-		dbg_printf("MT_STATUS\n");
-	else if (m_type == MT_UPDATE)
-		dbg_printf("MT_UPDATE\n");
-	else if (m_type == MT_RESTARTED)
-		dbg_printf("MT_RESTARTED\n");
-	else if (m_type == MT_CMD_PI)
-		dbg_printf("MT_CMD_PI\n");
-	else if (m_type == MT_CMD_SL)
-		dbg_printf("MT_CMD_SL\n");
-	else
-		dbg_printf("Invalid message type\n");
-
-	set_tab_level(t);
-	dbg_printf("Flags set: ");
-	if (OTT_FLAG_IS_SET(c_flags, CF_NONE))
-		dbg_printf("CF_NONE ");
-	if (OTT_FLAG_IS_SET(c_flags, CF_NACK))
-		dbg_printf("CF_NACK ");
-	if (OTT_FLAG_IS_SET(c_flags, CF_ACK))
-		dbg_printf("CF_ACK ");
-	if (OTT_FLAG_IS_SET(c_flags, CF_PENDING))
-		dbg_printf("CF_PENDING ");
-	if (OTT_FLAG_IS_SET(c_flags, CF_QUIT))
-		dbg_printf("CF_QUIT ");
-	dbg_printf("\n");
-}
-
 static uint32_t ott_get_interval(const void *msg)
 {
         if (!msg)
