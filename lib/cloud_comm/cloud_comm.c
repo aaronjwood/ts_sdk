@@ -3,7 +3,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include "platform.h"
-#include "cloud_comm.h"
 #include "cloud_comm_def.h"
 #include "cloud_protocol_intfc.h"
 #include "dbg.h"
@@ -38,7 +37,6 @@ static inline void reset_conn_states(void)
 /* Receive callback */
 static void cc_recv_cb(const void *buf, uint32_t sz, proto_event event)
 {
-	(void)(sz);
 	switch(event) {
 	case PROTO_RCVD_UPD:
 		INVOKE_RECV_CALLBACK(buf, sz, CC_STS_RCV_UPD);
@@ -66,7 +64,6 @@ static void cc_recv_cb(const void *buf, uint32_t sz, proto_event event)
 /* Send callback */
 static void cc_send_cb(const void *buf, uint32_t sz, proto_event event)
 {
-	(void)(sz);
 	cc_event ev;
 	switch(event) {
 	case PROTO_RCVD_ACK:

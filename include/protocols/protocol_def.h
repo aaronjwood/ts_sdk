@@ -33,7 +33,7 @@ typedef enum {
 	PROTO_RCVD_NONE,		/* Default value; No message body */
 	/* Outgoing message events: */
 	PROTO_RCVD_ACK,		/* Received an ACK for the last message sent */
-	PROTO_RCVD_NACK,		/* Received a NACK for the last message sent */
+	PROTO_RCVD_NACK,	/* Received a NACK for the last message sent */
 	PROTO_SEND_TIMEOUT,	/* Timed out waiting for a response */
 
 	/* Incoming message events: */
