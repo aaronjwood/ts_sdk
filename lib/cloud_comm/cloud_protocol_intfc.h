@@ -66,7 +66,6 @@ Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
 } while(0)
 
 #define PROTO_MAINTENANCE(poll_due) ott_maintenance((poll_due))
-#define PROTO_INTERPRET_MSG(msg, tab_level) ott_interpret_msg((msg), (tab_level))
 
 #elif defined (SMSNAS_PROTOCOL)
 
@@ -83,7 +82,6 @@ Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
 #define PROTO_SEND_NACK()
 #define PROTO_SET_RECV_BUFFER_CB(rcv_buf, sz, rcv_cb)
 #define PROTO_MAINTENANCE(poll_due)
-#define PROTO_INTERPRET_MSG(msg, tab_level)
 
 #else
 Please define protocol to use, valid options are OTT_PROTOCOL and SMSNAS_PROTOCOL

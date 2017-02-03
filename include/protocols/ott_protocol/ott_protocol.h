@@ -178,17 +178,4 @@ proto_result ott_resend_init_config(proto_callback cb);
  */
 uint32_t ott_get_sleep_interval(const void *msg);
 
-/*
- * Debug helper function to print the string representation of the message type
- * and flag fields of the command byte along with the details about the body of
- * the message.
- *
- * Parameters:
- *	msg       : A pointer to an OTT message
- *	tab_level : Tab level at which the message should be printed
- *
- * Returns:
- * 	None
- */
-void ott_interpret_msg(const void *msg, uint8_t tab_level);
 #endif

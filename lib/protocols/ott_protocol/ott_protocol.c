@@ -964,36 +964,3 @@ void ott_maintenance(bool poll_due)
 		}
 	}
 }
-
-void ott_interpret_msg(const void *buf, uint8_t t)
-{
-	if (!buf)
-		return;
-	msg_t *msg = (msg_t *)buf;
-	m_type_t m_type;
-	c_flags_t c_flags;
-	uint32_t sl_int_sec;
-
-	OTT_LOAD_MTYPE(msg->cmd_byte, m_type);
-	OTT_LOAD_FLAGS(msg->cmd_byte, c_flags);
-	interpret_type_flags(m_type, c_flags, t);
-	switch (m_type) {
-	case MT_UPDATE:
-		set_tab_level(t);
-		dbg_printf("Size : %"PRIu16"\n", msg->data.array.sz);
-		set_tab_level(t);
-		dbg_printf("Data :\n");
-		for (uint8_t i = 0; i < msg->data.array.sz; i++) {
-			set_tab_level(t + 1);
-			dbg_printf("0x%02x\n", msg->data.array.bytes[i]);
-		}
-		return;
-	case MT_CMD_SL:
-		sl_int_sec = msg->data.interval;
-		set_tab_level(t);
-		dbg_printf("Sleep interval (secs): %"PRIu32"\n", sl_int_sec);
-		return;
-	default:
-		return;
-	}
-}

@@ -289,15 +289,4 @@ void cc_ack_bytes(void);
  */
 void cc_nak_bytes(void);
 
-/**
- * \brief
- * Debug helper function to print the string representation of the contents of
- * the message based on the type of the message as well the protocol being used
- *
- * \param[in] buf : Pointer to the buffer containing the received message.
- * \param[in] tab_level : Tab level at which the representation should be
- *                  printed
- */
-void cc_interpret_msg(const void *buf, uint8_t tab_level);
-
 #endif /* __CLOUD_COMM */

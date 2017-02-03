@@ -222,10 +222,3 @@ uint32_t cc_service_send_receive(uint32_t cur_ts)
 	reset_conn_states();
 	return next_call_time_ms;
 }
-
-void cc_interpret_msg(const void *buf, uint8_t tab_level)
-{
-	if (!buf)
-		return;
-	PROTO_INTERPRET_MSG(buf, tab_level);
-}
