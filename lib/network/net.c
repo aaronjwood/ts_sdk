@@ -17,7 +17,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stm32f4xx_hal.h>
-#include "at_lte.h"
+#include "at_tcp.h"
 #include "mbedtls/net.h"
 
 #include "ott_protocol.h"

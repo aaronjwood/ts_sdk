@@ -1,5 +1,5 @@
 /*
- *  \file at_toby201_lte.c, implementing APIs defined in at_lte.h file
+ *  \file at_toby201_lte.c, implementing APIs defined in at_tcp.h file
  *
  *  \brief API implementation that uses the UBLOX TOBY-L201 modem to communicate over LTE
  *
@@ -9,7 +9,7 @@
 
 #include <errno.h>
 #include <stm32f4xx_hal.h>
-#include "at_lte.h"
+#include "at_tcp.h"
 #include "at_toby201_lte_command.h"
 #include <stdint.h>
 #include <stdbool.h>

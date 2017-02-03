@@ -492,32 +492,32 @@ done:
 
 at_ret_code at_core_modem_reset(void)
 {
-        at_ret_code result = __at_modem_reset_comm();
-        CHECK_SUCCESS(result, AT_SUCCESS, result);
-        /* sending at command right after reset command succeeds which is not
-         * desirable, wait here for few seconds before we send at command to
-         * poll for modem
-         */
-        platform_delay(3000);
-        uint32_t start = platform_get_tick_ms();
-        uint32_t end;
-        result = AT_FAILURE;
-        while (result != AT_SUCCESS) {
-                end = platform_get_tick_ms();
-                if ((end - start) > MODEM_RESET_DELAY) {
-                        DEBUG_V0("%s: timed out\n", __func__);
-                        return result;
-                }
-                result =  at_core_wcmd(&modem_core[MODEM_OK], false);
-                platform_delay(CHECK_MODEM_DELAY);
-        }
+	at_ret_code result = __at_modem_reset_comm();
+	CHECK_SUCCESS(result, AT_SUCCESS, result);
+	/* sending at command right after reset command succeeds which is not
+	 * desirable, wait here for few seconds before we send at command to
+	 * poll for modem
+	 */
+	platform_delay(3000);
+	uint32_t start = platform_get_tick_ms();
+	uint32_t end;
+	result = AT_FAILURE;
+	while (result != AT_SUCCESS) {
+		end = platform_get_tick_ms();
+		if ((end - start) > MODEM_RESET_DELAY) {
+			DEBUG_V0("%s: timed out\n", __func__);
+			return result;
+		}
+		result =  at_core_wcmd(&modem_core[MODEM_OK], false);
+		platform_delay(CHECK_MODEM_DELAY);
+	}
 
-        result = at_core_wcmd(&modem_core[ECHO_OFF], false);
-        CHECK_SUCCESS(result, AT_SUCCESS, result);
+	result = at_core_wcmd(&modem_core[ECHO_OFF], false);
+	CHECK_SUCCESS(result, AT_SUCCESS, result);
 
-        result = at_core_wcmd(&modem_core[CME_CONF], true);
+	result = at_core_wcmd(&modem_core[CME_CONF], true);
 
-        return result;
+	return result;
 }
 
 bool at_core_is_proc_urc(void)

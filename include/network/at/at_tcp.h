@@ -1,5 +1,5 @@
 /**
- * \file at_lte.h
+ * \file at_tcp.h
  *
  * \brief API that uses AT commands to communicate through TCP over LTE
  *
@@ -106,4 +106,4 @@ void at_tcp_close(int s_id);
 }
 #endif
 
-#endif /* at_lte.h */
+#endif /* at_tcp.h */
