@@ -5,6 +5,7 @@
 #include "platform.h"
 #include "at_core.h"
 
+#ifdef MODEM_TOBY201
 #define MODEM_RESET_DELAY		25000 /* In milli seconds */
 #define AT_UART_TX_WAIT_MS		10000
 #define IDLE_CHARS			10
@@ -15,6 +16,7 @@
  * totality
  */
 #define RSP_BUF_DELAY			2000 /* In mili seconds */
+#endif
 
 
 static const char *rsp_header = "\r\n";

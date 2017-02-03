@@ -23,17 +23,16 @@ typedef enum at_return_codes {
         AT_RECHECK_MODEM
 } at_ret_code;
 
+#ifdef MODEM_TOBY201
 /*
  * Delay between successive commands in milisecond, datasheet recommends atleast
  * 20mS
  */
 #define AT_COMM_DELAY_MS	20
+#define CHECK_MODEM_DELAY	1000	/* in mili seconds, polling for modem */
+#endif
 
-/* in mili seconds, polling for modem */
-#define CHECK_MODEM_DELAY	1000
-
-#define MAX_RSP_LINE		2		/* Some command send response plus OK */
-
+#define MAX_RSP_LINE		2	/* Some command send response plus OK */
 #define AT_CORE_INV_PARAM	UART_INV_PARAM	/* Invalid parameter. */
 
 /* Enable to debug wrong response, this prints expected vs received buffer in

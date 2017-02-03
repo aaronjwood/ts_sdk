@@ -54,9 +54,11 @@ MODEM_TARGET = toby201
 MODEM_TRANS = LTE
 #MODEM_TRANS = SMS
 
+MODEM_SRC += at_core.c
+
 ifeq ($(MODEM_TARGET),toby201)
-	MODEM_CORE_DIR += $(MODEM_TARGET)/core
-	MODEM_SRC += at_core.c
+	MOD_TAR = -DMODEM_TOBY201
+	export MOD_TAR
 ifeq ($(MODEM_TRANS),LTE)
 	MODEM_SRC += at_toby201_lte.c
 	MODEM_DIR += $(MODEM_TARGET)/lte
@@ -80,7 +82,7 @@ INC += -I $(PROJ_ROOT)/include/certs
 # net and at layer library includes
 INC += -I $(PROJ_ROOT)/include/network/at
 INC += -I $(PROJ_ROOT)/include/network
-INC += -I $(PROJ_ROOT)/lib/network/at/$(MODEM_CORE_DIR)
+INC += -I $(PROJ_ROOT)/lib/network/at/core
 
 # Peripheral related headers
 INC += -I $(STM32_LIB_COMMON)/Drivers/STM32F4xx_HAL_Driver/Inc
@@ -142,7 +144,7 @@ vpath %.c $(PROJ_ROOT)/lib/platform: \
 	$(PROJ_ROOT)/lib/ott_protocol: \
 	$(PROJ_ROOT)/lib/cloud_comm: \
 	$(PROJ_ROOT)/lib/network: \
-	$(PROJ_ROOT)/lib/network/at/$(MODEM_CORE_DIR): \
+	$(PROJ_ROOT)/lib/network/at/core: \
 	$(PROJ_ROOT)/lib/network/at/$(MODEM_DIR): \
 	$(STM32_PLIB): \
 	$(STM32_CMSIS)/Source/Templates:
