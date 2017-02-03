@@ -167,18 +167,6 @@ void ott_send_nack(void);
  */
 proto_result ott_resend_init_config(proto_callback cb);
 
-
-/*
- * Retrieve the binary data pointer from the received message
- *
- * Parameters:
- * 	msg : Pointer to received buffer.
- *
- * Returns:
- * 	data pointer or NULL if fails.
- */
-const uint8_t *ott_get_rcv_buffer(const void *msg);
-
 /*
  * Retrieve the sleep interval from the received message
  *
@@ -189,17 +177,6 @@ const uint8_t *ott_get_rcv_buffer(const void *msg);
  * 	sleep interval or 0 in case of invalid buffer or msg content
  */
 uint32_t ott_get_sleep_interval(const void *msg);
-
-/*
- * Retrieve the received data size
- *
- * Parameters:
- * 	msg : Pointer to received buffer.
- *
- * Returns:
- * 	data length in bytes or 0 in case of invalid buffer or msg content
- */
-uint32_t ott_get_rcvd_data_len(const void *msg);
 
 /*
  * Debug helper function to print the string representation of the message type

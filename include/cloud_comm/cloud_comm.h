@@ -154,8 +154,9 @@ bool cc_set_destination(const char *host, const char *port);
  *	True  : device secrets were set properly.\n
  *	False : Failed to set authentication due to wrong parameters.
  *
- * Note: Based on protocol d_id/d_sec can be optional.
- *	 OTT protocol requires all the fields.
+ * \note
+ * Based on protocol d_id/d_sec can be optional. OTT protocol requires all the
+ * fields.
  */
 bool cc_set_auth_credentials(const uint8_t *d_id, uint32_t d_id_sz,
  				const uint8_t *d_sec, uint32_t d_sec_sz);
@@ -177,17 +178,6 @@ uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf);
 
 /**
  * \brief
- * Get a pointer to the first byte of the receive buffer
- *
- * \param[in] buf : A received message.
- *
- * \returns
- * 	Pointer to the receive buffer.
- */
-const uint8_t *cc_get_recv_buffer_ptr(const void *buf);
-
-/**
- * \brief
  * Get the value of the sleep interval (in seconds) from the received message.
  *
  * \param[in] buf : A received message.
@@ -197,21 +187,11 @@ const uint8_t *cc_get_recv_buffer_ptr(const void *buf);
  *
  * \note
  * Attempting to retrieve the value from a message that does not contain the
- * sleep interval is unsupported.
+ * sleep interval is unsupported hence it will be only be used when
+ * CC_STS_RCV_CMD_SL event is detected.
  *
  */
 uint32_t cc_get_sleep_interval(const void *buf);
-
-/**
- * \brief
- * Retrieve the length of the last message received.
- *
- * \param[in] buf : A received message.
- *
- * \returns
- * 	Number of bytes of data present in the receive buffer.
- */
-cc_data_sz cc_get_receive_data_len(const void *buf);
 
 /**
  * \brief
@@ -294,16 +274,18 @@ uint32_t cc_service_send_receive(uint32_t cur_ts);
 /**
  * \brief
  * Acknowledge the last message received from the cloud services.
- * Note: Actual use is based on the protocol being used, some
- *	 protocol may never use this API
+ * \note
+ * Actual use is based on the protocol being used, some protocol may never
+ * use this API.
  */
 void cc_ack_bytes(void);
 
 /**
  * \brief
  * Negatice acknowledgment of the last message received from the cloud services.
- * Note: Actual use is based on the protocol being used, some
- *	 protocol may never use this API
+ * \note
+ * Actual use is based on the protocol being used, some protocol may never
+ * use this API.
  */
 void cc_nak_bytes(void);
 

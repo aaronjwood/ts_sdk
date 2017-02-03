@@ -25,10 +25,6 @@ Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
                 return false; \
 } while(0)
 
-#define PROTO_GET_RCVD_MSG_PTR(msg) do { \
-        return ott_get_rcv_buffer((msg)); \
-} while(0)
-
 #define PROTO_SET_DESTINATION(host, port) do { \
         if (ott_set_destination((host), (port)) != PROTO_OK) \
 		return false; \
@@ -47,7 +43,6 @@ Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
 } while(0)
 
 #define PROTO_GET_SLEEP_INTERVAL(msg) return ott_get_sleep_interval((msg))
-#define PROTO_GET_RCVD_DATA_LEN(msg) return ott_get_rcvd_data_len((msg))
 #define PROTO_RESEND_INIT_CONFIG(cb) do { \
         if (ott_resend_init_config((cb)) != PROTO_OK) { \
 		reset_conn_states(); \
@@ -76,14 +71,12 @@ Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
 #elif defined (SMSNAS_PROTOCOL)
 
 #define PROTO_INIT()
-#define PROTO_GET_RCVD_MSG_PTR(msg)
 #define PROTO_SET_DESTINATION(host, port)
 #define PROTO_SET_AUTH(d_id, d_id_sz, d_sec, d_sec_sz)
 #define PROTO_GET_DEFAULT_POLLING()
 #define PROTO_GET_POLLING(msg)
 #define PROTO_INITIATE_QUIT(send_nack)
 #define PROTO_GET_SLEEP_INTERVAL(msg)
-#define PROTO_GET_RCVD_DATA_LEN(msg)
 #define PROTO_RESEND_INIT_CONFIG(cb)
 #define PROTO_SEND_MSG_TO_CLOUD(msg, sz, cb)
 #define PROTO_SEND_ACK()

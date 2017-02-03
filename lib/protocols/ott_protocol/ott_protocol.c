@@ -328,6 +328,30 @@ void ott_initiate_quit(bool send_nack)
 }
 
 /*
+ * The message can have one of two lengths depending on the type of
+ * message received: length of the "interval" field or length of the
+ * "bytes" field.
+ */
+static uint32_t ott_get_rcvd_data_len(const void *msg)
+{
+	if (!msg)
+		return 0;
+	m_type_t m_type;
+	msg_t *ptr_to_msg = (msg_t *)(msg);
+	OTT_LOAD_MTYPE(ptr_to_msg->cmd_byte, m_type);
+
+	switch (m_type) {
+	case MT_UPDATE:
+		return ptr_to_msg->data.array.sz;
+	case MT_CMD_PI:
+	case MT_CMD_SL:
+		return sizeof(ptr_to_msg->data.interval);
+	default:
+		return 0;
+	}
+}
+
+/*
  * Process a received response. Most of the actual processing is done through the
  * user provided callbacks this function invokes. In addition, it sets some
  * internal flags to decide the state of the session in the future. Calling the
@@ -837,27 +861,6 @@ proto_result ott_resend_init_config(proto_callback cb)
 	return PROTO_OK;
 }
 
-const uint8_t *ott_get_rcv_buffer(const void *msg)
-{
-        if (!msg)
-	       return NULL;
-
-        m_type_t m_type;
-	const msg_t *ptr_to_msg = (const msg_t *)(msg);
-	OTT_LOAD_MTYPE(ptr_to_msg->cmd_byte, m_type);
-
-	switch (m_type) {
-	case MT_UPDATE:
-		return (const uint8_t *)&(ptr_to_msg->data.array.bytes);
-	case MT_CMD_PI:
-	case MT_CMD_SL:
-		return (const uint8_t *)&(ptr_to_msg->data.interval);
-	default:
-		/* XXX: Unlikely because of checks in ott_retrieve_msg() */
-		return NULL;
-	}
-}
-
 /* Debug functions follow */
 
 static inline void set_tab_level(uint8_t n)
@@ -959,30 +962,6 @@ void ott_maintenance(bool poll_due)
 			if (session.nack_sent)
 				session.nack_sent = false;
 		}
-	}
-}
-
-/*
- * The message can have one of two lengths depending on the type of
- * message received: length of the "interval" field or length of the
- * "bytes" field.
- */
-uint32_t ott_get_rcvd_data_len(const void *msg)
-{
-	if (!msg)
-		return 0;
-	m_type_t m_type;
-	msg_t *ptr_to_msg = (msg_t *)(msg);
-	OTT_LOAD_MTYPE(ptr_to_msg->cmd_byte, m_type);
-
-	switch (m_type) {
-	case MT_UPDATE:
-		return ptr_to_msg->data.array.sz;
-	case MT_CMD_PI:
-	case MT_CMD_SL:
-		return sizeof(ptr_to_msg->data.interval);
-	default:
-		return 0;
 	}
 }
 

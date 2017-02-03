@@ -109,32 +109,11 @@ uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf)
 	return (buf) ? buf->buf_ptr : NULL;
 }
 
-const uint8_t *cc_get_recv_buffer_ptr(const void *buf)
-{
-	/* Check for non-NULL buffer pointers */
-	if (!buf)
-		return NULL;
-	/*
-	 * Depending on the type of message and protocol, return
-	 * pointer to binary data
-	 */
-	PROTO_GET_RCVD_MSG_PTR(buf);
-
-}
-
 uint32_t cc_get_sleep_interval(const void *buf)
 {
 	if (!buf)
 		return 0;
 	PROTO_GET_SLEEP_INTERVAL(buf);
-}
-
-cc_data_sz cc_get_receive_data_len(const void *buf)
-{
-	/* Check for non-NULL buffer pointers */
-	if (!buf)
-		return 0;
-	PROTO_GET_RCVD_DATA_LEN(buf);
 }
 
 bool cc_set_destination(const char *host, const char *port)
