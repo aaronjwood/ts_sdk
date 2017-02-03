@@ -52,7 +52,7 @@ typedef enum {
 	/* Incoming message events: */
 	CC_STS_RCV_CMD_SL,	/**< Received sleep time from the cloud */
 	CC_STS_RCV_UPD,		/**< Received an update message from the cloud */
-	CC_STS_UNKNOWN
+	CC_STS_UNKNOWN		/**< Not supported event */
 } cc_event;
 
 typedef uint16_t cc_data_sz;	/**< Type representing the size of the message */
