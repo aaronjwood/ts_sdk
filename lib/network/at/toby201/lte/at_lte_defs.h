@@ -11,28 +11,15 @@
 
 #include "at_core.h"
 
-/* Enable to debug wrong response, this prints expected vs received buffer in
- * raw format
- */
-/*#define DEBUG_WRONG_RSP*/
-
 /* AT layer internal state machine for LTE */
 typedef enum at_states {
         IDLE = 1,
-        /* Indicates command has been issued and now waiting for the response */
-        WAITING_RESP = 1 << 1,
         /* Network lost indication from cereg and ureg */
         NETWORK_LOST = 1 << 2,
         /* TCP successfully connected */
         TCP_CONNECTED = 1 << 3,
         /* TCP closed gracefully */
         TCP_CONN_CLOSED = 1 << 4,
-        /* AT layer now processing response */
-        PROC_RSP = 1 << 5,
-        /* AT layer processing urc outside of the interrupt context or callback
-         * from uart layer
-         */
-        PROC_URC = 1 << 6,
         /* Connected in Direct link (DL) mode which makes socket to UART
          * connection transparent
          */

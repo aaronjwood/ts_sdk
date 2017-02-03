@@ -35,6 +35,12 @@ typedef enum at_return_codes {
 #define MAX_RSP_LINE		2		/* Some command send response plus OK */
 
 #define AT_CORE_INV_PARAM	UART_INV_PARAM	/* Invalid parameter. */
+
+/* Enable to debug wrong response, this prints expected vs received buffer in
+ * raw format
+ */
+/*#define DEBUG_WRONG_RSP*/
+
 /* Enable this macro to display messages, error will alway be reported if this
  * macro is enabled while V2 and V1 will depend on debug_level setting
  */
@@ -258,7 +264,7 @@ at_ret_code at_core_wcmd(const at_command_desc *desc, bool read_line);
  * Parameters:
  * 	True  - If the function is being called outside the interrupt and UART
  * 	        callback context.
- * 	False - If the function is being called from withint an interrupt or UART
+ * 	False - If the function is being called from within an interrupt or UART
  * 	        callback context.
  *
  * Returns:
