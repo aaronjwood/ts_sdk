@@ -712,9 +712,9 @@ retry_connection:
  *
  * Returns:
  * 	PROTO_OK        : Status report was sent to the cloud.
- * 	PROTO_INV_PARAM :	Flag parameter is invalid (Eg. ACK+NACK) or
- * 	                status has length > MAX_DATA_SZ bytes or
- * 	                status is NULL
+ * 	PROTO_INV_PARAM : Flag parameter is invalid (Eg. ACK+NACK) or
+ * 	                  status has length > MAX_DATA_SZ bytes or
+ * 	                  status is NULL
  * 	PROTO_ERROR     : Sending the message failed due to a TCP/TLS error.
  * 	PROTO_TIMEOUT   : Timed out sending the message. Sending failed.
  */
