@@ -187,7 +187,7 @@ uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf);
  *
  * \note
  * Attempting to retrieve the value from a message that does not contain the
- * sleep interval is unsupported hence it will be only be used when
+ * sleep interval is unsupported hence it will only be used when
  * CC_STS_RCV_CMD_SL event is detected.
  *
  */
