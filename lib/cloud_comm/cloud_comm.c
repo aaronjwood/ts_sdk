@@ -197,12 +197,6 @@ cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb)
 	return CC_RECV_SUCCESS;
 }
 
-
-/*
- * This call retrieves any pending messages the cloud has to send. It also
- * polls the cloud if the polling interval was hit and updates the time when the
- * cloud should be called next.
- */
 uint32_t cc_service_send_receive(uint32_t cur_ts)
 {
 	uint32_t next_call_time_ms =
