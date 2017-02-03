@@ -54,6 +54,7 @@ static void recv_cb(const void *buf, uint32_t sz, cc_event event)
 /* Send callback */
 static void send_cb(const void *buf, uint32_t sz, cc_event event)
 {
+	(void)(sz);
 	if (event == CC_STS_ACK)
 		dbg_printf("\t\t[SEND CB] Received an ACK\n");
 	else if (event == CC_STS_NACK)
