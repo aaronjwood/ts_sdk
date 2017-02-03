@@ -339,7 +339,8 @@ void ott_initiate_quit(bool send_nack)
  * send callback is optional and is decided through "invoke_send_cb".
  * On receiving a NACK return "false". Otherwise, return "true".
  */
-static bool process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
+static bool process_recvd_msg(msg_t *msg_ptr, uint32_t rcvd,
+				bool invoke_send_cb)
 {
 	c_flags_t c_flags;
 	m_type_t m_type;
@@ -367,15 +368,17 @@ static bool process_recvd_msg(msg_t *msg_ptr, bool invoke_send_cb)
 		}
 
 		/* Call the callbacks with the type of message received */
-		if (m_type == MT_UPDATE || m_type == MT_CMD_SL)
-			INVOKE_RECV_CALLBACK(session.rcv_buf, session.rcv_sz,
-						evt);
-		if (invoke_send_cb)
+		if (m_type == MT_UPDATE || m_type == MT_CMD_SL) {
+			INVOKE_RECV_CALLBACK(msg_ptr, rcvd, evt);
+		}
+		if (invoke_send_cb) {
 			INVOKE_SEND_CALLBACK(NULL, 0, PROTO_RCVD_ACK);
+		}
 	} else if (OTT_FLAG_IS_SET(c_flags, CF_NACK)) {
 		no_nack_detected = false;
-		if (invoke_send_cb)
+		if (invoke_send_cb) {
 			INVOKE_SEND_CALLBACK(NULL, 0, PROTO_RCVD_NACK);
+		}
 	}
 
 	if (OTT_FLAG_IS_SET(c_flags, CF_QUIT)) {
@@ -442,12 +445,12 @@ static bool msg_is_complete(msg_t *msg, uint16_t recvd)
 	return false;
 }
 
-static proto_result ott_retrieve_msg(msg_t *msg, uint16_t sz)
+static proto_result ott_retrieve_msg(msg_t *msg, uint16_t sz, uint32_t *rbytes)
 {
 	if (msg == NULL || sz < 4 || sz > PROTO_MAX_MSG_SZ)
 		return PROTO_INV_PARAM;
 
-	static uint16_t recvd = 0;	/* Number of bytes received so far */
+	static uint32_t recvd = 0;	/* Number of bytes received so far */
 	int ret = mbedtls_ssl_read(&ssl, (unsigned char *)msg + recvd, sz - recvd);
 	if (ret == MBEDTLS_ERR_SSL_WANT_WRITE ||
 			ret == MBEDTLS_ERR_SSL_WANT_READ)
@@ -467,6 +470,7 @@ static proto_result ott_retrieve_msg(msg_t *msg, uint16_t sz)
 	if (ret > 0) {
 		recvd += ret;
 		if (msg_is_complete(msg, recvd)) {
+			*rbytes = recvd;
 			recvd = 0;
 			if (!msg_is_valid(msg)) {
 				ott_send_ctrl_msg(CF_NACK | CF_QUIT);
@@ -501,10 +505,10 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 	uint32_t start = platform_get_tick_ms();
 	uint32_t end = start;
 	bool no_nack;
-	msg_t *msg_ptr = (msg_t *)session.rcv_buf;
+	uint32_t rcvd = 0;
 	do {
-		proto_result s = ott_retrieve_msg(msg_ptr, session.rcv_sz);
-
+		proto_result s = ott_retrieve_msg(session.rcv_buf,
+						session.rcv_sz, &rcvd);
 		if (s == PROTO_INV_PARAM || s == PROTO_ERROR)
 			return false;
 		if (s == PROTO_NO_MSG) {
@@ -513,7 +517,8 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 		}
 		if (s == PROTO_OK) {
 			PROTO_TIME_PROFILE_END("RV");
-			no_nack = process_recvd_msg(msg_ptr, invoke_send_cb);
+			no_nack = process_recvd_msg(session.rcv_buf, rcvd,
+						invoke_send_cb);
 			break;
 		}
 	} while(end - start < timeout);
@@ -834,7 +839,7 @@ proto_result ott_resend_init_config(proto_callback cb)
 	return PROTO_OK;
 }
 
-const uint8_t *ott_get_rcv_buffer(void *msg)
+const uint8_t *ott_get_rcv_buffer(const void *msg)
 {
         if (!msg)
 	       return NULL;
@@ -899,7 +904,7 @@ static void interpret_type_flags(m_type_t m_type, c_flags_t c_flags, uint8_t t)
 	dbg_printf("\n");
 }
 
-uint32_t ott_get_sleep_interval(void *msg)
+uint32_t ott_get_sleep_interval(const void *msg)
 {
         if (!msg)
                 return 0;
@@ -950,7 +955,7 @@ void ott_maintenance(bool poll_due)
  * message received: length of the "interval" field or length of the
  * "bytes" field.
  */
-uint32_t ott_get_rcvd_data_len(void *msg)
+uint32_t ott_get_rcvd_data_len(const void *msg)
 {
 	if (!msg)
 		return 0;
@@ -969,7 +974,7 @@ uint32_t ott_get_rcvd_data_len(void *msg)
 	}
 }
 
-void ott_interpret_msg(void *buf, uint8_t t)
+void ott_interpret_msg(const void *buf, uint8_t t)
 {
 	if (!buf)
 		return;

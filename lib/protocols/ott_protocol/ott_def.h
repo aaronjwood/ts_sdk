@@ -72,7 +72,7 @@ static struct {
 	bool nack_sent;			/* Set if a NACK was sent from the device */
 	char host[MAX_HOST_LEN + 1];	/* Store the host name */
 	char port[MAX_PORT_LEN + 1];	/* Store the host port */
-	void *rcv_buf;
+	msg_t *rcv_buf;
 	uint32_t rcv_sz;
 	proto_callback rcv_cb;
 	proto_callback send_cb;

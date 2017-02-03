@@ -26,7 +26,7 @@ static cc_data_sz send_data_sz = sizeof(status);
 #define NUM_STATUSES	((uint8_t)4)
 
 /* Receive callback */
-static void recv_cb(const cc_buffer_desc *buf, cc_event event)
+static void recv_cb(const void *buf, cc_event event)
 {
 	dbg_printf("\t\t[RECV CB] Received a message:\n");
 	if (event == CC_STS_RCV_UPD) {
@@ -44,14 +44,13 @@ static void recv_cb(const cc_buffer_desc *buf, cc_event event)
 	/* ACK all messages by default */
 	dbg_printf("\t\t[RECV CB] Will send an ACK in response\n");
 	cc_ack_bytes();
-
 	/* Reschedule a receive */
 	cc_recv_result s = cc_recv_bytes_from_cloud(&recv_buffer, recv_cb);
 	ASSERT(s == CC_RECV_SUCCESS || s == CC_RECV_BUSY);
 }
 
 /* Send callback */
-static void send_cb(const cc_buffer_desc *buf, cc_event event)
+static void send_cb(const void *buf, cc_event event)
 {
 	if (event == CC_STS_ACK)
 		dbg_printf("\t\t[SEND CB] Received an ACK\n");

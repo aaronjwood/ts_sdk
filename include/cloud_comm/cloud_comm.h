@@ -13,19 +13,11 @@
  * This module forms the device facing API to communicate with the cloud.
  * Sending data to the cloud is a blocking operation. The API accepts raw bytes
  * that need to be transmitted, wraps them in the protocol headers and sends
- * them through a secure channel. A callback is used to report the success or
+ * them through selected protocol. A callback is used to report the success or
  * failure of the last transmitted message.
- * A data receive event may occur when the device polls the cloud. The device
- * schedules a receive by specifying a buffer and a callback. The callback is
- * used to report the type of the message received.
- *
- * The API deals with 3 types of messages:\n
- *     - Update   : Application specific byte arrays from the cloud\n
- *     - Status   : Application specific byte arrays to the cloud\n
- *     - Command  : OTT protocol defined messages from the cloud
- *
- * The state of the secure channel and OTT protocol is maintained automatically
- * based on the API functions that are called.
+ * The device schedules a receive by specifying a buffer and a callback.
+ * The callback is used to report the type of the message received. Scheduling
+ * receive is non-blocking.
  */
 
 /**
@@ -112,7 +104,7 @@ typedef struct {		/* Cloud communication buffer descriptor */
  * Pointer to a callback routine. The callback accepts a buffer descriptor and
  * an event from the source of the callback explaining why it was invoked.
  */
-typedef void (*cc_callback_rtn)(const cc_buffer_desc *buf, cc_event event);
+typedef void (*cc_callback_rtn)(const void *buf, cc_event event);
 
 /**
  * \brief
@@ -123,9 +115,7 @@ typedef void (*cc_callback_rtn)(const cc_buffer_desc *buf, cc_event event);
  *	False : Initialization failed.
  *
  * This will in turn initialize any protocol specific modules, related
- * hardware etc. It also sets the device ID and device secret. These two are
- * used to authenticate the device with the cloud service and are unlikely
- * to change during the lifetime of the device.
+ * hardware etc. This API must be called before any APIs.
  *
  */
 bool cc_init(void);
@@ -152,7 +142,8 @@ bool cc_set_destination(const char *host, const char *port);
  * \brief
  * Sets device authorization credentials which will be used to authenticate with
  * the cloud in all future communications. This API is optional if protocol does
- * not need authentication with the cloud.
+ * not need authentication with the cloud othewise required to be called at least
+ * once before attempting to commuinicate witht the cloud.
  *
  * \param[in] d_id     : Pointer to a unique device ID.
  * \param[in] d_id_sz  : size of the d_id
@@ -163,9 +154,8 @@ bool cc_set_destination(const char *host, const char *port);
  *	True  : device secrets were set properly.\n
  *	False : Failed to set authentication due to wrong parameters.
  *
- * This API must be called at least once before attempting to attempting to
- * communicate with the cloud. Based on protocol d_id/d_sec can be optional.
- * NOTE: OTT protocol requires all the fields.
+ * Note: Based on protocol d_id/d_sec can be optional.
+ *	 OTT protocol requires all the fields.
  */
 bool cc_set_auth_credentials(const uint8_t *d_id, uint32_t d_id_sz,
  				const uint8_t *d_sec, uint32_t d_sec_sz);
@@ -187,21 +177,20 @@ uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf);
 
 /**
  * \brief
- * Get a pointer to the first byte of the receive buffer from the buffer
- * descriptor.  Any received data can be read through this buffer.
+ * Get a pointer to the first byte of the receive buffer
  *
- * \param[in] buf : A cloud communication buffer descriptor.
+ * \param[in] buf : A received message.
  *
  * \returns
  * 	Pointer to the receive buffer.
  */
-const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf);
+const uint8_t *cc_get_recv_buffer_ptr(const void *buf);
 
 /**
  * \brief
  * Get the value of the sleep interval (in seconds) from the received message.
  *
- * \param[in] buf : A cloud communication buffer descriptor.
+ * \param[in] buf : A received message.
  *
  * \returns
  * 	Value of the sleep interval in seconds.
@@ -211,22 +200,22 @@ const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf);
  * sleep interval is unsupported.
  *
  */
-uint32_t cc_get_sleep_interval(const cc_buffer_desc *buf);
+uint32_t cc_get_sleep_interval(const void *buf);
 
 /**
  * \brief
  * Retrieve the length of the last message received.
  *
- * \param[in] buf : A cloud communication buffer descriptor.
+ * \param[in] buf : A received message.
  *
  * \returns
  * 	Number of bytes of data present in the receive buffer.
  */
-cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf);
+cc_data_sz cc_get_receive_data_len(const void *buf);
 
 /**
  * \brief
- * Send bytes to the cloud.
+ * A mandatory API to send bytes to the cloud.
  *
  * \param[in] buf : Pointer to the cloud communication buffer descriptor
  *                  containing the data to be sent.
@@ -265,7 +254,7 @@ cc_send_result cc_resend_init_config(cc_callback_rtn cb);
 
 /**
  * \brief
- * Initiate a receive of bytes from the cloud.
+ * A mandatory API to initiate a receive of bytes from the cloud.
  *
  * \param[in] buf  : Pointer to the cloud communication buffer descriptor
  *                   that will hold the data to be received.
@@ -305,29 +294,28 @@ uint32_t cc_service_send_receive(uint32_t cur_ts);
 /**
  * \brief
  * Acknowledge the last message received from the cloud services.
- * The actual acknowledgement is transmitted in the next send or as part of
- * time based servicing.
+ * Note: Actual use is based on the protocol being used, some
+ *	 protocol may never use this API
  */
 void cc_ack_bytes(void);
 
 /**
  * \brief
- * Reject the last message received from the cloud services.
- * Call this when there is an error processing the message. This message is
- * sent immediately to the cloud services.
+ * Negatice acknowledgment of the last message received from the cloud services.
+ * Note: Actual use is based on the protocol being used, some
+ *	 protocol may never use this API
  */
 void cc_nak_bytes(void);
 
 /**
  * \brief
  * Debug helper function to print the string representation of the contents of
- * the message.
+ * the message based on the type of the message as well the protocol being used
  *
- * \param[in] buf : Pointer to the cloud communication buffer descriptor
- *                  containing the received message.
+ * \param[in] buf : Pointer to the buffer containing the received message.
  * \param[in] tab_level : Tab level at which the representation should be
  *                  printed
  */
-void cc_interpret_msg(const cc_buffer_desc *buf, uint8_t tab_level);
+void cc_interpret_msg(const void *buf, uint8_t tab_level);
 
 #endif /* __CLOUD_COMM */

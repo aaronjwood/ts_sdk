@@ -13,7 +13,10 @@
 Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
 #endif
 
-/* Superset of the protocol API execution results */
+/* Superset of the protocol API execution results, depending on the protocols
+ * implemented or introduced, this list can be modified to accomodate various
+ * API related execution result codes
+ */
 typedef enum {			/* Defines return codes of this API. */
 	PROTO_OK,		/* API call exited without any errors */
 	PROTO_ERROR,		/* API call exited with errors */
@@ -39,6 +42,7 @@ typedef enum {
 	PROTO_RCVD_QUIT,	/* Received quit */
 	PROTO_RCVD_UPD         /* Received an update message from the cloud */
 } proto_event;
+
 
 /*
  * Pointer to a callback routine. The callback accepts a buffer, its size and

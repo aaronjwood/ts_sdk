@@ -57,8 +57,7 @@ proto_result ott_protocol_init(void);
 uint32_t ott_get_default_polling();
 
 /*
- * Initialize the OTT Protocol module with device authorization credential which
- * will be needed in all future communications with the cloud serivices.
+ * Initialize the OTT Protocol module with the remote host and port
  * Parameters:
  * 	host : A NULL terminated string specifying the host name.
  * 	port : A NULL terminated string specifying the port number.
@@ -164,7 +163,7 @@ proto_result ott_resend_init_config(proto_callback cb);
 
 
 /*
- * Retrieve the binary data from the received message
+ * Retrieve the binary data pointer from the received message
  *
  * Parameters:
  * 	msg : Pointer to received buffer.
@@ -172,7 +171,7 @@ proto_result ott_resend_init_config(proto_callback cb);
  * Returns:
  * 	data pointer or NULL if fails.
  */
-const uint8_t *ott_get_rcv_buffer(void *msg);
+const uint8_t *ott_get_rcv_buffer(const void *msg);
 
 /*
  * Retrieve the sleep interval from the received message
@@ -183,7 +182,7 @@ const uint8_t *ott_get_rcv_buffer(void *msg);
  * Returns:
  * 	sleep interval or 0 in case of invalid buffer or msg content
  */
-uint32_t ott_get_sleep_interval(void *msg);
+uint32_t ott_get_sleep_interval(const void *msg);
 
 /*
  * Retrieve the received data size
@@ -194,7 +193,7 @@ uint32_t ott_get_sleep_interval(void *msg);
  * Returns:
  * 	data length in bytes or 0 in case of invalid buffer or msg content
  */
-uint32_t ott_get_rcvd_data_len(void *msg);
+uint32_t ott_get_rcvd_data_len(const void *msg);
 
 /*
  * Debug helper function to print the string representation of the message type
@@ -208,5 +207,5 @@ uint32_t ott_get_rcvd_data_len(void *msg);
  * Returns:
  * 	None
  */
-void ott_interpret_msg(void *msg, uint8_t tab_level);
+void ott_interpret_msg(const void *msg, uint8_t tab_level);
 #endif
