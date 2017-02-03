@@ -111,11 +111,6 @@ void ott_protocol_deinit(void)
 }
 #endif
 
-uint32_t ott_get_default_polling()
-{
-	return INIT_POLLLING_MS;
-}
-
 static void ott_reset_state(void)
 {
 	session.send_cb = NULL;
@@ -339,13 +334,11 @@ void ott_initiate_quit(bool send_nack)
  * send callback is optional and is decided through "invoke_send_cb".
  * On receiving a NACK return "false". Otherwise, return "true".
  */
-static bool process_recvd_msg(msg_t *msg_ptr, uint32_t rcvd,
-				bool invoke_send_cb)
+static bool process_recvd_msg(msg_t *msg_ptr, uint32_t rcvd, bool invoke_send_cb)
 {
 	c_flags_t c_flags;
 	m_type_t m_type;
 	bool no_nack_detected = true;
-	uint32_t polling_int_ms = 0;
 	OTT_LOAD_FLAGS(msg_ptr->cmd_byte, c_flags);
 	OTT_LOAD_MTYPE(msg_ptr->cmd_byte, m_type);
 
@@ -361,15 +354,26 @@ static bool process_recvd_msg(msg_t *msg_ptr, uint32_t rcvd,
 		} else if (m_type == MT_CMD_SL) {
 			evt = PROTO_RCVD_CMD_SL;
 		} else if (m_type == MT_CMD_PI) {
-			polling_int_ms = msg_ptr->data.interval * MULT;
-			INVOKE_RECV_CALLBACK(&polling_int_ms,
-				sizeof(polling_int_ms), PROTO_RCVD_CMD_PI);
+			/* Don't care about the size for Polling interval as
+			 * helper API will be called to retrieve it
+			 */
+			INVOKE_RECV_CALLBACK(msg_ptr, rcvd, PROTO_RCVD_CMD_PI);
 			session.pend_ack = true;
 		}
 
-		/* Call the callbacks with the type of message received */
 		if (m_type == MT_UPDATE || m_type == MT_CMD_SL) {
-			INVOKE_RECV_CALLBACK(msg_ptr, rcvd, evt);
+			if (m_type == MT_CMD_SL) {
+				/* Don't care about the size for sleep
+				 * interval as helper API will be called
+				 * to retrieve it
+				 */
+				INVOKE_RECV_CALLBACK(msg_ptr, rcvd, evt);
+			} else {
+				uint32_t sz = ott_get_rcvd_data_len(msg_ptr);
+				INVOKE_RECV_CALLBACK(
+					((uint8_t *)msg_ptr + UPD_OVR_HEAD),
+					sz, evt);
+			}
 		}
 		if (invoke_send_cb) {
 			INVOKE_SEND_CALLBACK(NULL, 0, PROTO_RCVD_ACK);
@@ -417,12 +421,6 @@ static bool msg_is_valid(msg_t *msg)
 		return false;
 	}
 }
-
-#define UPD_OVR_HEAD		PROTO_OVERHEAD_SZ
-#define MIN_UPD_SIZE		(UPD_OVR_HEAD + 1 /* Actual data */)
-#define MIN_CMD_PI_SIZE		(PROTO_CMD_SZ + 4 /* uint32_t */)
-#define MIN_CMD_SL_SIZE		(PROTO_CMD_SZ + 4 /* uint32_t */)
-#define MIN_MT_NONE_SIZE	PROTO_CMD_SZ
 
 /* Return true if a complete message has been received */
 static bool msg_is_complete(msg_t *msg, uint16_t recvd)
@@ -904,7 +902,7 @@ static void interpret_type_flags(m_type_t m_type, c_flags_t c_flags, uint8_t t)
 	dbg_printf("\n");
 }
 
-uint32_t ott_get_sleep_interval(const void *msg)
+static uint32_t ott_get_interval(const void *msg)
 {
         if (!msg)
                 return 0;
@@ -912,10 +910,24 @@ uint32_t ott_get_sleep_interval(const void *msg)
         const msg_t *ptr_to_msg = (const msg_t *)(msg);
         OTT_LOAD_MTYPE(ptr_to_msg->cmd_byte, m_type);
 
-        if (m_type == MT_CMD_SL)
-                return ptr_to_msg->data.interval;
+        if (m_type == MT_CMD_PI)
+                return ptr_to_msg->data.interval * MULT;
+	else if (m_type == MT_CMD_SL)
+		return ptr_to_msg->data.interval;
         else
                 return 0;
+}
+
+uint32_t ott_get_polling_interval(const void *msg, bool default_poll)
+{
+	if (default_poll)
+		return INIT_POLLLING_MS;
+        return ott_get_interval(msg);
+}
+
+uint32_t ott_get_sleep_interval(const void *msg)
+{
+        return ott_get_interval(msg);
 }
 
 /*

@@ -15,16 +15,16 @@ uint32_t init_polling_ms;
 static uint32_t proto_begin;
 #endif
 
-#define INVOKE_SEND_CALLBACK(_buf, _evt) \
+#define INVOKE_SEND_CALLBACK(_buf, _sz, _evt) \
 	do { \
 		if (conn_out.cb) \
-			conn_out.cb((cc_buffer_desc *)(_buf), (_evt)); \
+			conn_out.cb((cc_buffer_desc *)(_buf), (_sz), (_evt)); \
 	} while(0)
 
-#define INVOKE_RECV_CALLBACK(_buf, _evt) \
+#define INVOKE_RECV_CALLBACK(_buf, _sz, _evt) \
 	do { \
 		if (conn_in.cb) \
-			conn_in.cb((cc_buffer_desc *)(_buf), (_evt)); \
+			conn_in.cb((cc_buffer_desc *)(_buf), (_sz), (_evt)); \
 	} while(0)
 
 /* Reset the connection (incoming and outgoing) and session structures */
@@ -41,15 +41,15 @@ static void cc_recv_cb(const void *buf, uint32_t sz, proto_event event)
 	(void)(sz);
 	switch(event) {
 	case PROTO_RCVD_UPD:
-		INVOKE_RECV_CALLBACK(buf, CC_STS_RCV_UPD);
+		INVOKE_RECV_CALLBACK(buf, sz, CC_STS_RCV_UPD);
 		conn_in.recv_in_progress = false;
 		break;
 	case PROTO_RCVD_CMD_SL:
-		INVOKE_RECV_CALLBACK(buf, CC_STS_RCV_CMD_SL);
+		INVOKE_RECV_CALLBACK(buf, sz, CC_STS_RCV_CMD_SL);
 		conn_in.recv_in_progress = false;
 		break;
 	case PROTO_RCVD_CMD_PI:
-		timekeep.polling_int_ms = *((uint32_t *)buf);
+		timekeep.polling_int_ms = PROTO_GET_POLLING(buf);
 		timekeep.new_interval_set = true;
 		break;
 	case PROTO_RCVD_QUIT:
@@ -57,7 +57,7 @@ static void cc_recv_cb(const void *buf, uint32_t sz, proto_event event)
 		break;
 	default:
 		dbg_printf("%s:%d: Unknown Rcvd Event\n", __func__, __LINE__);
-		INVOKE_RECV_CALLBACK(NULL, CC_STS_UNKNOWN);
+		INVOKE_RECV_CALLBACK(NULL, 0, CC_STS_UNKNOWN);
 		break;
 	}
 
@@ -81,9 +81,10 @@ static void cc_send_cb(const void *buf, uint32_t sz, proto_event event)
 	default:
 		dbg_printf("%s:%d: Unknown Send Event\n", __func__, __LINE__);
 		ev = CC_STS_UNKNOWN;
+		sz = 0;
 		break;
 	}
-	INVOKE_SEND_CALLBACK(buf, ev);
+	INVOKE_SEND_CALLBACK(buf, sz, ev);
 
 }
 

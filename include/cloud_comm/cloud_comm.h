@@ -101,10 +101,10 @@ typedef struct {		/* Cloud communication buffer descriptor */
 	cc_buffer_desc name = {(max_sz), &(name##_bytes)}
 
 /**
- * Pointer to a callback routine. The callback accepts a buffer descriptor and
+ * Pointer to a callback routine. The callback accepts a buffer, its size and
  * an event from the source of the callback explaining why it was invoked.
  */
-typedef void (*cc_callback_rtn)(const void *buf, cc_event event);
+typedef void (*cc_callback_rtn)(const void *buf, uint32_t sz, cc_event event);
 
 /**
  * \brief

@@ -15,6 +15,12 @@
 
 #define OTT_UUID_SZ             16
 
+#define UPD_OVR_HEAD		PROTO_OVERHEAD_SZ
+#define MIN_UPD_SIZE		(UPD_OVR_HEAD + 1 /* Actual data */)
+#define MIN_CMD_PI_SIZE		(PROTO_CMD_SZ + 4 /* uint32_t */)
+#define MIN_CMD_SL_SIZE		(PROTO_CMD_SZ + 4 /* uint32_t */)
+#define MIN_MT_NONE_SIZE	PROTO_CMD_SZ
+
 typedef enum {			/* Defines control flags. */
 	CF_NONE = 0x00,		/* No flag set */
 	CF_NACK = 0x10,		/* Failed to accept or process previous message */

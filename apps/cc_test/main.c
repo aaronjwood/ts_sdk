@@ -26,16 +26,18 @@ static cc_data_sz send_data_sz = sizeof(status);
 #define NUM_STATUSES	((uint8_t)4)
 
 /* Receive callback */
-static void recv_cb(const void *buf, cc_event event)
+static void recv_cb(const void *buf, uint32_t sz, cc_event event)
 {
 	dbg_printf("\t\t[RECV CB] Received a message:\n");
 	if (event == CC_STS_RCV_UPD) {
-		cc_interpret_msg(buf, 3);
+		uint8_t *temp_buf = (uint8_t *)buf;
+		dbg_printf("\t\t\t");
+		dbg_printf("Update Message: \n");
+		for (uint32_t i = 0; i < sz; i++)
+			dbg_printf("\t\t\t\t[Byte %lu]: 0x%x\n", i, temp_buf[i]);
 		/* Make the new status message to be the received update message */
-		cc_data_sz sz = cc_get_receive_data_len(buf);
 		send_data_sz = (sz > sizeof(status)) ? sizeof(status) : sz;
-		const uint8_t *recvd = cc_get_recv_buffer_ptr(buf);
-		memcpy(status, recvd, send_data_sz);
+		memcpy(status, buf, send_data_sz);
 	} else if (event == CC_STS_RCV_CMD_SL) {
 		uint32_t sl_sec = cc_get_sleep_interval(buf);
 		dbg_printf("\t\t\tSleep interval (secs): %"PRIu32"\n", sl_sec);
@@ -50,7 +52,7 @@ static void recv_cb(const void *buf, cc_event event)
 }
 
 /* Send callback */
-static void send_cb(const void *buf, cc_event event)
+static void send_cb(const void *buf, uint32_t sz, cc_event event)
 {
 	if (event == CC_STS_ACK)
 		dbg_printf("\t\t[SEND CB] Received an ACK\n");

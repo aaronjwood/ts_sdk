@@ -39,7 +39,9 @@ Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
 		return false; \
 } while(0)
 
-#define PROTO_GET_DEFAULT_POLLING() ott_get_default_polling()
+#define PROTO_GET_DEFAULT_POLLING() ott_get_polling_interval(NULL, true)
+#define PROTO_GET_POLLING(msg) ott_get_polling_interval((msg), false)
+
 #define PROTO_INITIATE_QUIT(send_nack) do { \
         ott_initiate_quit((send_nack)); \
 } while(0)
@@ -78,6 +80,7 @@ Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
 #define PROTO_SET_DESTINATION(host, port)
 #define PROTO_SET_AUTH(d_id, d_id_sz, d_sec, d_sec_sz)
 #define PROTO_GET_DEFAULT_POLLING()
+#define PROTO_GET_POLLING(msg)
 #define PROTO_INITIATE_QUIT(send_nack)
 #define PROTO_GET_SLEEP_INTERVAL(msg)
 #define PROTO_GET_RCVD_DATA_LEN(msg)

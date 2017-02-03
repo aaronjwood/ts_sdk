@@ -50,11 +50,17 @@ proto_result ott_protocol_init(void);
                          const uint8_t *d_sec, uint32_t d_sec_sz);
 
 /*
- * Retrieves default polling interval in mili seconds
+ * Retrieves polling interval in mili seconds
+ * Parameters:
+ *      msg : pointer to message containing polling interval
+ *      default_poll: True for retrieving default interval where msg is
+ *                    optional, false otherwise
  * Returns:
  * 	Interval time in miliseconds
+ * Note: When default_poll is false, always use this API on receiving
+ *       PROTO_RCVD_CMD_PI event.
  */
-uint32_t ott_get_default_polling();
+uint32_t ott_get_polling_interval(const void *msg, bool default_poll);
 
 /*
  * Initialize the OTT Protocol module with the remote host and port
