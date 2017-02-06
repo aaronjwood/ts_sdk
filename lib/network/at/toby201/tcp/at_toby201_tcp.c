@@ -1,7 +1,7 @@
 /*
- *  \file at_toby201_lte.c, implementing APIs defined in at_tcp.h file
+ *  \file at_toby201_tcp.c, implementing APIs defined in at_tcp.h file
  *
- *  \brief API implementation that uses the UBLOX TOBY-L201 modem to communicate over LTE
+ *  \brief API implementation that uses the UBLOX TOBY-L201 modem to communicate over TCP
  *
  *  \copyright Copyright (C) 2016, 2017 Verizon. All rights reserved.
  *
@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <stm32f4xx_hal.h>
 #include "at_tcp.h"
-#include "at_toby201_lte_command.h"
+#include "at_toby201_tcp_command.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>

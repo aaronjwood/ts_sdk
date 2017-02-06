@@ -1,17 +1,17 @@
 /**
- * \file at_lte_defs.h
+ * \file at_tcp_defs.h
  *
- * \brief AT state definitions for ublox-toby201 LTE modem functions
+ * \brief AT state definitions for ublox-toby201 to communicate over TCP
  *
  * \copyright Copyright (C) 2016, 2017 Verizon. All rights reserved.
  */
 
-#ifndef AT_LTE_DEFS_H
-#define AT_LTE_DEFS_H
+#ifndef AT_TCP_DEFS_H
+#define AT_TCP_DEFS_H
 
 #include "at_core.h"
 
-/* AT layer internal state machine for LTE */
+/* AT layer internal state machine for TCP */
 typedef enum at_states {
         IDLE = 1,
         /* Network lost indication from cereg and ureg */
@@ -52,4 +52,4 @@ typedef enum dis_states {
 #define DL_PARTIAL_ERROR        -5
 #define DL_PARTIAL_SUC          0
 
-#endif	/* at_lte_defs.h */
+#endif	/* at_tcp_defs.h */

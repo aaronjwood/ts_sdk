@@ -1,15 +1,15 @@
 /**
  * \file at_tcp.h
  *
- * \brief API that uses AT commands to communicate through TCP over LTE
+ * \brief API that uses AT commands to communicate through TCP
  *
  * \copyright Copyright (C) 2016, 2017 Verizon. All rights reserved.
  *
  *
  */
 
-#ifndef AT_LTE_H
-#define AT_LTE_H
+#ifndef AT_TCP_H
+#define AT_TCP_H
 
 #include <stddef.h>
 #include <stdint.h>

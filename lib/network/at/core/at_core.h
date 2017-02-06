@@ -174,7 +174,7 @@ at_ret_code at_core_modem_reset(void);
  * Write a set of bytes into the UART connecting the MCU and the modem.
  *
  * Parameters:
- * 	buf - Pointer to buffer containing the command
+ * 	buf - Pointer to buffer containing the data to be written
  * 	len - Length of the data contained in the buffer
  *
  * Returns:

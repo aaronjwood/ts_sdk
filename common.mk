@@ -51,7 +51,7 @@ LDFLAGS ?= -Wl,-Map,fw.map,--cref
 MODEM_TARGET = toby201
 
 # Define the transport mechanism. Currently, TCP over LTE and SMS over NAS are supported
-MODEM_TRANS = LTE
+MODEM_TRANS = TCP
 #MODEM_TRANS = SMS
 
 MODEM_SRC += at_core.c
@@ -59,9 +59,9 @@ MODEM_SRC += at_core.c
 ifeq ($(MODEM_TARGET),toby201)
 	MOD_TAR = -DMODEM_TOBY201
 	export MOD_TAR
-ifeq ($(MODEM_TRANS),LTE)
-	MODEM_SRC += at_toby201_lte.c
-	MODEM_DIR += $(MODEM_TARGET)/lte
+ifeq ($(MODEM_TRANS),TCP)
+	MODEM_SRC += at_toby201_tcp.c
+	MODEM_DIR += $(MODEM_TARGET)/tcp
 else ifeq ($(MODEM_TRANS),SMS)
 	MODEM_SRC += at_toby201_sms.c
 	MODEM_DIR += $(MODEM_TARGET)/sms
