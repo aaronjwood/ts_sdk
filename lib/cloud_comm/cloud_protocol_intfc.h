@@ -6,12 +6,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "protocol_def.h"
+
 #if defined (OTT_PROTOCOL)
 #include "ott_protocol.h"
 #elif defined (SMSNAS_PROTOCOL)
 #include "smsnas_protocol.h"
-#else
-Please define protocol to use, valid options OTT_PROTOCOL or SMSNAS_PROTOCOL
 #endif
 
 /* Very thin layer sits between cloud_comm api and undelying protocol depending
