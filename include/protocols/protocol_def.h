@@ -9,6 +9,8 @@
 #include "ott_limits.h"
 #elif defined (SMSNAS_PROTOCOL)
 #include "smsnas_limits.h"
+#else
+#error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
 #endif
 
 /* Superset of the protocol API execution results, depending on the protocols

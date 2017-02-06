@@ -11,6 +11,8 @@
 #include "ott_protocol.h"
 #elif defined (SMSNAS_PROTOCOL)
 #include "smsnas_protocol.h"
+#else
+#error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
 #endif
 
 /* Very thin layer sits between cloud_comm api and undelying protocol depending
