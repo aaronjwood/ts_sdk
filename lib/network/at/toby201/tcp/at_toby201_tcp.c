@@ -1,7 +1,7 @@
 /*
- *  \file at_toby201.c, implementing APIs defined in at.h file
+ *  \file at_toby201_tcp.c, implementing APIs defined in at_tcp.h file
  *
- *  \brief AT command functions for u-blox toby201 lte modem
+ *  \brief API implementation that uses the UBLOX TOBY-L201 modem to communicate over TCP
  *
  *  \copyright Copyright (C) 2016, 2017 Verizon. All rights reserved.
  *
@@ -9,26 +9,30 @@
 
 #include <errno.h>
 #include <stm32f4xx_hal.h>
-#include "at.h"
-#include "at_toby201_command.h"
-#include "uart.h"
+#include "at_tcp.h"
+#include "at_toby201_tcp_command.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 #include "platform.h"
 
-static const char *rsp_header = "\r\n";
-static const char *rsp_trailer = "\r\n";
-
-/* TCP operation can fail at tcp level as well operation level which can be
- * caught with +CME ERROR, while tcp level error requires issuing
- * special command to retrieve error number
+/*
+ * Intermediate buffer to hold data from uart buffer when disconnect string
+ * is detected fully, disconnect string is from the dl mode
  */
-static const char *tcp_error = "\r\nERROR\r\n";
+typedef struct _at_intr_buf {
+        /* This buffer does not overflow as it is only being filled when whole
+         * dl disconnect string sequence is detected, total capacity of this
+         * buffer can not exceed beyond UART_RX_BUFFER_SIZE - disconnect string
+         */
+        uint8_t buf[UART_RX_BUFFER_SIZE];
+        buf_sz ridx;
+        buf_sz buf_unread;
+} at_intr_buf;
 
 /* structure to hold dl mode related information */
 static volatile struct {
-        /* dl mode escape indication string from modem */
+	/* dl mode escape indication string from modem */
 	const char *dis_str;
         buf_sz l_matched_pos;
         uint8_t matched_bytes;
@@ -38,36 +42,13 @@ static volatile struct {
 
 static volatile at_states state;
 
-static volatile bool process_rsp;
 /* Flag to indicate one time packet data network enable procedure */
 static volatile bool pdp_conf;
 
-static void __at_dump_buffer(const char *buf, buf_sz len)
-{
-        if (!buf) {
-                buf_sz bytes = uart_rx_available();
-                if (bytes > 0) {
-                        uint8_t temp_buf[bytes];
-                        uart_read(temp_buf, bytes);
-                        for (uint8_t i = 0; i < bytes; i++)
-                                DEBUG_V0("0x%x, ", temp_buf[i]);
-                }
-        } else {
-                for (uint8_t i = 0; i < len; i++)
-                        DEBUG_V0("0x%x, ", buf[i]);
-        }
-        DEBUG_V0("\n");
-}
+/* maximum timeout value in searching for the network coverage */
+#define NET_REG_CHECK_DELAY     60000 /* In milli seconds */
 
-static void __at_uart_rx_flush(void) {
-        uart_flush_rx_buffer();
-}
-
-static bool __at_uart_write(uint8_t *buf, uint16_t len) {
-        return uart_tx(buf, len, AT_UART_TX_WAIT_MS);
-}
-
-static at_ret_code __at_process_network_urc(char *urc, at_urc u_code)
+static at_ret_code __at_process_network_urc(const char *urc, at_urc u_code)
 {
 
         if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) != 0)
@@ -87,7 +68,7 @@ static at_ret_code __at_process_network_urc(char *urc, at_urc u_code)
         return AT_SUCCESS;
 }
 
-static at_ret_code __at_process_dl_close_urc(char *urc, at_urc u_code)
+static at_ret_code __at_process_dl_close_urc(const char *urc, at_urc u_code)
 {
         if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) == 0) {
                 state &= ~DL_MODE;
@@ -97,7 +78,7 @@ static at_ret_code __at_process_dl_close_urc(char *urc, at_urc u_code)
                 return AT_FAILURE;
 }
 
-static at_ret_code __at_process_pdp_tcp_close_urc(char *urc, at_urc u_code)
+static at_ret_code __at_process_pdp_tcp_close_urc(const char *urc, at_urc u_code)
 {
         if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) == 0) {
                 switch (u_code) {
@@ -115,48 +96,13 @@ static at_ret_code __at_process_pdp_tcp_close_urc(char *urc, at_urc u_code)
                 return AT_FAILURE;
 }
 
-static void __at_process_urc(void)
-{
-
-        while (1) {
-                at_ret_code result = AT_SUCCESS;
-                uint16_t read_bytes = uart_line_avail(rsp_header, rsp_trailer);
-                if (read_bytes == 0)
-                        break;
-                uint8_t urc[read_bytes + 1];
-                urc[read_bytes] = 0x0;
-                if (uart_read(urc, read_bytes) < 0) {
-                        DEBUG_V0("%s: read err (Unlikely)\n", __func__);
-                        continue;
-                }
-                DEBUG_V0("%s: looking to process urc: %s\n",
-                                                __func__, (char *)urc);
-
-                result = __at_process_network_urc((char *)urc, NET_STAT_URC);
-                if (result == AT_SUCCESS)
-                        continue;
-
-                result = __at_process_network_urc((char *)urc, EPS_STAT_URC);
-                if (result == AT_SUCCESS)
-                        continue;
-
-                result = __at_process_pdp_tcp_close_urc((char *)urc, TCP_CLOSED);
-                if (result == AT_SUCCESS)
-                        continue;
-                result = __at_process_dl_close_urc((char *)urc, DISCONNECT);
-                if (result == AT_SUCCESS)
-                        continue;
-                result = __at_process_pdp_tcp_close_urc((char *)urc, PDP_DEACT);
-        }
-}
-
 static void __at_lookup_dl_esc_str(void)
 {
         int nw_f;
         int cur_f;
         uint8_t itr = 0;
         for (; itr < strlen(dl.dis_str); itr++) {
-                nw_f = uart_find_pattern(-1, dl.dis_str, itr + 1);
+                nw_f = at_core_find_pattern(-1, dl.dis_str, itr + 1);
                 if (nw_f == -1) {
                         if (dl.dis_state == DIS_IDLE) {
                                 if (itr > 0) {
@@ -238,7 +184,7 @@ static void __at_lookup_dl_esc_str(void)
 static void __at_xfer_to_buf()
 {
 	dl.dl_buf.ridx = 0;
-	buf_sz sz = uart_rx_available();
+	buf_sz sz = at_core_rx_available();
 	if (sz == 0) {
 		DEBUG_V0("%d:UERR\n", __LINE__);
 		dl.dl_buf.buf_unread = 0;
@@ -247,7 +193,7 @@ static void __at_xfer_to_buf()
 	DEBUG_V0("%d:SZ_A:%d\n", __LINE__, sz);
 	/* 3 is to account for trailing x\r\n, where x is socket id */
 	if ((sz - (strlen(dl.dis_str) + 3)) == 0)
-		__at_uart_rx_flush();
+		at_core_clear_rx();
 	else {
 		buf_sz start_idx = 0;
 		/* Index to keep track matched characters from dl.dis_str string
@@ -271,7 +217,7 @@ static void __at_xfer_to_buf()
 			if (start_idx >= sz)
 				break;
 			if (!skip_read) {
-				if (uart_read((uint8_t *)dl.dl_buf.buf +
+				if (at_core_read((uint8_t *)dl.dl_buf.buf +
 							start_idx, 1) != 1)
 					break;
 			}
@@ -308,446 +254,64 @@ static void __at_xfer_to_buf()
 		dl.dl_buf.buf_unread = found_idx;
 		/* 3 is to account for trailing x\r\n, where x is socket id */
 		uint8_t temp_buf[3];
-		if (uart_read(temp_buf, 3) != 3) {
+		if (at_core_read(temp_buf, 3) != 3) {
 			DEBUG_V0("%d:UERR\n", __LINE__);
 			goto done;
 		}
 		/* Since we processed all the disconnect string, there may be
 		 * other URCs buffered in the modem while we were in DL Mode
 		 */
-		state |= PROC_URC;
-		__at_process_urc();
-		state &= ~PROC_URC;
+		at_core_process_urc(true);
 
 		return;
 done:
 		dl.dl_buf.buf_unread = 0;
 		dl.dl_buf.ridx = 0;
-		__at_uart_rx_flush();
+		at_core_clear_rx();
 		return;
         }
 }
 
-static void at_uart_callback(callback_event ev)
+static void at_uart_callback(void)
 {
-        switch (ev) {
-        case UART_EVENT_RECVD_BYTES:
-                if ((state & WAITING_RESP) == WAITING_RESP) {
-                        DEBUG_V1("%s: got response\n", __func__);
-                        process_rsp = true;
-                } else if (((state & DL_MODE) == DL_MODE) &&
-                        ((state & TCP_DL_RX) != TCP_DL_RX)) {
-                        if (dl.dis_state < DIS_FULL) {
-                                __at_lookup_dl_esc_str();
-                                if (dl.dis_state == DIS_FULL) {
-                                        state = TCP_REMOTE_DISCONN;
-                                        __at_xfer_to_buf();
-                                }
-                        }
-                } else if (((state & PROC_RSP) != PROC_RSP) &&
-                        ((state & PROC_URC) != PROC_URC) &&
-                        ((state & DL_MODE) != DL_MODE)) {
-                                DEBUG_V1("%s: urc from callback:%d\n",
-                                        __func__, state);
-                                __at_process_urc();
-                } else
-                        DEBUG_V1("%s:%d:state:%d\n", __func__, __LINE__, state);
-                break;
-        case UART_EVENT_RX_OVERFLOW:
-                DEBUG_V0("%s: rx overflows\n", __func__);
-                __at_uart_rx_flush();
-                break;
-        default:
-                DEBUG_V0("%s: Unknown event code: %d\n", __func__, ev);
-                break;
-        }
-
+	if (((state & DL_MODE) == DL_MODE) &&
+			((state & TCP_DL_RX) != TCP_DL_RX)) {
+		if (dl.dis_state < DIS_FULL) {
+			__at_lookup_dl_esc_str();
+			if (dl.dis_state == DIS_FULL) {
+				state = TCP_REMOTE_DISCONN;
+				__at_xfer_to_buf();
+			}
+		}
+	} else if (!at_core_is_proc_rsp() && !at_core_is_proc_urc() &&
+			((state & DL_MODE) != DL_MODE)) {
+		DEBUG_V1("%s: urc from callback:%d\n",
+				__func__, state);
+		at_core_process_urc(false);
+	} else {
+		DEBUG_V1("%s:%d:state:%d\n", __func__, __LINE__, state);
+	}
 }
 
-static void __at_cleanup(void)
+static void urc_callback(const char *urc)
 {
-        state |= PROC_URC;
-        __at_process_urc();
-        state &= ~PROC_URC;
-        __at_uart_rx_flush();
+	at_ret_code result = __at_process_network_urc(urc, NET_STAT_URC);
+	if (result == AT_SUCCESS)
+		return;
 
-}
+	result = __at_process_network_urc(urc, EPS_STAT_URC);
+	if (result == AT_SUCCESS)
+		return;
 
-static at_ret_code __at_wait_for_rsp(uint32_t *timeout)
-{
+	result = __at_process_pdp_tcp_close_urc(urc, TCP_CLOSED);
+	if (result == AT_SUCCESS)
+		return;
 
-        state |= WAITING_RESP;
-        at_ret_code result = AT_SUCCESS;
-        uint32_t start = platform_get_tick_ms();
-        uint32_t end;
-        while (!process_rsp) {
-                end = platform_get_tick_ms();
-                if ((end - start) > *timeout) {
-                        result = AT_RSP_TIMEOUT;
-                        DEBUG_V1("%s: RSP_TIMEOUT: out of %u, waited %u\n",
-                                __func__, *timeout, (end - start));
-                        *timeout = 0;
-                        break;
-                }
-        }
-        state &= ~(WAITING_RESP);
-        process_rsp = false;
-        if (*timeout != 0 && ((end - start) < *timeout))
-                *timeout = *timeout - (end - start);
-        return result;
-}
+	result = __at_process_dl_close_urc(urc, DISCONNECT);
+	if (result == AT_SUCCESS)
+		return;
 
-static at_ret_code __at_comm_send_and_wait_rsp(char *comm, uint16_t len,
-                                                uint32_t *timeout)
-{
-        /* Process urcs if any before we send down new command
-         * and empty buffer
-         */
-        __at_cleanup();
-        CHECK_NULL(comm, AT_FAILURE)
-
-        if (!__at_uart_write((uint8_t *)comm, len)) {
-                DEBUG_V0("%s: uart tx fail\n", __func__);
-                return AT_TX_FAILURE;
-        }
-        return __at_wait_for_rsp(timeout);
-}
-
-static void __at_dump_wrng_rsp(char *rsp_buf, buf_sz read_bytes, const char *rsp)
-{
-#ifdef DEBUG_WRONG_RSP
-        DEBUG_V0("%s: Printing received wrong response:\n", __func__);
-        __at_dump_buffer(rsp_buf, read_bytes);
-        DEBUG_V0("\n");
-        DEBUG_V0("%s: Printing expected response:\n", __func__);
-        __at_dump_buffer(rsp, strlen(rsp));
-        DEBUG_V0("\n");
-#endif
-}
-
-static at_ret_code __at_handle_error_rsp(uint8_t *rsp_buf, buf_sz read_bytes,
-                                        const char *rsp, const char *err)
-{
-        at_ret_code result = AT_SUCCESS;
-        if (err) {
-                if (strncmp((char *)rsp_buf, err, strlen(err)) != 0) {
-                        if (strncmp((char *)rsp_buf, tcp_error,
-                                strlen(tcp_error)) == 0) {
-                                DEBUG_V0("%s: tcp error: %s\n",
-                                        __func__, (char *)rsp_buf);
-                                result = AT_TCP_FAILURE;
-                        } else {
-                                DEBUG_V0("%s: wrong rsp: %s\n",
-                                        __func__, (char *)rsp_buf);
-                                result = AT_WRONG_RSP;
-                        }
-                } else
-                        result = AT_FAILURE;
-        } else {
-                DEBUG_V0("%s: wrong response\n", __func__);
-                __at_dump_wrng_rsp(rsp_buf, read_bytes, rsp);
-                result = AT_WRONG_RSP;
-        }
-        return result;
-}
-
-static at_ret_code __at_wait_for_bytes(buf_sz *rcv_bytes,
-                                        buf_sz target_bytes,
-                                        uint32_t *timeout)
-{
-        while ((*rcv_bytes < target_bytes) && (*timeout > 0)) {
-                /* Modem may be busy and could not send whole response that
-                 * we are looking for, wait here to give another chance
-                 */
-                __at_wait_for_rsp(timeout);
-                state |= WAITING_RESP;
-                /* New total bytes available to read */
-                *rcv_bytes = uart_rx_available();
-
-        }
-        state |= WAITING_RESP;
-        if (*timeout == 0) {
-                *rcv_bytes = uart_rx_available();
-                if (*rcv_bytes < target_bytes)
-                        return AT_FAILURE;
-        }
-        DEBUG_V1("%s: data available (%u), wanted (%u), waited for %u time\n",
-                __func__, *rcv_bytes, target_bytes, *timeout);
-        return AT_SUCCESS;
-}
-
-static at_ret_code __at_uart_waited_read(char *buf, buf_sz wanted,
-                                        uint32_t *timeout)
-{
-        buf_sz rcvd = uart_rx_available();
-        if (__at_wait_for_bytes(&rcvd, wanted, timeout) != AT_SUCCESS) {
-                DEBUG_V0("%s: bytes not present\n", __func__);
-                return AT_FAILURE;
-        }
-
-        if (uart_read((uint8_t *)buf, wanted) < wanted) {
-                DEBUG_V0("%s: Unlikely read error\n", __func__);
-                return AT_FAILURE;
-        }
-        return AT_SUCCESS;
-}
-/* Generic utility to send command, wait for the response, and process response.
- * It is best suited for responses bound by delimiters with the exceptions
- * for write prompt command for tcp write, echo_off and modem_ok commands
- */
-
-static at_ret_code __at_generic_comm_rsp_util(const at_command_desc *desc,
-                                        bool skip_comm, bool read_line)
-{
-        CHECK_NULL(desc, AT_FAILURE)
-
-        at_ret_code result = AT_SUCCESS;
-        char *comm;
-        const char *rsp;
-        uint32_t timeout;
-        buf_sz read_bytes;
-        uint16_t wanted;
-        /* temperary wanted bytes and buffer needed when reading method is not
-         * by the line, maximum is 3 as write prompt response is \r\n@
-         */
-        uint8_t tmp_want = 0;
-        char temp_buf[4];
-
-        comm = desc->comm;
-        timeout = desc->comm_timeout;
-
-        if (!skip_comm) {
-                DEBUG_V0("%s: sending %s\n", __func__, comm);
-                result = __at_comm_send_and_wait_rsp(comm, strlen(comm),
-                                                                &timeout);
-                if (result != AT_SUCCESS)
-                        goto done;
-        }
-
-        state |= PROC_RSP;
-        for(uint8_t i = 0; i < ARRAY_SIZE(desc->rsp_desc); i++) {
-                if (!desc->rsp_desc[i].rsp)
-                        continue;
-                if (read_line) {
-                        read_bytes = uart_line_avail(rsp_header, rsp_trailer);
-                        /*
-                         * wait till we get whole line or time runs out
-                         */
-                        while (read_bytes == 0) {
-                                result = __at_wait_for_rsp(&timeout);
-                                if (result == AT_RSP_TIMEOUT) {
-                                        DEBUG_V0("%s: timed out for rsp: %s\n",
-                                                __func__, desc->rsp_desc[i].rsp);
-                                        DEBUG_V0("%s: dumping buffer\n",
-                                                __func__);
-                                        __at_dump_buffer(NULL, 0);
-                                        goto done;
-                                }
-                                read_bytes = uart_line_avail(rsp_header,
-                                                        rsp_trailer);
-                        }
-                        wanted = 0;
-                        tmp_want = 0;
-                } else {
-                        /* First three bytes to determine response */
-                        tmp_want = 3;
-                        memset(temp_buf, 0, tmp_want);
-                        result = __at_uart_waited_read(temp_buf, tmp_want,
-                                                        &timeout);
-                        if (result != AT_SUCCESS)
-                                break;
-                        if (strncmp(temp_buf, desc->rsp_desc[i].rsp,
-                                                tmp_want) == 0)
-                                wanted = strlen(desc->rsp_desc[i].rsp) - tmp_want;
-
-                        else {
-                                if (strncmp(temp_buf, tcp_error, tmp_want) == 0)
-                                        wanted = strlen(tcp_error) - tmp_want;
-                                else if (desc->err) {
-                                        if (strncmp(temp_buf, desc->err,
-                                                tmp_want) == 0)
-                                                wanted = strlen(desc->err) -
-                                                                        tmp_want;
-                                        else
-                                                result = AT_WRONG_RSP;
-                                } else
-                                        result = AT_WRONG_RSP;
-                        }
-                        if (result == AT_WRONG_RSP) {
-                                DEBUG_V0("%s: wrong response for command:%s\n",
-                                        __func__, comm);
-                                platform_delay(RSP_BUF_DELAY);
-                                __at_dump_buffer(NULL, 0);
-                                break;
-                        }
-                        buf_sz rb = uart_rx_available();
-                        result = __at_wait_for_bytes(&rb, wanted,
-                                                        &timeout);
-                        state &= ~WAITING_RESP;
-                        if (result != AT_SUCCESS)
-                                break;
-                        read_bytes = rb + tmp_want;
-                }
-
-                /* start processing response */
-                uint8_t rsp_buf[read_bytes + 1];
-                memset(rsp_buf, 0, read_bytes + 1);
-                if (tmp_want > 0) {
-                        if (tmp_want <= read_bytes)
-                                strncpy((char *)rsp_buf, temp_buf, tmp_want);
-                        else {
-                                DEBUG_V0("%s: Unlikey tmp want value\n",
-                                        __func__);
-                                result = AT_FAILURE;
-                                break;
-                        }
-                }
-
-                int rd_b = uart_read(rsp_buf + tmp_want, read_bytes - tmp_want);
-                if (rd_b == (read_bytes - tmp_want)) {
-                        if (strncmp((char *)rsp_buf,
-                                desc->rsp_desc[i].rsp,
-                                strlen(desc->rsp_desc[i].rsp)) != 0) {
-                                DEBUG_V0("%s: Error rsp for command:%s\n",
-                                        __func__, comm);
-                                result = __at_handle_error_rsp(rsp_buf,
-                                                        read_bytes,
-                                                        desc->rsp_desc[i].rsp,
-                                                        desc->err);
-                                break;
-                        } else {
-                                if (desc->rsp_desc[i].rsp_handler)
-                                        desc->rsp_desc[i].rsp_handler(rsp_buf,
-                                                read_bytes,
-                                                desc->rsp_desc[i].rsp,
-                                                desc->rsp_desc[i].data);
-                                result = AT_SUCCESS;
-                        }
-                } else {
-                        DEBUG_V0("%s: uart read failed (unlikely) for"
-                                " command:%s\n", __func__,desc->comm);
-                        result = AT_FAILURE;
-                        break;
-                }
-
-        } /* for loop ends */
-done:
-        state &= ~PROC_RSP;
-        state &= ~WAITING_RESP;
-
-        /* Recommeded to wait at least 20ms before proceeding */
-        platform_delay(AT_COMM_DELAY_MS);
-
-        /* check to see if we have urcs while command was executing
-         * if result was wrong response, chances are that we are out of sync
-         */
-        DEBUG_V1("%s: Processing URCS outside call back\n", __func__);
-        __at_cleanup();
-        DEBUG_V1("%s: result: %d\n", __func__, result);
-        return result;
-}
-
-/* resetting modem is a special case where its response depends on the previous
- * setting of the echo in the modem, where if echo is on it sends
- * command plus OK or OK otherwise as a response
- */
-static at_ret_code __at_modem_reset_comm()
-{
-        at_ret_code result = AT_FAILURE;
-
-        const at_command_desc *desc = &modem_net_status_comm[MODEM_RESET];
-        char *comm = desc->comm;
-        uint32_t timeout = desc->comm_timeout;
-        uint16_t rcvd, wanted;
-        char *rsp = "\r\nOK\r\n";
-        char alt_rsp[strlen(comm) + strlen(rsp) + 1];
-        char *temp_rsp = NULL;
-        strcpy(alt_rsp, comm);
-        strcat(alt_rsp, rsp);
-
-        int max_bytes = (strlen(rsp) > strlen(alt_rsp)) ?
-                                        strlen(rsp):strlen(alt_rsp);
-
-        char rsp_buf[max_bytes + 1];
-        rsp_buf[max_bytes] = 0x0;
-
-        result = __at_comm_send_and_wait_rsp(comm, strlen(comm), &timeout);
-        if (result != AT_SUCCESS)
-                goto done;
-
-        state |= PROC_RSP;
-        /* read for /r/nO or at+ */
-        wanted = 3;
-        result = __at_uart_waited_read(rsp_buf, wanted, &timeout);
-        if (result != AT_SUCCESS)
-                goto done;
-
-        if (strncmp(rsp_buf, rsp, wanted) == 0) {
-                temp_rsp = rsp + wanted;
-                wanted = strlen(rsp) - wanted;
-        } else if (strncmp(rsp_buf, alt_rsp, wanted) == 0) {
-                temp_rsp = alt_rsp + wanted;
-                wanted = strlen(alt_rsp) - wanted;
-        } else {
-                result = AT_FAILURE;
-                DEBUG_V0("%s: wrong resp\n", __func__);
-                platform_delay(RSP_BUF_DELAY);
-                __at_dump_buffer(NULL, 0);
-                goto done;
-        }
-
-        result = __at_uart_waited_read(rsp_buf, wanted, &timeout);
-        if (result != AT_SUCCESS)
-                goto done;
-        if (strncmp(rsp_buf, temp_rsp, wanted) != 0) {
-                DEBUG_V0("%s: Unlikely comparison error\n", __func__);
-                result = AT_FAILURE;
-        } else
-                result = AT_SUCCESS;
-
-done:
-        state &= ~WAITING_RESP;
-        state &= ~PROC_RSP;
-        platform_delay(AT_COMM_DELAY_MS);
-        /* check to see if we have urcs while command was executing
-         */
-        DEBUG_V1("%s: Processing URCS outside call back\n", __func__);
-        __at_cleanup();
-        return result;
-}
-
-static at_ret_code __at_modem_reset()
-{
-        at_ret_code result;
-        result = __at_modem_reset_comm();
-        CHECK_SUCCESS(result, AT_SUCCESS, result)
-        /* sending at command right after reset command succeeds which is not
-         * desirable, wait here for few seconds before we send at command to
-         * poll for modem
-         */
-        platform_delay(3000);
-        uint32_t start = platform_get_tick_ms();
-        uint32_t end;
-        result = AT_FAILURE;
-        while (result != AT_SUCCESS) {
-                end = platform_get_tick_ms();
-                if ((end - start) > MODEM_RESET_DELAY) {
-                        DEBUG_V0("%s: timed out\n", __func__);
-                        return result;
-                }
-                result =  __at_generic_comm_rsp_util(
-                                &modem_net_status_comm[MODEM_OK], false, false);
-                platform_delay(CHECK_MODEM_DELAY);
-        }
-
-        result = __at_generic_comm_rsp_util(
-                                &modem_net_status_comm[ECHO_OFF], false, false);
-        CHECK_SUCCESS(result, AT_SUCCESS, result)
-
-        result = __at_generic_comm_rsp_util(
-                                &modem_net_status_comm[CME_CONF], false, true);
-
-        return result;
+	result = __at_process_pdp_tcp_close_urc(urc, PDP_DEACT);
 }
 
 static at_ret_code __at_check_network_registration()
@@ -755,55 +319,48 @@ static at_ret_code __at_check_network_registration()
         at_ret_code result1 = AT_SUCCESS;
         at_ret_code result2 = AT_SUCCESS;
         /* Check network registration status */
-        result1 = __at_generic_comm_rsp_util(
-                        &modem_net_status_comm[NET_REG_STAT], false, true);
+        result1 = at_core_wcmd(&modem_net_status_comm[NET_REG_STAT], true);
 
         /* Check packet switch network registration status */
-        result2 = __at_generic_comm_rsp_util(
-                        &modem_net_status_comm[EPS_REG_STAT], false, true);
+        result2 = at_core_wcmd(&modem_net_status_comm[EPS_REG_STAT], true);
 
         if ((result1 == AT_SUCCESS) && (result2 == AT_SUCCESS))
                 return AT_SUCCESS;
         return AT_FAILURE;
 }
 
-static at_ret_code __at_modem_conf() {
-
+static at_ret_code __at_modem_conf()
+{
         at_ret_code result = AT_SUCCESS;
 
         /* Enable EPS network status URCs */
-        result = __at_generic_comm_rsp_util(&modem_net_status_comm[EPS_STAT],
-                                                false, true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result)
+	result = at_core_wcmd(&modem_net_status_comm[EPS_STAT], true);
+        CHECK_SUCCESS(result, AT_SUCCESS, result);
 
         /* ENABLE network status URCs */
-        result = __at_generic_comm_rsp_util(&modem_net_status_comm[NET_STAT],
-                                                false, true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result)
+	result = at_core_wcmd(&modem_net_status_comm[NET_STAT], true);
+        CHECK_SUCCESS(result, AT_SUCCESS, result);
 
         /* Check if simcard is inserted */
-        result = __at_generic_comm_rsp_util(&modem_net_status_comm[SIM_READY],
-                                                false, true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result)
+        result = at_core_wcmd(&modem_net_status_comm[SIM_READY], true);
+        CHECK_SUCCESS(result, AT_SUCCESS, result);
 
         /* set escape sequence delay */
         char temp_comm[TEMP_COMM_LIMIT];
         at_command_desc *desc = &tcp_comm[ESCAPE_TIME_CONF];
         snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, DL_MODE_ESC_TIME);
         desc->comm = temp_comm;
-        result = __at_generic_comm_rsp_util(desc, false, true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result)
+        result = at_core_wcmd(desc, true);
+        CHECK_SUCCESS(result, AT_SUCCESS, result);
 
         /* Check MNO configuration, if it is not set for the Verizon, configure
          * for it and reset the modem to save settings
          */
-        result = __at_generic_comm_rsp_util(&modem_net_status_comm[MNO_STAT],
-                                                false, true);
+        result = at_core_wcmd(&modem_net_status_comm[MNO_STAT], true);
         if (result != AT_SUCCESS) {
-                result = __at_generic_comm_rsp_util(
-                                &modem_net_status_comm[MNO_SET], false, true);
-                CHECK_SUCCESS(result, AT_SUCCESS, result)
-                uint8_t res = __at_modem_reset();
+                result = at_core_wcmd(&modem_net_status_comm[MNO_SET], true);
+                CHECK_SUCCESS(result, AT_SUCCESS, result);
+                uint8_t res = at_core_modem_reset();
                 if (res == AT_RSP_TIMEOUT || res == AT_TX_FAILURE)
                         return res;
                 return AT_RECHECK_MODEM;
@@ -845,16 +402,13 @@ bool at_init()
         dl.dl_buf.ridx= 0;
         dl.dis_state = DIS_IDLE;
 
-        bool res = uart_module_init(UART_EN_HW_CTRL, IDLE_CHARS);
-        CHECK_SUCCESS(res, true, false)
+	bool res = at_core_init(at_uart_callback, urc_callback);
+	CHECK_SUCCESS(res, true, false);
 
-        uart_set_rx_callback(at_uart_callback);
         state = IDLE;
-        process_rsp = false;
         pdp_conf = false;
-        __at_uart_rx_flush();
         /* This may take few seconds */
-        at_ret_code res_modem = __at_modem_reset();
+        at_ret_code res_modem = at_core_modem_reset();
         if (res_modem != AT_SUCCESS) {
                 printf("%s: modem reset failed (%d)\n", __func__, res_modem);
                 return false;
@@ -888,7 +442,7 @@ static at_ret_code __at_esc_dl_mode(void)
 {
         platform_delay(DL_ESC_TIME_MS);
         at_command_desc *desc = &tcp_comm[ESCAPE_DL_MODE];
-        at_ret_code result = __at_generic_comm_rsp_util(desc, false, true);
+        at_ret_code result = at_core_wcmd(desc, true);
         if (AT_COMM_DELAY_MS < DL_ESC_TIME_MS)
                 platform_delay(DL_ESC_TIME_MS - DL_ESC_TIME_MS);
 
@@ -909,7 +463,7 @@ static at_ret_code __at_set_dl_mode(int s_id)
         snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id);
 
         desc->comm = temp_comm;
-        at_ret_code result = __at_generic_comm_rsp_util(desc, false, true);
+        at_ret_code result = at_core_wcmd(desc, true);
         if (result == AT_SUCCESS) {
                 state |= DL_MODE;
                 DEBUG_V0("%s:%d: direct mode enabled\n", __func__, __LINE__);
@@ -927,7 +481,7 @@ static at_ret_code __at_conf_dl_mode(int s_id)
         snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id);
 
         desc->comm = temp_comm;
-        return __at_generic_comm_rsp_util(desc, false, true);
+        return at_core_wcmd(desc, true);
 }
 
 static void __at_parse_tcp_conf_rsp(void *rcv_rsp, int rcv_rsp_len,
@@ -956,7 +510,7 @@ static int __at_tcp_connect(const char *host, const char *port)
         desc->rsp_desc[0].data = &s_id;
 
         /* Configure tcp connection first to be tcp client */
-        result = __at_generic_comm_rsp_util(desc, false, true);
+        result = at_core_wcmd(desc, true);
         CHECK_SUCCESS(result, AT_SUCCESS, -1);
         if (s_id < 0) {
                 DEBUG_V0("%s: could not get socket: %d\n", __func__, s_id);
@@ -970,7 +524,7 @@ static int __at_tcp_connect(const char *host, const char *port)
                 host, port);
 
         desc->comm = temp_comm;
-        result = __at_generic_comm_rsp_util(desc, false, true);
+        result = at_core_wcmd(desc, true);
 
         CHECK_SUCCESS(result, AT_SUCCESS, AT_CONNECT_FAILED);
 
@@ -982,17 +536,15 @@ static int __at_tcp_connect(const char *host, const char *port)
 
 static at_ret_code __at_pdp_conf(void)
 {
-        at_ret_code result = __at_generic_comm_rsp_util(
-                                        &pdp_conf_comm[SEL_IPV4_PREF],
-                                        false, true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result)
-        return __at_generic_comm_rsp_util(&pdp_conf_comm[ACT_PDP], false, true);
+        at_ret_code result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4_PREF], true);
+        CHECK_SUCCESS(result, AT_SUCCESS, result);
+        return at_core_wcmd(&pdp_conf_comm[ACT_PDP], true);
 }
 
 int at_tcp_connect(const char *host, const char *port)
 {
 
-        CHECK_NULL(host, -1)
+        CHECK_NULL(host, -1);
         if ((state & DL_MODE) == DL_MODE) {
                 DEBUG_V0("%s: Direct link mode is already on, tcp connect not "
                         "possible, state :%u\n",__func__, state);
@@ -1032,7 +584,7 @@ static int __at_tcp_tx(const uint8_t *buf, size_t len)
 {
         for (int i = 0; i < len; i++) {
                 if ((state & TCP_CONNECTED) == TCP_CONNECTED) {
-                        if (!__at_uart_write(((uint8_t *)buf + i), 1))
+                        if (!at_core_write(((uint8_t *)buf + i), 1))
                                 return AT_TCP_SEND_FAIL;
                 } else {
                         DEBUG_V0("%s: diconnected in middle of the write\n",
@@ -1046,7 +598,7 @@ static int __at_tcp_tx(const uint8_t *buf, size_t len)
 
 int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
 {
-        CHECK_NULL(buf, AT_TCP_INVALID_PARA)
+        CHECK_NULL(buf, AT_TCP_INVALID_PARA);
         if ((s_id < 0) || (len == 0))
                 return AT_TCP_INVALID_PARA;
 
@@ -1089,12 +641,12 @@ int at_read_available(int s_id)
                 DEBUG_V0("%s:%d: dl mode is off\n", __func__, __LINE__);
                 return AT_TCP_RCV_FAIL;
         }
-        return uart_rx_available();
+        return at_core_rx_available();
 }
 
 static buf_sz __at_calc_new_len(void)
 {
-        buf_sz n_sz = uart_rx_available();
+        buf_sz n_sz = at_core_rx_available();
         if (dl.matched_bytes > n_sz) {
                 DEBUG_V0("%s:%d: Unlkly error\n", __func__, __LINE__);
                 __at_reset_dl_state();
@@ -1141,7 +693,7 @@ static int __at_process_rcv_dl_partial(size_t len)
 {
         buf_sz prev_matched = dl.matched_bytes;
         buf_sz prev_pos = dl.l_matched_pos;
-        buf_sz sz = uart_rx_available();
+        buf_sz sz = at_core_rx_available();
 
         if (prev_matched > sz) {
                 DEBUG_V0("%s:%d: matched bytes (%u) greater then avail (%u)\n",
@@ -1197,7 +749,7 @@ static int __at_process_rcv_dl_partial(size_t len)
                                  * binary blob and reset dl escape mode
                                  * state machine
                                  */
-                                a_avail = uart_rx_available();
+                                a_avail = at_core_rx_available();
                                 __at_reset_dl_state();
                         } else if (dl.matched_bytes > prev_matched) {
                                 DEBUG_V0("%s:%d: Escape response"
@@ -1244,7 +796,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
 
                         int res = __at_process_rcv_dl_partial(len);
                         if (res == DL_PARTIAL_ERROR)
-                                len = uart_rx_available();
+                                len = at_core_rx_available();
                         else if (res == DL_PARTIAL_TO_FULL)
                                 return __at_process_intr_buffer(buf, len);
                         else if (res > DL_PARTIAL_ERROR) {
@@ -1256,7 +808,7 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
                                 DEBUG_V0("%s:%d: Unlikly Err\n",
                                         __func__, __LINE__);
                 }
-                int rdb = uart_read(buf, len);
+                int rdb = at_core_read(buf, len);
                 if (rdb == 0) {
                         DEBUG_V1("%s:%d: read again\n", __func__, __LINE__);
                         errno = EAGAIN;
@@ -1273,38 +825,39 @@ int at_tcp_recv(int s_id, unsigned char *buf, size_t len)
 
 void at_tcp_close(int s_id)
 {
-        if (s_id < 0)
-                return;
+	if (s_id < 0)
+		return;
 
-        dl.dl_buf.buf_unread = 0;
-        dl.dl_buf.ridx = 0;
+	dl.dl_buf.buf_unread = 0;
+	dl.dl_buf.ridx = 0;
 
-        if ((state & TCP_REMOTE_DISCONN) == TCP_REMOTE_DISCONN) {
-                DEBUG_V0("%s:%d: tcp already closed\n", __func__, __LINE__);
-                __at_reset_dl_state();
-                __at_cleanup();
-                state = IDLE;
-                return;
-        }
+	if ((state & TCP_REMOTE_DISCONN) == TCP_REMOTE_DISCONN) {
+		DEBUG_V0("%s:%d: tcp already closed\n", __func__, __LINE__);
+		__at_reset_dl_state();
+		at_core_process_urc(true);
+		at_core_clear_rx();
+		state = IDLE;
+		return;
+	}
 
-        if ((state & DL_MODE) == DL_MODE)
-                __at_esc_dl_mode();
+	if ((state & DL_MODE) == DL_MODE)
+		__at_esc_dl_mode();
 
 
-        at_command_desc *desc = &tcp_comm[TCP_CLOSE];
-        char temp_comm[TEMP_COMM_LIMIT];
-        snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id);
-        desc->comm = temp_comm;
-        at_ret_code result = __at_generic_comm_rsp_util(desc, false, true);
-        if (result == AT_RSP_TIMEOUT) {
-                DEBUG_V0("%s: tcp close command timedout\n", __func__);
-                return;
-        } else if (result == AT_FAILURE)
-                DEBUG_V0("%s: could not close socket,"
-                        " connection may be already closed\n", __func__);
+	at_command_desc *desc = &tcp_comm[TCP_CLOSE];
+	char temp_comm[TEMP_COMM_LIMIT];
+	snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, s_id);
+	desc->comm = temp_comm;
+	at_ret_code result = at_core_wcmd(desc, true);
+	if (result == AT_RSP_TIMEOUT) {
+		DEBUG_V0("%s: tcp close command timedout\n", __func__);
+		return;
+	} else if (result == AT_FAILURE)
+		DEBUG_V0("%s: could not close socket,"
+				" connection may be already closed\n", __func__);
 
-        state = IDLE;
-        state |= TCP_CONN_CLOSED;
-        __at_reset_dl_state();
-        return;
+	state = IDLE;
+	state |= TCP_CONN_CLOSED;
+	__at_reset_dl_state();
+	return;
 }

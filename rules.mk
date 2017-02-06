@@ -38,7 +38,7 @@ $(OBJ_STARTUP):
 	$(AS) $(ARCHFLAGS) -o $(OBJ_STARTUP) $(STARTUP_SRC)
 
 $(OBJ_LIB): %.o: %.c
-	$(CC) -c $(CFLAGS_LIB) $(DBG_MACRO) $(ARCHFLAGS) $(MDEF) $< -o $@
+	$(CC) -c $(CFLAGS_LIB) $(DBG_MACRO) $(ARCHFLAGS) $(MDEF) $(MOD_TAR) $< -o $@
 
 $(OBJ_DBG_LIB): %.o: %.c
 	$(CC) -c $(CFLAGS_DBG_LIB) $(DBG_MACRO) $(ARCHFLAGS) $(MDEF) $< -o $@

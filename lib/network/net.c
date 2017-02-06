@@ -3,7 +3,7 @@
  *
  *  \brief net functions for mbedtls library
  *
- *  \copyright Copyright (C) 2016, Verizon. All rights reserved.
+ *  \copyright Copyright (C) 2016, 2017 Verizon. All rights reserved.
  *
  */
 
@@ -17,7 +17,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stm32f4xx_hal.h>
-#include "at.h"
+#include "at_tcp.h"
 #include "mbedtls/net.h"
 
 #include "ott_protocol.h"

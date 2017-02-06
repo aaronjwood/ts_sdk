@@ -1,4 +1,4 @@
-# Copyright(C) 2016,2017 Verizon. All rights reserved.
+# Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
 # Define common parameters used by the build process such as paths to the
 # toolchain, compiler and linker flags and names of the core modules needed
@@ -47,6 +47,27 @@ export ARCHFLAGS
 FW_EXEC = firmware.elf
 LDFLAGS ?= -Wl,-Map,fw.map,--cref
 
+# defines which modem to use, currently only ublox-toby201 is supported
+MODEM_TARGET = toby201
+
+# Define the transport mechanism. Currently, TCP over LTE and SMS over NAS are supported
+MODEM_TRANS = TCP
+#MODEM_TRANS = SMS
+
+MODEM_SRC += at_core.c
+
+ifeq ($(MODEM_TARGET),toby201)
+	MOD_TAR = -DMODEM_TOBY201
+	export MOD_TAR
+ifeq ($(MODEM_TRANS),TCP)
+	MODEM_SRC += at_toby201_tcp.c
+	MODEM_DIR += $(MODEM_TARGET)/tcp
+else ifeq ($(MODEM_TRANS),SMS)
+	MODEM_SRC += at_toby201_sms.c
+	MODEM_DIR += $(MODEM_TARGET)/sms
+endif
+endif
+
 # platform related header files
 INC += -I $(PROJ_ROOT)/include/platform
 
@@ -61,6 +82,7 @@ INC += -I $(PROJ_ROOT)/include/certs
 # net and at layer library includes
 INC += -I $(PROJ_ROOT)/include/network/at
 INC += -I $(PROJ_ROOT)/include/network
+INC += -I $(PROJ_ROOT)/lib/network/at/core
 
 # Peripheral related headers
 INC += -I $(STM32_LIB_COMMON)/Drivers/STM32F4xx_HAL_Driver/Inc
@@ -86,9 +108,6 @@ INC += -I $(PROJ_ROOT)/include/cloud_comm
 # Device credentials header
 INC += -I $(PROJ_ROOT)/include/dev_creds
 
-# Sensor interface header
-INC += -I $(PROJ_ROOT)/include/sensor_interface
-
 export INC
 
 # Linker script
@@ -97,14 +116,6 @@ LDSCRIPT = -T $(STM32_LIB_COMMON)/Projects/STM32F429ZI-Nucleo/Templates/SW4STM32
 # Point to the C Runtime startup code
 STARTUP_SRC = $(STM32_CMSIS)/Source/Templates/gcc/startup_stm32f429xx.s
 OBJ_STARTUP = startup_stm32f429xx.o
-
-# defines which modem to use, currently only ublox-toby201 is supported
-MODEM_TARGET = toby201
-
-ifeq ($(MODEM_TARGET),toby201)
-MODEM_SRC += at_toby201.c
-MODEM_DIR += toby201
-endif
 
 # List of core library components to be included in the build process
 # This includes debugging, UART, NET and HW RNG modules.
@@ -133,6 +144,7 @@ vpath %.c $(PROJ_ROOT)/lib/platform: \
 	$(PROJ_ROOT)/lib/ott_protocol: \
 	$(PROJ_ROOT)/lib/cloud_comm: \
 	$(PROJ_ROOT)/lib/network: \
+	$(PROJ_ROOT)/lib/network/at/core: \
 	$(PROJ_ROOT)/lib/network/at/$(MODEM_DIR): \
 	$(STM32_PLIB): \
 	$(STM32_CMSIS)/Source/Templates:
