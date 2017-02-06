@@ -19,10 +19,4 @@
 #define PROTO_MAX_SEND_BUF_SZ           PROTO_DATA_SZ
 #define PROTO_MAX_RECV_BUF_SZ           PROTO_DATA_SZ
 
-/* Private macro defines related to OTT protocol remote host and port maximum
- * length
- */
-#define MAX_HOST_LEN	50	/**< Size of the host address string in bytes */
-#define MAX_PORT_LEN	5	/**< Size of the port string in bytes */
-
 #endif

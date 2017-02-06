@@ -14,6 +14,8 @@
 #define TIMEOUT_MS		5000
 
 #define OTT_UUID_SZ             16
+#define MAX_HOST_LEN		50
+#define MAX_PORT_LEN		5
 
 #define UPD_OVR_HEAD		PROTO_OVERHEAD_SZ
 #define MIN_UPD_SIZE		(UPD_OVR_HEAD + 1 /* Actual data */)
