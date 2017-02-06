@@ -82,8 +82,8 @@ typedef struct {		/* Cloud communication buffer descriptor */
  * the buffer is CC_MIN_RECV_BUF_SZ and the maximum is CC_MAX_RECV_BUF_SZ.
  */
 #define CC_RECV_BUFFER(name, max_sz) \
-	__compile_time_assert(((max_sz) <= PROTO_DATA_SZ) && \
-			((max_sz) >= (PROTO_CMD_SZ + sizeof(uint32_t))), \
+	__compile_time_assert(((max_sz) <= CC_MAX_RECV_BUF_SZ) && \
+			((max_sz) >= CC_MIN_RECV_BUF_SZ), \
 			name##_does_not_have_a_valid_size_on_line); \
 	uint8_t name##_bytes[PROTO_OVERHEAD_SZ + (max_sz)]; \
 	cc_buffer_desc name = {(max_sz), &(name##_bytes)}
@@ -94,8 +94,8 @@ typedef struct {		/* Cloud communication buffer descriptor */
  * the buffer is CC_MIN_SEND_BUF_SZ and the maximum is CC_MAX_SEND_BUF_SZ.
  */
 #define CC_SEND_BUFFER(name, max_sz) \
-	__compile_time_assert(((max_sz) <= PROTO_DATA_SZ) && \
-			((max_sz) >= 1), \
+	__compile_time_assert(((max_sz) <= CC_MAX_SEND_BUF_SZ) && \
+			((max_sz) >= CC_MIN_SEND_BUF_SZ), \
 			name##_does_not_have_a_valid_size_on_line); \
 	uint8_t name##_bytes[(max_sz)]; \
 	cc_buffer_desc name = {(max_sz), &(name##_bytes)}
