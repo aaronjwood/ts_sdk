@@ -257,7 +257,7 @@ cc_send_result cc_resend_init_config(cc_callback_rtn cb);
 
 /**
  * \brief
- * A mandatory function to initiate a receive of messages from the cloud.
+ * A mandatory function to initiate a receive messages from the cloud.
  *
  * \param[in] buf  : Pointer to the cloud communication buffer descriptor
  *                   that will hold the data to be received.
