@@ -137,8 +137,8 @@ static void ott_init_state(void)
 
 proto_result ott_protocol_init(void)
 {
-        ott_init_state();
-        int ret;
+	ott_init_state();
+	int ret;
 
 #ifdef MBEDTLS_DEBUG_C
 	mbedtls_debug_set_threshold(1);
@@ -157,7 +157,7 @@ proto_result ott_protocol_init(void)
 	/* Seed the RNG */
 	mbedtls_entropy_init(&entropy);
 	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
-			NULL, 0);
+				NULL, 0);
 	if (ret != 0) {
 		cleanup_mbedtls();
 		return PROTO_ERROR;
@@ -165,7 +165,7 @@ proto_result ott_protocol_init(void)
 
 	/* Load the CA root certificate */
 	ret = mbedtls_x509_crt_parse_der(&cacert,
-                                         (const unsigned char *)&cacert_der,
+	                                 (const unsigned char *)&cacert_der,
 					 sizeof(cacert_der));
 	if (ret < 0) {
 		cleanup_mbedtls();
@@ -173,10 +173,9 @@ proto_result ott_protocol_init(void)
 	}
 
 	/* Set up the TLS structures */
-	ret = mbedtls_ssl_config_defaults(&conf,
-			MBEDTLS_SSL_IS_CLIENT,
-			MBEDTLS_SSL_TRANSPORT_STREAM,
-			MBEDTLS_SSL_PRESET_DEFAULT);
+	ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT,
+				MBEDTLS_SSL_TRANSPORT_STREAM,
+				MBEDTLS_SSL_PRESET_DEFAULT);
 	if (ret != 0) {
 		cleanup_mbedtls();
 		return PROTO_ERROR;
@@ -199,14 +198,14 @@ proto_result ott_set_auth(const uint8_t *d_id, uint32_t d_id_sz,
 		return PROTO_INV_PARAM;
 	if ((d_sec == NULL) || (d_sec_sz != OTT_DEV_SC_SZ))
 		return PROTO_INV_PARAM;
-        if ((d_sec_sz + d_id_sz) > PROTO_DATA_SZ)
+	if ((d_sec_sz + d_id_sz) > PROTO_DATA_SZ)
 		return PROTO_INV_PARAM;
 
 	/* Store the auth information for establishing connection to the cloud */
 	memcpy(auth.dev_ID, d_id, d_id_sz);
 	memcpy(auth.d_sec, d_sec, d_sec_sz);
 	auth.auth_valid = true;
-        return PROTO_OK;
+	return PROTO_OK;
 }
 
 proto_result ott_set_destination(const char *host, const char *port)
@@ -231,12 +230,12 @@ proto_result ott_set_destination(const char *host, const char *port)
 proto_result ott_set_recv_buffer_cb(void *rcv_buf, uint32_t sz,
                                 proto_callback rcv_cb)
 {
-        if (!rcv_buf || (sz > PROTO_MAX_MSG_SZ))
-                return PROTO_INV_PARAM;
-        session.rcv_buf = rcv_buf;
-        session.rcv_sz = sz;
-        session.rcv_cb = rcv_cb;
-        return PROTO_OK;
+	if (!rcv_buf || (sz > PROTO_MAX_MSG_SZ))
+		return PROTO_INV_PARAM;
+	session.rcv_buf = rcv_buf;
+	session.rcv_sz = sz;
+	session.rcv_cb = rcv_cb;
+	return PROTO_OK;
 }
 
 static proto_result ott_close_connection(void)
