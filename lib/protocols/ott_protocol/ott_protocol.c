@@ -211,7 +211,7 @@ proto_result ott_set_auth(const uint8_t *d_id, uint32_t d_id_sz,
 
 proto_result ott_set_destination(const char *host, const char *port)
 {
-        if (!host || !port)
+	if (!host || !port)
 		return PROTO_INV_PARAM;
 
 	size_t hlen = strlen(host);
@@ -225,7 +225,7 @@ proto_result ott_set_destination(const char *host, const char *port)
 	strncpy(session.host, host, sizeof(session.host));
 	strncpy(session.port, port, sizeof(session.port));
 
-        return PROTO_OK;
+	return PROTO_OK;
 }
 
 proto_result ott_set_recv_buffer_cb(void *rcv_buf, uint32_t sz,

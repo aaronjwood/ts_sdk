@@ -171,7 +171,7 @@ bool cc_set_auth_credentials(const uint8_t *d_id, uint32_t d_id_sz,
  * 	Pointer to the send buffer.
  *
  * The data to be sent should be written into this buffer before calling
- * cc_send_bytes_to_cloud().
+ * cc_send_msg_to_cloud().
  *
  */
 uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf);
