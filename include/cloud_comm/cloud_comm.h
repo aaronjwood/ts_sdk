@@ -30,7 +30,7 @@ typedef enum {
 } cc_send_result;
 
 /**
- * Return values for cc_recv_bytes_from_cloud().
+ * Return values for cc_recv_msg_from_cloud().
  */
 typedef enum {
 	CC_RECV_FAILED,		/**< Failed to schedule a receive */
