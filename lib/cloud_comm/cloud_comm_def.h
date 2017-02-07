@@ -1,7 +1,7 @@
 /* Copyright(C) 2017 Verizon. All rights reserved. */
 
-#ifndef __OTT_PRIV
-#define __OTT_PRIV
+#ifndef __CC_COMM_DEF
+#define __CC_COMM_DEF
 
 #include <stdint.h>
 #include <stdbool.h>

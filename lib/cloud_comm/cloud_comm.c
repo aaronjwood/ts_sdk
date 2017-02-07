@@ -14,16 +14,16 @@ uint32_t init_polling_ms;
 static uint32_t proto_begin;
 #endif
 
-#define INVOKE_SEND_CALLBACK(_buf, _sz, _evt) \
+#define INVOKE_SEND_CALLBACK(_buf, _evt) \
 	do { \
 		if (conn_out.cb) \
-			conn_out.cb((cc_buffer_desc *)(_buf), (_sz), (_evt)); \
+			conn_out.cb((cc_buffer_desc *)(_buf), (_evt)); \
 	} while(0)
 
-#define INVOKE_RECV_CALLBACK(_buf, _sz, _evt) \
+#define INVOKE_RECV_CALLBACK(_buf, _evt) \
 	do { \
 		if (conn_in.cb) \
-			conn_in.cb((cc_buffer_desc *)(_buf), (_sz), (_evt)); \
+			conn_in.cb((cc_buffer_desc *)(_buf), (_evt)); \
 	} while(0)
 
 /* Reset the connection (incoming and outgoing) and session structures */
@@ -39,11 +39,11 @@ static void cc_recv_cb(const void *buf, uint32_t sz, proto_event event)
 {
 	switch(event) {
 	case PROTO_RCVD_UPD:
-		INVOKE_RECV_CALLBACK(buf, sz, CC_STS_RCV_UPD);
+		INVOKE_RECV_CALLBACK(conn_in.buf, CC_STS_RCV_UPD);
 		conn_in.recv_in_progress = false;
 		break;
 	case PROTO_RCVD_CMD_SL:
-		INVOKE_RECV_CALLBACK(buf, sz, CC_STS_RCV_CMD_SL);
+		INVOKE_RECV_CALLBACK(conn_in.buf, CC_STS_RCV_CMD_SL);
 		conn_in.recv_in_progress = false;
 		break;
 	case PROTO_RCVD_CMD_PI:
@@ -55,7 +55,7 @@ static void cc_recv_cb(const void *buf, uint32_t sz, proto_event event)
 		break;
 	default:
 		dbg_printf("%s:%d: Unknown Rcvd Event\n", __func__, __LINE__);
-		INVOKE_RECV_CALLBACK(NULL, 0, CC_STS_UNKNOWN);
+		INVOKE_RECV_CALLBACK(conn_in.buf, CC_STS_UNKNOWN);
 		break;
 	}
 
@@ -81,7 +81,7 @@ static void cc_send_cb(const void *buf, uint32_t sz, proto_event event)
 		sz = 0;
 		break;
 	}
-	INVOKE_SEND_CALLBACK(buf, sz, ev);
+	INVOKE_SEND_CALLBACK(conn_out.buf, ev);
 
 }
 
@@ -106,11 +106,32 @@ uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf)
 	return (buf) ? buf->buf_ptr : NULL;
 }
 
-uint32_t cc_get_sleep_interval(const void *buf)
+const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf)
 {
-	if (!buf)
+	/* Check for non-NULL buffer pointers */
+	if (!buf || !buf->buf_ptr)
+		return NULL;
+	/*
+	 * Depending on the type of message and protocol, return
+	 * pointer to binary data
+	 */
+	PROTO_GET_RCVD_MSG_PTR(buf->buf_ptr);
+
+}
+
+uint32_t cc_get_sleep_interval(const cc_buffer_desc *buf)
+{
+	if (!buf || !buf->buf_ptr)
 		return 0;
-	PROTO_GET_SLEEP_INTERVAL(buf);
+	PROTO_GET_SLEEP_INTERVAL(buf->buf_ptr);
+}
+
+cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf)
+{
+	/* Check for non-NULL buffer pointers */
+	if (!buf || !buf->buf_ptr)
+		return 0;
+	PROTO_GET_RCVD_DATA_LEN(buf->buf_ptr);
 }
 
 bool cc_set_destination(const char *host, const char *port)
@@ -127,12 +148,12 @@ bool cc_set_auth_credentials(const uint8_t *d_id, uint32_t d_id_sz,
 	return true;
 }
 
-void cc_ack_bytes(void)
+void cc_ack_msg(void)
 {
 	PROTO_SEND_ACK();
 }
 
-void cc_nak_bytes(void)
+void cc_nak_msg(void)
 {
 	PROTO_SEND_NACK();
 }
@@ -179,7 +200,7 @@ cc_send_result cc_resend_init_config(cc_callback_rtn cb)
 	return CC_SEND_SUCCESS;
 }
 
-cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb)
+cc_recv_result cc_recv_msg_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb)
 {
 	if (!buf || !buf->buf_ptr)
 		return CC_RECV_FAILED;

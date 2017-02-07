@@ -21,7 +21,7 @@
  */
 
 /**
- * Return values for cc_send_bytes_to_cloud().
+ * Return values for cc_send_msg_to_cloud().
  */
 typedef enum {
 	CC_SEND_FAILED,		/**< Failed to send the message */
@@ -101,10 +101,10 @@ typedef struct {		/* Cloud communication buffer descriptor */
 	cc_buffer_desc name = {(max_sz), &(name##_bytes)}
 
 /**
- * Pointer to a callback routine. The callback accepts a buffer, its size and
+ * Pointer to a callback routine. The callback accepts a buffer descriptor and
  * an event from the source of the callback explaining why it was invoked.
  */
-typedef void (*cc_callback_rtn)(const void *buf, uint32_t sz, cc_event event);
+typedef void (*cc_callback_rtn)(cc_buffer_desc *buf, cc_event event);
 
 /**
  * \brief
@@ -178,9 +178,21 @@ uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf);
 
 /**
  * \brief
+ * Get a pointer to the first byte of the receive buffer from the buffer
+ * descriptor.  Any received data can be read through this buffer.
+ *
+ * \param[in] buf : A cloud communication buffer descriptor.
+ *
+ * \returns
+ * 	Pointer to the receive buffer.
+ */
+const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf);
+
+/**
+ * \brief
  * Get the value of the sleep interval (in seconds) from the received message.
  *
- * \param[in] buf : A received message.
+ * \param[in] buf : A cloud communication buffer descriptor.
  *
  * \returns
  * 	Value of the sleep interval in seconds.
@@ -191,11 +203,22 @@ uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf);
  * CC_STS_RCV_CMD_SL event is detected.
  *
  */
-uint32_t cc_get_sleep_interval(const void *buf);
+uint32_t cc_get_sleep_interval(const cc_buffer_desc *buf);
 
 /**
  * \brief
- * A mandatory API to send bytes to the cloud.
+ * Retrieve the length of the last message received.
+ *
+ * \param[in] buf : A cloud communication buffer descriptor.
+ *
+ * \returns
+ * 	Number of bytes of data present in the receive buffer.
+ */
+cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf);
+
+/**
+ * \brief
+ * A mandatory function to send messages to the cloud.
  *
  * \param[in] buf : Pointer to the cloud communication buffer descriptor
  *                  containing the data to be sent.
@@ -234,7 +257,7 @@ cc_send_result cc_resend_init_config(cc_callback_rtn cb);
 
 /**
  * \brief
- * A mandatory API to initiate a receive of bytes from the cloud.
+ * A mandatory function to initiate a receive of messages from the cloud.
  *
  * \param[in] buf  : Pointer to the cloud communication buffer descriptor
  *                   that will hold the data to be received.
@@ -250,7 +273,7 @@ cc_send_result cc_resend_init_config(cc_callback_rtn cb);
  * once the API has been initialized.  Scheduling the receive ensures there
  * is a place to receive a response and the appropriate callbacks are invoked.
  */
-cc_recv_result cc_recv_bytes_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb);
+cc_recv_result cc_recv_msg_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb);
 
 /**
  * \brief
@@ -275,18 +298,18 @@ uint32_t cc_service_send_receive(uint32_t cur_ts);
  * \brief
  * Acknowledge the last message received from the cloud services.
  * \note
- * Actual use is based on the protocol being used, some protocol may never
- * use this API.
+ * The exact behavior is protoco-dependent, but applications must always call
+ * this function or cc_nack_msg
  */
-void cc_ack_bytes(void);
+void cc_ack_msg(void);
 
 /**
  * \brief
  * Negatice acknowledgment of the last message received from the cloud services.
  * \note
- * Actual use is based on the protocol being used, some protocol may never
- * use this API.
+ * The exact behavior is protoco-dependent, but applications must always call
+ * this function or cc_ack_msg
  */
-void cc_nak_bytes(void);
+void cc_nak_msg(void);
 
 #endif /* __CLOUD_COMM */

@@ -151,6 +151,28 @@ void ott_send_ack(void);
 void ott_send_nack(void);
 
 /*
+ * Retrieve the binary data pointer from the received message
+ *
+ * Parameters:
+ * 	msg : Starting pointer to received buffer.
+ *
+ * Returns:
+ * 	data pointer or NULL if fails.
+ */
+const uint8_t *ott_get_rcv_buffer_ptr(const void *msg);
+
+/*
+ * Retrieve the received data size in bytes
+ *
+ * Parameters:
+ * 	msg : Pointer to received buffer.
+ *
+ * Returns:
+ * 	data length in bytes or 0 in case of invalid buffer or msg content
+ */
+uint32_t ott_get_rcvd_data_len(const void *msg);
+
+/*
  * Notify the cloud service that the device has restarted and needs to retrieve
  * its initial data. A restart could be a result of a number of things, such as
  * a watch dog timeout, power glitch etc.

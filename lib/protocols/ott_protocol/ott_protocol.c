@@ -113,6 +113,8 @@ void ott_protocol_deinit(void)
 
 static void ott_reset_state(void)
 {
+	session.send_buf = NULL;
+	session.send_sz = 0;
 	session.send_cb = NULL;
 	session.conn_done = false;
 	session.auth_done = false;
@@ -123,13 +125,14 @@ static void ott_reset_state(void)
 
 static void ott_init_state(void)
 {
-        session.host[0] = 0x00;
+	session.host[0] = 0x00;
 	session.port[0] = 0x00;
-        session.conn_done = false;
+	session.conn_done = false;
 	session.auth_done = false;
 	session.pend_bit = false;
 	session.pend_ack = false;
 	session.nack_sent = false;
+	auth.auth_valid = false;
 }
 
 proto_result ott_protocol_init(void)
@@ -194,15 +197,15 @@ proto_result ott_set_auth(const uint8_t *d_id, uint32_t d_id_sz,
 {
 	if ((d_id == NULL) || (d_id_sz != OTT_UUID_SZ))
 		return PROTO_INV_PARAM;
-        if (d_sec == NULL || d_sec_sz == 0 ||
-			(d_sec_sz + OTT_UUID_SZ > PROTO_DATA_SZ))
+	if ((d_sec == NULL) || (d_sec_sz != OTT_DEV_SC_SZ))
+		return PROTO_INV_PARAM;
+        if ((d_sec_sz + d_id_sz) > PROTO_DATA_SZ)
 		return PROTO_INV_PARAM;
 
 	/* Store the auth information for establishing connection to the cloud */
-	memcpy(auth.dev_ID, d_id, OTT_UUID_SZ);
-	auth.d_sec = malloc(sizeof(array_t) + d_sec_sz * sizeof (uint8_t));
-	auth.d_sec->sz = d_sec_sz;
-	memcpy(auth.d_sec->bytes, d_sec, auth.d_sec->sz);
+	memcpy(auth.dev_ID, d_id, d_id_sz);
+	memcpy(auth.d_sec, d_sec, d_sec_sz);
+	auth.auth_valid = true;
         return PROTO_OK;
 }
 
@@ -330,9 +333,9 @@ void ott_initiate_quit(bool send_nack)
 /*
  * The message can have one of two lengths depending on the type of
  * message received: length of the "interval" field or length of the
- * "bytes" field.
+ * binary data.
  */
-static uint32_t ott_get_rcvd_data_len(const void *msg)
+uint32_t ott_get_rcvd_data_len(const void *msg)
 {
 	if (!msg)
 		return 0;
@@ -378,41 +381,29 @@ static bool process_recvd_msg(msg_t *msg_ptr, uint32_t rcvd, bool invoke_send_cb
 		} else if (m_type == MT_CMD_SL) {
 			evt = PROTO_RCVD_CMD_SL;
 		} else if (m_type == MT_CMD_PI) {
-			/* Don't care about the size for Polling interval as
-			 * helper API will be called to retrieve it
-			 */
 			INVOKE_RECV_CALLBACK(msg_ptr, rcvd, PROTO_RCVD_CMD_PI);
 			session.pend_ack = true;
 		}
 
 		if (m_type == MT_UPDATE || m_type == MT_CMD_SL) {
-			if (m_type == MT_CMD_SL) {
-				/* Don't care about the size for sleep
-				 * interval as helper API will be called
-				 * to retrieve it
-				 */
-				INVOKE_RECV_CALLBACK(msg_ptr, rcvd, evt);
-			} else {
-				uint32_t sz = ott_get_rcvd_data_len(msg_ptr);
-				INVOKE_RECV_CALLBACK(
-					((uint8_t *)msg_ptr + UPD_OVR_HEAD),
-					sz, evt);
-			}
+			INVOKE_RECV_CALLBACK(msg_ptr, rcvd, evt);
 		}
 		if (invoke_send_cb) {
-			INVOKE_SEND_CALLBACK(NULL, 0, PROTO_RCVD_ACK);
+			INVOKE_SEND_CALLBACK(session.send_buf, session.send_sz,
+						PROTO_RCVD_ACK);
 		}
 	} else if (OTT_FLAG_IS_SET(c_flags, CF_NACK)) {
 		no_nack_detected = false;
 		if (invoke_send_cb) {
-			INVOKE_SEND_CALLBACK(NULL, 0, PROTO_RCVD_NACK);
+			INVOKE_SEND_CALLBACK(session.send_buf, session.send_sz,
+				PROTO_RCVD_NACK);
 		}
 	}
 
 	if (OTT_FLAG_IS_SET(c_flags, CF_QUIT)) {
 		ott_close_connection();
 		ott_reset_state();
-		INVOKE_RECV_CALLBACK(NULL, 0, PROTO_RCVD_QUIT);
+		INVOKE_RECV_CALLBACK(msg_ptr, rcvd, PROTO_RCVD_QUIT);
 	}
 
 	return no_nack_detected;
@@ -547,7 +538,8 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 
 	if (end - start >= timeout) {
 		if (invoke_send_cb)
-			INVOKE_SEND_CALLBACK(NULL, 0, PROTO_SEND_TIMEOUT);
+			INVOKE_SEND_CALLBACK(session.send_buf, session.send_sz,
+						PROTO_SEND_TIMEOUT);
 		return false;
 	}
 
@@ -619,16 +611,17 @@ static proto_result ott_initiate_connection(const char *host, const char *port)
  */
 static proto_result ott_send_auth_to_cloud(c_flags_t c_flags)
 {
+	if (!auth.auth_valid)
+		return PROTO_ERROR;
+
 	const uint8_t *dev_id = auth.dev_ID;
-	uint32_t dev_sec_sz = auth.d_sec->sz;
-	const uint8_t *dev_sec = auth.d_sec->bytes;
+	uint32_t dev_sec_sz = OTT_DEV_SC_SZ;
+	const uint8_t *dev_sec = auth.d_sec;
 
 	PROTO_TIME_PROFILE_BEGIN();
 	/* Check for correct parameters */
-	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_QUIT) ||
-			(dev_sec_sz + OTT_UUID_SZ > PROTO_DATA_SZ) ||
-			dev_id == NULL || dev_sec == NULL || dev_sec_sz == 0)
-		return PROTO_INV_PARAM;
+	if (!flags_are_valid(c_flags) || OTT_FLAG_IS_SET(c_flags, CF_QUIT))
+		return PROTO_ERROR;
 
 	uint8_t bytes[2] = {VERSION_BYTE, 0};
 	proto_result ret;
@@ -777,7 +770,8 @@ proto_result ott_send_msg_to_cloud(const void *buf, uint32_t sz,
 		ott_initiate_quit(false);
 		return res;
 	}
-
+	session.send_buf = buf;
+	session.send_sz = sz;
 	session.send_cb = cb;
 	session.pend_ack = false;
 
@@ -791,6 +785,27 @@ proto_result ott_send_msg_to_cloud(const void *buf, uint32_t sz,
 		session.nack_sent = false;
 
 	return PROTO_OK;
+}
+
+const uint8_t *ott_get_rcv_buffer_ptr(const void *msg)
+{
+	if (!msg)
+		return NULL;
+
+	m_type_t m_type;
+	const msg_t *ptr_to_msg = (const msg_t *)(msg);
+	OTT_LOAD_MTYPE(ptr_to_msg->cmd_byte, m_type);
+
+	switch (m_type) {
+	case MT_UPDATE:
+		return (const uint8_t *)&(ptr_to_msg->data.array.bytes);
+	case MT_CMD_PI:
+	case MT_CMD_SL:
+		return (const uint8_t *)&(ptr_to_msg->data.interval);
+	default:
+		/* XXX: Unlikely because of checks in ott_retrieve_msg() */
+		return NULL;
+	}
 }
 
 void ott_send_ack(void)

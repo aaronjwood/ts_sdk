@@ -21,41 +21,41 @@
 CC_SEND_BUFFER(send_buffer, PROTO_DATA_SZ);
 CC_RECV_BUFFER(recv_buffer, PROTO_DATA_SZ);
 
-#define DEVICE_UUID_SZ_BYTES	16
 #define SERVER_NAME	"iwk.ott.thingspace.verizon.com"
 #define SERVER_PORT	"443"
 
 static bool resend_calibration;		/* Set if RESEND command was received */
 
 /* Receive callback */
-static void recv_cb(const void *buf, uint32_t sz, cc_event event)
+static void recv_cb(cc_buffer_desc *buf, cc_event event)
 {
 	dbg_printf("\t\t[RECV CB] Received a message:\n");
 	if (event == CC_STS_RCV_UPD) {
-		const uint8_t *recvd = (uint8_t *)buf;
+		cc_data_sz sz = cc_get_receive_data_len(buf);
+		const uint8_t *recvd = cc_get_recv_buffer_ptr(buf);
 		if (recvd[0] == RESEND_CALIB && sz == 1) {
 			resend_calibration = true;
 			dbg_printf("\t\t\t[RECV CB] Will send an ACK in response\n");
-			cc_ack_bytes();
+			cc_ack_msg();
 		} else {
 			resend_calibration = false;
 			dbg_printf("\t\t\t[RECV CB] NACKing an invalid message\n");
-			cc_nak_bytes();
+			cc_nak_msg();
 		}
 	} else if (event == CC_STS_RCV_CMD_SL) {
 		uint32_t sl_sec = cc_get_sleep_interval(buf);
 		dbg_printf("\t\t\tSleep interval (secs) : %"PRIu32"\n", sl_sec);
 		dbg_printf("\t\t\t[RECV CB] Will send an ACK in response\n");
-		cc_ack_bytes();
+		cc_ack_msg();
 	}
 
 	/* Reschedule a receive */
-	cc_recv_result s = cc_recv_bytes_from_cloud(&recv_buffer, recv_cb);
+	cc_recv_result s = cc_recv_msg_from_cloud(&recv_buffer, recv_cb);
 	ASSERT(s == CC_RECV_SUCCESS || s == CC_RECV_BUSY);
 }
 
 /* Send callback */
-static void send_cb(const void *buf, uint32_t sz, cc_event event)
+static void send_cb(cc_buffer_desc *buf, cc_event event)
 {
 	if (event == CC_STS_ACK)
 		dbg_printf("\t\t[SEND CB] Received an ACK\n");
@@ -65,7 +65,7 @@ static void send_cb(const void *buf, uint32_t sz, cc_event event)
 		dbg_printf("\t\t[SEND CB] Timed out trying to send message\n");
 
 	/* Reschedule a receive */
-	cc_recv_result s = cc_recv_bytes_from_cloud(&recv_buffer, recv_cb);
+	cc_recv_result s = cc_recv_msg_from_cloud(&recv_buffer, recv_cb);
 	ASSERT(s == CC_RECV_SUCCESS || s == CC_RECV_BUSY);
 }
 
@@ -108,11 +108,11 @@ int main(int argc, char *argv[])
 	dbg_printf("Setting remote host and port\n");
 	ASSERT(cc_set_destination(SERVER_NAME, SERVER_PORT));
 	dbg_printf("Setting device authentiation credentials\n");
-	ASSERT(cc_set_auth_credentials(d_ID, DEVICE_UUID_SZ_BYTES,
-		d_sec, sizeof(d_sec)));
+	ASSERT(cc_set_auth_credentials(d_ID, sizeof(d_ID),
+					d_sec, sizeof(d_sec)));
 
 	dbg_printf("Scheduling a receive\n");
-	ASSERT(cc_recv_bytes_from_cloud(&recv_buffer, recv_cb) == CC_RECV_SUCCESS);
+	ASSERT(cc_recv_msg_from_cloud(&recv_buffer, recv_cb) == CC_RECV_SUCCESS);
 
 	dbg_printf("Sending \"restarted\" message\n");
 	ASSERT(cc_resend_init_config(send_cb) == CC_SEND_SUCCESS);

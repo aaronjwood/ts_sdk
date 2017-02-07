@@ -15,7 +15,6 @@
 CC_SEND_BUFFER(send_buffer, PROTO_DATA_SZ);
 CC_RECV_BUFFER(recv_buffer, PROTO_DATA_SZ);
 
-#define DEVICE_UUID_SZ_BYTES	16
 #define STATUS_SZ		10
 static uint8_t status[STATUS_SZ] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
@@ -26,18 +25,21 @@ static cc_data_sz send_data_sz = sizeof(status);
 #define NUM_STATUSES	((uint8_t)4)
 
 /* Receive callback */
-static void recv_cb(const void *buf, uint32_t sz, cc_event event)
+static void recv_cb(cc_buffer_desc *buf, cc_event event)
 {
 	dbg_printf("\t\t[RECV CB] Received a message:\n");
 	if (event == CC_STS_RCV_UPD) {
-		uint8_t *temp_buf = (uint8_t *)buf;
+		/* Make the new status message to be the received update message */
+		cc_data_sz sz = cc_get_receive_data_len(buf);
+		send_data_sz = (sz > sizeof(status)) ? sizeof(status) : sz;
+		const uint8_t *recvd = cc_get_recv_buffer_ptr(buf);
 		dbg_printf("\t\t\t");
 		dbg_printf("Update Message: \n");
-		for (uint32_t i = 0; i < sz; i++)
-			dbg_printf("\t\t\t\t[Byte %lu]: 0x%x\n", i, temp_buf[i]);
+		for (cc_data_sz i = 0; i < sz; i++)
+			dbg_printf("\t\t\t\t[Byte %u]: 0x%x\n", i, recvd[i]);
 		/* Make the new status message to be the received update message */
 		send_data_sz = (sz > sizeof(status)) ? sizeof(status) : sz;
-		memcpy(status, buf, send_data_sz);
+		memcpy(status, recvd, send_data_sz);
 	} else if (event == CC_STS_RCV_CMD_SL) {
 		uint32_t sl_sec = cc_get_sleep_interval(buf);
 		dbg_printf("\t\t\tSleep interval (secs): %"PRIu32"\n", sl_sec);
@@ -45,16 +47,15 @@ static void recv_cb(const void *buf, uint32_t sz, cc_event event)
 
 	/* ACK all messages by default */
 	dbg_printf("\t\t[RECV CB] Will send an ACK in response\n");
-	cc_ack_bytes();
+	cc_ack_msg();
 	/* Reschedule a receive */
-	cc_recv_result s = cc_recv_bytes_from_cloud(&recv_buffer, recv_cb);
+	cc_recv_result s = cc_recv_msg_from_cloud(&recv_buffer, recv_cb);
 	ASSERT(s == CC_RECV_SUCCESS || s == CC_RECV_BUSY);
 }
 
 /* Send callback */
-static void send_cb(const void *buf, uint32_t sz, cc_event event)
+static void send_cb(cc_buffer_desc *buf, cc_event event)
 {
-	(void)(sz);
 	if (event == CC_STS_ACK)
 		dbg_printf("\t\t[SEND CB] Received an ACK\n");
 	else if (event == CC_STS_NACK)
@@ -63,7 +64,7 @@ static void send_cb(const void *buf, uint32_t sz, cc_event event)
 		dbg_printf("\t\t[SEND CB] Timed out trying to send message\n");
 
 	/* Reschedule a receive */
-	cc_recv_result s = cc_recv_bytes_from_cloud(&recv_buffer, recv_cb);
+	cc_recv_result s = cc_recv_msg_from_cloud(&recv_buffer, recv_cb);
 	ASSERT(s == CC_RECV_SUCCESS || s == CC_RECV_BUSY);
 }
 
@@ -80,8 +81,8 @@ int main(int argc, char *argv[])
 	ASSERT(cc_set_destination(SERVER_NAME, SERVER_PORT));
 
 	dbg_printf("Setting device authentiation credentials\n");
-	ASSERT(cc_set_auth_credentials(d_ID, DEVICE_UUID_SZ_BYTES,
-		d_sec, sizeof(d_sec)));
+	ASSERT(cc_set_auth_credentials(d_ID, sizeof(d_ID),
+				d_sec, sizeof(d_sec)));
 
 	int32_t next_wakeup_interval = -1;	/* Interval value in ms */
 	uint32_t cur_ts;			/* Current timestamp in ms */
@@ -93,7 +94,7 @@ int main(int argc, char *argv[])
 
 	dbg_printf("Beginning CC API test\n\n");
 	dbg_printf("Scheduling a receive\n");
-	ASSERT(cc_recv_bytes_from_cloud(&recv_buffer, recv_cb) == CC_RECV_SUCCESS);
+	ASSERT(cc_recv_msg_from_cloud(&recv_buffer, recv_cb) == CC_RECV_SUCCESS);
 
 	/*
 	 * Let the cloud services know the device is powering up, possibly after

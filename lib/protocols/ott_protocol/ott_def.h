@@ -13,7 +13,9 @@
 #define VERSION_BYTE		((uint8_t)0x01)
 #define TIMEOUT_MS		5000
 
-#define OTT_UUID_SZ             16
+#define OTT_UUID_SZ             16 /* unique device id size in bytes */
+#define OTT_DEV_SC_SZ		32 /* device secret size in bytes */
+
 #define MAX_HOST_LEN		50
 #define MAX_PORT_LEN		5
 
@@ -68,8 +70,11 @@ typedef struct __attribute__((packed)) {
 } msg_t;
 
 static struct {				/* Store authentication data */
+	bool auth_valid;		/* true if dev_id and dev_sec contains
+					 * valid information
+					 */
 	uint8_t dev_ID[OTT_UUID_SZ];	/* 16 byte Device ID */
-	array_t *d_sec;			/* Device secret */
+	uint8_t d_sec[OTT_DEV_SC_SZ];	/* Device secret */
 } auth;
 
 static struct {
@@ -82,6 +87,8 @@ static struct {
 	char port[MAX_PORT_LEN + 1];	/* Store the host port */
 	msg_t *rcv_buf;
 	uint32_t rcv_sz;
+	const void *send_buf;
+	uint32_t send_sz;
 	proto_callback rcv_cb;
 	proto_callback send_cb;
 } session;
