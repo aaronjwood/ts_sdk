@@ -64,6 +64,7 @@ ifeq ($(MODEM_TRANS),TCP)
 	MODEM_DIR += $(MODEM_TARGET)/tcp
 else ifeq ($(MODEM_TRANS),SMS)
 	MODEM_SRC += at_toby201_sms.c
+	MODEM_SRC += smscodec.c
 	MODEM_DIR += $(MODEM_TARGET)/sms
 endif
 endif
@@ -83,6 +84,7 @@ INC += -I $(PROJ_ROOT)/include/certs
 INC += -I $(PROJ_ROOT)/include/network/at
 INC += -I $(PROJ_ROOT)/include/network
 INC += -I $(PROJ_ROOT)/lib/network/at/core
+INC += -I $(PROJ_ROOT)/lib/network/at/smscodec
 
 # Peripheral related headers
 INC += -I $(STM32_LIB_COMMON)/Drivers/STM32F4xx_HAL_Driver/Inc
@@ -145,6 +147,7 @@ vpath %.c $(PROJ_ROOT)/lib/platform: \
 	$(PROJ_ROOT)/lib/cloud_comm: \
 	$(PROJ_ROOT)/lib/network: \
 	$(PROJ_ROOT)/lib/network/at/core: \
+	$(PROJ_ROOT)/lib/network/at/smscodec: \
 	$(PROJ_ROOT)/lib/network/at/$(MODEM_DIR): \
 	$(STM32_PLIB): \
 	$(STM32_CMSIS)/Source/Templates:
