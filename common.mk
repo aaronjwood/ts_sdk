@@ -23,6 +23,25 @@ OBJCOPY = $(GCC_ROOT)/bin/arm-none-eabi-objcopy
 SIZE = $(GCC_ROOT)/bin/arm-none-eabi-size
 export CC AS AR OBJDUMP OBJCOPY SIZE
 
+# Select protocol, valid options make PROTOCOL=<OTT_PROTOCOL or SMSNAS_PROTOCOL>
+PROTOCOL ?= OTT_PROTOCOL
+
+ifeq ($(PROTOCOL),OTT_PROTOCOL)
+PROTOCOL_SRC = ott_protocol.c
+PROTOCOL_DIR = ott_protocol
+PROTOCOL_INC = ott_protocol
+else
+ifeq ($(PROTOCOL),SMSNAS_PROTOCOL)
+PROTOCOL_SRC = smsnas_protocol.c
+PROTOCOL_DIR = smsnas_protocol
+PROTOCOL_INC = smsnas_protocol
+else
+$(error define valid protocol option from OTT_PROTOCOL and SMSNAS_PROTOCOL)
+endif
+endif
+
+export PROTOCOL
+
 # Comment this out to disable LTO and enable debug
 #LTOFLAG = -flto
 #export LTOFLAG
@@ -99,8 +118,9 @@ INC += -I $(GCC_ROOT)/include
 # mbedtls library header files
 INC += -I $(PROJ_ROOT)/vendor/mbedtls/include
 
-# OTT protocol API header
-INC += -I $(PROJ_ROOT)/include/ott_protocol
+# Protocol API header
+INC += -I $(PROJ_ROOT)/include/protocols
+INC += -I $(PROJ_ROOT)/include/protocols/$(PROTOCOL_INC)
 
 # Cloud communication API header
 INC += -I $(PROJ_ROOT)/include/cloud_comm
@@ -122,7 +142,7 @@ OBJ_STARTUP = startup_stm32f429xx.o
 CORELIB_SRC = stm32f4xx_hal.c system_stm32f4xx.c stm32f4xx_platform.c dbg.c uart.c hwrng.c net.c $(MODEM_SRC)
 
 # Cloud communication / OTT protocol API sources
-CLOUD_COMM_SRC = ott_protocol.c cloud_comm.c
+CLOUD_COMM_SRC = $(PROTOCOL_SRC) cloud_comm.c
 
 # Peripheral HAL sources
 LIB_SRC = stm32f4xx_hal_cortex.c
@@ -141,7 +161,7 @@ vpath %.c $(PROJ_ROOT)/lib/platform: \
 	$(PROJ_ROOT)/lib/dbg: \
 	$(PROJ_ROOT)/lib/uart: \
 	$(PROJ_ROOT)/lib/hwrng: \
-	$(PROJ_ROOT)/lib/ott_protocol: \
+	$(PROJ_ROOT)/lib/protocols/$(PROTOCOL_DIR): \
 	$(PROJ_ROOT)/lib/cloud_comm: \
 	$(PROJ_ROOT)/lib/network: \
 	$(PROJ_ROOT)/lib/network/at/core: \

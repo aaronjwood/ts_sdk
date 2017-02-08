@@ -17,11 +17,11 @@ OBJ_DBG_LIB = $(addsuffix .o, $(basename $(DBG_LIB_SRC)))
 
 OBJ = $(OBJ_USER) $(OBJ_LIB) $(OBJ_DBG_LIB)
 
-CFLAGS_USER = -Wall -Werror -std=c99 -Wcast-align $(INC) $(DBG_OP_USER_FLAGS)
-CFLAGS_LIB = -Werror -std=c99 $(INC) $(DBG_OP_LIB_FLAGS) -fdata-sections \
-	     -ffunction-sections
-CFLAGS_DBG_LIB = -Werror -std=c99 $(INC) $(DBG_OP_USER_FLAGS) -fdata-sections \
-		 -ffunction-sections
+CFLAGS_USER = -Wall -Werror -std=c99 -Wcast-align $(INC) -D$(PROTOCOL) $(DBG_OP_USER_FLAGS)
+CFLAGS_LIB = -Werror -std=c99 $(INC) -D$(PROTOCOL) $(DBG_OP_LIB_FLAGS) \
+	     -fdata-sections -ffunction-sections
+CFLAGS_DBG_LIB = -Werror -std=c99 $(INC) -D$(PROTOCOL) $(DBG_OP_USER_FLAGS) \
+		 -fdata-sections -ffunction-sections
 
 #==================================RULES=======================================#
 .PHONY: all build vendor_libs dump bin clean upload
