@@ -1,10 +1,11 @@
 /* Copyright (C) 2017 Verizon. All rights reserved. */
+
 #include "smscodec.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-#define HEXLEN			2	/* 2 hexadecimal characters */
+#define HEXLEN			2	/* 2 hexadecimal characters = 1 Byte */
 #define ADDR_HDR_SZ		4	/* Size of the header for the encoded address */
 
 /* On failure, return _val */
@@ -14,25 +15,25 @@
 			return (_val); \
 	} while(0)
 
-enum {
-	MTI_SMS_SUBMIT = 0x01,
+enum encoding {
+	MTI_SMS_SUBMIT_TYPE = 0x01,	/* SMS-SUBMIT message type */
 
-	RD_ACCEPT = 0x00,
-	RD_REJECT = 0x04,
+	RD_ACCEPT = 0x00,		/* Accept messages with duplicate ref no */
+	RD_REJECT = 0x04,		/* Reject messages with duplicate ref no */
 
-	VPF_ABSENT = 0x00,
-	VPF_RELATIVE = 0x08,
-	VPF_ENHANCED = 0x10,
-	VPF_ABSOLUTE = 0x18,
+	VPF_ABSENT = 0x00,		/* Validity period absent from message */
+	VPF_RELATIVE = 0x08,		/* Validity period is in relative format */
+	VPF_ENHANCED = 0x10,		/* Validity period uses enhanced format */
+	VPF_ABSOLUTE = 0x18,		/* Validity period uses absolute format */
 
-	SRR_REPORT_REQ = 0x20,
-	SRR_REPORT_NOT_REQ = 0x00,
+	SRR_REPORT_REQ = 0x20,		/* Status report requested */
+	SRR_REPORT_NOT_REQ = 0x00,	/* No status report requested */
 
-	UDHI_PRESENT = 0x40,
-	UDHI_ABSENT = 0x00,
+	UDHI_PRESENT = 0x40,		/* Payload has a header preceeding data */
+	UDHI_ABSENT = 0x00,		/* Payload is entirely user data */
 
-	RP_SET = 0x80,
-	RP_NOT_SET = 0x00,
+	RP_SET = 0x80,			/* A reply path was set */
+	RP_NOT_SET = 0x00,		/* No reply path was set */
 
 	PID_VAL = 0x00,			/* SME-to-SME protocol */
 	DCS_VAL = 0x04,			/* No message class, 8-bit encoding */
@@ -42,11 +43,28 @@ enum {
 	IEI_CONCAT_LEN = 0x03		/* Length of concatenation IEI field */
 };
 
+enum decoding {
+	SMS_P2P_TYPE = 0x00,		/* Message type is SMS point to point */
+
+	TELESVC_IDENT = 0x00,		/* Teleservice parameter identifier */
+	TELESVC_LEN = 0x02,		/* Teleservice parameter length */
+	TELESVC_WMT = 4098,		/* Wireless messaging teleservice */
+
+	ORIG_ADDR = 0x02,		/* Originating address identifier */
+
+	BEARER_DATA = 0x08,		/* Bearer data identifier */
+};
+
+static bool udh_present;		/* Set if UDH is present in received SMS */
+
 /*
- * 'intl_num' is expected to be an international number following the ISDN /
- * telephone numbering plan. Both buffers are NULL terminated. Size of intl_num
- * must be at most ADDR_SZ + 1 bytes and that of enc_intl_num must be at most
- * ENC_ADDR_SZ + 1 bytes. Returns the length of the encoded output.
+ * intl_num is expected to be an international number following the ISDN /
+ * telephone numbering plan. Both buffers are NULL terminated.
+ * Size of intl_num is expected to be at most ADDR_SZ + 1 bytes. Size of
+ * (*enc_intl_num) is expected to be at most ENC_ADDR_SZ + 1 bytes.
+ * Returns the 'true' on success and 'false' on failure.
+ * On a successful call, (*enc_intl_num) is updated to point to the memory
+ * location right after the last byte of the encoded output.
  */
 #define STRIDE			2
 static bool smscodec_encode_addr(const char *intl_num, char **enc_intl_num)
@@ -87,6 +105,8 @@ static bool smscodec_encode_addr(const char *intl_num, char **enc_intl_num)
  * Convert the byte into a string representing its hex form and write it to the
  * destination buffer.
  * Return 'true' on success and 'false' on failure.
+ * On a successful call, (*dest) is updated to point to the memory location right
+ * after the last byte written.
  */
 static bool hexstr(uint8_t data, char **dest)
 {
@@ -94,6 +114,34 @@ static bool hexstr(uint8_t data, char **dest)
 	if (written <= 0)
 		return false;
 	*dest += written;
+	return true;
+}
+
+/*
+ * Convert a hex string of a given length to an unsigned 32-bit integer. Length
+ * cannot exceed 8 characters. The result is stored in num.
+ * Return 'true' on success and 'false' on failure.
+ * On a successful call, (*src) is updated to point to the memory location right
+ * after the last byte read.
+ */
+static bool hexnum(const char **src, uint8_t len, uint32_t *num)
+{
+	if (len > 8)
+		return false;
+	*num = 0;
+	for (uint8_t i = 0; i < len; i++) {
+		uint8_t digit = (*src)[i];
+		*num *= 16;
+		if (digit >= '0' && digit <= '9')
+			*num += (digit - '0');
+		else if (digit >= 'A' && digit <= 'F')
+			*num += (digit - 'A');
+		else if (digit >= 'a' && digit <= 'f')
+			*num += (digit - 'a');
+		else
+			return 0;
+	}
+	*src += len;
 	return true;
 }
 
@@ -116,51 +164,126 @@ static bool encode_ud(const msg_t *msg_to_send, char **dest)
 	}
 
 	for (uint8_t i = 0; i < msg_to_send->len; i++)
-		ON_FAIL(hexstr(*(msg_to_send->data + i), dest), false);
+		ON_FAIL(hexstr(msg_to_send->buf[i], dest), false);
 	return true;
 }
 
-int smscodec_encode(const msg_t *msg_to_send, char *pdu)
+uint16_t smscodec_encode(const msg_t *msg_to_send, char *pdu)
 {
 	static uint8_t msg_ref_no = 0;
 
-	if (msg_to_send == NULL || msg_to_send->data == NULL ||
+	if (msg_to_send == NULL || msg_to_send->buf == NULL ||
 			msg_to_send->addr[0] == '\0' || pdu == NULL)
-		return -1;
+		return 0;
 
-	if (msg_to_send->num_seg == 0)
-		return -1;
+	if (msg_to_send->num_seg == 0 || msg_to_send->len == 0)
+		return 0;
 
-	if (msg_to_send->len == 0)
-		return -1;
-
-	if (msg_to_send->seq_no > msg_to_send->num_seg)
-		return -1;
-
-	if (msg_to_send->num_seg > 1 && msg_to_send->seq_no == 0)
-		return -1;
+	if ((msg_to_send->seq_no > msg_to_send->num_seg) ||
+			(msg_to_send->num_seg > 1 && msg_to_send->seq_no == 0))
+		return 0;
 
 	char *wptr = pdu;
 	uint8_t val = 0;
 
 	/* Write the first octet and message reference number into the PDU */
-	val = MTI_SMS_SUBMIT | RD_ACCEPT | VPF_ABSENT | SRR_REPORT_NOT_REQ |
-		RP_NOT_SET;
+	val = MTI_SMS_SUBMIT_TYPE | RD_ACCEPT | VPF_ABSENT | SRR_REPORT_NOT_REQ
+		| RP_NOT_SET;
 	if (msg_to_send->num_seg > 0)
 		val |= UDHI_PRESENT;
-	ON_FAIL(hexstr(val, &wptr), -1);
-	ON_FAIL(hexstr(msg_ref_no, &wptr), -1);
+	ON_FAIL(hexstr(val, &wptr), 0);
+	ON_FAIL(hexstr(msg_ref_no, &wptr), 0);
 	msg_ref_no++;
 
 	/* Write the destination address length and the encoded address */
-	ON_FAIL(smscodec_encode_addr(msg_to_send->addr, &wptr), -1);
+	ON_FAIL(smscodec_encode_addr(msg_to_send->addr, &wptr), 0);
 
 	/* Write the PID and DCS fields */
-	ON_FAIL(hexstr(PID_VAL, &wptr), -1);
-	ON_FAIL(hexstr(DCS_VAL, &wptr), -1);
+	ON_FAIL(hexstr(PID_VAL, &wptr), 0);
+	ON_FAIL(hexstr(DCS_VAL, &wptr), 0);
 
 	/* Write the User Data field */
-	ON_FAIL(encode_ud(msg_to_send, &wptr), -1);
+	ON_FAIL(encode_ud(msg_to_send, &wptr), 0);
 
 	return (wptr - pdu);
+}
+
+static bool decode_addr(const char **pdu, msg_t *recv_msg)
+{
+	uint32_t val = 0;
+	/* Read the length */
+	ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
+	return true;
+}
+
+static bool decode_bd(const char **pdu, msg_t *recv_msg)
+{
+	uint32_t val = 0;
+	/* Read the length */
+	ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
+	return true;
+}
+
+static bool decode_bd_msg_ident(const char **pdu, msg_t *recv_msg)
+{
+	uint32_t val = 0;
+	/* Read the length */
+	ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
+	return true;
+}
+
+static bool decode_bd_user_data(const char **pdu, msg_t *recv_msg)
+{
+	uint32_t val = 0;
+	/* Read the length */
+	ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
+	return true;
+}
+
+bool smscodec_decode(uint8_t len, const char *pdu, msg_t *recv_msg)
+{
+	if (pdu == NULL || recv_msg == NULL || recv_msg->buf == NULL)
+		return false;
+
+	const char *rptr = pdu;
+
+	/* The PDU always begins with a message type */
+	uint32_t msg_type;
+	ON_FAIL(hexnum(&rptr, HEXLEN, &msg_type), false);
+	if (msg_type != SMS_P2P_TYPE)
+		return false;
+
+	udh_present = false;
+
+	/*
+	 * The rest of the PDU consists of multiple structures of the form:
+	 * {PARAM_IDENTIFIER, PARAM_DATA_LEN, PARAM_DATA}
+	 * These structures can appear in any order in the PDU.
+	 */
+	while (rptr != pdu + len) {
+		uint32_t val = 0;
+		ON_FAIL(hexnum(&rptr, HEXLEN, &val), false);
+		switch (val) {
+		case TELESVC_IDENT:
+			ON_FAIL(hexnum(&rptr, HEXLEN, &val), false);
+			if (val != TELESVC_LEN)
+				return false;
+			ON_FAIL(hexnum(&rptr, val * HEXLEN, &val), false);
+			if (val != TELESVC_WMT)
+				return false;
+			break;
+		case ORIG_ADDR:
+			ON_FAIL(decode_addr(&rptr, recv_msg), false);
+			break;
+		case BEARER_DATA:
+			ON_FAIL(decode_bd(&rptr, recv_msg), false);
+			break;
+		default:
+			/* Ignore all other parameters */
+			ON_FAIL(hexnum(&rptr, HEXLEN, &val), false);
+			rptr += (val * HEXLEN);
+			break;
+		}
+	}
+	return true;
 }
