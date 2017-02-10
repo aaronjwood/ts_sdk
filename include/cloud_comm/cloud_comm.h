@@ -55,8 +55,6 @@ typedef enum {
 	CC_STS_UNKNOWN		/**< Not supported event */
 } cc_event;
 
-typedef uint16_t cc_data_sz;	/**< Type representing the size of the message */
-
 typedef struct {		/* Cloud communication buffer descriptor */
 	cc_data_sz bufsz;	/* Maximum size of this buffer */
 	void *buf_ptr;		/* Opaque pointer to the actual data buffer */

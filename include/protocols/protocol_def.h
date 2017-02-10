@@ -43,6 +43,7 @@ typedef enum {
 	PROTO_RCVD_UPD         /* Received an update message from the cloud */
 } proto_event;
 
+typedef uint16_t proto_pl_sz; /* type representing total payload size */
 
 /*
  * Pointer to a callback routine. The callback accepts a buffer, its size and
