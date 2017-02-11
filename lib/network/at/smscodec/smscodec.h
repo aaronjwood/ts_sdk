@@ -10,9 +10,9 @@
  * Sizes here are in bytes taken up in the final PDU hex string. This means '4A'
  * occupies two bytes.
  */
-#define ADDR_SZ				12
-#define ENC_ADDR_SZ			14
-#define PDU_OVR_HD			(12 + ENC_ADDR_SZ)
+#define ADDR_SZ				16 /* 15 digit number and '+' */
+#define ENC_ADDR_SZ			19 /* 15 + 2 (len) + 2 (number type) */
+#define PDU_OVR_HD			(10 + ENC_ADDR_SZ)
 #define UD_SZ				(140*2)	/* Valid only for 8-bit encoding */
 #define MAX_PDU_SZ			(PDU_OVR_HD + UD_SZ)
 

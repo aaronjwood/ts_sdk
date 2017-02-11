@@ -53,6 +53,17 @@ enum decoding {
 	ORIG_ADDR = 0x02,		/* Originating address identifier */
 
 	BEARER_DATA = 0x08,		/* Bearer data identifier */
+
+	DTMF_0 = 0x0A,			/* Binary DTMF digit codes */
+	DTMF_1 = 0x01,
+	DTMF_2 = 0x02,
+	DTMF_3 = 0x03,
+	DTMF_4 = 0x04,
+	DTMF_5 = 0x05,
+	DTMF_6 = 0x06,
+	DTMF_7 = 0x07,
+	DTMF_8 = 0x08,
+	DTMF_9 = 0x09
 };
 
 static bool udh_present;		/* Set if UDH is present in received SMS */
@@ -80,7 +91,7 @@ static bool smscodec_encode_addr(const char *intl_num, char **enc_intl_num)
 		enc_len--;
 	}
 
-	/* The header for the encoded output is its length */
+	/* The header for the encoded output is its length and number type */
 	if (snprintf(*enc_intl_num, ADDR_HDR_SZ + 1, "%02X91", enc_len) < 0)
 		return false;
 
@@ -110,6 +121,9 @@ static bool smscodec_encode_addr(const char *intl_num, char **enc_intl_num)
  */
 static bool hexstr(uint8_t data, char **dest)
 {
+	if (dest == NULL || *dest == NULL)
+		return false;
+
 	int written = snprintf(*dest, HEXLEN + 1, "%02X", data);
 	if (written <= 0)
 		return false;
@@ -118,29 +132,35 @@ static bool hexstr(uint8_t data, char **dest)
 }
 
 /*
- * Convert a hex string of a given length to an unsigned 32-bit integer. Length
- * cannot exceed 8 characters. The result is stored in num.
+ * Convert a hex string of a given length to an unsigned 32-bit integer. The
+ * result is stored in 'num'. It is assumed that num is an array of 8-bit
+ * integers at least 'len / HEXLEN' bytes long.
  * Return 'true' on success and 'false' on failure.
  * On a successful call, (*src) is updated to point to the memory location right
  * after the last byte read.
  */
-static bool hexnum(const char **src, uint8_t len, uint32_t *num)
+static bool hexnum(const char **src, uint8_t len, uint8_t *num)
 {
-	if (len > 8)
+	if (src == NULL || *src == NULL || num == NULL)
 		return false;
-	*num = 0;
+
+	memset(num, 0, len / HEXLEN);
 	for (uint8_t i = 0; i < len; i++) {
 		uint8_t digit = (*src)[i];
-		*num *= 16;
+
+		uint8_t idx = i >> 1;
+		num[idx] *= 16;
+
 		if (digit >= '0' && digit <= '9')
-			*num += (digit - '0');
+			num[idx] += (digit - '0');
 		else if (digit >= 'A' && digit <= 'F')
-			*num += (digit - 'A');
+			num[idx] += (10 + digit - 'A');
 		else if (digit >= 'a' && digit <= 'f')
-			*num += (digit - 'a');
+			num[idx] += (digit - 'a');
 		else
-			return 0;
+			return false;
 	}
+
 	*src += len;
 	return true;
 }
@@ -208,37 +228,97 @@ uint16_t smscodec_encode(const msg_t *msg_to_send, char *pdu)
 	return (wptr - pdu);
 }
 
+/*
+ * Extract the first 'nbits' starting at bit 'start_bit' from the array 'src'.
+ * The array is assumed to be long enough so that all bits can be extracted
+ * successfully without crossing any memory boundaries.
+ * 'nbits' cannot exceed 32. 'src' is assumed to store binary data in the
+ * big-endian format. Local storage is assumed to be little-endian.
+ * After a successful call 'start_bit' is incremented by 'nbits'.
+ */
+static uint32_t extract_bits(uint32_t *start_bit, uint8_t nbits, uint8_t *src)
+{
+	if (start_bit == NULL || nbits == 0 || src == NULL)
+		return 0;
+
+	if (nbits > 32)
+		nbits = 32;
+
+	uint8_t byte_offset = *start_bit >> 3;
+	uint8_t bit_offset = *start_bit & 0x07;
+	uint8_t n_bytes = nbits >> 3;
+	uint8_t bits_remaining = nbits & 0x07;
+	uint8_t whole_bytes = n_bytes + (bits_remaining > 0) + (bit_offset > 0);
+
+	uint32_t bits = 0;
+	memcpy(&bits, src + byte_offset, whole_bytes);
+	bits = __builtin_bswap32(bits);
+	bits <<= bit_offset;
+	bits >>= (32 - nbits);
+
+	*start_bit += nbits;
+	return bits;
+}
+
+/*
+ * Decode the address into a phone number. Data network addresses are not
+ * supported. Digits are expected to be encoded using binary DTMF. Returns
+ * 'true' on success, 'false' on failure.
+ */
+#define MAX_OA_PARAM_LEN		7
 static bool decode_addr(const char **pdu, msg_t *recv_msg)
 {
-	uint32_t val = 0;
-	/* Read the length */
+	/* Extract length of the field */
+	uint8_t val = 0;
 	ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
+	if (val > MAX_OA_PARAM_LEN)
+		return false;
+
+	/* Extract the binary data associated with the field */
+	uint8_t bin[MAX_OA_PARAM_LEN];
+	uint32_t bit_idx = 0;
+	ON_FAIL(hexnum(pdu, val * HEXLEN, bin), false);
+
+	/* Only binary DTMF encoded digits and no data network address */
+	bool digit_mode = extract_bits(&bit_idx, 1, bin);
+	bool number_mode = extract_bits(&bit_idx, 1, bin);
+	if (digit_mode || number_mode)
+		return false;
+
+	/* Decode the phone number */
+	val = extract_bits(&bit_idx, 8, bin);	/* Number of digits in address */
+	for (uint8_t i = 0; i < val; i++) {
+		uint8_t digit = extract_bits(&bit_idx, 4, bin);
+		printf("%02X\n", digit);
+	}
+
 	return true;
 }
 
 static bool decode_bd(const char **pdu, msg_t *recv_msg)
 {
-	uint32_t val = 0;
-	/* Read the length */
+	uint8_t val = 0;
 	ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
+	*pdu += (val * HEXLEN);
 	return true;
 }
 
+/*
 static bool decode_bd_msg_ident(const char **pdu, msg_t *recv_msg)
 {
-	uint32_t val = 0;
-	/* Read the length */
+	uint8_t val = 0;
 	ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
+	*pdu += (val * HEXLEN);
 	return true;
 }
 
 static bool decode_bd_user_data(const char **pdu, msg_t *recv_msg)
 {
-	uint32_t val = 0;
-	/* Read the length */
+	uint8_t val = 0;
 	ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
+	*pdu += (val * HEXLEN);
 	return true;
-}
+}*/
 
 bool smscodec_decode(uint8_t len, const char *pdu, msg_t *recv_msg)
 {
@@ -248,7 +328,7 @@ bool smscodec_decode(uint8_t len, const char *pdu, msg_t *recv_msg)
 	const char *rptr = pdu;
 
 	/* The PDU always begins with a message type */
-	uint32_t msg_type;
+	uint8_t msg_type;
 	ON_FAIL(hexnum(&rptr, HEXLEN, &msg_type), false);
 	if (msg_type != SMS_P2P_TYPE)
 		return false;
@@ -261,15 +341,16 @@ bool smscodec_decode(uint8_t len, const char *pdu, msg_t *recv_msg)
 	 * These structures can appear in any order in the PDU.
 	 */
 	while (rptr != pdu + len) {
-		uint32_t val = 0;
-		ON_FAIL(hexnum(&rptr, HEXLEN, &val), false);
-		switch (val) {
+		uint8_t val[2] = {0};
+		ON_FAIL(hexnum(&rptr, HEXLEN, val), false);
+		switch (val[0]) {
 		case TELESVC_IDENT:
-			ON_FAIL(hexnum(&rptr, HEXLEN, &val), false);
-			if (val != TELESVC_LEN)
+			ON_FAIL(hexnum(&rptr, HEXLEN, val), false);
+			if (val[0] != TELESVC_LEN)
 				return false;
-			ON_FAIL(hexnum(&rptr, val * HEXLEN, &val), false);
-			if (val != TELESVC_WMT)
+			ON_FAIL(hexnum(&rptr, val[0] * HEXLEN, val), false);
+			if (val[0] != (TELESVC_WMT >> 8) ||
+					val[1] != (TELESVC_WMT & 0xFF))
 				return false;
 			break;
 		case ORIG_ADDR:
@@ -280,8 +361,8 @@ bool smscodec_decode(uint8_t len, const char *pdu, msg_t *recv_msg)
 			break;
 		default:
 			/* Ignore all other parameters */
-			ON_FAIL(hexnum(&rptr, HEXLEN, &val), false);
-			rptr += (val * HEXLEN);
+			ON_FAIL(hexnum(&rptr, HEXLEN, val), false);
+			rptr += (val[0] * HEXLEN);
 			break;
 		}
 	}
