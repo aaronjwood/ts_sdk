@@ -48,11 +48,22 @@ enum decoding {
 
 	TELESVC_IDENT = 0x00,		/* Teleservice parameter identifier */
 	TELESVC_LEN = 0x02,		/* Teleservice parameter length */
-	TELESVC_WMT = 4098,		/* Wireless messaging teleservice */
+	TELESVC_WEMT = 4101,		/* Wireless enhanced messaging */
 
 	ORIG_ADDR = 0x02,		/* Originating address identifier */
 
 	BEARER_DATA = 0x08,		/* Bearer data identifier */
+
+	SUB_PARAM_MSG_ID = 0x00,	/* Bearer data subparam - Message ID */
+	MSG_ID_LEN = 3,
+	MSG_TYPE_SMS_DELIVER = 0x01,
+	MSG_ID_UDH_POSITION = 20,
+
+	SUB_PARAM_UD = 0x01,		/* Bearer data subparam - User Data */
+	UD_ENC_DCS = 0x0A,
+	UD_ENC_DCS_VAL = 0x04,
+	UD_ENC_8BIT = 0x00,
+	UD_MAX_LEN = MAX_BUF_SZ + 3,
 
 	DTMF_0 = 0x0A,			/* Binary DTMF digit codes */
 	DTMF_1 = 0x01,
@@ -63,7 +74,8 @@ enum decoding {
 	DTMF_6 = 0x06,
 	DTMF_7 = 0x07,
 	DTMF_8 = 0x08,
-	DTMF_9 = 0x09
+	DTMF_9 = 0x09,
+	DTMF_DIGIT_SIZE = 4
 };
 
 static bool udh_present;		/* Set if UDH is present in received SMS */
@@ -169,7 +181,7 @@ static bool hexnum(const char **src, uint8_t len, uint8_t *num)
  * Encode the UDL (and UDH if present) along with the user data. Returns 'true'
  * on success, 'false' on any error.
  */
-static bool encode_ud(const msg_t *msg_to_send, char **dest)
+static bool encode_ud(const sms_t *msg_to_send, char **dest)
 {
 	if (msg_to_send->num_seg > 1) {
 		ON_FAIL(hexstr(1 + UDH_LEN + msg_to_send->len, dest), false);
@@ -188,7 +200,7 @@ static bool encode_ud(const msg_t *msg_to_send, char **dest)
 	return true;
 }
 
-uint16_t smscodec_encode(const msg_t *msg_to_send, char *pdu)
+uint16_t smscodec_encode(const sms_t *msg_to_send, char *pdu)
 {
 	static uint8_t msg_ref_no = 0;
 
@@ -236,7 +248,7 @@ uint16_t smscodec_encode(const msg_t *msg_to_send, char *pdu)
  * big-endian format. Local storage is assumed to be little-endian.
  * After a successful call 'start_bit' is incremented by 'nbits'.
  */
-static uint32_t extract_bits(uint32_t *start_bit, uint8_t nbits, uint8_t *src)
+static uint32_t extract_bits(size_t *start_bit, uint8_t nbits, const uint8_t *src)
 {
 	if (start_bit == NULL || nbits == 0 || src == NULL)
 		return 0;
@@ -260,13 +272,34 @@ static uint32_t extract_bits(uint32_t *start_bit, uint8_t nbits, uint8_t *src)
 	return bits;
 }
 
+/* Convert the binary DTMF value into a decimal character */
+static inline char bin_dtmf_to_char(uint8_t bin_dtmf)
+{
+	switch (bin_dtmf) {
+	case DTMF_0:
+		return '0';
+	case DTMF_1:
+	case DTMF_2:
+	case DTMF_3:
+	case DTMF_4:
+	case DTMF_5:
+	case DTMF_6:
+	case DTMF_7:
+	case DTMF_8:
+	case DTMF_9:
+		return (bin_dtmf + '0');
+	default:
+		return '0';
+	}
+}
+
 /*
  * Decode the address into a phone number. Data network addresses are not
  * supported. Digits are expected to be encoded using binary DTMF. Returns
  * 'true' on success, 'false' on failure.
  */
 #define MAX_OA_PARAM_LEN		7
-static bool decode_addr(const char **pdu, msg_t *recv_msg)
+static bool decode_addr(const char **pdu, sms_t *recv_msg)
 {
 	/* Extract length of the field */
 	uint8_t val = 0;
@@ -276,7 +309,7 @@ static bool decode_addr(const char **pdu, msg_t *recv_msg)
 
 	/* Extract the binary data associated with the field */
 	uint8_t bin[MAX_OA_PARAM_LEN];
-	uint32_t bit_idx = 0;
+	size_t bit_idx = 0;
 	ON_FAIL(hexnum(pdu, val * HEXLEN, bin), false);
 
 	/* Only binary DTMF encoded digits and no data network address */
@@ -287,40 +320,139 @@ static bool decode_addr(const char **pdu, msg_t *recv_msg)
 
 	/* Decode the phone number */
 	val = extract_bits(&bit_idx, 8, bin);	/* Number of digits in address */
+	if (val > ADDR_SZ - 1)			/* Not including the '+' */
+		return false;
+
+	memset(recv_msg->addr, 0, sizeof(recv_msg->addr));
 	for (uint8_t i = 0; i < val; i++) {
-		uint8_t digit = extract_bits(&bit_idx, 4, bin);
-		printf("%02X\n", digit);
+		uint8_t digit = extract_bits(&bit_idx, DTMF_DIGIT_SIZE, bin);
+		recv_msg->addr[i] = bin_dtmf_to_char(digit);
+	}
+	return true;
+}
+
+static bool decode_bd_msg_ident(const char **pdu)
+{
+	/* Extract the length field */
+	uint8_t val = 0;
+	ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
+	if (val != MSG_ID_LEN)
+		return false;
+
+	/* Extract the binary data associated with the field */
+	uint8_t bin[MSG_ID_LEN];
+	size_t bit_idx = MSG_ID_UDH_POSITION;
+	ON_FAIL(hexnum(pdu, val * HEXLEN, bin), false);
+
+	/* The only important bit in this binary field is the UDH indicator bit */
+	udh_present = extract_bits(&bit_idx, 1, bin);
+
+	return true;
+}
+
+static bool decode_bd_udh(size_t *bit_idx, const uint8_t *bin, sms_t *recv_msg)
+{
+	uint8_t num_fields = extract_bits(bit_idx, 8, bin);
+	if (num_fields > MAX_BUF_SZ)
+		return false;
+
+	/* Parse UD header */
+	uint8_t udhl = extract_bits(bit_idx, 8, bin);
+	size_t end = *bit_idx + udhl * 8;
+	while (*bit_idx < end) {
+		uint8_t iei = extract_bits(bit_idx, 8, bin);
+		uint8_t iei_len = extract_bits(bit_idx, 8, bin);
+		switch (iei) {
+		case IEI_CONCAT:
+			if (iei_len != IEI_CONCAT_LEN)
+				return false;
+			recv_msg->concat_ref_no = extract_bits(bit_idx, 8, bin);
+			recv_msg->num_seg = extract_bits(bit_idx, 8, bin);
+			recv_msg->seq_no = extract_bits(bit_idx, 8, bin);
+			break;
+		default:
+			return false;
+		}
+	}
+
+	/* Only data remains */
+	num_fields -= (udhl + 1);	/* Account for the UDHL field */
+	recv_msg->len = num_fields;
+	for (uint8_t i = 0; i < num_fields; i++)
+		recv_msg->buf[i] = extract_bits(bit_idx, 8, bin);
+	return true;
+}
+
+/*
+ * Decode the user data present in the SMS. This codec only handles 8-bit
+ * encoded single or multi-part messages.
+ */
+static bool decode_bd_user_data(const char **pdu, sms_t *recv_msg)
+{
+	uint8_t len = 0;
+	ON_FAIL(hexnum(pdu, HEXLEN, &len), false);
+	if (len > UD_MAX_LEN)
+		return false;
+
+	uint8_t bin[len];
+	ON_FAIL(hexnum(pdu, len * HEXLEN, bin), false);
+	size_t bit_idx = 0;
+	uint8_t enc = extract_bits(&bit_idx, 5, bin);
+	recv_msg->num_seg = 1;
+	if (!udh_present) {		/* Single part message */
+		if (enc != UD_ENC_8BIT)
+			return false;
+		/* Message Type field is omitted */
+		uint8_t num_fields = extract_bits(&bit_idx, 8, bin);
+		if (num_fields > MAX_BUF_SZ)
+			return false;
+		recv_msg->len = num_fields;
+		for (uint8_t i = 0; i < num_fields; i++)
+			recv_msg->buf[i] = extract_bits(&bit_idx, 8, bin);
+	} else {
+		if (enc != UD_ENC_DCS)
+			return false;
+		uint8_t msg_type = extract_bits(&bit_idx, 8, bin);
+		/* XXX: UD_ENC_DCS_VAL might change for messages originating from
+		 * the cloud.
+		 */
+		if (msg_type != UD_ENC_DCS_VAL)
+			return false;
+
+		/* Decode the UDH header and user data into recv_msg */
+		ON_FAIL(decode_bd_udh(&bit_idx, bin, recv_msg), false);
+	}
+	return true;
+}
+
+static bool decode_bd(const char **pdu, sms_t *recv_msg)
+{
+	uint8_t len = 0;
+	ON_FAIL(hexnum(pdu, HEXLEN, &len), false);
+	const char *end = *pdu + len * HEXLEN;
+
+	while (*pdu < end) {
+		uint8_t val = 0;
+		ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
+		switch (val) {
+		case SUB_PARAM_MSG_ID:
+			ON_FAIL(decode_bd_msg_ident(pdu), false);
+			break;
+		case SUB_PARAM_UD:
+			ON_FAIL(decode_bd_user_data(pdu, recv_msg), false);
+			break;
+		default:
+			/* Ignore all other sub-parameters */
+			ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
+			*pdu += (val * HEXLEN);
+			break;
+		}
 	}
 
 	return true;
 }
 
-static bool decode_bd(const char **pdu, msg_t *recv_msg)
-{
-	uint8_t val = 0;
-	ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
-	*pdu += (val * HEXLEN);
-	return true;
-}
-
-/*
-static bool decode_bd_msg_ident(const char **pdu, msg_t *recv_msg)
-{
-	uint8_t val = 0;
-	ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
-	*pdu += (val * HEXLEN);
-	return true;
-}
-
-static bool decode_bd_user_data(const char **pdu, msg_t *recv_msg)
-{
-	uint8_t val = 0;
-	ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
-	*pdu += (val * HEXLEN);
-	return true;
-}*/
-
-bool smscodec_decode(uint8_t len, const char *pdu, msg_t *recv_msg)
+bool smscodec_decode(uint8_t len, const char *pdu, sms_t *recv_msg)
 {
 	if (pdu == NULL || recv_msg == NULL || recv_msg->buf == NULL)
 		return false;
@@ -340,7 +472,7 @@ bool smscodec_decode(uint8_t len, const char *pdu, msg_t *recv_msg)
 	 * {PARAM_IDENTIFIER, PARAM_DATA_LEN, PARAM_DATA}
 	 * These structures can appear in any order in the PDU.
 	 */
-	while (rptr != pdu + len) {
+	while (rptr < pdu + len) {
 		uint8_t val[2] = {0};
 		ON_FAIL(hexnum(&rptr, HEXLEN, val), false);
 		switch (val[0]) {
@@ -349,8 +481,8 @@ bool smscodec_decode(uint8_t len, const char *pdu, msg_t *recv_msg)
 			if (val[0] != TELESVC_LEN)
 				return false;
 			ON_FAIL(hexnum(&rptr, val[0] * HEXLEN, val), false);
-			if (val[0] != (TELESVC_WMT >> 8) ||
-					val[1] != (TELESVC_WMT & 0xFF))
+			if (val[0] != (TELESVC_WEMT >> 8) ||
+					val[1] != (TELESVC_WEMT & 0xFF))
 				return false;
 			break;
 		case ORIG_ADDR:
