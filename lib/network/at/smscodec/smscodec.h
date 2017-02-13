@@ -23,7 +23,7 @@
  * 	representing the size of the encoded PDU as a hex string in bytes
  * 	excluding the NULL termination character.
  */
-uint16_t smscodec_encode(const msg_t *msg_to_send, char *pdu);
+uint16_t smscodec_encode(const sms_t *msg_to_send, char *pdu);
 
 /*
  * Decode the incoming PDU string and populate the message structure accordingly.
@@ -38,6 +38,6 @@ uint16_t smscodec_encode(const msg_t *msg_to_send, char *pdu);
  * 	True  - If the decoding operation succeeded
  * 	False - If the decoding operation failed
  */
-bool smscodec_decode(uint8_t len, const char *pdu, msg_t *recv_msg);
+bool smscodec_decode(uint8_t len, const char *pdu, sms_t *recv_msg);
 
 #endif
