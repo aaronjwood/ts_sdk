@@ -40,7 +40,8 @@ typedef enum {
 	PROTO_RCVD_CMD_SL,	/* Received sleep time from the cloud */
 	PROTO_RCVD_CMD_PI,	/* Received polling interval from the cloud */
 	PROTO_RCVD_QUIT,	/* Received quit */
-	PROTO_RCVD_UPD         /* Received an update message from the cloud */
+	PROTO_RCVD_UPD,         /* Received an update message from the cloud */
+	PROTO_RCVD_MSG
 } proto_event;
 
 typedef uint16_t proto_pl_sz; /* type representing total payload size */

@@ -25,6 +25,12 @@ static uint32_t proto_begin;
 
 static int msg_ref_num;
 
+/* FIXME: revisit all the at layer function callings including this one */
+static void smsnas_rcv_cb(at_msg_t *msg)
+{
+	process_recvd_msg(msg);
+}
+
 static void smsnas_reset_state(void)
 {
 	session.send_buf = NULL;
@@ -58,9 +64,11 @@ proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
 {
 	if (!rcv_buf || (sz > PROTO_MAX_MSG_SZ))
 		return PROTO_INV_PARAM;
-	session.rcv_buf = rcv_buf;
-	session.rcv_sz = sz;
+	session.rcv_buf.buf = rcv_buf;
+	session.rcv_buf.len = sz;
 	session.rcv_cb = rcv_cb;
+
+	at_set_rcv_buf_cb(&session.rcv_buf, smsnas_rcv_cb);
 	return PROTO_OK;
 }
 
@@ -75,7 +83,7 @@ static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
 		retry++;
 	}
 	if (retry >= MAX_RETRIES)
-		return PROTO_ERROR;
+		return PROTO_TIMEOUT;
 	return PROTO_OK;
 }
 
@@ -90,64 +98,56 @@ uint32_t smsnas_get_rcvd_data_len(const void *msg)
 	return ptr_to_msg->payload_sz;
 }
 
-/*
- * Process a received response. Most of the actual processing is done through the
- * user provided callbacks this function invokes. In addition, it sets some
- * internal flags to decide the state of the session in the future. Calling the
- * send callback is optional and is decided through "invoke_send_cb".
- * On receiving a NACK return "false". Otherwise, return "true".
- */
-static bool process_recvd_msg(msg_t *msg_ptr, uint32_t rcvd, bool invoke_send_cb)
+void smsnas_send_ack(void)
 {
-	c_flags_t c_flags;
-	m_type_t m_type;
-	bool no_nack_detected = true;
-	OTT_LOAD_FLAGS(msg_ptr->cmd_byte, c_flags);
-	OTT_LOAD_MTYPE(msg_ptr->cmd_byte, m_type);
+        at_send_ack();
+}
 
-	/* Keep the session alive if the cloud has more messages to send */
-	session.pend_bit = OTT_FLAG_IS_SET(c_flags, CF_PENDING);
+void smsnas_send_nack(void)
+{
+        at_send_nack();
+}
 
-	if (OTT_FLAG_IS_SET(c_flags, CF_ACK)) {
-		proto_event evt = PROTO_RCVD_NONE;
-		/* Messages with a body need to be ACKed in the future */
-		session.pend_ack = false;
-		if (m_type == MT_UPDATE) {
-			evt = PROTO_RCVD_UPD;
-		} else if (m_type == MT_CMD_SL) {
-			evt = PROTO_RCVD_CMD_SL;
-		} else if (m_type == MT_CMD_PI) {
-			INVOKE_RECV_CALLBACK(msg_ptr, rcvd, PROTO_RCVD_CMD_PI);
-			session.pend_ack = true;
-		}
-
-		if (m_type == MT_UPDATE || m_type == MT_CMD_SL) {
-			INVOKE_RECV_CALLBACK(msg_ptr, rcvd, evt);
-		}
-		if (invoke_send_cb) {
-			INVOKE_SEND_CALLBACK(session.send_buf, session.send_sz,
-						PROTO_RCVD_ACK);
-		}
-	} else if (OTT_FLAG_IS_SET(c_flags, CF_NACK)) {
-		no_nack_detected = false;
-		if (invoke_send_cb) {
-			INVOKE_SEND_CALLBACK(session.send_buf, session.send_sz,
-				PROTO_RCVD_NACK);
-		}
+static bool process_smsnas_control_msg(smsnas_ctrl_msg *msg)
+{
+	if (msg->version != SMSNAS_CTRL_MSG_VER)
+		return false;
+	switch (msg->msg_type) {
+	case SMSNAS_MSG_TYPE_SLEEP:
+		uint32_t sl_intr = msg->interval;
+		break;
+	default:
+		return false;
 	}
+	return true;
+}
 
-	if (OTT_FLAG_IS_SET(c_flags, CF_QUIT)) {
-		ott_close_connection();
-		ott_reset_state();
-		INVOKE_RECV_CALLBACK(msg_ptr, rcvd, PROTO_RCVD_QUIT);
+static bool process_recvd_msg(at_msg_t *msg_ptr)
+{
+	if (msg_ptr->num_seg > 1) {
+
+	} else {
+		smsnas_msg_t *smsnas_msg = (smsnas_msg_t *)msg_ptr->buf;
+		if (smsnas_msg->version != SMSNAS_VERSION)
+			goto done;
+		if (smsnas_msg->service_id == 0) {
+			if (!process_smsnas_control_msg(smsnas_msg.data.bytes))
+				goto done;
+			smsnas_send_ack();
+			return true;
+		}
+
 	}
+done:
+	smsnas_send_nack();
+	return false;
 
-	return no_nack_detected;
 }
 
 static void build_smsnas_msg(const void *payload, proto_pl_sz sz, uint8_t s_id)
 {
-	session.send_msg[0] = VERSION_BYTE;
+	memset(session.send_msg, 0, MAX_SMS_PL_SZ);
+	session.send_msg[0] = SMSNAS_VERSION;
 	session.send_msg[1] = s_id;
 	session.send_msg[2] = (uint8_t)(sz & 0xff);
 	session.send_msg[3] = (uint8_t)((sz >> 8) & 0xff);
@@ -158,12 +158,12 @@ int calculate_total_msgs(proto_pl_sz sz)
 {
 	bool first = true;
 	int total_msg = 1;
-	int max_size = MAX_SMS_SZ_WITH_HEADER
+	int max_size = MAX_SMS_SZ_WITH_HEADER;
 	while (sz > 0) {
 		if (first) {
 			sz = sz - max_size;
 			total_msg++;
-			max_size = MAX_SMS_SZ_WITH_HEADER + PROTO_OVERHEAD_SZ;
+			max_size = MAX_SMS_SZ_WITH_HD_WITHT_OVHD;
 			first = false;
 			continue;
 		}
@@ -195,23 +195,35 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 	}
 	cur_seq_num = 1;
 	total_msgs = calculate_total_msgs(sz);
-	const void *temp_buf = NULL;
-	proto_pl_sz cur_sz = sz;
-	do {
+	uint8_t *temp_buf = NULL;
+	proto_pl_sz rem_sz = sz;
+	proto_pl_sz send_sz = 0;
+	proto_pl_sz total_sent = 0;
+	while (1) {
 		if (cur_seq_num == 1) {
 			build_smsnas_msg(buf, MAX_SMS_SZ_WITH_HEADER,
 					service_id);
 			temp_buf = session.send_msg;
-		} else {
-			temp_buf = buf;
+			rem_sz = rem_sz - MAX_SMS_SZ_WITH_HEADER;
+			send_sz = MAX_SMS_SZ_WITH_HEADER + PROTO_OVERHEAD_SZ;
 		}
-		proto_result ret = write_to_modem(temp_buf, MAX_SMS_PL_SZ,
+		proto_result ret = write_to_modem(temp_buf, send_sz,
 					msg_ref_num, total_msgs, cur_seq_num);
-
 		if (ret != PROTO_OK)
 			return ret;
-	} while (cur_sz > 0);
-
+		cur_seq_num++;
+		if (cur_seq_num > total_msgs)
+			break;
+		total_sent += send_sz;
+		temp_buf = buf + total_sent;
+		if (rem_sz <= MAX_SMS_SZ_WITH_HD_WITHT_OVHD)
+			send_sz = rem_sz;
+		else {
+			rem_sz = rem_sz - MAX_SMS_SZ_WITH_HD_WITHT_OVHD;
+			send_sz = MAX_SMS_SZ_WITH_HD_WITHT_OVHD;
+		}
+	}
+	msg_ref_num = (msg_ref_num + 1) % MAX_SMS_REF_NUMBER;
 	return PROTO_OK;
 }
 
@@ -220,18 +232,7 @@ const uint8_t *smsnas_get_rcv_buffer_ptr(const void *msg)
 	if (!msg)
 		return NULL;
 
-	m_type_t m_type;
 	const msg_t *ptr_to_msg = (const msg_t *)(msg);
 	return (const uint8_t *)&(ptr_to_msg->payload);
 
-}
-
-void smsnas_send_ack(void)
-{
-        at_send_ack();
-}
-
-void smsnas_send_nack(void)
-{
-        at_send_nack();
 }

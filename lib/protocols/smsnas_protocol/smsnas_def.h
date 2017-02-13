@@ -10,7 +10,9 @@
 #define RECV_TIMEOUT_MS		5000
 #define SEND_TIMEOUT_MS		5000
 #define MULT			1000
-#define VERSION_BYTE		((uint8_t)0x01)
+#define SMSNAS_VERSION		0x1
+#define SMSNAS_CTRL_MSG_VER	0x1
+#define SMSNAS_MSG_TYPE_SLEEP	0x1
 
 /* Max SMS size without user data header (TP-UDH) */
 #define MAX_SMS_PL_SZ			140
@@ -19,23 +21,42 @@
 /* Defines for the concatenated sms */
 /* 6 bytes for user data header element */
 #define MAX_SMS_SZ_WITH_HEADER		(MAX_SMS_PL_SZ - PROTO_OVERHEAD_SZ - 6)
+/* Account for TP userdata header and not the protocol header */
+#define MAX_SMS_SZ_WITH_HD_WITHT_OVHD	(MAX_SMS_PL_SZ - 6)
 #define MAX_SMS_REF_NUMBER		256
 #define MAX_CONC_SMS_NUM		4
 
-#define MAX_RETRIES		3
+#define MAX_RETRIES			3
+
+/* Defines payload */
+typedef struct __attribute__((packed)) {
+	proto_pl_sz sz;			/* Number of bytes currently filled */
+	uint8_t bytes[];
+} payload;
 
 /* A complete SMSNAS protocol message */
 typedef struct __attribute__((packed)) {
 	uint8_t version;
 	uint8_t service_id;
-	uint16_t payload_sz;
-	uint8_t payload[];
-} msg_t;
+	payload data;
+} smsnas_msg_t;
+
+/* Defines a value received by the device from the cloud */
+typedef union __attribute__((packed)) {
+	uint32_t interval;
+	payload data;
+} ctrl_msg_t;
+
+typedef struct __attribute__((packed)) {
+	uint8_t version;
+	uint8_t msg_type;
+	ctrl_msg_t msg;
+} smsnas_ctrl_msg;
 
 static struct {
 	bool host_valid;		/* Whether host contains valid string */
 	char host[MAX_HOST_LEN + 1];	/* Store the host name */
-	msg_t *rcv_buf;			/* pointer to store the received bytes */
+	at_msg_t rcv_buf;		/* pointer to store the received bytes */
 	uint8_t send_msg[MAX_SMS_PL_SZ];
 	proto_pl_sz rcv_sz;
 	proto_callback rcv_cb;
