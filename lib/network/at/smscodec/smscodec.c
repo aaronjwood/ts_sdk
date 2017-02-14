@@ -145,7 +145,7 @@ static bool encode_ud(const sms_t *msg_to_send, char **dest)
 		ON_FAIL(hexstr(dest, UDH_LEN), false);
 		ON_FAIL(hexstr(dest, IEI_CONCAT), false);
 		ON_FAIL(hexstr(dest, IEI_CONCAT_LEN), false);
-		ON_FAIL(hexstr(dest, msg_to_send->concat_ref_no), false);
+		ON_FAIL(hexstr(dest, msg_to_send->ref_no), false);
 		ON_FAIL(hexstr(dest, msg_to_send->num_seg), false);
 		ON_FAIL(hexstr(dest, msg_to_send->seq_no), false);
 	} else if (msg_to_send->num_seg == 1) {
@@ -178,7 +178,7 @@ uint16_t smscodec_encode(const sms_t *msg_to_send, char *pdu)
 	/* Write the first octet and message reference number into the PDU */
 	val = FO_TYPE_SMS_SUBMIT | FO_RD_ACCEPT | FO_VPF_ABSENT |
 		FO_SRR_REPORT_NOT_REQ | FO_RP_NOT_SET;
-	if (msg_to_send->num_seg > 0)
+	if (msg_to_send->num_seg > 1)
 		val |= FO_UDHI_PRESENT;
 	ON_FAIL(hexstr(&wptr, val), 0);
 	ON_FAIL(hexstr(&wptr, msg_ref_no), 0);
@@ -357,12 +357,9 @@ static bool decode_bd_udh(size_t *bit_idx, const uint8_t *bin, sms_t *recv_msg)
 		case IEI_CONCAT:
 			if (iei_len != IEI_CONCAT_LEN)
 				return false;
-			recv_msg->concat_ref_no = extract_bits(bit_idx,
-					SZ_IEID, bin);
-			recv_msg->num_seg = extract_bits(bit_idx,
-					SZ_IEID, bin);
-			recv_msg->seq_no = extract_bits(bit_idx,
-					SZ_IEID, bin);
+			recv_msg->ref_no = extract_bits(bit_idx, SZ_IEID, bin);
+			recv_msg->num_seg = extract_bits(bit_idx, SZ_IEID, bin);
+			recv_msg->seq_no = extract_bits(bit_idx, SZ_IEID, bin);
 			break;
 		default:
 			return false;
