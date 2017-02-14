@@ -53,13 +53,27 @@ typedef struct __attribute__((packed)) {
 	ctrl_msg_t msg;
 } smsnas_ctrl_msg;
 
+typedef enum {
+	IDLE = 0,
+
+} conc_state;
+
+typedef struct {
+	uint8_t cref_num;
+	uint8_t cur_seq;
+	void *buf;
+	proto_callback cb;
+	proto_pl_sz total_sz;
+	proto_pl_sz wr_idx;
+	proto_pl_sz rem_sz;
+	conc_state state;
+} smsnas_rcv_path
+
 static struct {
 	bool host_valid;		/* Whether host contains valid string */
 	char host[MAX_HOST_LEN + 1];	/* Store the host name */
-	at_msg_t rcv_buf;		/* pointer to store the received bytes */
+	smsnas_rcv_path rcv_msg;
 	uint8_t send_msg[MAX_SMS_PL_SZ];
-	proto_pl_sz rcv_sz;
-	proto_callback rcv_cb;
 } session;
 
 #endif

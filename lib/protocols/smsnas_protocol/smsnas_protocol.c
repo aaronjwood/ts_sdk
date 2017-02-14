@@ -23,13 +23,13 @@
 static uint32_t proto_begin;
 #endif
 
+/* global counter for the concatenated message reference number to be used in
+ * TP-USER header element
+ */
 static int msg_ref_num;
 
-/* FIXME: revisit all the at layer function callings including this one */
-static void smsnas_rcv_cb(at_msg_t *msg)
-{
-	process_recvd_msg(msg);
-}
+/* sleep interval, which can be set during control message sleep type */
+static uint32_t sl_intr;
 
 static void smsnas_reset_state(void)
 {
@@ -59,20 +59,6 @@ proto_result smsnas_set_destination(const char *host)
 	return PROTO_OK;
 }
 
-proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
-					proto_callback rcv_cb)
-{
-	if (!rcv_buf || (sz > PROTO_MAX_MSG_SZ))
-		return PROTO_INV_PARAM;
-	session.rcv_buf.buf = rcv_buf;
-	session.rcv_buf.len = sz;
-	session.rcv_cb = rcv_cb;
-
-	at_set_rcv_buf_cb(&session.rcv_buf, smsnas_rcv_cb);
-	return PROTO_OK;
-}
-
-
 static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
 				int ref_num, int total_num, int seq_num)
 {
@@ -88,7 +74,7 @@ static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
 }
 
 /*
- * Length of the binary data.
+ * Length of the binary data. FIXME: revisit this
  */
 uint32_t smsnas_get_rcvd_data_len(const void *msg)
 {
@@ -114,7 +100,7 @@ static bool process_smsnas_control_msg(smsnas_ctrl_msg *msg)
 		return false;
 	switch (msg->msg_type) {
 	case SMSNAS_MSG_TYPE_SLEEP:
-		uint32_t sl_intr = msg->interval;
+		sl_intr = msg->interval;
 		break;
 	default:
 		return false;
@@ -122,28 +108,125 @@ static bool process_smsnas_control_msg(smsnas_ctrl_msg *msg)
 	return true;
 }
 
-static bool process_recvd_msg(at_msg_t *msg_ptr)
+static bool check_validity(at_msg_t *msg_ptr, bool first_seg)
+{
+	/* check for storage capacity */
+	if (session.rcv_msg.rem_sz < msg_ptr->len)
+		return false;
+
+	if (first_seg) {
+		if (msg_ptr->seq_no != 1)
+			return false;
+		smsnas_msg_t *smsnas_msg = (smsnas_msg_t *)msg_ptr->buf;
+		if (smsnas_msg->version != SMSNAS_VERSION)
+			return false;
+		return true;
+	}
+	/* check for out of order segment */
+	if (msg_ptr->seq_no != (session.rcv_msg.cur_seq + 1))
+		return false;
+
+	/* check for reference number, device does not process multiple
+	 * reference numbers at the same time, FIXME: check back this scenario
+	 */
+	if (session.rcv_msg.cref_num != msg_ptr->concat_ref_no)
+		return false;
+
+	return true;
+}
+
+static update_ack_rcv_path(at_msg_t *msg_ptr)
+{
+	session.rcv_msg.cur_seq = msg_ptr->seq_no;
+	session.rcv_msg.rem_sz -= msg_ptr->len;
+	session.rcv_msg.wr_idx += msg_ptr->len;
+	smsnas_send_ack();
+}
+
+/* FIXME: receive path clean up */
+static void process_recvd_msg(at_msg_t *msg_ptr)
 {
 	if (msg_ptr->num_seg > 1) {
+		if (session.rcv_msg.cur_seq == 0) {
+			/* This is the start of the concatenated messages */
+			if (!check_validity(msg_ptr, true))
+				goto done;
+			session.rcv_msg.wr_idx = 0;
+			session.rcv_msg.cref_num = msg_ptr->concat_ref_no;
+			memcpy(session.rcv_msg.buf + session.rcv_msg.wr_idx,
+				msg_ptr->buf, msg_ptr->len);
+		} else {
+			if (!check_validity(msg_ptr, false))
+				goto done;
+
+			memcpy(session.rcv_msg.buf + session.rcv_msg.wr_idx,
+				msg_ptr->buf, msg_ptr->len);
+
+			/* check for last segment */
+			if (msg_ptr->seq_no == msg_ptr->num_seg) {
+				/* Invoke upper level and let upper level ack
+				 * this message
+				 */
+				INVOKE_RECV_CALLBACK(session.rcv_msg.buf,
+					session.rcv_msg.wr_idx + msg_ptr->len,
+					PROTO_RCVD_SMSNAS_MSG);
+				/* FIXME: clean up before returning */
+				return;
+
+			}
+		}
+		update_ack_rcv_path(msg_ptr);
+		return;
 
 	} else {
 		smsnas_msg_t *smsnas_msg = (smsnas_msg_t *)msg_ptr->buf;
 		if (smsnas_msg->version != SMSNAS_VERSION)
 			goto done;
 		if (smsnas_msg->service_id == 0) {
-			if (!process_smsnas_control_msg(smsnas_msg.data.bytes))
+			if (!process_smsnas_control_msg(smsnas_msg->data.bytes))
 				goto done;
 			smsnas_send_ack();
-			return true;
+			return;
 		}
+		if (msg_ptr->len > session.rcv_msg.rem_sz) {
+			INVOKE_RECV_CALLBACK(NULL, 0,
+						PROTO_RCVD_SMSNAS_MEM_INSUF);
+			goto done;
+		}
+		memcpy(session.rcv_msg.buf, msg_ptr->buf, msg_ptr->len);
+		INVOKE_RECV_CALLBACK(session.rcv_msg.buf, msg_ptr->len,
+					PROTO_RCVD_SMSNAS_MSG);
+		return;
 
 	}
 done:
 	smsnas_send_nack();
-	return false;
-
 }
 
+/* FIXME: revisit all the at layer function callings including this one */
+static void smsnas_rcv_cb(at_msg_t *msg)
+{
+	process_recvd_msg(msg);
+}
+
+proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
+					proto_callback rcv_cb)
+{
+	if (!rcv_buf || (sz > PROTO_MAX_MSG_SZ))
+		return PROTO_INV_PARAM;
+
+	session.rcv_msg.buf = rcv_buf;
+	session.rcv_msg.total_sz = 0;
+	session.rcv_msg.cb = rcv_cb;
+	session.rcv_msg.wr_idx = 0;
+	session.rcv_msg.cur_seq = 0;
+	session.rcv_msg.rem_sz = sz;
+
+	at_set_rcv_buf_cb(smsnas_rcv_cb);
+	return PROTO_OK;
+}
+
+/* Start of send path processing */
 static void build_smsnas_msg(const void *payload, proto_pl_sz sz, uint8_t s_id)
 {
 	memset(session.send_msg, 0, MAX_SMS_PL_SZ);
