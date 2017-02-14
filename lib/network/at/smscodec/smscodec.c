@@ -14,6 +14,7 @@
 
 #define HEXLEN			2	/* 2 hexadecimal characters = 1 Byte */
 
+/* First octet bit definitions */
 #define FO_TYPE_SMS_SUBMIT	0x01	/* SMS-SUBMIT message type */
 #define FO_RD_ACCEPT		0x00	/* Accept messages with duplicate ref no */
 #define FO_RD_REJECT		0x04	/* Reject messages with duplicate ref no */
@@ -28,6 +29,7 @@
 #define FO_RP_SET		0x80	/* A reply path was set */
 #define FO_RP_NOT_SET		0x00	/* No reply path was set */
 
+/* PID and DCS values to be used for outgoing SMSes */
 #define VAL_PID			0x00	/* SME-to-SME protocol */
 #define VAL_DCS			0x04	/* No message class 8-bit encoding */
 
@@ -53,9 +55,9 @@ static bool hexstr(char **dest, uint8_t data)
 }
 
 /*
- * Convert a hex string of a given length to an unsigned 32-bit integer. The
- * result is stored in 'num'. It is assumed that num is an array of 8-bit
- * integers at least 'len / HEXLEN' bytes long.
+ * Convert a hex string of a given length to an integer. The result is stored in
+ * the big endian format in the array 'num'. It is assumed the array is at least
+ * 'len / HEXLEN' bytes long.
  * Return 'true' on success and 'false' on failure.
  * On a successful call, (*src) is updated to point to the memory location right
  * after the last byte read.
@@ -87,9 +89,9 @@ static bool hexnum(const char **src, uint8_t len, uint8_t *num)
 }
 
 /*
- * intl_num is expected to be an international number following the ISDN /
+ * 'intl_num' is expected to be an international number following the ISDN /
  * telephone numbering plan. Both buffers are NULL terminated.
- * Size of intl_num is expected to be at most ADDR_SZ + 1 bytes. Size of
+ * Size of 'intl_num' is expected to be at most ADDR_SZ + 1 bytes. Size of
  * (*enc_intl_num) is expected to be at most ENC_ADDR_SZ + 1 bytes.
  * Returns the 'true' on success and 'false' on failure.
  * On a successful call, (*enc_intl_num) is updated to point to the memory
@@ -132,8 +134,11 @@ static bool smscodec_encode_addr(const char *intl_num, char **enc_intl_num)
 }
 
 /*
- * Encode the UDL (and UDH if present) along with the user data. Returns 'true'
- * on success, 'false' on any error.
+ * Encode the UDL (and UDH if present) along with the user data. Write the
+ * encoded output into the memory pointed by (*dest).
+ * Returns 'true' on success, 'false' on any error.
+ * On a successful call, (*dest) is updated to point to the memory location
+ * after the last byte written.
  */
 #define UDH_LEN			0x05	/* Length of total user data header */
 #define IEI_CONCAT		0x00	/* Concatenation IEI */
@@ -200,10 +205,10 @@ uint16_t smscodec_encode(const sms_t *msg_to_send, char *pdu)
 /*
  * Extract the first 'nbits' starting at bit 'start_bit' from the array 'src'.
  * The array is assumed to be long enough so that all bits can be extracted
- * successfully without crossing any memory boundaries.
- * 'nbits' cannot exceed 32. 'src' is assumed to store binary data in the
- * big-endian format. Local storage is assumed to be little-endian.
- * After a successful call 'start_bit' is incremented by 'nbits'.
+ * successfully without crossing the array boundary.
+ * If 'nbits' exceeds 32, it will be clamped to 32. 'src' is assumed to store
+ * binary data in the big-endian format. Local storage is assumed to be
+ * little-endian. After a successful call 'start_bit' is incremented by 'nbits'.
  */
 static uint32_t extract_bits(size_t *start_bit, uint8_t nbits, const uint8_t *src)
 {
@@ -266,8 +271,10 @@ static inline char bin_dtmf_to_char(uint8_t bin_dtmf)
 
 /*
  * Decode the address into a phone number. Data network addresses are not
- * supported. Digits are expected to be encoded using binary DTMF. Returns
- * 'true' on success, 'false' on failure.
+ * supported. Digits are expected to be encoded using binary DTMF.
+ * Returns 'true' on success, 'false' on failure. On a successful call, (*pdu) is
+ * incremented to point to the memory right after the last byte read in the PDU
+ * string.
  */
 #define MAX_OA_PARAM_LEN		7
 static bool decode_addr(const char **pdu, sms_t *recv_msg)
@@ -305,6 +312,9 @@ static bool decode_addr(const char **pdu, sms_t *recv_msg)
 /*
  * The message identifier sub-parameter indicates the presence / absence of the
  * User Data Header from the 3GPP standard in the message payload.
+ * Returns 'true' on success, 'false' on an error.
+ * On a successful call, (*pdu) is updated to point to the memory location right
+ * after the last byte read in the PDU string.
  */
 #define OFFSET_MSG_ID_UDHI	20	/* Bit index of the UDHI bit */
 #define MSG_ID_LEN		3	/* Length of the Message ID sub-param */
@@ -377,6 +387,9 @@ static bool decode_bd_udh(size_t *bit_idx, const uint8_t *bin, sms_t *recv_msg)
 /*
  * Decode the user data present in the SMS. This codec only handles 8-bit
  * encoded single or multi-part messages.
+ * Returns 'true' on success, 'false' on an error.
+ * On a successful call, (*pdu) is updated to point to the memory location right
+ * after the last byte read in the PDU string.
  */
 #define MAX_UD_LEN	(MAX_BUF_SZ + 3) /* Max. user data parameter length */
 #define SZ_ENC_FIELD	5                /* Size of the encoding field in bits */
@@ -426,6 +439,9 @@ static bool decode_bd_user_data(const char **pdu, sms_t *recv_msg)
  * are parsed for incoming messages:
  * 1) The message ID
  * 2) User Data
+ * Returns 'true' on success, 'false' on an error.
+ * On a successful call, (*pdu) is updated to point to the memory location right
+ * after the last byte read in the PDU string.
  */
 #define SUB_PARAM_MSG_ID	0x00	/* Bearer data sub-parameter: Message ID */
 #define SUB_PARAM_UD		0x01	/* Bearer data sub-parameter: User Data */
@@ -459,6 +475,9 @@ static bool decode_bd(const char **pdu, sms_t *recv_msg)
 /*
  * This codec accepts only two types of teleservices: WEMT (for 8-bit concat.
  * messages) and WMT (for 8-bit single part SMS).
+ * Returns 'true' on success, 'false' on an error.
+ * On a successful call, (*pdu) is updated to point to the memory location right
+ * after the last byte read in the PDU string.
  */
 #define TELESVC_WMT	4098	/* Wireless messaging teleservice type */
 #define TELESVC_WEMT	4101	/* Wireless enhanced messaging teleservice type */

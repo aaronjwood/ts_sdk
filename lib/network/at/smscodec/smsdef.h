@@ -3,11 +3,12 @@
 #ifndef __SMSDEF_H
 #define __SMSDEF_H
 
+#define ADDR_SZ				16 /* 15 digit number and '+' */
+
 /*
  * Sizes here are in bytes taken up in the final PDU hex string. This means '4A'
  * occupies two bytes.
  */
-#define ADDR_SZ				16 /* 15 digit number and '+' */
 #define ENC_ADDR_SZ			19 /* 15 + 2 (len) + 2 (number type) */
 #define PDU_OVR_HD			(10 + ENC_ADDR_SZ)
 #define UD_SZ				(140*2)	/* Valid only for 8-bit encoding */
