@@ -522,6 +522,7 @@ bool smscodec_decode(uint8_t len, const char *pdu, sms_t *recv_msg)
 	 * The rest of the PDU consists of multiple structures of the form:
 	 * {PARAM_IDENTIFIER, PARAM_DATA_LEN, PARAM_DATA}
 	 * These structures can appear in any order in the PDU.
+	 * PARAM_DATA may nest multiple of these structures.
 	 */
 	while (rptr < pdu + len) {
 		uint8_t val = 0;
