@@ -9,13 +9,17 @@
  * Sizes here are in bytes taken up in the final PDU hex string. This means '4A'
  * occupies two bytes.
  */
-#define ENC_ADDR_SZ			19 /* 15 + 2 (len) + 2 (number type) */
+#define ENC_ADDR_SZ			19	/* 15 + 2 (len) + 2 (number type) */
 #define PDU_OVR_HD			(10 + ENC_ADDR_SZ)
 #define UD_SZ				(140*2)	/* Valid only for 8-bit encoding */
 #define MAX_PDU_SZ			(PDU_OVR_HD + UD_SZ)
+#define UDH_LEN				0x05	/* Length of total user data header */
 
 /* Maximum size of the buffer in bytes */
-#define MAX_BUF_SZ			140
+#define MAX_DATA_SZ			140
+
+/* Maximum size of the data in bytes in a segment belonging to a concatenated SMS */
+#define MAX_CONCAT_DATA_SZ		(MAX_DATA_SZ - UDH_LEN - 1)
 
 /*
  * This structure encodes a single segment of the SMS.
@@ -27,7 +31,7 @@
  * The address is an international number following the ISDN / telephone
  * numbering plan (see Section 9.1.2.5 of 3GPP TS 23.040). Its maximum size is
  * ADDR_SZ bytes.
- * Maximum size of 'buf' is MAX_BUF_SZ.
+ * Maximum size of 'buf' is MAX_DATA_SZ.
  */
 typedef struct sms_t {
 	uint8_t len;			/* Length of the buffer content */

@@ -140,7 +140,6 @@ static bool smscodec_encode_addr(const char *intl_num, char **enc_intl_num)
  * On a successful call, (*dest) is updated to point to the memory location
  * after the last byte written.
  */
-#define UDH_LEN			0x05	/* Length of total user data header */
 #define IEI_CONCAT		0x00	/* Concatenation IEI */
 #define IEI_CONCAT_LEN		3	/* Lenght of the concatenation IEI field */
 static bool encode_ud(const sms_t *msg_to_send, char **dest)
@@ -354,7 +353,7 @@ static bool decode_bd_msg_ident(const char **pdu)
 static bool decode_bd_udh(size_t *bit_idx, const uint8_t *bin, sms_t *recv_msg)
 {
 	uint8_t num_fields = extract_bits(bit_idx, SZ_NUM_FIELDS, bin);
-	if (num_fields > MAX_BUF_SZ)
+	if (num_fields > MAX_DATA_SZ)
 		return false;
 
 	/* Parse UD header */
@@ -391,7 +390,7 @@ static bool decode_bd_udh(size_t *bit_idx, const uint8_t *bin, sms_t *recv_msg)
  * On a successful call, (*pdu) is updated to point to the memory location right
  * after the last byte read in the PDU string.
  */
-#define MAX_UD_LEN	(MAX_BUF_SZ + 3) /* Max. user data parameter length */
+#define MAX_UD_LEN	(MAX_DATA_SZ + 3) /* Max. user data parameter length */
 #define SZ_ENC_FIELD	5                /* Size of the encoding field in bits */
 #define SZ_DATA		8                /* Size of each data value in bits */
 #define ENC_8BIT	0x00             /* Encoding Type : 8-Bit */
@@ -414,7 +413,7 @@ static bool decode_bd_user_data(const char **pdu, sms_t *recv_msg)
 			return false;
 		/* Message Type field is omitted */
 		uint8_t num_fields = extract_bits(&bit_idx, SZ_NUM_FIELDS, bin);
-		if (num_fields > MAX_BUF_SZ)
+		if (num_fields > MAX_DATA_SZ)
 			return false;
 
 		recv_msg->len = num_fields;
