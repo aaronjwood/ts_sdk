@@ -89,6 +89,38 @@ static bool hexnum(const char **src, uint8_t len, uint8_t *num)
 }
 
 /*
+ * Extract the first 'nbits' starting at bit 'start_bit' from the array 'src'.
+ * The array is assumed to be long enough so that all bits can be extracted
+ * successfully without crossing the array boundary.
+ * If 'nbits' exceeds 32, it will be clamped to 32. 'src' is assumed to store
+ * binary data in the big-endian format. Local storage is assumed to be
+ * little-endian. After a successful call 'start_bit' is incremented by 'nbits'.
+ */
+static uint32_t extract_bits(size_t *start_bit, uint8_t nbits, const uint8_t *src)
+{
+	if (start_bit == NULL || nbits == 0 || src == NULL)
+		return 0;
+
+	if (nbits > 32)
+		nbits = 32;
+
+	uint8_t byte_offset = *start_bit >> 3;
+	uint8_t bit_offset = *start_bit & 0x07;
+	uint8_t n_bytes = nbits >> 3;
+	uint8_t bits_remaining = nbits & 0x07;
+	uint8_t whole_bytes = n_bytes + (bits_remaining > 0) + (bit_offset > 0);
+
+	uint32_t bits = 0;
+	memcpy(&bits, src + byte_offset, whole_bytes);
+	bits = __builtin_bswap32(bits);
+	bits <<= bit_offset;
+	bits >>= (32 - nbits);
+
+	*start_bit += nbits;
+	return bits;
+}
+
+/*
  * 'intl_num' is expected to be an international number following the ISDN /
  * telephone numbering plan. Both buffers are NULL terminated.
  * Size of 'intl_num' is expected to be at most ADDR_SZ + 1 bytes. Size of
@@ -161,21 +193,10 @@ static bool encode_ud(const sms_t *msg_to_send, char **dest)
 	return true;
 }
 
-uint16_t smscodec_encode(const sms_t *msg_to_send, char *pdu)
+#ifdef MODEM_TOBY201
+static uint16_t modem_sms_encode(const sms_t *msg_to_send, char *pdu)
 {
 	static uint8_t msg_ref_no = 0;
-
-	if (msg_to_send == NULL || msg_to_send->buf == NULL ||
-			msg_to_send->addr[0] == '\0' || pdu == NULL)
-		return 0;
-
-	if (msg_to_send->num_seg == 0 || msg_to_send->len == 0)
-		return 0;
-
-	if ((msg_to_send->seq_no > msg_to_send->num_seg) ||
-			(msg_to_send->num_seg > 1 && msg_to_send->seq_no == 0))
-		return 0;
-
 	char *wptr = pdu;
 	uint8_t val = 0;
 
@@ -200,38 +221,9 @@ uint16_t smscodec_encode(const sms_t *msg_to_send, char *pdu)
 
 	return (wptr - pdu);
 }
-
-/*
- * Extract the first 'nbits' starting at bit 'start_bit' from the array 'src'.
- * The array is assumed to be long enough so that all bits can be extracted
- * successfully without crossing the array boundary.
- * If 'nbits' exceeds 32, it will be clamped to 32. 'src' is assumed to store
- * binary data in the big-endian format. Local storage is assumed to be
- * little-endian. After a successful call 'start_bit' is incremented by 'nbits'.
- */
-static uint32_t extract_bits(size_t *start_bit, uint8_t nbits, const uint8_t *src)
-{
-	if (start_bit == NULL || nbits == 0 || src == NULL)
-		return 0;
-
-	if (nbits > 32)
-		nbits = 32;
-
-	uint8_t byte_offset = *start_bit >> 3;
-	uint8_t bit_offset = *start_bit & 0x07;
-	uint8_t n_bytes = nbits >> 3;
-	uint8_t bits_remaining = nbits & 0x07;
-	uint8_t whole_bytes = n_bytes + (bits_remaining > 0) + (bit_offset > 0);
-
-	uint32_t bits = 0;
-	memcpy(&bits, src + byte_offset, whole_bytes);
-	bits = __builtin_bswap32(bits);
-	bits <<= bit_offset;
-	bits >>= (32 - nbits);
-
-	*start_bit += nbits;
-	return bits;
-}
+#else
+#error "Please specify a target modem in the Makefile"
+#endif
 
 /* Convert the binary DTMF value into a decimal character */
 enum binary_dtmf {			/* Binary DTMF digit codes */
@@ -497,15 +489,13 @@ static bool decode_telesvc(const char **pdu)
 	return true;
 }
 
+#ifdef MODEM_TOBY201
 #define SMS_P2P_TYPE	0x00	/* Message type is SMS point-to-point */
 #define TELESVC_ID	0x00	/* Teleservice parameter identifier */
 #define ORIG_ADDR_ID	0x02	/* Originating address identifier */
 #define BEARER_DATA_ID	0x08	/* Bearer data identifier */
-bool smscodec_decode(uint8_t len, const char *pdu, sms_t *recv_msg)
+static bool modem_sms_decode(uint8_t len, const char *pdu, sms_t *recv_msg)
 {
-	if (pdu == NULL || recv_msg == NULL || recv_msg->buf == NULL)
-		return false;
-
 	const char *rptr = pdu;
 
 	/* The PDU always begins with a message type */
@@ -544,4 +534,31 @@ bool smscodec_decode(uint8_t len, const char *pdu, sms_t *recv_msg)
 		}
 	}
 	return true;
+}
+#else
+#error "Please specify a target modem in the Makefile"
+#endif
+
+bool smscodec_decode(uint8_t len, const char *pdu, sms_t *recv_msg)
+{
+	if (pdu == NULL || recv_msg == NULL || recv_msg->buf == NULL)
+		return false;
+
+	return modem_sms_decode(len, pdu, recv_msg);
+}
+
+uint16_t smscodec_encode(const sms_t *msg_to_send, char *pdu)
+{
+	if (msg_to_send == NULL || msg_to_send->buf == NULL ||
+			msg_to_send->addr[0] == '\0' || pdu == NULL)
+		return 0;
+
+	if (msg_to_send->num_seg == 0 || msg_to_send->len == 0)
+		return 0;
+
+	if ((msg_to_send->seq_no > msg_to_send->num_seg) ||
+			(msg_to_send->num_seg > 1 && msg_to_send->seq_no == 0))
+		return 0;
+
+	return modem_sms_encode(msg_to_send, pdu);
 }

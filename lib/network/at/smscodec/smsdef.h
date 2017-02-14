@@ -3,7 +3,8 @@
 #ifndef __SMSDEF_H
 #define __SMSDEF_H
 
-#define ADDR_SZ				16 /* 15 digit number and '+' */
+#define ADDR_SZ				16	/* 15 digit number and '+' */
+#define UDH_LEN				5	/* Length of total user data header */
 
 /*
  * Sizes here are in bytes taken up in the final PDU hex string. This means '4A'
@@ -13,7 +14,6 @@
 #define PDU_OVR_HD			(10 + ENC_ADDR_SZ)
 #define UD_SZ				(140*2)	/* Valid only for 8-bit encoding */
 #define MAX_PDU_SZ			(PDU_OVR_HD + UD_SZ)
-#define UDH_LEN				0x05	/* Length of total user data header */
 
 /* Maximum size of the buffer in bytes */
 #define MAX_DATA_SZ			140
