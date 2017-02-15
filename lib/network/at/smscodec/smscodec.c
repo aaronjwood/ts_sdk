@@ -33,6 +33,9 @@
 #define VAL_PID			0x00	/* SME-to-SME protocol */
 #define VAL_DCS			0x04	/* No message class 8-bit encoding */
 
+#define LEN_FIELD_SZ		1	/* Size of the length field in bytes */
+#define PARAM_FIELD_SZ		1	/* Size of the param ID field in bytes */
+
 static bool udh_present;		/* Set if UDH is present in received SMS */
 
 /*
@@ -57,7 +60,8 @@ static bool hexstr(char **dest, uint8_t data)
 /*
  * Convert a hex string of a given length to an integer. The result is stored in
  * the big endian format in the array 'num'. It is assumed the array is at least
- * 'len / HEXLEN' bytes long.
+ * 'len / HEXLEN' bytes long. The value of 'len' is the number of complete bytes
+ * represented by the hexadecimal digits in the input array.
  * Return 'true' on success and 'false' on failure.
  * On a successful call, (*src) is updated to point to the memory location right
  * after the last byte read.
@@ -67,7 +71,8 @@ static bool hexnum(const char **src, uint8_t len, uint8_t *num)
 	if (src == NULL || *src == NULL || num == NULL)
 		return false;
 
-	memset(num, 0, len / HEXLEN);
+	memset(num, 0, len);
+	len *= HEXLEN;
 	for (uint8_t i = 0; i < len; i++) {
 		uint8_t digit = (*src)[i];
 
@@ -96,6 +101,7 @@ static bool hexnum(const char **src, uint8_t len, uint8_t *num)
  * binary data in the big-endian format. Local storage is assumed to be
  * little-endian. After a successful call 'start_bit' is incremented by 'nbits'.
  */
+#define ROUND_UP_TO_BYTE(_x)	(((_x) + 7) / 8)
 static uint32_t extract_bits(size_t *start_bit, uint8_t nbits, const uint8_t *src)
 {
 	if (start_bit == NULL || nbits == 0 || src == NULL)
@@ -106,9 +112,7 @@ static uint32_t extract_bits(size_t *start_bit, uint8_t nbits, const uint8_t *sr
 
 	uint8_t byte_offset = *start_bit >> 3;
 	uint8_t bit_offset = *start_bit & 0x07;
-	uint8_t n_bytes = nbits >> 3;
-	uint8_t bits_remaining = nbits & 0x07;
-	uint8_t whole_bytes = n_bytes + (bits_remaining > 0) + (bit_offset > 0);
+	uint8_t whole_bytes = ROUND_UP_TO_BYTE(bit_offset + nbits);
 
 	uint32_t bits = 0;
 	memcpy(&bits, src + byte_offset, whole_bytes);
@@ -193,38 +197,6 @@ static bool encode_ud(const sms_t *msg_to_send, char **dest)
 	return true;
 }
 
-#ifdef MODEM_TOBY201
-static uint16_t modem_sms_encode(const sms_t *msg_to_send, char *pdu)
-{
-	static uint8_t msg_ref_no = 0;
-	char *wptr = pdu;
-	uint8_t val = 0;
-
-	/* Write the first octet and message reference number into the PDU */
-	val = FO_TYPE_SMS_SUBMIT | FO_RD_ACCEPT | FO_VPF_ABSENT |
-		FO_SRR_REPORT_NOT_REQ | FO_RP_NOT_SET;
-	if (msg_to_send->num_seg > 1)
-		val |= FO_UDHI_PRESENT;
-	ON_FAIL(hexstr(&wptr, val), 0);
-	ON_FAIL(hexstr(&wptr, msg_ref_no), 0);
-	msg_ref_no++;
-
-	/* Write the destination address length and the encoded address */
-	ON_FAIL(smscodec_encode_addr(msg_to_send->addr, &wptr), 0);
-
-	/* Write the PID and DCS fields */
-	ON_FAIL(hexstr(&wptr, VAL_PID), 0);
-	ON_FAIL(hexstr(&wptr, VAL_DCS), 0);
-
-	/* Write the User Data field */
-	ON_FAIL(encode_ud(msg_to_send, &wptr), 0);
-
-	return (wptr - pdu);
-}
-#else
-#error "Please specify a target modem in the Makefile"
-#endif
-
 /* Convert the binary DTMF value into a decimal character */
 enum binary_dtmf {			/* Binary DTMF digit codes */
 	DTMF_DIGIT_SIZE = 4,
@@ -272,14 +244,14 @@ static bool decode_addr(const char **pdu, sms_t *recv_msg)
 {
 	/* Extract length of the field */
 	uint8_t val = 0;
-	ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
+	ON_FAIL(hexnum(pdu, LEN_FIELD_SZ, &val), false);
 	if (val > MAX_OA_PARAM_LEN)
 		return false;
 
 	/* Extract the binary data associated with the field */
 	uint8_t bin[MAX_OA_PARAM_LEN];
 	size_t bit_idx = 0;
-	ON_FAIL(hexnum(pdu, val * HEXLEN, bin), false);
+	ON_FAIL(hexnum(pdu, val, bin), false);
 
 	/* Only binary DTMF encoded digits and no data network address */
 	bool digit_mode = extract_bits(&bit_idx, 1, bin);
@@ -315,13 +287,13 @@ static bool decode_bd_msg_ident(const char **pdu)
 {
 	/* Extract the length field */
 	uint8_t val = 0;
-	ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
+	ON_FAIL(hexnum(pdu, LEN_FIELD_SZ, &val), false);
 	if (val != MSG_ID_LEN)
 		return false;
 
 	/* Extract the binary data associated with the field */
 	uint8_t bin[MSG_ID_LEN];
-	ON_FAIL(hexnum(pdu, val * HEXLEN, bin), false);
+	ON_FAIL(hexnum(pdu, val, bin), false);
 
 	/* Assert the message type is SMS-DELIVER */
 	size_t bit_idx = 0;
@@ -390,13 +362,14 @@ static bool decode_bd_udh(size_t *bit_idx, const uint8_t *bin, sms_t *recv_msg)
 #define ENC_DCS_VAL	0x04             /* Expected DCS encoding value */
 static bool decode_bd_user_data(const char **pdu, sms_t *recv_msg)
 {
+	/* Parse the length field */
 	uint8_t len = 0;
-	ON_FAIL(hexnum(pdu, HEXLEN, &len), false);
+	ON_FAIL(hexnum(pdu, LEN_FIELD_SZ, &len), false);
 	if (len > MAX_UD_LEN)
 		return false;
 
 	uint8_t bin[len];
-	ON_FAIL(hexnum(pdu, len * HEXLEN, bin), false);
+	ON_FAIL(hexnum(pdu, len, bin), false);
 	size_t bit_idx = 0;
 	uint8_t enc = extract_bits(&bit_idx, SZ_ENC_FIELD, bin);
 	recv_msg->num_seg = 1;
@@ -439,12 +412,12 @@ static bool decode_bd_user_data(const char **pdu, sms_t *recv_msg)
 static bool decode_bd(const char **pdu, sms_t *recv_msg)
 {
 	uint8_t len = 0;
-	ON_FAIL(hexnum(pdu, HEXLEN, &len), false);
+	ON_FAIL(hexnum(pdu, LEN_FIELD_SZ, &len), false);
 	const char *end = *pdu + len * HEXLEN;
 
 	while (*pdu < end) {
 		uint8_t val = 0;
-		ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
+		ON_FAIL(hexnum(pdu, PARAM_FIELD_SZ, &val), false);
 		switch (val) {
 		case SUB_PARAM_MSG_ID:
 			ON_FAIL(decode_bd_msg_ident(pdu), false);
@@ -454,7 +427,7 @@ static bool decode_bd(const char **pdu, sms_t *recv_msg)
 			break;
 		default:
 			/* Ignore all other sub-parameters */
-			ON_FAIL(hexnum(pdu, HEXLEN, &val), false);
+			ON_FAIL(hexnum(pdu, LEN_FIELD_SZ, &val), false);
 			*pdu += (val * HEXLEN);
 			break;
 		}
@@ -477,30 +450,29 @@ static bool decode_telesvc(const char **pdu)
 {
 	uint8_t val[2] = {0};
 	/* Parse Length */
-	ON_FAIL(hexnum(pdu, HEXLEN, val), false);
+	ON_FAIL(hexnum(pdu, LEN_FIELD_SZ, val), false);
 	if (val[0] != TELESVC_LEN)
 		return false;
 
 	/* Parse teleservice type */
-	ON_FAIL(hexnum(pdu, val[0] * HEXLEN, val), false);
+	ON_FAIL(hexnum(pdu, val[0], val), false);
 	if ((val[0] != (TELESVC_WEMT >> 8) || val[1] != (TELESVC_WEMT & 0xFF)) &&
 		(val[0] != (TELESVC_WMT >> 8) || val[1] != (TELESVC_WMT & 0xFF)))
 		return false;
 	return true;
 }
 
-#ifdef MODEM_TOBY201
 #define SMS_P2P_TYPE	0x00	/* Message type is SMS point-to-point */
 #define TELESVC_ID	0x00	/* Teleservice parameter identifier */
 #define ORIG_ADDR_ID	0x02	/* Originating address identifier */
 #define BEARER_DATA_ID	0x08	/* Bearer data identifier */
-static bool modem_sms_decode(uint8_t len, const char *pdu, sms_t *recv_msg)
+static bool modem_sms_decode_3gpp2(uint8_t len, const char *pdu, sms_t *recv_msg)
 {
 	const char *rptr = pdu;
 
-	/* The PDU always begins with a message type */
+	/* The first byte of the PDU is always the message type */
 	uint8_t msg_type;
-	ON_FAIL(hexnum(&rptr, HEXLEN, &msg_type), false);
+	ON_FAIL(hexnum(&rptr, 1, &msg_type), false);
 	if (msg_type != SMS_P2P_TYPE)
 		return false;
 
@@ -515,7 +487,7 @@ static bool modem_sms_decode(uint8_t len, const char *pdu, sms_t *recv_msg)
 	 */
 	while (rptr < pdu + len) {
 		uint8_t val = 0;
-		ON_FAIL(hexnum(&rptr, HEXLEN, &val), false);
+		ON_FAIL(hexnum(&rptr, PARAM_FIELD_SZ, &val), false);
 		switch (val) {
 		case TELESVC_ID:
 			ON_FAIL(decode_telesvc(&rptr), false);
@@ -528,23 +500,24 @@ static bool modem_sms_decode(uint8_t len, const char *pdu, sms_t *recv_msg)
 			break;
 		default:
 			/* Ignore all other parameters */
-			ON_FAIL(hexnum(&rptr, HEXLEN, &val), false);
+			ON_FAIL(hexnum(&rptr, LEN_FIELD_SZ, &val), false);
 			rptr += (val * HEXLEN);
 			break;
 		}
 	}
 	return true;
 }
-#else
-#error "Please specify a target modem in the Makefile"
-#endif
 
 bool smscodec_decode(uint8_t len, const char *pdu, sms_t *recv_msg)
 {
 	if (pdu == NULL || recv_msg == NULL || recv_msg->buf == NULL)
 		return false;
 
-	return modem_sms_decode(len, pdu, recv_msg);
+#if MODEM_TOBY201
+	return modem_sms_decode_3gpp2(len, pdu, recv_msg);
+#else
+#error "Please specify a target modem in the Makefile"
+#endif
 }
 
 uint16_t smscodec_encode(const sms_t *msg_to_send, char *pdu)
@@ -560,5 +533,28 @@ uint16_t smscodec_encode(const sms_t *msg_to_send, char *pdu)
 			(msg_to_send->num_seg > 1 && msg_to_send->seq_no == 0))
 		return 0;
 
-	return modem_sms_encode(msg_to_send, pdu);
+	static uint8_t msg_ref_no = 0;
+	char *wptr = pdu;
+	uint8_t val = 0;
+
+	/* Write the first octet and message reference number into the PDU */
+	val = FO_TYPE_SMS_SUBMIT | FO_RD_ACCEPT | FO_VPF_ABSENT |
+		FO_SRR_REPORT_NOT_REQ | FO_RP_NOT_SET;
+	if (msg_to_send->num_seg > 1)
+		val |= FO_UDHI_PRESENT;
+	ON_FAIL(hexstr(&wptr, val), 0);
+	ON_FAIL(hexstr(&wptr, msg_ref_no), 0);
+	msg_ref_no++;
+
+	/* Write the destination address length and the encoded address */
+	ON_FAIL(smscodec_encode_addr(msg_to_send->addr, &wptr), 0);
+
+	/* Write the PID and DCS fields */
+	ON_FAIL(hexstr(&wptr, VAL_PID), 0);
+	ON_FAIL(hexstr(&wptr, VAL_DCS), 0);
+
+	/* Write the User Data field */
+	ON_FAIL(encode_ud(msg_to_send, &wptr), 0);
+
+	return (wptr - pdu);
 }
