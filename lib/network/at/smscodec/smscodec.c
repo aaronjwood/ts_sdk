@@ -79,7 +79,7 @@ static bool hexnum(const char **src, uint8_t len, uint8_t *num)
 		else if (digit >= 'A' && digit <= 'F')
 			num[idx] += (10 + digit - 'A');
 		else if (digit >= 'a' && digit <= 'f')
-			num[idx] += (digit - 'a');
+			num[idx] += (10 + digit - 'a');
 		else
 			return false;
 	}
