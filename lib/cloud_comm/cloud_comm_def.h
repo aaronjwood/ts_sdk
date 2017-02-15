@@ -23,7 +23,6 @@ static struct {
 	uint32_t start_ts;		/* Polling interval measurement starts
 					 * from this timestamp */
 	uint32_t polling_int_ms;	/* Polling interval in milliseconds */
-	bool new_interval_set;		/* Set if a new interval was received */
 } timekeep;
 
 #endif

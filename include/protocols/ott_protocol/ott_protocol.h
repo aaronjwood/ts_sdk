@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "service_ids.h"
 #include "protocol_def.h"
 
 /*
@@ -50,30 +51,42 @@ proto_result ott_protocol_init(void);
                          const uint8_t *d_sec, uint32_t d_sec_sz);
 
 /*
- * Retrieves polling interval in mili seconds
- * Parameters:
- *      msg : pointer to message containing polling interval
- *      default_poll: True for retrieving default interval where msg is
- *                    optional, false otherwise
+ * Retrieves polling interval in milli seconds
+ *
  * Returns:
  * 	Interval time in miliseconds
- * Note: When default_poll is false, always use this API on receiving
- *       PROTO_RCVD_CMD_PI event.
  */
-uint32_t ott_get_polling_interval(const void *msg, bool default_poll);
+uint32_t ott_get_polling_interval(void);
+
+/*
+ * Retrieves default polling interval in mili seconds
+ *
+ * Returns:
+ * 	Interval time in miliseconds
+ */
+uint32_t ott_get_default_polling_interval(void);
+
+/*
+ * Set the polling interval in mili seconds
+ *
+ * Parameters:
+ * 	interval	: Polling interval in miliseconds
+ */
+void ott_set_polling_interval(uint32_t interval_ms);
 
 /*
  * Initialize the OTT Protocol module with the remote host and port
  * Parameters:
- * 	host : A NULL terminated string specifying the host name.
- * 	port : A NULL terminated string specifying the port number.
+ * 	dest : A NULL terminated string specifying destination.
+ *
+ * The string has the form:   hostname:port
  *
  * Returns:
  * 	PROTO_OK : Setting host and port was successful.
  * 	PROTO_INV_PARAM : Passed parameters are not valid.
  * Note: This must be called at least once before attempting to send messages.
  */
-proto_result ott_set_destination(const char *host, const char *port);
+proto_result ott_set_destination(const char *dest);
 
 /*
  * Setting receiving buffer where all the incoming data will be stored and
@@ -106,7 +119,7 @@ proto_result ott_set_recv_buffer_cb(void *rcv_buf, uint32_t sz,
  * 	PROTO_TIMEOUT   : Timed out sending the message. Sending failed.
  */
 proto_result ott_send_msg_to_cloud(const void *buf, uint32_t sz,
-                                        proto_callback cb);
+				   proto_service_id svc_id, proto_callback cb);
 
 /*
  * Maintenance of the protocol which can be used to complete any
@@ -160,17 +173,6 @@ void ott_send_nack(void);
  * 	data pointer or NULL if fails.
  */
 const uint8_t *ott_get_rcv_buffer_ptr(const void *msg);
-
-/*
- * Retrieve the received data size in bytes
- *
- * Parameters:
- * 	msg : Pointer to received buffer.
- *
- * Returns:
- * 	data length in bytes or 0 in case of invalid buffer or msg content
- */
-uint32_t ott_get_rcvd_data_len(const void *msg);
 
 /*
  * Notify the cloud service that the device has restarted and needs to retrieve
