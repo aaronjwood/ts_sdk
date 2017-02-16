@@ -338,19 +338,20 @@ uint32_t smsnas_maintenance(void)
 	if (!session.rcv_msg.conct_in_progress)
 		return 0;
 
+	/* Start of the concatenated segment */
+	if (session.rcv_msg.cur_seq == 1)
+		goto done;
+
 	/* if condition evaluates to be true, smsnas_maintenance is being called
-	 * out of timeout and it did not receive next segement, invoke receive
-	 * callback with receive timeout event
+	 * out of timeout and it did not receive next segement mean while,
+	 * invoke receive callback with receive timeout event
 	 */
 	if (session.rcv_msg.expected_seq != session.rcv_msg.cur_seq) {
 		INVOKE_RECV_CALLBACK(session.rcv_msg.buf, session.rcv_msg.wr_idx,
 					PROTO_RCV_TIMEOUT);
 		rcv_path_cleanup();
+		return 0;
 	}
-	/* Check if it is the start of the receiving concatenated messages */
-	if ((session.rcv_msg.cur_seq == 1) ||
-		(session.rcv_msg.expected_seq == session.rcv_msg.cur_seq))
-		goto done;
 
 done:
 	session.rcv_msg.expected_seq = session.rcv_msg.cur_seq + 1;
