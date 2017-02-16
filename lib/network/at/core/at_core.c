@@ -565,6 +565,7 @@ bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb)
 	uart_set_rx_callback(at_core_uart_rx_callback);
 	process_rsp = false;
 	at_core_clear_rx();
+	return true;
 }
 
 int at_core_find_pattern(int start_idx, const uint8_t *pattern, buf_sz nlen)
@@ -579,5 +580,5 @@ buf_sz at_core_rx_available(void)
 
 int at_core_read(uint8_t *buf, buf_sz sz)
 {
-	uart_read(buf, sz);
+	return uart_read(buf, sz);
 }
