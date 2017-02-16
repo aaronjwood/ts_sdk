@@ -25,6 +25,8 @@
 #define MAX_SMS_SZ_WITH_HD_WITHT_OVHD	(MAX_SMS_PL_SZ - 6)
 #define MAX_SMS_REF_NUMBER		256
 #define MAX_CONC_SMS_NUM		4
+/* Time out waiting for the next segment for the concatenated message */
+#define CONC_NEXT_SEG_TIMEOUT_MS	2000
 
 #define MAX_RETRIES			3
 
@@ -53,20 +55,16 @@ typedef struct __attribute__((packed)) {
 	ctrl_msg_t msg;
 } smsnas_ctrl_msg;
 
-typedef enum {
-	IDLE = 0,
-
-} conc_state;
-
 typedef struct {
+	bool rcv_path_valid;
+	bool conct_in_progress;
 	uint8_t cref_num;
 	uint8_t cur_seq;
+	uint8_t expected_seq;
 	void *buf;
 	proto_callback cb;
-	proto_pl_sz total_sz;
 	proto_pl_sz wr_idx;
 	proto_pl_sz rem_sz;
-	conc_state state;
 } smsnas_rcv_path
 
 static struct {

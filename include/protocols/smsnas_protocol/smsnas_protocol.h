@@ -123,5 +123,13 @@ const uint8_t *smsnas_get_rcv_buffer_ptr(const void *msg);
  */
 proto_pl_sz smsnas_get_rcvd_data_len(const void *msg);
 
+/*
+ * Maintenance of the protocol which can be used to complete any
+ * pending internal protocol activities before upper level possibly Application
+ * decides to sleep for example or relinquish protocol control.
+ * Returns:
+ *      time in miliseconds to call back this function again.
+ */
+uint32_t smsnas_maintenance(void);
 
 #endif

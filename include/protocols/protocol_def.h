@@ -37,6 +37,7 @@ typedef enum {
 	PROTO_SEND_TIMEOUT,	/* Timed out waiting for a response */
 
 	/* Incoming message events: */
+	PROTO_RCV_TIMEOUT,	/* Timed out waiting for the receive message */
 	PROTO_RCVD_CMD_SL,	/* Received sleep time from the cloud */
 	PROTO_RCVD_CMD_PI,	/* Received polling interval from the cloud */
 	PROTO_RCVD_QUIT,	/* Received quit */
