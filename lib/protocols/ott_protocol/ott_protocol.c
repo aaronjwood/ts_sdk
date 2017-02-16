@@ -348,7 +348,7 @@ static void fake_receiving_service_msg(m_type_t m_type, msg_t *msg_ptr,
 	 * later dispatch the message to the Control service.
 	 */
 	uint32_t interval = msg_ptr->data.interval;
-	uint8_t *data = (uint8_t *)&msg_ptr;
+	uint8_t *data = (uint8_t *)msg_ptr;
 
 	/* Payload should always start here no matter which service. */
 	data += PROTO_OVERHEAD_SZ;
@@ -768,7 +768,7 @@ static proto_result fake_sending_service_msg(const void* buf, uint32_t sz,
 	if (svc_id != CC_SERVICE_CONTROL)
 		return PROTO_INV_PARAM;
 		
-	if (sz > 0 && *(uint8_t *)buf == CTRL_MSG_REQUEST_RESEND_INIT) {
+	if (sz > 0 && *((uint8_t *)(buf) + 1) == CTRL_MSG_REQUEST_RESEND_INIT) {
 		session.send_svc_id = CC_SERVICE_CONTROL;
 		return ott_resend_init_config(cb);
 	} else 

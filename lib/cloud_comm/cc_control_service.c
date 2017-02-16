@@ -14,7 +14,7 @@
 
 CC_SEND_BUFFER(control_send_buf, CC_MIN_SEND_BUF_SZ);
 
-struct control_header {
+struct __attribute__((packed)) control_header {
 	uint8_t version;		/* Version of control service protocol*/
 	uint8_t msg_type;		/* Control service message type */
 };
