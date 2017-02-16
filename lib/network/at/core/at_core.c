@@ -254,7 +254,6 @@ at_ret_code at_core_wcmd(const at_command_desc *desc, bool read_line)
 
 	at_ret_code result = AT_SUCCESS;
 	char *comm;
-	const char *rsp;
 	uint32_t timeout;
 	buf_sz read_bytes;
 	uint16_t wanted;
@@ -434,7 +433,7 @@ static at_ret_code __at_modem_reset_comm()
 	const at_command_desc *desc = &modem_core[MODEM_RESET];
 	char *comm = desc->comm;
 	uint32_t timeout = desc->comm_timeout;
-	uint16_t rcvd, wanted;
+	uint16_t wanted;
 	char *rsp = "\r\nOK\r\n";
 	char alt_rsp[strlen(comm) + strlen(rsp) + 1];
 	char *temp_rsp = NULL;
