@@ -10,10 +10,10 @@
 			session.send_cb((_buf), (_sz), (_evt)); \
 	} while(0)
 
-#define INVOKE_RECV_CALLBACK(_buf, _sz, _evt) \
+#define INVOKE_RECV_CALLBACK(_buf, _sz, _evt, _s_id) \
 	do { \
 		if (session.rcv_msg.cb) \
-			session.rcv_msg.cb((_buf), (_sz), (_evt)); \
+			session.rcv_msg.cb((_buf), (_sz), (_evt), (_s_id)); \
 	} while(0)
 
 #ifdef PROTO_TIME_PROFILE
@@ -23,19 +23,17 @@ static uint32_t proto_begin;
 /* global counter for the concatenated message reference number to be used in
  * TP-USER header element
  */
-static int msg_ref_num;
+static uint8_t msg_ref_num;
 
 /* sleep interval, which can be set during control message sleep type */
 static uint32_t sl_intr;
 
 proto_result smsnas_protocol_init(void)
 {
-	session.send_buf = NULL;
-	session.send_sz = 0;
-	session.send_cb = NULL;
 	session.host_valid = false;
 	session.rcv_msg.rcv_path_valid = false;
 	session.rcv_msg.conct_in_progress = false;
+	session.rcv_msg.ack_nack_pend = 0;
 	msg_ref_num = 0;
 	return PROTO_OK;
 }
@@ -45,10 +43,10 @@ proto_result smsnas_set_destination(const char *host)
 	if (!host)
 		return PROTO_INV_PARAM;
 
-	if ((strlen(host) > MAX_HOST_LEN) || (strlen(host) == 0))
+	if (((strlen(host) + 1) > MAX_HOST_LEN) || (strlen(host) == 0))
 		return PROTO_INV_PARAM;
 
-	strncpy(session.host, host, sizeof(session.host));
+	strncpy(session.host, host, strlen(host) + 1);
 	session.host_valid = true;
 	return PROTO_OK;
 }
@@ -88,18 +86,19 @@ proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
 	session.rcv_msg.cur_seq = 0;
 	session.rcv_msg.rem_sz = sz;
 	session.rcv_msg.rcv_path_valid = true;
+	session.rcv_msg.ack_nack_pend = 0;
 	at_set_rcv_cb(smsnas_rcv_cb);
 	return PROTO_OK;
 }
 
 void smsnas_send_ack(void)
 {
-        at_send_ack();
+        session.rcv_msg.ack_nack_pend = ACK_PENDING;
 }
 
 void smsnas_send_nack(void)
 {
-        at_send_nack();
+        session.rcv_msg.ack_nack_pend = NACK_PENDING;
 }
 
 static bool process_smsnas_control_msg(smsnas_ctrl_msg *msg)
@@ -221,12 +220,21 @@ done:
 }
 
 static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
-				int ref_num, int total_num, int seq_num)
+			uint8_t ref_num, uint8_t total_num, uint8_t seq_num)
 {
 	uint8_t retry = 0;
-	int ret = at_send_sms(msg, len, ref_num, total_num, seq_num);
+
+	at_msg_t sm_msg;
+	sm_msg.buf = msg;
+	sm_msg.len = len;
+	sm_msg.concat_ref_no = ref_num;
+	sm_msg.num_seg = total_num;
+	sm_msg.seq_no = seq_num;
+	memcpy(sm_msg.addr, session.host, strlen(session.host) + 1);
+
+	int ret = at_send_sms(&sm_msg);
 	while ((ret < 0) && (retry < MAX_RETRIES)) {
-		ret = at_send_sms(msg, len, ref_num, total_num, seq_num);
+		ret = at_send_sms(&sm_msg);
 		retry++;
 	}
 	if (retry >= MAX_RETRIES)
@@ -285,12 +293,12 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 	if (!session.host_valid)
 		return PROTO_INV_PARAM;
 
-	int total_msgs = -1;
-	int cur_seq_num = -1;
+	uint8_t total_msgs = 0;
+	uint8_t cur_seq_num = 0;
 	if (sz <= MAX_SMS_PL_WITHOUT_HEADER) {
 		build_smsnas_msg(buf, sz, service_id);
 		return write_to_modem(session.send_msg, sz + PROTO_OVERHEAD_SZ,
-					-1, total_msgs, cur_seq_num);
+					msg_ref_num, total_msgs, cur_seq_num);
 	}
 	cur_seq_num = 1;
 	total_msgs = calculate_total_msgs(sz);
@@ -326,12 +334,27 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 	return PROTO_OK;
 }
 
+static void handle_pend_ack_nack(void)
+{
+	switch (session.rcv_msg.ack_nack_pend) {
+	case ACK_PENDING:
+		at_send_ack();
+		break;
+	case NACK_PENDING:
+		at_send_nack();
+		break;
+	}
+	session.rcv_msg.ack_nack_pend = 0;
+}
+
 /* Checks if it has started or in middle of receiving mnultiple segements
  * in which case, report back the time in miliseconds for upper level to
  * check back if protocol has received next segment
  */
 uint32_t smsnas_maintenance(void)
 {
+
+	handle_pend_ack_nack();
 	/* There is nothing to maintain if receive path is not expecting
 	 * concatenated messages
 	 */

@@ -16,19 +16,33 @@
 
 /* Max SMS size without user data header (TP-UDH) */
 #define MAX_SMS_PL_SZ			140
+
+/* Payload upper limit when TP-User header is not present */
 #define MAX_SMS_PL_WITHOUT_HEADER	(MAX_SMS_PL_SZ - PROTO_OVERHEAD_SZ)
 
 /* Defines for the concatenated sms */
-/* 6 bytes for user data header element */
-#define MAX_SMS_SZ_WITH_HEADER		(MAX_SMS_PL_SZ - PROTO_OVERHEAD_SZ - 6)
-/* Account for TP userdata header and not the protocol header */
-#define MAX_SMS_SZ_WITH_HD_WITHT_OVHD	(MAX_SMS_PL_SZ - 6)
+/* Size of the user data header element */
+#define TP_USER_HEADER_SZ		6
+#define MAX_SMS_SZ_WITH_HEADER		(MAX_SMS_PL_SZ - PROTO_OVERHEAD_SZ - TP_USER_HEADER_SZ)
+
+/* Account for TP userdata header and not the protocol header overhead */
+#define MAX_SMS_SZ_WITH_HD_WITHT_OVHD	(MAX_SMS_PL_SZ - TP_USER_HEADER_SZ)
+
+/* 8bit reference number for the concatenated sms */
 #define MAX_SMS_REF_NUMBER		256
+
+/* Upper limit for the total messages in the concatenated sms */
 #define MAX_CONC_SMS_NUM		4
+
 /* Time out waiting for the next segment for the concatenated message */
 #define CONC_NEXT_SEG_TIMEOUT_MS	2000
 
+/* Defines retries in case of send failure */
 #define MAX_RETRIES			3
+
+/* Defines flag for the ack/nack pending */
+#define ACK_PENDING			1
+#define NACK_PENDING			2
 
 /* Defines payload */
 typedef struct __attribute__((packed)) {
@@ -36,7 +50,7 @@ typedef struct __attribute__((packed)) {
 	uint8_t bytes[];
 } payload;
 
-/* A complete SMSNAS protocol message */
+/* SMSNAS protocol message */
 typedef struct __attribute__((packed)) {
 	uint8_t version;
 	uint8_t service_id;
@@ -58,6 +72,7 @@ typedef struct __attribute__((packed)) {
 typedef struct {
 	bool rcv_path_valid;
 	bool conct_in_progress;
+	uint8_t ack_nack_pend;
 	uint8_t cref_num;
 	uint8_t cur_seq;
 	uint8_t expected_seq;
