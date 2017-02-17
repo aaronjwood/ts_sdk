@@ -357,12 +357,12 @@ static void fake_receiving_service_msg(m_type_t m_type, msg_t *msg_ptr,
 	switch (m_type) {
 	case MT_CMD_PI:
 		*data++ = CTRL_MSG_SET_POLLING_INTERVAL;
-		*(uint32_t *)data = interval;
+		memcpy(data, &interval, sizeof(uint32_t));
 		*rcvd_len_ptr = *rcvd_len_ptr + 2;
 		break;
 	case MT_CMD_SL:
 		*data++ = CTRL_MSG_SET_POLLING_INTERVAL;
-		*(uint32_t *)data = interval;
+		memcpy(data, &interval, sizeof(uint32_t));
 		*rcvd_len_ptr = *rcvd_len_ptr + 2;
 		break;
 	default:
@@ -394,15 +394,21 @@ static bool process_recvd_msg(msg_t *msg_ptr, uint32_t rcvd, bool invoke_send_cb
 		proto_event evt = PROTO_RCVD_NONE;
 		/* Messages with a body need to be ACKed in the future */
 		session.pend_ack = false;
-		evt = PROTO_RCVD_MSG;
 
-		/* XXX OTT doesn't have service id's yet, so fake it. */
-		if (m_type == MT_CMD_SL || m_type == MT_CMD_PI) {
-			fake_receiving_service_msg(m_type, msg_ptr, &rcvd);
-			svc_id = CC_SERVICE_CONTROL;
+		if (m_type == MT_UPDATE || m_type == MT_CMD_SL ||
+		    m_type == MT_CMD_PI)
+			/* Received a message, not just an ACK */
+			evt = PROTO_RCVD_MSG;
+
+		if (evt == PROTO_RCVD_MSG) {
+			/* XXX OTT doesn't have service id's yet, so fake it. */
+			if (m_type == MT_CMD_SL || m_type == MT_CMD_PI) {
+				fake_receiving_service_msg(m_type, msg_ptr,
+							   &rcvd);
+				svc_id = CC_SERVICE_CONTROL;
+			}
+			INVOKE_RECV_CALLBACK(msg_ptr, rcvd, evt, svc_id);
 		}
-
-		INVOKE_RECV_CALLBACK(msg_ptr, rcvd, evt, svc_id);
 
 		if (invoke_send_cb) {
 			INVOKE_SEND_CALLBACK(session.send_buf, session.send_sz,
@@ -917,6 +923,7 @@ uint32_t ott_get_polling_interval(void)
 
 void ott_set_polling_interval(uint32_t interval_ms)
 {
+	dbg_printf("Setting polling interval to: %"PRIi32" msec\n");
 	current_polling_interval = interval_ms;
 }
 

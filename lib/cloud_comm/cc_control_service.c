@@ -10,6 +10,15 @@
 
 #define CONTROL_PROTOCOL_VERSION 1	/* Currently supported proto version */
 
+static inline uint32_t load_uint32_le(uint8_t *src)
+{
+	int i;
+	uint32_t result = 0;
+	for (i = 0; i < sizeof(uint32_t); i++)
+		result = (result << 8) | src[i];
+	return result;
+}
+
 /* Implementation of the Control service used by all cloud_comm applications. */
 
 CC_SEND_BUFFER(control_send_buf, CC_MIN_SEND_BUF_SZ);
@@ -27,51 +36,51 @@ static void control_dispatch_callback(cc_buffer_desc *buf, cc_event event,
 	
 	if (svc_id != CC_SERVICE_CONTROL) {
 		dbg_printf("%s:%d: Callback called with wrong svc_id: %d\n",
-			   svc_id, __func__, __LINE__);
+			   __func__, __LINE__, svc_id);
 		goto done;
 	}
 
 	if (event != CC_EVT_RCVD_MSG) {
 		dbg_printf("%s:%d: Dispatched an unsupported event: %d\n",
-			   event, __func__, __LINE__);
+			   __func__, __LINE__, event);
 		goto done;
 	}
 
 	hdr = (struct control_header *)cc_get_recv_buffer_ptr(buf);
 	if (hdr->version != CONTROL_PROTOCOL_VERSION) {
 		dbg_printf("%s:%d: Unsupported Control protocol version: %d\n",
-			   event, __func__, __LINE__);
+			   __func__, __LINE__, event);
 		goto done;
 	}
 
 	switch (hdr->msg_type) {
 
-	CTRL_MSG_MAKE_DEVICE_SLEEP: {
+	case CTRL_MSG_MAKE_DEVICE_SLEEP: {
 		/*
 		 * Message contains 4 byte sleep time in seconds.
 		 * Deliver it as an event to the application's control callback.
 		 */
 		uint8_t *body = (uint8_t *)hdr + sizeof(struct control_header);
-		uint32_t sleep_interval = *(uint32_t *)body;
+		uint32_t sleep_interval = load_uint32_le(body);
 		cb(CC_EVT_CTRL_SLEEP, sleep_interval, NULL);
 		break;
 		}
 
-	CTRL_MSG_SET_POLLING_INTERVAL: {
+	case CTRL_MSG_SET_POLLING_INTERVAL: {
 		/*
 		 * Message contains 4 byte polling interval in seconds.
 		 * Pass the value to the protocol layer.
 		 * No need to involve the application.
 		 */
 		uint8_t *body = (uint8_t *)hdr + sizeof(struct control_header);
-		uint32_t polling_interval = *(uint32_t *)body;
+		uint32_t polling_interval = load_uint32_le(body);
 		PROTO_SET_POLLING(1000 * polling_interval); /* milliseconds */
 		break;
 		}
 
 	default:
 		dbg_printf("%s:%d: Unsupported Control message type: %d\n",
-			   hdr->msg_type, __func__, __LINE__);
+			   __func__, __LINE__, hdr->msg_type);
 	}
 done:
 	cc_ack_msg();
