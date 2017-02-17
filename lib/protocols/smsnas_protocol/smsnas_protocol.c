@@ -232,8 +232,8 @@ static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
 	memset(sm_msg.addr, 0, ADDR_SZ);
 	memcpy(sm_msg.addr, session.host, strlen(session.host));
 
-	int ret = at_send_sms(&sm_msg);
-	while ((ret < 0) && (retry < MAX_RETRIES)) {
+	bool ret = at_send_sms(&sm_msg);
+	while ((!ret) && (retry < MAX_RETRIES)) {
 		ret = at_send_sms(&sm_msg);
 		retry++;
 	}
