@@ -98,6 +98,9 @@ typedef struct {		/* Cloud communication buffer descriptor */
 	uint8_t name##_bytes[(max_sz)]; \
 	cc_buffer_desc name = {(max_sz), &(name##_bytes)}
 
+
+typedef uint16_t cc_data_sz;	/**< Type representing the size of a message */
+
 /**
  * Pointer to a callback routine. The callback accepts a buffer descriptor and
  * an event from the source of the callback explaining why it was invoked.

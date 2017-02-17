@@ -61,6 +61,7 @@ proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
  * Parameters:
  *	buf : Message to send.
  *	sz : Size of the message in bytes.
+ *	svs_id: service id which buf belongs to.
  * 	cb : Callback to indicate the event related to send activity.
  *
  * Returns:
@@ -70,7 +71,7 @@ proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
  * 	PROTO_TIMEOUT   : Timed out sending the message. Sending failed.
  */
 proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
-                                        proto_callback cb);
+                                        uint8_t svc_id, proto_callback cb);
 
 /*
  * Maintenance of the protocol which can be used to complete any

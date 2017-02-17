@@ -50,10 +50,12 @@ typedef enum {
 typedef uint16_t proto_pl_sz; /* type representing total payload size */
 
 /*
- * Pointer to a callback routine. The callback accepts a buffer, its size and
- * an event from the source of the callback explaining why it was invoked.
+ * Pointer to a callback routine. The callback accepts a buffer, its size,
+ * an event from the source of the callback explaining why it was invoked and
+ * service id which buf belongs to.
  */
-typedef void (*proto_callback)(const void *buf, uint32_t sz, proto_event event);
+typedef void (*proto_callback)(const void *buf, uint32_t sz, proto_event event,
+				uint8_t svc_id);
 
 /*
  * Define this to profile function execution time

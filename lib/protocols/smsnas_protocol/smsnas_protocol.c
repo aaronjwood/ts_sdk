@@ -4,12 +4,6 @@
 #include "smsnas_protocol.h"
 #include "smsnas_def.h"
 
-#define INVOKE_SEND_CALLBACK(_buf, _sz, _evt) \
-	do { \
-		if (session.send_cb) \
-			session.send_cb((_buf), (_sz), (_evt)); \
-	} while(0)
-
 #define INVOKE_RECV_CALLBACK(_buf, _sz, _evt, _s_id) \
 	do { \
 		if (session.rcv_msg.cb) \
@@ -30,6 +24,7 @@ static uint32_t sl_intr;
 
 proto_result smsnas_protocol_init(void)
 {
+	memset(session.host, 0, MAX_HOST_LEN);
 	session.host_valid = false;
 	session.rcv_msg.rcv_path_valid = false;
 	session.rcv_msg.conct_in_progress = false;
@@ -46,7 +41,7 @@ proto_result smsnas_set_destination(const char *host)
 	if (((strlen(host) + 1) > MAX_HOST_LEN) || (strlen(host) == 0))
 		return PROTO_INV_PARAM;
 
-	strncpy(session.host, host, strlen(host) + 1);
+	strncpy(session.host, host, strlen(host));
 	session.host_valid = true;
 	return PROTO_OK;
 }
@@ -167,8 +162,9 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 				goto error;
 			session.rcv_msg.wr_idx = 0;
 			session.rcv_msg.cref_num = msg_ptr->concat_ref_no;
-			memcpy(session.rcv_msg.buf + session.rcv_msg.wr_idx,
-				msg_ptr->buf, msg_ptr->len);
+			memcpy(session.rcv_msg.buf, msg_ptr->buf, msg_ptr->len);
+			smsnas_msg_t *temp_msg = session.rcv_msg.buf;
+			session.rcv_msg.service_id = temp_msg->service_id;
 			session.rcv_msg.conct_in_progress = true;
 		} else {
 			if (!check_validity(msg_ptr, false))
@@ -183,7 +179,8 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 				 */
 				INVOKE_RECV_CALLBACK(session.rcv_msg.buf,
 					session.rcv_msg.wr_idx + msg_ptr->len,
-					PROTO_RCVD_SMSNAS_MSG);
+					PROTO_RCVD_SMSNAS_MSG,
+					session.rcv_msg.service_id);
 				goto done;
 
 			}
@@ -202,14 +199,16 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 			goto done;
 		}
 		if (msg_ptr->len > session.rcv_msg.rem_sz) {
-			INVOKE_RECV_CALLBACK(session.rcv_msg.buf, 0,
-						PROTO_RCVD_SMSNAS_MEM_INSUF);
+			INVOKE_RECV_CALLBACK(session.rcv_msg.buf, msg_ptr->len,
+						PROTO_RCVD_SMSNAS_MEM_INSUF,
+						smsnas_msg->service_id);
 			goto error;
 		}
 		memcpy(session.rcv_msg.buf, msg_ptr->buf, msg_ptr->len);
 		/* let upper level decide to ack/nack this message */
 		INVOKE_RECV_CALLBACK(session.rcv_msg.buf, msg_ptr->len,
-					PROTO_RCVD_SMSNAS_MSG);
+					PROTO_RCVD_SMSNAS_MSG,
+					smsnas_msg->service_id);
 		goto done;
 
 	}
@@ -230,7 +229,8 @@ static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
 	sm_msg.concat_ref_no = ref_num;
 	sm_msg.num_seg = total_num;
 	sm_msg.seq_no = seq_num;
-	memcpy(sm_msg.addr, session.host, strlen(session.host) + 1);
+	memset(sm_msg.addr, 0, ADDR_SZ);
+	memcpy(sm_msg.addr, session.host, strlen(session.host));
 
 	int ret = at_send_sms(&sm_msg);
 	while ((ret < 0) && (retry < MAX_RETRIES)) {
@@ -279,12 +279,24 @@ int calculate_total_msgs(proto_pl_sz sz)
 	}
 }
 
+static void invoke_send_callback(const void *buf, proto_pl_sz sz, uint8_t s_id,
+				proto_callback cb, proto_result res)
+{
+	switch (res) {
+	case PROTO_TIMEOUT:
+		cb(buf, sz, PROTO_SEND_TIMEOUT, s_id);
+		break;
+	default:
+		break;
+	}
+}
+
 /* Prepares SMSNAS protocol message and sends it over to lower level
  * if sz exceeds MAX_SMS_PL_WITHOUT_HEADER bytes , it has to be sent as a
  * concatenated message
  */
 proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
-					uint8_t service_id)
+					uint8_t service_id, proto_callback cb)
 {
 	if (!buf || (sz == 0) || (sz > PROTO_MAX_MSG_SZ))
 		return PROTO_INV_PARAM;
@@ -295,10 +307,17 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 
 	uint8_t total_msgs = 0;
 	uint8_t cur_seq_num = 0;
+	/* check if it needs to be concatenated message */
 	if (sz <= MAX_SMS_PL_WITHOUT_HEADER) {
 		build_smsnas_msg(buf, sz, service_id);
-		return write_to_modem(session.send_msg, sz + PROTO_OVERHEAD_SZ,
-					msg_ref_num, total_msgs, cur_seq_num);
+		proto_result res = write_to_modem(session.send_msg,
+					sz + PROTO_OVERHEAD_SZ, msg_ref_num,
+					total_msgs, cur_seq_num);
+		if (res != PROTO_OK) {
+			invoke_send_callback(buf, sz, service_id, cb, res);
+			return PROTO_ERROR;
+		}
+
 	}
 	cur_seq_num = 1;
 	total_msgs = calculate_total_msgs(sz);
@@ -316,8 +335,10 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 		}
 		proto_result ret = write_to_modem(temp_buf, send_sz,
 					msg_ref_num, total_msgs, cur_seq_num);
-		if (ret != PROTO_OK)
-			return ret;
+		if (ret != PROTO_OK) {
+			invoke_send_callback(buf, sz, service_id, cb, res);
+			return PROTO_ERROR;
+		}
 		cur_seq_num++;
 		if (cur_seq_num > total_msgs)
 			break;
@@ -342,6 +363,8 @@ static void handle_pend_ack_nack(void)
 		break;
 	case NACK_PENDING:
 		at_send_nack();
+		break;
+	default:
 		break;
 	}
 	session.rcv_msg.ack_nack_pend = 0;

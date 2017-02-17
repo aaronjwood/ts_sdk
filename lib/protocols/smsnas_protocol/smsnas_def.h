@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include "protocol_def.h"
 
+#define MAX_HOST_LEN		ADDR_SZ
+
 #define RECV_TIMEOUT_MS		5000
 #define SEND_TIMEOUT_MS		5000
 #define MULT			1000
@@ -72,6 +74,7 @@ typedef struct __attribute__((packed)) {
 typedef struct {
 	bool rcv_path_valid;
 	bool conct_in_progress;
+	uint8_t service_id;
 	uint8_t ack_nack_pend;
 	uint8_t cref_num;
 	uint8_t cur_seq;
