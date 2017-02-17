@@ -8,6 +8,7 @@
 #include "protocol_def.h"
 
 #define MAX_HOST_LEN		ADDR_SZ
+#define INIT_POLLING_MS		0
 
 #define RECV_TIMEOUT_MS		5000
 #define SEND_TIMEOUT_MS		5000

@@ -75,10 +75,14 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 
 /*
  * Maintenance of the protocol which can be used to complete any
- * pending internal protocol activities before upper level possibly Application
+ * pending internal protocol activities such as sending ack/nack of the processed
+ * receive message before upper level possibly Application
  * decides to sleep for example or relinquish protocol control.
+ * Parameters:
+ *	poll_due : True if polling is due to check if next segement of the
+ *		   concatenated message is processed.
  */
-void smsnas_maintenance();
+void smsnas_maintenance(bool poll_due);
 
 /*
  * Send positive acknowledgment to cloud
@@ -125,12 +129,26 @@ const uint8_t *smsnas_get_rcv_buffer_ptr(const void *msg);
 proto_pl_sz smsnas_get_rcvd_data_len(const void *msg);
 
 /*
- * Maintenance of the protocol which can be used to complete any
- * pending internal protocol activities before upper level possibly Application
- * decides to sleep for example or relinquish protocol control.
+ * Retrieves polling interval in mili seconds
  * Returns:
- *      time in miliseconds to call back this function again.
+ * 	Interval time in miliseconds
+ * Note: Function is mainly used when polling is required to check for arrival of
+ *       the next segement in the concatenated message case.
  */
-uint32_t smsnas_maintenance(void);
+uint32_t smsnas_get_polling_interval(void);
+
+/*
+ * Sets sleeping interval in seconds
+ * Parameters:
+ * 	sleep_int : sleeping interval in seconds.
+ */
+void smsnas_set_sleep_interval(uint32_t sleep_int);
+
+/*
+ * Retrieves sleeping interval in seconds
+ * Returns:
+ * 	Interval time in seconds.
+ */
+uint32_t smsnas_get_sleep_interval(void);
 
 #endif

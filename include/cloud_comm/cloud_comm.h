@@ -55,6 +55,8 @@ typedef enum {
 	CC_STS_UNKNOWN		/**< Not supported event */
 } cc_event;
 
+typedef uint16_t cc_data_sz;	/**< Type representing the size of a message */
+
 typedef struct {		/* Cloud communication buffer descriptor */
 	cc_data_sz bufsz;	/* Maximum size of this buffer */
 	void *buf_ptr;		/* Opaque pointer to the actual data buffer */
@@ -97,9 +99,6 @@ typedef struct {		/* Cloud communication buffer descriptor */
 			name##_does_not_have_a_valid_size_on_line); \
 	uint8_t name##_bytes[(max_sz)]; \
 	cc_buffer_desc name = {(max_sz), &(name##_bytes)}
-
-
-typedef uint16_t cc_data_sz;	/**< Type representing the size of a message */
 
 /**
  * Pointer to a callback routine. The callback accepts a buffer descriptor and

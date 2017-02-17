@@ -21,9 +21,12 @@ static uint8_t msg_ref_num;
 
 /* sleep interval, which can be set during control message sleep type */
 static uint32_t sl_intr;
+static uint32_t current_polling_interval;
 
 proto_result smsnas_protocol_init(void)
 {
+	sl_intr = 0;
+	current_polling_interval = INIT_POLLING_MS;
 	memset(session.host, 0, MAX_HOST_LEN);
 	session.host_valid = false;
 	session.rcv_msg.rcv_path_valid = false;
@@ -44,6 +47,16 @@ proto_result smsnas_set_destination(const char *host)
 	strncpy(session.host, host, strlen(host));
 	session.host_valid = true;
 	return PROTO_OK;
+}
+
+void smsnas_set_sleep_interval(uint32_t sleep_int)
+{
+	sl_intr = sleep;
+}
+
+uint32_t smsnas_get_sleep_interval(void)
+{
+	return sl_intr;
 }
 
 const uint8_t *smsnas_get_rcv_buffer_ptr(const void *msg)
@@ -96,22 +109,9 @@ void smsnas_send_nack(void)
         session.rcv_msg.ack_nack_pend = NACK_PENDING;
 }
 
-static bool process_smsnas_control_msg(smsnas_ctrl_msg *msg)
-{
-	if (msg->version != SMSNAS_CTRL_MSG_VER)
-		return false;
-	switch (msg->msg_type) {
-	case SMSNAS_MSG_TYPE_SLEEP:
-		sl_intr = msg->interval;
-		break;
-	default:
-		return false;
-	}
-	return true;
-}
-
 static void rcv_path_cleanup(void)
 {
+	current_polling_interval = 0;
 	session.rcv_msg.cur_seq = 0;
 	session.rcv_msg.rcv_path_valid = false;
 	session.rcv_msg.conct_in_progress = false;
@@ -166,6 +166,7 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 			smsnas_msg_t *temp_msg = session.rcv_msg.buf;
 			session.rcv_msg.service_id = temp_msg->service_id;
 			session.rcv_msg.conct_in_progress = true;
+			current_polling_interval = CONC_NEXT_SEG_TIMEOUT_MS;
 		} else {
 			if (!check_validity(msg_ptr, false))
 				goto error;
@@ -192,12 +193,6 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 		smsnas_msg_t *smsnas_msg = (smsnas_msg_t *)msg_ptr->buf;
 		if (smsnas_msg->version != SMSNAS_VERSION)
 			goto error;
-		if (smsnas_msg->service_id == 0) {
-			if (!process_smsnas_control_msg(smsnas_msg->data.bytes))
-				goto error;
-			smsnas_send_ack();
-			goto done;
-		}
 		if (msg_ptr->len > session.rcv_msg.rem_sz) {
 			INVOKE_RECV_CALLBACK(session.rcv_msg.buf, msg_ptr->len,
 						PROTO_RCVD_SMSNAS_MEM_INSUF,
@@ -370,21 +365,32 @@ static void handle_pend_ack_nack(void)
 	session.rcv_msg.ack_nack_pend = 0;
 }
 
-/* Checks if it has started or in middle of receiving mnultiple segements
- * in which case, report back the time in miliseconds for upper level to
- * check back if protocol has received next segment
+uint32_t smsnas_get_polling_interval(void)
+{
+	return current_polling_interval;
+}
+
+/* Checks if any pending ack or nack of previously received message
+ * If poll_due is true, it was in the middle of receiving concatenated message
+ * and checks if it received next segment during polling time, if not then
+ * invoke callback indicating receiving timeout to upper level.
  */
-uint32_t smsnas_maintenance(void)
+void smsnas_maintenance(bool poll_due)
 {
 
 	handle_pend_ack_nack();
+
+	if (!poll_due)
+		return;
 	/* There is nothing to maintain if receive path is not expecting
 	 * concatenated messages
 	 */
 	if (!session.rcv_msg.conct_in_progress)
-		return 0;
+		return;
 
-	/* Start of the concatenated segment */
+	/* Start of the concatenated segment and polling interval to check for
+	 * arrival of next segment
+	 */
 	if (session.rcv_msg.cur_seq == 1)
 		goto done;
 
@@ -396,10 +402,9 @@ uint32_t smsnas_maintenance(void)
 		INVOKE_RECV_CALLBACK(session.rcv_msg.buf, session.rcv_msg.wr_idx,
 					PROTO_RCV_TIMEOUT);
 		rcv_path_cleanup();
-		return 0;
+		return;
 	}
 
 done:
 	session.rcv_msg.expected_seq = session.rcv_msg.cur_seq + 1;
-	return CONC_NEXT_SEG_TIMEOUT_MS;
 }
