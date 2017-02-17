@@ -139,7 +139,7 @@ static at_ret_code __at_wait_for_rsp(uint32_t *timeout)
 		end = platform_get_tick_ms();
 		if ((end - start) > *timeout) {
 			result = AT_RSP_TIMEOUT;
-			DEBUG_V1("%s: RSP_TIMEOUT: out of %u, waited %u\n",
+			DEBUG_V1("%s: RSP_TIMEOUT: out of %lu, waited %lu\n",
 					__func__, *timeout, (end - start));
 			*timeout = 0;
 			break;
@@ -194,7 +194,7 @@ static at_ret_code __at_wait_for_bytes(buf_sz *rcv_bytes,
 		if (*rcv_bytes < target_bytes)
 			return AT_FAILURE;
 	}
-	DEBUG_V1("%s: data available (%u), wanted (%u), waited for %u time\n",
+	DEBUG_V1("%s: data available (%u), wanted (%u), waited for %lu time\n",
 			__func__, *rcv_bytes, target_bytes, *timeout);
 	return AT_SUCCESS;
 }
