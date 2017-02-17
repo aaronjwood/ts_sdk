@@ -295,7 +295,8 @@ int uart_line_avail(const char *header, const char *trailer)
 
 	if (header) {
 		/* Search for the header from where we left off reading. */
-		hidx = find_substr_in_ring_buffer(rx.ridx, header, hlen);
+		hidx = find_substr_in_ring_buffer(rx.ridx,
+				(uint8_t *)header, hlen);
 		if (hidx == -1)
 			return 0;	/* Header specified but not found. */
 	}
@@ -304,7 +305,8 @@ int uart_line_avail(const char *header, const char *trailer)
 	 * read location. This workaround is for the case where the header and
 	 * the trailer are the same.
 	 */
-	tidx = find_substr_in_ring_buffer(rx.ridx + hlen, trailer, tlen);
+	tidx = find_substr_in_ring_buffer(rx.ridx + hlen,
+			(uint8_t *)trailer, tlen);
 	if (tidx == -1)			/* Trailer not found. */
 		return 0;
 

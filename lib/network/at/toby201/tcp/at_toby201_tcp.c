@@ -80,29 +80,30 @@ static at_ret_code __at_process_dl_close_urc(const char *urc, at_urc u_code)
 
 static at_ret_code __at_process_pdp_tcp_close_urc(const char *urc, at_urc u_code)
 {
-        if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) == 0) {
-                switch (u_code) {
-                case TCP_CLOSED:
-                        state = TCP_REMOTE_DISCONN;
-                        DEBUG_V0("%s: tcp closed\n", __func__);
-                        return AT_SUCCESS;
-                case PDP_DEACT:
-                        DEBUG_V0("%s: pdp closed\n", __func__);
-                        pdp_conf = false;
-                        return AT_SUCCESS;
-                }
-
-        } else
-                return AT_FAILURE;
+	if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) == 0) {
+		switch (u_code) {
+			case TCP_CLOSED:
+				state = TCP_REMOTE_DISCONN;
+				DEBUG_V0("%s: tcp closed\n", __func__);
+				return AT_SUCCESS;
+			case PDP_DEACT:
+				DEBUG_V0("%s: pdp closed\n", __func__);
+				pdp_conf = false;
+				return AT_SUCCESS;
+			default:
+				break;
+		}
+	}
+	return AT_FAILURE;
 }
 
 static void __at_lookup_dl_esc_str(void)
 {
         int nw_f;
-        int cur_f;
+        int cur_f = 0;
         uint8_t itr = 0;
         for (; itr < strlen(dl.dis_str); itr++) {
-                nw_f = at_core_find_pattern(-1, dl.dis_str, itr + 1);
+                nw_f = at_core_find_pattern(-1, (uint8_t *)dl.dis_str, itr + 1);
                 if (nw_f == -1) {
                         if (dl.dis_state == DIS_IDLE) {
                                 if (itr > 0) {
@@ -674,19 +675,19 @@ static int __at_process_intr_buffer(unsigned char *buf, size_t len)
 
 static int __at_test_dl_partial_state()
 {
-        if (dl.dis_state == DIS_PARTIAL) {
+	switch (dl.dis_state) {
+	case DIS_PARTIAL:
                 DEBUG_V1("%s:%d: unchanged state\n",__func__, __LINE__);
                 return DL_PARTIAL_SUC;
-        }
-        if (dl.dis_state == DIS_FULL) {
+	case DIS_FULL:
                 DEBUG_V1("%s:%d: partial became full\n", __func__, __LINE__);
                 return DL_PARTIAL_TO_FULL;
-        }
-
-        if (dl.dis_state == DIS_IDLE) {
+	case DIS_IDLE:
                 DEBUG_V1("%s:%d: fake partial detected\n",__func__, __LINE__);
+		/* Fall through */
+	default:
                 return DL_PARTIAL_ERROR;
-        }
+	}
 }
 
 static int __at_process_rcv_dl_partial(size_t len)

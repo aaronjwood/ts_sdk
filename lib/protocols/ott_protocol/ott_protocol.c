@@ -533,7 +533,7 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 
 	uint32_t start = platform_get_tick_ms();
 	uint32_t end = start;
-	bool no_nack;
+	bool no_nack = true;
 	uint32_t rcvd = 0;
 	do {
 		proto_result s = ott_retrieve_msg(session.rcv_buf,
