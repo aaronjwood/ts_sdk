@@ -45,7 +45,7 @@ typedef enum at_return_codes {
  */
 /*#define DEBUG_AT_LIB*/
 
-static int debug_level;
+/*static int debug_level;*/
 /* level v2 is normally for extensive debugging need, for example tracing
  * function calls
  */

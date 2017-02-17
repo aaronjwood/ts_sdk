@@ -7,20 +7,24 @@
 LIB_SRC := $(filter-out $(DBG_LIB_SRC), $(LIB_SRC))
 CLOUD_COMM_SRC := $(filter-out $(DBG_LIB_SRC), $(CLOUD_COMM_SRC))
 CORELIB_SRC := $(filter-out $(DBG_LIB_SRC), $(CORELIB_SRC))
+HAL_LIB_SRC := $(filter-out $(DBG_LIB_SRC), $(HAL_LIB_SRC))
 
 # Create lists of object files to be generated from the sources
 OBJ_USER = $(addsuffix .o, $(basename $(notdir $(USER_SRC))))
 OBJ_LIB = $(addsuffix .o, $(basename $(CORELIB_SRC)))
 OBJ_LIB += $(addsuffix .o, $(basename $(LIB_SRC)))
 OBJ_LIB += $(addsuffix .o, $(basename $(CLOUD_COMM_SRC)))
+OBJ_HAL_LIB = $(addsuffix .o, $(basename $(HAL_LIB_SRC)))
 OBJ_DBG_LIB = $(addsuffix .o, $(basename $(DBG_LIB_SRC)))
 
-OBJ = $(OBJ_USER) $(OBJ_LIB) $(OBJ_DBG_LIB)
+OBJ = $(OBJ_USER) $(OBJ_LIB) $(OBJ_HAL_LIB) $(OBJ_DBG_LIB)
 
-CFLAGS_USER = -Wall -Werror -std=c99 -Wcast-align $(INC) -D$(PROTOCOL) $(DBG_OP_USER_FLAGS)
-CFLAGS_LIB = -Wreturn-type -Werror -std=c99 $(INC) -D$(PROTOCOL) $(DBG_OP_LIB_FLAGS) \
+CFLAGS_COM = -Werror -std=c99 $(INC) -D$(PROTOCOL)
+CFLAGS_USER = -Wall -Wcast-align $(CFLAGS_COM) $(DBG_OP_USER_FLAGS)
+CFLAGS_LIB = -Wall -Wcast-align $(CFLAGS_COM) $(DBG_OP_LIB_FLAGS) \
 	     -fdata-sections -ffunction-sections
-CFLAGS_DBG_LIB = -Wreturn-type -Werror -std=c99 $(INC) -D$(PROTOCOL) $(DBG_OP_USER_FLAGS) \
+CFLAGS_HAL_LIB = $(CFLAGS_COM) $(DBG_OP_LIB_FLAGS) -fdata-sections -ffunction-sections
+CFLAGS_DBG_LIB = -Wall -Wcast-align $(CFLAGS_COM) $(DBG_OP_USER_FLAGS) \
 		 -fdata-sections -ffunction-sections
 
 #==================================RULES=======================================#
@@ -36,6 +40,9 @@ $(FW_EXEC): $(OBJ) $(OBJ_STARTUP) vendor_libs
 
 $(OBJ_STARTUP):
 	$(AS) $(ARCHFLAGS) -o $(OBJ_STARTUP) $(STARTUP_SRC)
+
+$(OBJ_HAL_LIB): %.o: %.c
+	$(CC) -c $(CFLAGS_HAL_LIB) $(ARCHFLAGS) $(MDEF) $< -o $@
 
 $(OBJ_LIB): %.o: %.c
 	$(CC) -c $(CFLAGS_LIB) $(DBG_MACRO) $(ARCHFLAGS) $(MDEF) $(MOD_TAR) $< -o $@

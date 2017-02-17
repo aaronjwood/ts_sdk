@@ -18,7 +18,6 @@
 #define RSP_BUF_DELAY			2000 /* In mili seconds */
 #endif
 
-
 static const char *rsp_header = "\r\n";
 static const char *rsp_trailer = "\r\n";
 static const char *err_str = "\r\nERROR\r\n";
@@ -104,20 +103,20 @@ static void __at_dump_wrng_rsp(char *rsp_buf, buf_sz read_bytes, const char *rsp
 #endif
 }
 
-static at_ret_code __at_handle_error_rsp(uint8_t *rsp_buf, buf_sz read_bytes,
+static at_ret_code __at_handle_error_rsp(char *rsp_buf, buf_sz read_bytes,
                                         const char *rsp, const char *err)
 {
         at_ret_code result = AT_SUCCESS;
         if (err) {
-                if (strncmp((char *)rsp_buf, err, strlen(err)) != 0) {
-                        if (strncmp((char *)rsp_buf, err_str,
+                if (strncmp(rsp_buf, err, strlen(err)) != 0) {
+                        if (strncmp(rsp_buf, err_str,
                                 strlen(err_str)) == 0) {
                                 DEBUG_V0("%s: General Failure: %s\n",
-                                        __func__, (char *)rsp_buf);
+                                        __func__, rsp_buf);
                                 result = AT_FAILURE;
                         } else {
                                 DEBUG_V0("%s: wrong rsp: %s\n",
-                                        __func__, (char *)rsp_buf);
+                                        __func__, rsp_buf);
                                 result = AT_WRONG_RSP;
                         }
                 } else
@@ -135,7 +134,7 @@ static at_ret_code __at_wait_for_rsp(uint32_t *timeout)
 	state.waiting_resp = true;
 	at_ret_code result = AT_SUCCESS;
 	uint32_t start = platform_get_tick_ms();
-	uint32_t end;
+	uint32_t end = start;
 	while (!process_rsp) {
 		end = platform_get_tick_ms();
 		if ((end - start) > *timeout) {
@@ -340,11 +339,11 @@ at_ret_code at_core_wcmd(const at_command_desc *desc, bool read_line)
 		}
 
 		/* start processing response */
-		uint8_t rsp_buf[read_bytes + 1];
+		char rsp_buf[read_bytes + 1];
 		memset(rsp_buf, 0, read_bytes + 1);
 		if (tmp_want > 0) {
 			if (tmp_want <= read_bytes)
-				strncpy((char *)rsp_buf, temp_buf, tmp_want);
+				strncpy(rsp_buf, temp_buf, tmp_want);
 			else {
 				DEBUG_V0("%s: Unlikey tmp want value\n",
 						__func__);
@@ -353,10 +352,10 @@ at_ret_code at_core_wcmd(const at_command_desc *desc, bool read_line)
 			}
 		}
 
-		int rd_b = uart_read(rsp_buf + tmp_want, read_bytes - tmp_want);
+		int rd_b = uart_read((uint8_t *)rsp_buf + tmp_want,
+				read_bytes - tmp_want);
 		if (rd_b == (read_bytes - tmp_want)) {
-			if (strncmp((char *)rsp_buf,
-						desc->rsp_desc[i].rsp,
+			if (strncmp(rsp_buf, desc->rsp_desc[i].rsp,
 						strlen(desc->rsp_desc[i].rsp))
 					!= 0) {
 				DEBUG_V0("%s: Error rsp for command:%s\n",

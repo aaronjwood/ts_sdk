@@ -90,6 +90,8 @@ static at_ret_code __at_process_pdp_tcp_close_urc(const char *urc, at_urc u_code
 				DEBUG_V0("%s: pdp closed\n", __func__);
 				pdp_conf = false;
 				return AT_SUCCESS;
+			default:
+				break;
 		}
 	}
 	return AT_FAILURE;
@@ -98,10 +100,10 @@ static at_ret_code __at_process_pdp_tcp_close_urc(const char *urc, at_urc u_code
 static void __at_lookup_dl_esc_str(void)
 {
         int nw_f;
-        int cur_f;
+        int cur_f = 0;
         uint8_t itr = 0;
         for (; itr < strlen(dl.dis_str); itr++) {
-                nw_f = at_core_find_pattern(-1, dl.dis_str, itr + 1);
+                nw_f = at_core_find_pattern(-1, (uint8_t *)dl.dis_str, itr + 1);
                 if (nw_f == -1) {
                         if (dl.dis_state == DIS_IDLE) {
                                 if (itr > 0) {
