@@ -74,6 +74,7 @@ static void control_dispatch_callback(cc_buffer_desc *buf, cc_event event,
 		 */
 		uint8_t *body = (uint8_t *)hdr + sizeof(struct control_header);
 		uint32_t sleep_interval = load_uint32_le(body);
+		/* XXX Should we sanity check the sleep interval? */
 		cb(CC_EVT_CTRL_SLEEP, sleep_interval, NULL);
 		break;
 		}

@@ -19,6 +19,11 @@
 #include "mbedtls/debug.h"
 #endif
 
+/* Sanity checks.  The cloud is primarily responsible for enforcing limits. */
+/* XXX Need to set these values to allow whatever limits get documented. */
+#define MIN_SANE_POLLING_INTERVAL_MS	10000
+#define MAX_SANE_POLLING_INTERVAL_MS (2 * 24 * 60 * 60 * 1000) /* 2 days */
+
 /* Certificate that is used with the OTT services */
 #include "verizon_ott_ca.h"
 
@@ -450,8 +455,6 @@ static bool msg_is_valid(msg_t *msg)
 			return true;
 	case MT_CMD_PI:
 	case MT_CMD_SL:
-		/* XXX: Limit the intervals to some realistic value: 2 days? */
-		return true;
 	case MT_NONE:
 		/* XXX: Perform additional checks? */
 		return true;
@@ -853,7 +856,7 @@ void ott_send_nack(void)
         session.nack_sent = true;
 }
 
-/* XXX This will eventually be replaced with a control service message. */
+/* XXX Remove this when we no longer need to fake Control service messages. */
 static proto_result ott_send_restarted(c_flags_t c_flags)
 {
 	PROTO_TIME_PROFILE_BEGIN();
@@ -871,7 +874,7 @@ static proto_result ott_send_restarted(c_flags_t c_flags)
 	return PROTO_OK;
 }
 
-/* XXX This will eventually be replaced with a control service message. */
+/* XXX Remove this when we no longer need to fake Control service messages. */
 proto_result ott_resend_init_config(proto_callback cb)
 {
 	if (strlen(session.host) == 0 || strlen(session.port) == 0)
@@ -924,9 +927,9 @@ uint32_t ott_get_polling_interval(void)
 
 void ott_set_polling_interval(uint32_t interval_ms)
 {
-	if (interval_ms < 10000) {
-		/* XXX Need to match this to a documented minimal interval. */
-		dbg_printf("Polling interval too short: %"PRIu32" ms\n",
+	if (interval_ms < MIN_SANE_POLLING_INTERVAL_MS ||
+	    interval_ms > MAX_SANE_POLLING_INTERVAL_MS) {
+		dbg_printf("Invalid polling interval: %"PRIu32" ms\n",
 			   interval_ms);
 	} else {
 		dbg_printf("Setting polling interval to: %"PRIu32" ms\n",
