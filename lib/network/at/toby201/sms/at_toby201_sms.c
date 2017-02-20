@@ -56,6 +56,14 @@ static void urc_cb(const char *urc)
 	if (res == AT_SUCCESS)
 		return;
 
+	res = process_network_urc(urc, EPS_STAT_URC);
+	if (res == AT_SUCCESS)
+		return;
+
+	res = process_network_urc(urc, ExPS_STAT_URC);
+	if (res == AT_SUCCESS)
+		return;
+
 	res = process_ucmt_urc(urc, UCMT_URC);
 }
 
