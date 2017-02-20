@@ -51,7 +51,7 @@ proto_result ott_protocol_init(void);
                          const uint8_t *d_sec, uint32_t d_sec_sz);
 
 /*
- * Retrieves polling interval in milli seconds
+ * Retrieves polling interval in milliseconds
  *
  * Returns:
  * 	Interval time in miliseconds
@@ -59,7 +59,7 @@ proto_result ott_protocol_init(void);
 uint32_t ott_get_polling_interval(void);
 
 /*
- * Retrieves default polling interval in mili seconds
+ * Retrieves default polling interval in milliseconds
  *
  * Returns:
  * 	Interval time in miliseconds
@@ -77,13 +77,15 @@ void ott_set_polling_interval(uint32_t interval_ms);
 /*
  * Initialize the OTT Protocol module with the remote host and port
  * Parameters:
- * 	dest : A NULL terminated string specifying destination.
+ * 	dest : A NULL terminated string specifying destination for the
+ *             connection to the cloud.
  *
- * The string has the form:   hostname:port
+ * The string has the form:  hostname:port
  *
  * Returns:
  * 	PROTO_OK : Setting host and port was successful.
  * 	PROTO_INV_PARAM : Passed parameters are not valid.
+ *
  * Note: This must be called at least once before attempting to send messages.
  */
 proto_result ott_set_destination(const char *dest);

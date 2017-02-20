@@ -38,7 +38,7 @@ typedef enum {
 
 	/* Incoming message events: */
 	PROTO_RCVD_QUIT,	/* Received quit (i.e. session termination) */
-	PROTO_RCVD_MSG         /* Received a message from the cloud */
+	PROTO_RCVD_MSG          /* Received a message from the cloud */
 } proto_event;
 
 

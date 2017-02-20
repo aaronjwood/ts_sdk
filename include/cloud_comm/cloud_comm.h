@@ -386,14 +386,4 @@ bool cc_register_service(cc_service_descriptor *svc_desc,
 void cc_dispatch_event_to_service(cc_service_id svc_id, cc_buffer_desc *buf,
 				  cc_event event);
 
-/**
- * \brief
- * Unregister a previously registered service.
- *
- * \param[in] desc : Pointer to a service descriptor that indicates the
- *                   service id and entry points for the service.
- *
- */
-void cc_unregister_service(cc_service_descriptor *svc_desc);
-
 #endif /* __CLOUD_COMM */

@@ -8,12 +8,12 @@
 #include "cloud_protocol_intfc.h"
 #include "dbg.h"
 
-static inline uint32_t load_uint32_le(uint8_t *src)
-{
-	return (src[3] << 24) | (src[2] << 16) | (src[1] << 8) | src[0];
-}
-
-/* Implementation of the Control service used by all cloud_comm applications. */
+/*
+ * This is the implementation of the Control service which is automatically
+ * registered in all applications.  This service provides for configuration
+ * and control of the protocol stack, and for delivering pre-defined events
+ * which all applications are expected to handle.
+ */
 
 CC_SEND_BUFFER(control_send_buf, CC_MIN_SEND_BUF_SZ);
 
@@ -22,6 +22,15 @@ struct __attribute__((packed)) control_header {
 	uint8_t msg_type;		/* Control service message type */
 };
 
+static inline uint32_t load_uint32_le(uint8_t *src)
+{
+	return (src[3] << 24) | (src[2] << 16) | (src[1] << 8) | src[0];
+}
+
+/*
+ * This callback is invoked when the application dispatches an event
+ * associated with this service's service id.
+ */
 static void control_dispatch_callback(cc_buffer_desc *buf, cc_event event,
 				      cc_service_id svc_id,
 				      cc_svc_callback_rtn cb)

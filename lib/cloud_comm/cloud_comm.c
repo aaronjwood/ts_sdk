@@ -229,9 +229,9 @@ bool cc_register_service(cc_service_descriptor *svc_desc,
 		return false;
 	/*
 	 * XXX This should build a lookup table of all the registered services,
-	 * but for now we only have the Control service. As a temporary hack
-	 * stash the info needed to dispatch service messages into static
-	 * variables.
+	 * but for now we only have the Control service. As a temporary measure,
+	 * just save the info needed to dispatch Control messages into 
+	 * static variables.
 	 */
 	if (svc_desc->svc_id != CC_SERVICE_CONTROL)
 		return false;
@@ -252,12 +252,7 @@ void cc_dispatch_event_to_service(cc_service_id svc_id, cc_buffer_desc *buf,
 	/* XXX Only do Control service for now. */
 	if (svc_id != CC_SERVICE_CONTROL)
 		return;
+
 	__control_service_dispatch(buf, event,CC_SERVICE_CONTROL,
 				   __apps_control_service_callback);
-}
-
-
-void cc_unregister_service(cc_service_descriptor *svc_desc)
-{
-	/* XXX Stub for now */
 }
