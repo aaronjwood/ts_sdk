@@ -79,15 +79,13 @@ typedef struct {
 	bool rcv_path_valid;
 	bool conct_in_progress;
 	uint8_t service_id;
-	uint8_t ack_nack_pend;
-	uint8_t cref_num;
+	int cref_num;
 	uint8_t cur_seq;
 	uint8_t expected_seq;
 	uint8_t *buf;
 	uint32_t timestamp;
 	proto_pl_sz wr_idx;
 	proto_pl_sz rem_sz;
-	proto_pl_sz init_sz;
 } smsnas_rcv_path;
 
 static struct {
@@ -100,6 +98,7 @@ static struct {
 	void *rcv_buf;
 	proto_pl_sz rcv_sz;
 	proto_callback rcv_cb;
+	ack_nack ack_nack_pend;
 } session;
 
 #endif
