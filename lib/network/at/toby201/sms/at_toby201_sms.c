@@ -8,7 +8,7 @@
 #include "platform.h"
 #include "smscodec.h"
 
-#define MAX_TRIES_MODEM_CONFIG	2
+#define MAX_TRIES_MODEM_CONFIG	3
 #define NET_REG_TIMEOUT_SEC	180000
 
 static void uart_cb(void)
@@ -64,8 +64,14 @@ static inline at_ret_code check_network_registration(void)
 	at_ret_code res_ims = at_core_wcmd(&mod_netw_cmd[IMS_REG_QUERY], true);
 	at_ret_code res_eps = at_core_wcmd(&mod_netw_cmd[EPS_REG_QUERY], true);
 	at_ret_code res_exps = at_core_wcmd(&mod_netw_cmd[ExPS_REG_QUERY], true);
+
 	if (res_ims == AT_SUCCESS && res_eps == AT_SUCCESS && res_exps == AT_SUCCESS)
 		return AT_SUCCESS;
+
+	/* If IMS registration fails modem needs to be restarted after timeout */
+	if (res_ims != AT_SUCCESS)
+		return AT_RECHECK_MODEM;
+
 	return AT_FAILURE;
 }
 
@@ -94,9 +100,6 @@ static at_ret_code config_modem_for_sms(void)
 	if (res != AT_SUCCESS) {
 		res = at_core_wcmd(&mod_netw_cmd[MNO_CONF_SET], true);
 		CHECK_SUCCESS(res, AT_SUCCESS, res);
-		res = at_core_modem_reset();
-		if (res == AT_RSP_TIMEOUT || res == AT_TX_FAILURE)
-			return res;
 		return AT_RECHECK_MODEM;
 	}
 
@@ -105,9 +108,6 @@ static at_ret_code config_modem_for_sms(void)
 	if (res != AT_SUCCESS) {
 		res = at_core_wcmd(&mod_netw_cmd[AUTO_TIME_ZONE_SET], true);
 		CHECK_SUCCESS(res, AT_SUCCESS, res);
-		res = at_core_modem_reset();
-		if (res == AT_RSP_TIMEOUT || res == AT_TX_FAILURE)
-			return res;
 		return AT_RECHECK_MODEM;
 	}
 
@@ -126,7 +126,7 @@ static at_ret_code config_modem_for_sms(void)
 	} while(res != AT_SUCCESS);
 
 	if (res != AT_SUCCESS)
-		DEBUG_V0("%s: IMS Registration failed\n", __func__);
+		DEBUG_V0("%s: Network registration failed\n", __func__);
 
 	return res;
 }
@@ -147,9 +147,9 @@ bool at_init(void)
 		res = config_modem_for_sms();
 		if (res == AT_SUCCESS)
 			break;
-		if (res == AT_RECHECK_MODEM) {
-			DEBUG_V0("%s: Attempt %u at configuring modem failed\n",
+		DEBUG_V0("%s: Attempt %u at configuring modem failed\n",
 					__func__, num_tries);
+		if (res == AT_RECHECK_MODEM) {
 			at_ret_code reset_res = at_core_modem_reset();
 			if (reset_res != AT_SUCCESS) {
 				printf("%s: Modem reset failed\n", __func__);
