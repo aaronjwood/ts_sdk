@@ -18,7 +18,8 @@ int main(int argc, char *argv[])
 	}
 
 done:
-	while(1)
+	dbg_printf("Test completed\n");
+	while (1)
 		;
 	return 0;
 }
