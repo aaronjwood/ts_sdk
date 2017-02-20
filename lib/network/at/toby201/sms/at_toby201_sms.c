@@ -34,15 +34,15 @@ static at_ret_code process_network_urc(const char *urc, at_urc u_code)
 	switch (u_code) {
 	case IMS_STAT_URC:
 		if (net_stat != 1)
-			return AT_FAILURE;
+			DEBUG_V0("%s: IMS registration lost\n", __func__);
 		break;
 	case EPS_STAT_URC:
-		if (net_stat == 1 || net_stat == 3 || net_stat == 4)
-			return AT_FAILURE;
+		if (net_stat == 0 || net_stat == 3 || net_stat == 4)
+			DEBUG_V0("%s: EPS registration lost\n", __func__);
 		break;
 	case ExPS_STAT_URC:
 		if (net_stat == 0)
-			return AT_FAILURE;
+			DEBUG_V0("%s: Extended PS registration lost\n", __func__);
 		break;
 	default:
 		return AT_FAILURE;
