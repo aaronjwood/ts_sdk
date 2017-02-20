@@ -7,6 +7,21 @@
 #include <stdbool.h>
 #include "protocol_def.h"
 
+/* Macro indicates maximum receive stream protocol handles, if more than 1
+ * define intermediate receive buffer with maximum size times receive stream
+ * if it is not defined or less then 2, use buffer provided from upper level to
+ * store receving data
+ */
+#define SMSNAS_MAX_RCV_PATH	2
+
+#ifndef SMSNAS_MAX_RCV_PATH
+#define SMSNAS_MAX_RCV_PATH	1
+#else
+#if SMSNAS_MAX_RCV_PATH > 1
+uint8_t smsnas_rcv_buf[PROTO_MAX_MSG_SZ * SMSNAS_MAX_RCV_PATH];
+#endif
+#endif
+
 #define MAX_HOST_LEN		ADDR_SZ
 #define INIT_POLLING_MS		0
 
@@ -44,33 +59,21 @@
 #define MAX_RETRIES			3
 
 /* Defines flag for the ack/nack pending */
-#define ACK_PENDING			1
-#define NACK_PENDING			2
+typedef enum {
+	ACK_PENDING,
+	NACK_PENDING,
+	NO_ACK_NACK
+} ack_nack;
 
-/* Defines payload */
-typedef struct __attribute__((packed)) {
-	proto_pl_sz sz;			/* Number of bytes currently filled */
-	uint8_t bytes[];
-} payload;
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 
 /* SMSNAS protocol message */
 typedef struct __attribute__((packed)) {
 	uint8_t version;
 	uint8_t service_id;
-	payload data;
+	proto_pl_sz payload_sz;
+	uint8_t payload[];
 } smsnas_msg_t;
-
-/* Defines a value received by the device from the cloud */
-typedef union __attribute__((packed)) {
-	uint32_t interval;
-	payload data;
-} ctrl_msg_t;
-
-typedef struct __attribute__((packed)) {
-	uint8_t version;
-	uint8_t msg_type;
-	ctrl_msg_t msg;
-} smsnas_ctrl_msg;
 
 typedef struct {
 	bool rcv_path_valid;
@@ -80,17 +83,23 @@ typedef struct {
 	uint8_t cref_num;
 	uint8_t cur_seq;
 	uint8_t expected_seq;
-	void *buf;
-	proto_callback cb;
+	uint8_t *buf;
+	uint32_t timestamp;
 	proto_pl_sz wr_idx;
 	proto_pl_sz rem_sz;
-} smsnas_rcv_path
+	proto_pl_sz init_sz;
+} smsnas_rcv_path;
 
 static struct {
+	uint8_t msg_ref_num;
 	bool host_valid;		/* Whether host contains valid string */
 	char host[MAX_HOST_LEN + 1];	/* Store the host name */
-	smsnas_rcv_path rcv_msg;
+	smsnas_rcv_path rcv_msg[SMSNAS_MAX_RCV_PATH];
 	uint8_t send_msg[MAX_SMS_PL_SZ];
+	int rcv_path_num;
+	void *rcv_buf;
+	proto_pl_sz rcv_sz;
+	proto_callback rcv_cb;
 } session;
 
 #endif

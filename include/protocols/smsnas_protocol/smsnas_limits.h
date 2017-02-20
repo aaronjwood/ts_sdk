@@ -20,6 +20,4 @@
 #define PROTO_MAX_SEND_BUF_SZ           PROTO_DATA_SZ
 #define PROTO_MAX_RECV_BUF_SZ           PROTO_DATA_SZ
 
-/* Macro indicates maximum receive stream protocol handles */
-#define PROTO_MAX_RCV_PATH              2
 #endif
