@@ -23,44 +23,25 @@ static at_ret_code process_ucmt_urc(const char *urc, at_urc u_code)
 	return AT_SUCCESS;
 }
 
-static at_ret_code process_network_urc(const char *urc, at_urc u_code)
+static at_ret_code process_ims_urc(const char *urc, at_urc u_code)
 {
 	if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) != 0)
 		return AT_FAILURE;
 
-	uint8_t last_char = strlen(at_urcs[u_code]);
-	uint8_t net_stat = urc[last_char] - '0';
-        DEBUG_V0("%s: Net stat (%u): %u\n", __func__, u_code, net_stat);
-	switch (u_code) {
-	case IMS_STAT_URC:
+	if (u_code == IMS_STAT_URC) {
+		uint8_t last_char = strlen(at_urcs[u_code]);
+		uint8_t net_stat = urc[last_char] - '0';
 		if (net_stat != 1)
 			DEBUG_V0("%s: IMS registration lost\n", __func__);
-		break;
-	case EPS_STAT_URC:
-		if (net_stat == 0 || net_stat == 3 || net_stat == 4)
-			DEBUG_V0("%s: EPS registration lost\n", __func__);
-		break;
-	case ExPS_STAT_URC:
-		if (net_stat == 0)
-			DEBUG_V0("%s: Extended PS registration lost\n", __func__);
-		break;
-	default:
+	} else
 		return AT_FAILURE;
-	}
+
 	return AT_SUCCESS;
 }
 
 static void urc_cb(const char *urc)
 {
-	at_ret_code res = process_network_urc(urc, IMS_STAT_URC);
-	if (res == AT_SUCCESS)
-		return;
-
-	res = process_network_urc(urc, EPS_STAT_URC);
-	if (res == AT_SUCCESS)
-		return;
-
-	res = process_network_urc(urc, ExPS_STAT_URC);
+	at_ret_code res = process_ims_urc(urc, IMS_STAT_URC);
 	if (res == AT_SUCCESS)
 		return;
 
@@ -69,38 +50,22 @@ static void urc_cb(const char *urc)
 
 static inline at_ret_code check_network_registration(void)
 {
-	at_ret_code res_ims = at_core_wcmd(&mod_netw_cmd[IMS_REG_QUERY], true);
-	at_ret_code res_eps = at_core_wcmd(&mod_netw_cmd[EPS_REG_QUERY], true);
-	at_ret_code res_exps = at_core_wcmd(&mod_netw_cmd[ExPS_REG_QUERY], true);
+	if (!at_core_query_netw_reg())
+		return AT_FAILURE;
 
-	if (res_ims == AT_SUCCESS && res_eps == AT_SUCCESS && res_exps == AT_SUCCESS)
-		return AT_SUCCESS;
-
-	/* If IMS registration fails modem needs to be restarted after timeout */
-	if (res_ims != AT_SUCCESS)
+	/* If not registered to IMS after timeout, modem needs to be restarted */
+	if (at_core_wcmd(&mod_netw_cmd[IMS_REG_QUERY], true) != AT_SUCCESS)
 		return AT_RECHECK_MODEM;
 
-	return AT_FAILURE;
+	return AT_SUCCESS;
 }
 
 static at_ret_code config_modem_for_sms(void)
 {
 	at_ret_code res = AT_FAILURE;
 
-	/* Check if SIM card is inserted */
-	res = at_core_wcmd(&mod_netw_cmd[SIM_READY], true);
-	CHECK_SUCCESS(res, AT_SUCCESS, res);
-
 	/* Enable IMS Registration URC */
 	res = at_core_wcmd(&mod_netw_cmd[IMS_REG_URC_SET], true);
-	CHECK_SUCCESS(res, AT_SUCCESS, res);
-
-	/* Enable the Extended Packet Switched network registration URC */
-	res = at_core_wcmd(&mod_netw_cmd[ExPS_REG_URC_SET], true);
-	CHECK_SUCCESS(res, AT_SUCCESS, res);
-
-	/* Enable the EPS network registration URC */
-	res = at_core_wcmd(&mod_netw_cmd[EPS_REG_URC_SET], true);
 	CHECK_SUCCESS(res, AT_SUCCESS, res);
 
 	/* Set the MNO configuration for Verizon */
