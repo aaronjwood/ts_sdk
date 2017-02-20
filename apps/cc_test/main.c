@@ -65,6 +65,7 @@ static void recv_cb(cc_buffer_desc *buf, cc_event event, cc_service_id svc_id)
 /* Handle events related to Control service messages received from the cloud. */
 static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 {
+	dbg_printf("\t\t[CTRL CB] Received an event.\n");
 	if (event == CC_EVT_CTRL_SLEEP)
 		dbg_printf("\t\t\tSleep interval (secs): %"PRIu32"\n", value);
 	else

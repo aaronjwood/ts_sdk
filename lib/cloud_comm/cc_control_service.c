@@ -8,15 +8,9 @@
 #include "cloud_protocol_intfc.h"
 #include "dbg.h"
 
-#define CONTROL_PROTOCOL_VERSION 1	/* Currently supported proto version */
-
 static inline uint32_t load_uint32_le(uint8_t *src)
 {
-	int i;
-	uint32_t result = 0;
-	for (i = 0; i < sizeof(uint32_t); i++)
-		result = (result << 8) | src[i];
-	return result;
+	return (src[3] << 24) | (src[2] << 16) | (src[1] << 8) | src[0];
 }
 
 /* Implementation of the Control service used by all cloud_comm applications. */
@@ -40,7 +34,16 @@ static void control_dispatch_callback(cc_buffer_desc *buf, cc_event event,
 		goto done;
 	}
 
-	if (event != CC_EVT_RCVD_MSG) {
+	if (event == CC_EVT_SEND_ACKED) {
+		return;
+	} else if (event == CC_EVT_SEND_NACKED) {
+		dbg_printf("Sending Control service message failed\n");
+		return;
+	} else if (event == CC_EVT_SEND_TIMEOUT) {
+		dbg_printf("Timeout while sending Control service message\n");
+		return;
+	} else if (event != CC_EVT_RCVD_MSG) {
+		/* Assume an incoming message event. Ignore it and send ACK. */
 		dbg_printf("%s:%d: Dispatched an unsupported event: %d\n",
 			   __func__, __LINE__, event);
 		goto done;

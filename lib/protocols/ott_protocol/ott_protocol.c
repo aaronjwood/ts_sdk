@@ -353,17 +353,18 @@ static void fake_receiving_service_msg(m_type_t m_type, msg_t *msg_ptr,
 	/* Payload should always start here no matter which service. */
 	data += PROTO_OVERHEAD_SZ;
 
-	*data++ = 1; /* Control protocol version */
 	switch (m_type) {
 	case MT_CMD_PI:
+		*data++ = CONTROL_PROTOCOL_VERSION;
 		*data++ = CTRL_MSG_SET_POLLING_INTERVAL;
 		memcpy(data, &interval, sizeof(uint32_t));
-		*rcvd_len_ptr = *rcvd_len_ptr + 2;
+		*rcvd_len_ptr = *rcvd_len_ptr + 1;
 		break;
 	case MT_CMD_SL:
-		*data++ = CTRL_MSG_SET_POLLING_INTERVAL;
+		*data++ = CONTROL_PROTOCOL_VERSION;
+		*data++ = CTRL_MSG_MAKE_DEVICE_SLEEP;
 		memcpy(data, &interval, sizeof(uint32_t));
-		*rcvd_len_ptr = *rcvd_len_ptr + 2;
+		*rcvd_len_ptr = *rcvd_len_ptr + 1;
 		break;
 	default:
 		dbg_printf("%s:%d: Unexpected OTT message type: %d\n",
@@ -923,8 +924,15 @@ uint32_t ott_get_polling_interval(void)
 
 void ott_set_polling_interval(uint32_t interval_ms)
 {
-	dbg_printf("Setting polling interval to: %"PRIi32" msec\n");
-	current_polling_interval = interval_ms;
+	if (interval_ms < 10000) {
+		/* XXX Need to match this to a documented minimal interval. */
+		dbg_printf("Polling interval too short: %"PRIu32" ms\n",
+			   interval_ms);
+	} else {
+		dbg_printf("Setting polling interval to: %"PRIu32" ms\n",
+			   interval_ms);
+		current_polling_interval = interval_ms;
+	}
 }
 
 /*

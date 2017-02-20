@@ -9,6 +9,8 @@ enum cc_service_number {
 };
 
 /* Message type values for the Control service. */
+#define CONTROL_PROTOCOL_VERSION 1	/* Currently supported proto version */
+
 enum cc_control_svc_message_types {
 	CTRL_MSG_MAKE_DEVICE_SLEEP = 1,
 	CTRL_MSG_SET_POLLING_INTERVAL = 2,
