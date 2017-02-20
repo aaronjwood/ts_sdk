@@ -28,9 +28,9 @@ static cc_data_sz send_data_sz = sizeof(status);
 static void recv_cb(cc_buffer_desc *buf, cc_event event, cc_service_id svc_id)
 {
 	dbg_printf("\t\t[RECV CB] Received an event.\n");
-	if (svc_id != CC_SERVICE_BASIC) {
+	if (svc_id != CC_SERVICE_BASIC)
 		cc_dispatch_event_to_service(svc_id, buf, event);
-	} else {
+	else {
 
 		if (event == CC_EVT_RCVD_MSG) {
 			cc_data_sz sz = cc_get_receive_data_len(buf);
@@ -75,15 +75,16 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 /* Send callback */
 static void send_cb(cc_buffer_desc *buf, cc_event event, cc_service_id svc_id)
 {
-	if (svc_id != CC_SERVICE_BASIC) {
+	if (svc_id != CC_SERVICE_BASIC)
 		cc_dispatch_event_to_service(svc_id, buf, event);
-	} else {
+	else {
 		if (event == CC_EVT_SEND_ACKED)
 			dbg_printf("\t\t[SEND CB] Received an ACK\n");
 		else if (event == CC_EVT_SEND_NACKED)
 			dbg_printf("\t\t[SEND CB] Received a NACK\n");
 		else if (event == CC_EVT_SEND_TIMEOUT)
-			dbg_printf("\t\t[SEND CB] Timed out trying to send message\n");
+			dbg_printf("\t\t[SEND CB] Timed out trying to send "
+				   "message\n");
 	}
 
 	/* Reschedule a receive */
