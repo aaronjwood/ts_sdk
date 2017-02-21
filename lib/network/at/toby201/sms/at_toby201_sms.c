@@ -11,41 +11,59 @@
 #define MAX_TRIES_MODEM_CONFIG	3
 #define NET_REG_TIMEOUT_SEC	180000
 
+static at_sms_cb sms_rx_cb;
+static at_msg_t msg;
+static uint8_t buf[MAX_DATA_SZ];		/* Buffer for data received */
+
 static void uart_cb(void)
 {
-	/* Stub for now */
+	DEBUG_V0("%s: URC from callback\n", __func__);
+	if (!at_core_is_proc_rsp() && !at_core_is_proc_urc())
+		at_core_process_urc(false);
 }
 
-static at_sms_cb sms_rx_cb;
-
-static at_ret_code process_ucmt_urc(const char *urc, at_urc u_code)
+static at_ret_code process_ucmt_urc(const char *urc)
 {
+	uint8_t len = strlen(at_urcs[UCMT_URC]);
+	if (strncmp(urc, at_urcs[UCMT_URC], len) != 0)
+		return AT_FAILURE;
+
+	/* Get length of the PDU stream in bytes */
+	uint8_t msg_len = 0;
+	uint8_t i = len;
+	while (urc[i] != '\r') {
+		if (urc[i] < '0' && urc[i] > '9')
+			return AT_FAILURE;
+		msg_len *= 10;
+		msg_len += (urc[i] - '0');
+		i++;
+	}
+	DEBUG_V0("%s: Len = %u\n", __func__, msg_len);
+
+	msg_len *= 2;		/* 2 hexadecimal characters make up 1 byte */
 	return AT_SUCCESS;
 }
 
-static at_ret_code process_ims_urc(const char *urc, at_urc u_code)
+static at_ret_code process_ims_urc(const char *urc)
 {
-	if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) != 0)
+	uint8_t len = strlen(at_urcs[IMS_STAT_URC]);
+	if (strncmp(urc, at_urcs[IMS_STAT_URC], len) != 0)
 		return AT_FAILURE;
 
-	if (u_code == IMS_STAT_URC) {
-		uint8_t last_char = strlen(at_urcs[u_code]);
-		uint8_t net_stat = urc[last_char] - '0';
-		if (net_stat != 1)
-			DEBUG_V0("%s: IMS registration lost\n", __func__);
-	} else
-		return AT_FAILURE;
+	uint8_t net_stat = urc[len] - '0';
+	if (net_stat != 1)
+		DEBUG_V0("%s: IMS registration lost\n", __func__);
 
 	return AT_SUCCESS;
 }
 
 static void urc_cb(const char *urc)
 {
-	at_ret_code res = process_ims_urc(urc, IMS_STAT_URC);
+	at_ret_code res = process_ims_urc(urc);
 	if (res == AT_SUCCESS)
 		return;
 
-	res = process_ucmt_urc(urc, UCMT_URC);
+	res = process_ucmt_urc(urc);
 }
 
 static inline at_ret_code check_network_registration(void)
@@ -98,14 +116,31 @@ static at_ret_code config_modem_for_sms(void)
 		platform_delay(CHECK_MODEM_DELAY);
 	} while(res != AT_SUCCESS);
 
-	if (res != AT_SUCCESS)
+	if (res != AT_SUCCESS) {
 		DEBUG_V0("%s: Network registration failed\n", __func__);
+		return res;
+	}
+
+	/* Set outgoing SMS format to 3GPP */
+	res = at_core_wcmd(&sms_cmd[SMS_SET_SMS_FORMAT_3GPP], true);
+	CHECK_SUCCESS(res, AT_SUCCESS, res);
+
+	/* Set CNMI */
+	res = at_core_wcmd(&sms_cmd[SMS_SET_CNMI], true);
+	CHECK_SUCCESS(res, AT_SUCCESS, res);
+
+	/* Enter PDU mode */
+	res = at_core_wcmd(&sms_cmd[SMS_ENTER_PDU_MODE], true);
+	CHECK_SUCCESS(res, AT_SUCCESS, res);
 
 	return res;
 }
 
 bool at_init(void)
 {
+	msg.len = 0;
+	msg.buf = buf;
+
 	if (!at_core_init(uart_cb, urc_cb))
 		return false;
 

@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
 	platform_init();
 	dbg_module_init();
 	dbg_printf("Begin:\n");
-	dbg_printf("Initializing modem...\n");
+	dbg_printf("Initializing modem\n");
 
 	at_sms_set_rcv_cb(rcv_cb);
 	if (!at_init()) {

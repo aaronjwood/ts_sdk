@@ -22,6 +22,7 @@ enum at_modem_sms_commands {
 	SMS_SET_CNMI,
 	SMS_SEND_ACK,
 	SMS_SEND_NACK,
+	NUM_SMS_COMMANDS
 };
 
 typedef enum at_urc {
@@ -33,6 +34,81 @@ typedef enum at_urc {
 static const char *at_urcs[NUM_URCS] = {
 	[IMS_STAT_URC] = "\r\n+CIREGU: ",
 	[UCMT_URC] = "\r\n+UCMT: "
+};
+
+static const at_command_desc sms_cmd[NUM_SMS_COMMANDS] = {
+	[SMS_SET_SMS_FORMAT_3GPP] = {
+		.comm = "at+uimsconf=\"KEY_MO_SMS_FORMAT\",\"3gpp\"\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = NULL,
+		.comm_timeout = 100
+	},
+	[SMS_ENTER_PDU_MODE] = {
+		.comm = "at+cmgf=0\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = NULL,
+		.comm_timeout = 100
+	},
+	[SMS_SEND] = { /* TODO: Needs to be worked on */
+		.comm = "at+cmgs=%u\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n> ",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CMS ERROR: ",
+		.comm_timeout = 150000
+	},
+	[SMS_SET_CNMI] = {
+		.comm = "at+cnmi=1,2,0,1,0\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CMS ERROR: ",
+		.comm_timeout = 100
+	},
+	[SMS_SEND_ACK] = {
+		.comm = "at+cnma=1\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CMS ERROR: ",
+		.comm_timeout = 150000
+	},
+	[SMS_SEND_NACK] = {
+		.comm = "at+cnma=2\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CMS ERROR: ",
+		.comm_timeout = 150000
+	}
 };
 
 static const at_command_desc mod_netw_cmd[NUM_MODEM_COMMANDS] = {
