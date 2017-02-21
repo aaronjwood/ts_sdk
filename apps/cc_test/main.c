@@ -27,7 +27,7 @@ static cc_data_sz send_data_sz = sizeof(status);
 /* Receive callback */
 static void recv_cb(cc_buffer_desc *buf, cc_event event, cc_service_id svc_id)
 {
-	dbg_printf("\t\t[RECV CB] Received an event.\n");
+	dbg_printf("\t\t[RECV CB] Received an event for service %d.\n", svc_id);
 	if (svc_id != CC_SERVICE_BASIC)
 		cc_dispatch_event_to_service(svc_id, buf, event);
 	else {

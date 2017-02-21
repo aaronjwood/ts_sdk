@@ -38,11 +38,12 @@ static void control_dispatch_callback(cc_buffer_desc *buf, cc_event event,
 	struct control_header *hdr;
 	
 	if (svc_id != CC_SERVICE_CONTROL) {
-		dbg_printf("%s:%d: Callback called with wrong svc_id: %d\n",
+		dbg_printf("%s:%d: Callback called for wrong svc_id: %d\n",
 			   __func__, __LINE__, svc_id);
-		goto done;
+		return;
 	}
 
+	/* Events for sent messages */
 	if (event == CC_EVT_SEND_ACKED) {
 		return;
 	} else if (event == CC_EVT_SEND_NACKED) {
@@ -52,17 +53,17 @@ static void control_dispatch_callback(cc_buffer_desc *buf, cc_event event,
 		dbg_printf("Timeout while sending Control service message\n");
 		return;
 	} else if (event != CC_EVT_RCVD_MSG) {
-		/* Assume an incoming message event. Ignore it and send ACK. */
 		dbg_printf("%s:%d: Dispatched an unsupported event: %d\n",
 			   __func__, __LINE__, event);
-		goto done;
+		return;
 	}
 
+	/* Process a received Control message */
 	hdr = (struct control_header *)cc_get_recv_buffer_ptr(buf);
 	if (hdr->version != CONTROL_PROTOCOL_VERSION) {
 		dbg_printf("%s:%d: Unsupported Control protocol version: %d\n",
 			   __func__, __LINE__, event);
-		goto done;
+		goto bad_msg;
 	}
 
 	switch (hdr->msg_type) {
@@ -94,9 +95,14 @@ static void control_dispatch_callback(cc_buffer_desc *buf, cc_event event,
 	default:
 		dbg_printf("%s:%d: Unsupported Control message type: %d\n",
 			   __func__, __LINE__, hdr->msg_type);
+		goto bad_msg;
 	}
-done:
+
 	cc_ack_msg();
+	return;
+
+bad_msg:
+	cc_nak_msg();
 }
 
 cc_send_result cc_ctrl_resend_init_config(cc_callback_rtn cb)
