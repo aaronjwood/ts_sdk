@@ -18,6 +18,16 @@ static uint32_t proto_begin;
 static uint32_t sl_intr;
 static uint32_t current_polling_interval;
 
+static void reset_rcv_path(uint8_t rcv_path)
+{
+	session.rcv_msg[rcv_path].rem_sz = PROTO_MAX_MSG_SZ;
+	session.rcv_msg[rcv_path].wr_idx = rcv_path * PROTO_MAX_MSG_SZ;
+	session.rcv_msg[rcv_path].cur_seq = 0;
+	session.rcv_msg[rcv_path].cref_num = -1;
+	session.rcv_msg[rcv_path].rcv_path_valid = false;
+	session.rcv_msg[rcv_path].conct_in_progress = false;
+}
+
 proto_result smsnas_protocol_init(void)
 {
 	sl_intr = 0;
@@ -36,20 +46,12 @@ proto_result smsnas_protocol_init(void)
 		else
 			session.rcv_msg[i].buf = (smsnas_rcv_buf +
 							(i * PROTO_MAX_MSG_SZ));
-
-		session.rcv_msg[i].rem_sz = PROTO_MAX_MSG_SZ;
-		session.rcv_msg[i].init_sz = PROTO_MAX_MSG_SZ;
-		session.rcv_msg[i].wr_idx = i * PROTO_MAX_MSG_SZ;
-		session.rcv_msg[i].cur_seq = 0;
-		session.rcv_msg[i].cref_num = -1;
-		session.rcv_msg[i].rcv_path_valid = false;
-		session.rcv_msg[i].conct_in_progress = false;
-		session.ack_nack_pend = NO_ACK_NACK;
+		reset_rcv_path(i);
 	}
 
-	session.rcv_path_num = -1;
 	session.msg_ref_num = 0;
 	session.rcv_cb = NULL;
+	session.ack_nack_pend = NO_ACK_NACK;
 	return PROTO_OK;
 }
 
@@ -109,7 +111,6 @@ proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
 	if (ARRAY_SIZE(session.rcv_msg) == 1) {
 		session.rcv_msg[0].buf = rcv_buf;
 		session.rcv_msg[0].rem_sz = sz;
-		session.rcv_msg[0].init_sz = sz;
 		session.rcv_msg[0].rcv_path_valid = true;
 		session.rcv_msg[0].wr_idx = 0;
 	}
@@ -134,23 +135,26 @@ void smsnas_send_nack(void)
         session.ack_nack_pend = NACK_PENDING;
 }
 
-static void rcv_path_cleanup(int rcv_path)
+static bool is_conct_in_progress(void)
 {
-
-	session.rcv_msg[rcv_path].cur_seq = 0;
-	session.rcv_msg[rcv_path].rcv_path_valid = false;
-	session.rcv_msg[rcv_path].conct_in_progress = false;
-	uint8_t i;
 	bool found = false;
+	uint8_t i;
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
 		if (session.rcv_msg[i].conct_in_progress) {
 			found = true;
 			break;
 		}
 	}
-	if (!found)
+	return found;
+}
+
+static void rcv_path_cleanup(int rcv_path, bool res_rcv_buf)
+{
+	reset_rcv_path(rcv_path);
+	if (!is_conct_in_progress())
 		current_polling_interval = 0;
-	session.rcv_cb = NULL;
+	if (res_rcv_buf)
+		session.rcv_cb = NULL;
 }
 
 static bool check_mem_overflow(void *buf, uint8_t rcv_path)
@@ -193,6 +197,8 @@ static update_ack_rcv_path(at_msg_t *msg_ptr, uint8_t rcv_path)
 	session.rcv_msg[rcv_path].cur_seq = msg_ptr->seq_no;
 	session.rcv_msg[rcv_path].rem_sz -= msg_ptr->len;
 	session.rcv_msg[rcv_path].wr_idx += msg_ptr->len;
+	session.rcv_msg[rcv_path].expected_seq =
+					session.rcv_msg[rcv_path].cur_seq + 1;
 	smsnas_send_ack();
 }
 
@@ -266,7 +272,6 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 			rp->service_id = temp_msg->service_id;
 			rp->conct_in_progress = true;
 			current_polling_interval = CONC_NEXT_SEG_TIMEOUT_MS;
-
 		} else {
 			if (!check_validity(msg_ptr, rcv_path, false))
 				goto error;
@@ -291,11 +296,9 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 				 * level ack this message
 				 */
 
-				if (ARRAY_SIZE(sesison.rcv_msg) > 1) {
-					memcpy(session., const void *, size_t)
-				}
-				INVOKE_RECV_CALLBACK(rp->buf,
-					rp->wr_idx + msg_ptr->len,
+				if (ARRAY_SIZE(sesison.rcv_msg) > 1)
+					memcpy(session.rcv_buf, rp->buf, rcvd);
+				INVOKE_RECV_CALLBACK(session.rcv_buf, rcvd,
 					PROTO_RCVD_SMSNAS_MSG,
 					rp->service_id);
 				goto done;
@@ -323,7 +326,7 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 error:
 	smsnas_send_nack();
 done:
-	rcv_path_cleanup(rcv_path);
+	rcv_path_cleanup(rcv_path, true);
 }
 
 static void handle_pend_ack_nack(void)
@@ -351,32 +354,44 @@ void smsnas_maintenance(bool poll_due)
 
 	handle_pend_ack_nack();
 
-	if (!poll_due)
-		return;
 	/* There is nothing to maintain if receive path is not expecting
 	 * concatenated messages
 	 */
-	if (!session.rcv_msg.conct_in_progress)
+	if (!is_conct_in_progress())
 		return;
 
 	/* Start of the concatenated segment and polling interval to check for
 	 * arrival of next segment
 	 */
-	if (session.rcv_msg.cur_seq == 1)
-		goto done;
+	uint8_t i;
+	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
+		if (session.rcv_msg[i].rcv_path_valid) {
+			if (poll_due) {
+				if (session.rcv_msg[i].expected_seq !=
+					(session.rcv_msg[i].cur_seq + 1)) {
+					INVOKE_RECV_CALLBACK(
+						session.rcv_buf,
+						session.rcv_sz,
+						PROTO_RCV_TIMEOUT,
+						session.rcv_msg[i].service_id);
+					rcv_path_cleanup(i, false);
+
+				}
+			}
+		}
+	}
+
 
 	/* if condition to be true, smsnas_maintenance is being called
 	 * out of timeout and it did not receive next segement meanwhile,
 	 * invoke receive callback with receive timeout event
 	 */
 	if (session.rcv_msg.expected_seq != session.rcv_msg.cur_seq) {
-		INVOKE_RECV_CALLBACK(session.rcv_msg.buf, session.rcv_msg.wr_idx,
-					PROTO_RCV_TIMEOUT);
-		rcv_path_cleanup();
+
 		return;
 	}
 done:
-	session.rcv_msg.expected_seq = session.rcv_msg.cur_seq + 1;
+
 }
 
 static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
