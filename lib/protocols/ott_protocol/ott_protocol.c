@@ -397,6 +397,11 @@ static bool process_recvd_msg(msg_t *msg_ptr, uint32_t rcvd, bool invoke_send_cb
 	session.pend_bit = OTT_FLAG_IS_SET(c_flags, CF_PENDING);
 
 	if (OTT_FLAG_IS_SET(c_flags, CF_ACK)) {
+
+		/* ACK while authenticating completed authentication. */
+		if (!session.auth_done)
+			session.auth_done = true;
+
 		proto_event evt = PROTO_RCVD_NONE;
 		/* Messages with a body need to be ACKed in the future */
 		session.pend_ack = false;
@@ -565,7 +570,7 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 	if (end - start >= timeout) {
 		if (invoke_send_cb)
 			INVOKE_SEND_CALLBACK(session.send_buf, session.send_sz,
-						PROTO_SEND_TIMEOUT);
+					     PROTO_SEND_TIMEOUT);
 		return false;
 	}
 
@@ -580,7 +585,8 @@ static proto_result ott_initiate_connection(const char *host, const char *port)
 
 	int ret;
 	/* Connect to the cloud server over TCP */
-	ret = mbedtls_net_connect(&server_fd, host, port, MBEDTLS_NET_PROTO_TCP);
+	ret = mbedtls_net_connect(&server_fd, host, port,
+				  MBEDTLS_NET_PROTO_TCP);
 	if (ret < 0)
 		return PROTO_ERROR;
 
@@ -712,9 +718,6 @@ retry_connection:
 		session.auth_done = false;
 		return false;
 	}
-
-	session.auth_done = true;
-
 	return true;
 }
 
