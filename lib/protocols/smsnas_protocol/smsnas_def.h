@@ -95,7 +95,7 @@ static struct {
 	char host[MAX_HOST_LEN + 1];	/* Store the host name */
 	smsnas_rcv_path rcv_msg[SMSNAS_MAX_RCV_PATH];
 	uint8_t send_msg[MAX_SMS_PL_SZ];
-	int rcv_path_num;
+	bool rcv_valid;
 	void *rcv_buf;
 	proto_pl_sz rcv_sz;
 	proto_callback rcv_cb;

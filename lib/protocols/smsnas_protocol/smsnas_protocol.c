@@ -51,6 +51,7 @@ proto_result smsnas_protocol_init(void)
 
 	session.msg_ref_num = 0;
 	session.rcv_cb = NULL;
+	session.rcv_valid = false;
 	session.ack_nack_pend = NO_ACK_NACK;
 	return PROTO_OK;
 }
@@ -70,7 +71,7 @@ proto_result smsnas_set_destination(const char *host)
 
 void smsnas_set_sleep_interval(uint32_t sleep_int)
 {
-	sl_intr = sleep;
+	sl_intr = sleep_int;
 }
 
 uint32_t smsnas_get_sleep_interval(void)
@@ -80,7 +81,7 @@ uint32_t smsnas_get_sleep_interval(void)
 
 const uint8_t *smsnas_get_rcv_buffer_ptr(const void *msg)
 {
-	if (!msg || !session.rcv_cb)
+	if (!msg || !session.from_cb)
 		return NULL;
 
 	const smsnas_msg_t *ptr_to_msg = (const smsnas_msg_t *)(msg);
@@ -92,7 +93,7 @@ const uint8_t *smsnas_get_rcv_buffer_ptr(const void *msg)
  */
 uint32_t smsnas_get_rcvd_data_len(const void *msg)
 {
-	if (!msg || !session.rcv_cb)
+	if (!msg || !session.from_cb)
 		return 0;
 	const smsnas_msg_t *ptr_to_msg = (const smsnas_msg_t *)(msg);
 	return ptr_to_msg->payload_sz;
@@ -105,7 +106,7 @@ proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
 		return PROTO_INV_PARAM;
 
 	/* This means receive path currently in progress */
-	if (session.rcv_cb)
+	if (session.rcv_valid)
 		return PROTO_ERROR;
 
 	if (ARRAY_SIZE(session.rcv_msg) == 1) {
@@ -115,11 +116,11 @@ proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
 		session.rcv_msg[0].wr_idx = 0;
 	}
 	/* place holder for the upper level buffer, used when multi receive path
-	 * is present
+	 * are present
 	 */
 	session.rcv_buf = rcv_buf;
 	session.rcv_sz = sz;
-
+	session.rcv_valid = true;
 	session.rcv_cb = rcv_cb;
 	at_set_rcv_cb(smsnas_rcv_cb);
 	return PROTO_OK;
@@ -148,13 +149,11 @@ static bool is_conct_in_progress(void)
 	return found;
 }
 
-static void rcv_path_cleanup(int rcv_path, bool res_rcv_buf)
+static void rcv_path_cleanup(int rcv_path, bool is_conct)
 {
 	reset_rcv_path(rcv_path);
 	if (!is_conct_in_progress())
 		session.cur_polling_interval = 0;
-	if (res_rcv_buf)
-		session.rcv_cb = NULL;
 }
 
 static bool check_mem_overflow(void *buf, uint8_t rcv_path)
@@ -248,9 +247,12 @@ static int retrieve_rcv_path(uint8_t cref, bool *new)
 
 static void smsnas_rcv_cb(at_msg_t *msg)
 {
+	bool is_conct = false;
 	int rcv_path  = -1;
-	/* Must be some random message that upper level is not expecting */
-	if (!session.rcv_cb)
+	/* Must be some random message that upper level is not expecting,
+	 * ignore it
+	 */
+	if (!session.rcv_valid)
 		return;
 	if (msg_ptr->num_seg > 1) {
 		bool new = false;
@@ -260,6 +262,7 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 			printf("%s: %d: Unlikely Error\n", __func__, __LINE__);
 			return;
 		}
+		is_conct = true;
 		smsnas_rcv_path *rp = &session.rcv_msg[rcv_path];
 		if (new) {
 			/* This is the start of the concatenated messages */
@@ -294,11 +297,21 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 					goto error;
 				}
 				/* Invoke upper level callback and let upper
-				 * level ack this message
+				 * level ack/nack this message, also it is upper
+				 * level's responsibility to schedule receive
+				 * buffer hence rcv_valid is false here to catch
+				 * that scenario where upper level misbehaves
 				 */
+				session.rcv_valid = false;
 
+				/* for the case where only single receive path
+				 * exists, no need to copy into rcv_buf as it
+				 * is already being set as the only receiving
+				 * buffer
+				 */
 				if (ARRAY_SIZE(sesison.rcv_msg) > 1)
 					memcpy(session.rcv_buf, rp->buf, rcvd);
+
 				INVOKE_RECV_CALLBACK(session.rcv_buf, rcvd,
 					PROTO_RCVD_SMSNAS_MSG,
 					rp->service_id);
@@ -310,14 +323,15 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 		return;
 
 	} else {
+		is_conct = false;
 		smsnas_msg_t *smsnas_msg = (smsnas_msg_t *)msg_ptr->buf;
 		if (smsnas_msg->version != SMSNAS_VERSION)
 			goto error;
 		if (check_mem_overflow(msg_ptr->buf, 0))
 			goto error;
-		memcpy(session.rcv_msg[0].buf, msg_ptr->buf, msg_ptr->len);
+		memcpy(session.rcv_buf, msg_ptr->buf, msg_ptr->len);
 		/* let upper level decide to ack/nack this message */
-		INVOKE_RECV_CALLBACK(session.rcv_msg[0].buf, msg_ptr->len,
+		INVOKE_RECV_CALLBACK(session.rcv_buf, msg_ptr->len,
 					PROTO_RCVD_SMSNAS_MSG,
 					smsnas_msg->service_id);
 		rcv_path  = 0;
@@ -327,7 +341,7 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 error:
 	smsnas_send_nack();
 done:
-	rcv_path_cleanup(rcv_path, true);
+	rcv_path_cleanup(rcv_path, is_conct);
 }
 
 static void handle_pend_ack_nack(void)
@@ -376,7 +390,7 @@ void smsnas_maintenance(uint32_t cur_timestamp)
 						session.rcv_sz,
 						PROTO_RCV_TIMEOUT,
 						session.rcv_msg[i].service_id);
-					rcv_path_cleanup(i, false);
+					rcv_path_cleanup(i, true);
 					rcvp = i;
 
 				}
@@ -387,9 +401,8 @@ void smsnas_maintenance(uint32_t cur_timestamp)
 						session.rcv_msg[i].cur_seq + 1;
 			}
 			if ((poll_intr >= session.rcv_msg[i].next_seq_timeout) &&
-				rcvp != i) {
+				rcvp != i)
 				poll_intr = session.rcv_msg[i].next_seq_timeout;
-			}
 		}
 	}
 	session.cur_polling_interval = poll_intr;
