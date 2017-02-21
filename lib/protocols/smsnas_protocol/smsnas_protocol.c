@@ -3,6 +3,7 @@
 #include <string.h>
 #include "smsnas_protocol.h"
 #include "smsnas_def.h"
+#include "platform.h"
 
 #define INVOKE_RECV_CALLBACK(_buf, _sz, _evt, _s_id) \
 	do { \
@@ -16,7 +17,6 @@ static uint32_t proto_begin;
 
 /* sleep interval, which can be set during control message sleep type */
 static uint32_t sl_intr;
-static uint32_t current_polling_interval;
 
 static void reset_rcv_path(uint8_t rcv_path)
 {
@@ -33,7 +33,7 @@ proto_result smsnas_protocol_init(void)
 	sl_intr = 0;
 	uint8_t i = 0;
 
-	current_polling_interval = INIT_POLLING_MS;
+	session.cur_polling_interval = INIT_POLLING_MS;
 	memset(session.host, 0, MAX_HOST_LEN);
 	session.host_valid = false;
 
@@ -152,7 +152,7 @@ static void rcv_path_cleanup(int rcv_path, bool res_rcv_buf)
 {
 	reset_rcv_path(rcv_path);
 	if (!is_conct_in_progress())
-		current_polling_interval = 0;
+		session.cur_polling_interval = 0;
 	if (res_rcv_buf)
 		session.rcv_cb = NULL;
 }
@@ -197,11 +197,12 @@ static update_ack_rcv_path(at_msg_t *msg_ptr, uint8_t rcv_path)
 	session.rcv_msg[rcv_path].cur_seq = msg_ptr->seq_no;
 	session.rcv_msg[rcv_path].rem_sz -= msg_ptr->len;
 	session.rcv_msg[rcv_path].wr_idx += msg_ptr->len;
-	session.rcv_msg[rcv_path].expected_seq =
-					session.rcv_msg[rcv_path].cur_seq + 1;
+	session.rcv_msg[rcv_path].next_seq_timeout = platform_get_tick_ms() +
+							CONC_NEXT_SEG_TIMEOUT_MS;
 	smsnas_send_ack();
 }
 
+/* FIXME: revisit this function for logical check up */
 static int retrieve_rcv_path(uint8_t cref, bool *new)
 {
 	uint8_t i;
@@ -227,9 +228,9 @@ static int retrieve_rcv_path(uint8_t cref, bool *new)
 		uint32_t timestamp = 0;
 		int rcvp = -1;
 		for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
-			if (session.rcv_msg[i].timestamp <= timestamp) {
+			if (session.rcv_msg[i].init_timestamp <= timestamp) {
 				rcvp = i;
-				timestamp = session.rcv_msg[i].timestamp;
+				timestamp = session.rcv_msg[i].init_timestamp;
 			}
 		}
 		return rcvp;
@@ -271,7 +272,7 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 			smsnas_msg_t *temp_msg = rp->buf;
 			rp->service_id = temp_msg->service_id;
 			rp->conct_in_progress = true;
-			current_polling_interval = CONC_NEXT_SEG_TIMEOUT_MS;
+			rp->init_timestamp = platform_get_tick_ms();
 		} else {
 			if (!check_validity(msg_ptr, rcv_path, false))
 				goto error;
@@ -349,49 +350,49 @@ static void handle_pend_ack_nack(void)
  * and checks if it received next segment during polling time, if not then
  * invoke callback indicating receiving timeout to upper level.
  */
-void smsnas_maintenance(bool poll_due)
+void smsnas_maintenance(uint32_t cur_timestamp)
 {
 
 	handle_pend_ack_nack();
 
-	/* There is nothing to maintain if receive path is not expecting
+	/* There is nothing to maintain if receive paths are not expecting
 	 * concatenated messages
 	 */
 	if (!is_conct_in_progress())
 		return;
 
-	/* Start of the concatenated segment and polling interval to check for
-	 * arrival of next segment
-	 */
 	uint8_t i;
+	uint32_t poll_intr = 0;
+	int rcvp = -1;
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
-		if (session.rcv_msg[i].rcv_path_valid) {
-			if (poll_due) {
+		if (session.rcv_msg[i].rcv_path_valid &&
+			session.rcv_msg[i].conct_in_progress) {
+			if (cur_timestamp >=
+				session.rcv_msg[i].next_seq_timeout) {
 				if (session.rcv_msg[i].expected_seq !=
-					(session.rcv_msg[i].cur_seq + 1)) {
+					session.rcv_msg[i].cur_seq) {
 					INVOKE_RECV_CALLBACK(
 						session.rcv_buf,
 						session.rcv_sz,
 						PROTO_RCV_TIMEOUT,
 						session.rcv_msg[i].service_id);
 					rcv_path_cleanup(i, false);
+					rcvp = i;
 
 				}
+			} else {
+				if (session.rcv_msg[i].expected_seq !=
+					(session.rcv_msg[i].cur_seq + 1))
+					session.rcv_msg[i].expected_seq =
+						session.rcv_msg[i].cur_seq + 1;
+			}
+			if ((poll_intr >= session.rcv_msg[i].next_seq_timeout) &&
+				rcvp != i) {
+				poll_intr = session.rcv_msg[i].next_seq_timeout;
 			}
 		}
 	}
-
-
-	/* if condition to be true, smsnas_maintenance is being called
-	 * out of timeout and it did not receive next segement meanwhile,
-	 * invoke receive callback with receive timeout event
-	 */
-	if (session.rcv_msg.expected_seq != session.rcv_msg.cur_seq) {
-
-		return;
-	}
-done:
-
+	session.cur_polling_interval = poll_intr;
 }
 
 static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
@@ -535,5 +536,5 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 
 uint32_t smsnas_get_polling_interval(void)
 {
-	return current_polling_interval;
+	return session.cur_polling_interval;
 }

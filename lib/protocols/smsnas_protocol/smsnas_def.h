@@ -16,10 +16,11 @@
 
 #ifndef SMSNAS_MAX_RCV_PATH
 #define SMSNAS_MAX_RCV_PATH	1
-#else
+#endif
+
+/* If more then one, define intermediate buffer to store incoming messages */
 #if SMSNAS_MAX_RCV_PATH > 1
 uint8_t smsnas_rcv_buf[PROTO_MAX_MSG_SZ * SMSNAS_MAX_RCV_PATH];
-#endif
 #endif
 
 #define MAX_HOST_LEN		ADDR_SZ
@@ -29,8 +30,6 @@ uint8_t smsnas_rcv_buf[PROTO_MAX_MSG_SZ * SMSNAS_MAX_RCV_PATH];
 #define SEND_TIMEOUT_MS		5000
 #define MULT			1000
 #define SMSNAS_VERSION		0x1
-#define SMSNAS_CTRL_MSG_VER	0x1
-#define SMSNAS_MSG_TYPE_SLEEP	0x1
 
 /* Max SMS size without user data header (TP-UDH) */
 #define MAX_SMS_PL_SZ			140
@@ -52,7 +51,8 @@ uint8_t smsnas_rcv_buf[PROTO_MAX_MSG_SZ * SMSNAS_MAX_RCV_PATH];
 /* Upper limit for the total messages in the concatenated sms */
 #define MAX_CONC_SMS_NUM		4
 
-/* Time out waiting for the next segment for the concatenated message */
+/* Time out waiting for the next segment of the concatenated sms in milliseconds
+ */
 #define CONC_NEXT_SEG_TIMEOUT_MS	2000
 
 /* Defines retries in case of send failure */
@@ -83,7 +83,8 @@ typedef struct {
 	uint8_t cur_seq;
 	uint8_t expected_seq;
 	uint8_t *buf;
-	uint32_t timestamp;
+	uint32_t init_timestamp;
+	uint32_t next_seq_timeout;
 	proto_pl_sz wr_idx;
 	proto_pl_sz rem_sz;
 } smsnas_rcv_path;
@@ -98,6 +99,7 @@ static struct {
 	void *rcv_buf;
 	proto_pl_sz rcv_sz;
 	proto_callback rcv_cb;
+	uint32_t cur_polling_interval;
 	ack_nack ack_nack_pend;
 } session;
 
