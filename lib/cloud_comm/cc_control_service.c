@@ -95,7 +95,6 @@ static void control_dispatch_callback(cc_buffer_desc *buf, cc_event event,
 	default:
 		dbg_printf("%s:%d: Unsupported Control message type: %d\n",
 			   __func__, __LINE__, hdr->msg_type);
-		goto bad_msg;
 	}
 
 	cc_ack_msg();

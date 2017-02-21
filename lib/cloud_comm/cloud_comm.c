@@ -249,9 +249,13 @@ void cc_dispatch_event_to_service(cc_service_id svc_id, cc_buffer_desc *buf,
 	   Pass along the callback registered by the application in case
 	   the service needs to deliver it an event. */
 
-	/* XXX Only do Control service for now. */
-	if (svc_id != CC_SERVICE_CONTROL)
-		return;
+	/* Ignore events for unsupported service ids. */
+	if (svc_id != CC_SERVICE_CONTROL) {
+		if (event == CC_EVT_RCVD_MSG) {
+			cc_ack_msg();
+			return;
+		}
+	}
 
 	__control_service_dispatch(buf, event,CC_SERVICE_CONTROL,
 				   __apps_control_service_callback);
