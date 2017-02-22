@@ -115,13 +115,6 @@ const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf)
 
 }
 
-uint32_t cc_get_sleep_interval(const cc_buffer_desc *buf)
-{
-	if (!buf || !buf->buf_ptr)
-		return 0;
-	PROTO_GET_SLEEP_INTERVAL(buf->buf_ptr);
-}
-
 cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf)
 {
 	/* Check for non-NULL buffer pointers */
