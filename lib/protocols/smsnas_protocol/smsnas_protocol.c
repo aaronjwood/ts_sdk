@@ -149,7 +149,7 @@ static bool is_conct_in_progress(void)
 	return found;
 }
 
-static void rcv_path_cleanup(int rcv_path, bool is_conct)
+static void rcv_path_cleanup(int rcv_path)
 {
 	reset_rcv_path(rcv_path);
 	if (!is_conct_in_progress())
@@ -205,49 +205,36 @@ static update_ack_rcv_path(at_msg_t *msg_ptr, uint8_t rcv_path)
 static int retrieve_rcv_path(uint8_t cref, bool *new)
 {
 	uint8_t i;
-	bool busy = false;
+	int rcvp = -1;
+	uint32_t timestamp = 0;
+
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
-		if (session.rcv_msg[i].rcv_path_valid) {
-			busy = true;
+		if (session.rcv_msg[i].rcv_path_valid &&
+			session.rcv_msg[i].conct_in_progress) {
+
 			/* middle of receiving concatenated sms */
 			if (session.rcv_msg[i].cref_num == cref) {
 				*new = false;
 				return i;
 			}
-		}
-	}
-	/* Means no receive path is currently handling cref sms */
-	*new = true;
-
-	/* Means all the receiving paths are occupied,
-	 * evict one with old timestamp and return that receive path to store
-	 * new concatenated sms
-	 */
-	if (busy) {
-		uint32_t timestamp = 0;
-		int rcvp = -1;
-		for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
 			if (session.rcv_msg[i].init_timestamp <= timestamp) {
 				rcvp = i;
 				timestamp = session.rcv_msg[i].init_timestamp;
 			}
-		}
-		return rcvp;
-	}
-	/* return unoccupied receiving path for new concatenated sms */
-	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
-		if (!session.rcv_msg[i].rcv_path_valid)
-			return i;
-	}
+		} else if (!session.rcv_msg[i].rcv_path_valid)
+			rcvp = i;
 
-	/* Unlikely condition occured if control reaches here */
-	return -1;
-
+	}
+	/* Means no receive path is currently handling cref sms or all paths are
+	 * busy for that selected oldest concatenated sms.
+	 */
+	*new = true;
+	return rcvp;
 }
 
 static void smsnas_rcv_cb(at_msg_t *msg)
 {
-	bool is_conct = false;
+
 	int rcv_path  = -1;
 	/* Must be some random message that upper level is not expecting,
 	 * ignore it
@@ -262,7 +249,7 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 			printf("%s: %d: Unlikely Error\n", __func__, __LINE__);
 			return;
 		}
-		is_conct = true;
+
 		smsnas_rcv_path *rp = &session.rcv_msg[rcv_path];
 		if (new) {
 			/* This is the start of the concatenated messages */
@@ -300,7 +287,7 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 				 * level ack/nack this message, also it is upper
 				 * level's responsibility to schedule receive
 				 * buffer hence rcv_valid is false here to catch
-				 * that scenario where upper level misbehaves
+				 * that scenario where app misbehaves
 				 */
 				session.rcv_valid = false;
 
@@ -323,7 +310,6 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 		return;
 
 	} else {
-		is_conct = false;
 		smsnas_msg_t *smsnas_msg = (smsnas_msg_t *)msg_ptr->buf;
 		if (smsnas_msg->version != SMSNAS_VERSION)
 			goto error;
@@ -341,7 +327,7 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 error:
 	smsnas_send_nack();
 done:
-	rcv_path_cleanup(rcv_path, is_conct);
+	rcv_path_cleanup(rcv_path);
 }
 
 static void handle_pend_ack_nack(void)
@@ -390,7 +376,7 @@ void smsnas_maintenance(uint32_t cur_timestamp)
 						session.rcv_sz,
 						PROTO_RCV_TIMEOUT,
 						session.rcv_msg[i].service_id);
-					rcv_path_cleanup(i, true);
+					rcv_path_cleanup(i);
 					rcvp = i;
 
 				}

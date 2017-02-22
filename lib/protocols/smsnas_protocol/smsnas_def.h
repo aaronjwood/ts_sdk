@@ -67,8 +67,11 @@ typedef enum {
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 
-/* SMSNAS protocol message */
+/* SMSNAS protocol message, used to quickly retrieve protocol header values from
+ * received data
+ */
 typedef struct __attribute__((packed)) {
+	/* Protocol version bytes */
 	uint8_t version;
 	uint8_t service_id;
 	proto_pl_sz payload_sz;
@@ -77,29 +80,64 @@ typedef struct __attribute__((packed)) {
 
 typedef struct {
 	bool rcv_path_valid;
+	/* true if concatenated message is in progress */
 	bool conct_in_progress;
+	/* service id received from protocol message */
 	uint8_t service_id;
+	/* message reference number in case of concatenated sms from
+	 * tp-user header
+	 */
 	int cref_num;
+	/* Current sequence number it is processing from concatenated sms */
 	uint8_t cur_seq;
+	/* Expected next sequence number within receive timeout */
 	uint8_t expected_seq;
-	uint8_t *buf;
+	/* initial timestamp, set when receive path first gets used to receive
+	 * incoming concatenated sms
+	 */
 	uint32_t init_timestamp;
+	/* Future Time interval within which next sequence from the concatenated
+	 * sms should be received
+	 */
 	uint32_t next_seq_timeout;
+	/* buffer to store receiving data */
+	uint8_t *buf;
+	/* write index of the buf */
 	proto_pl_sz wr_idx;
+	/* remaining size of the receiving buffer */
 	proto_pl_sz rem_sz;
 } smsnas_rcv_path;
 
 static struct {
+	/* message reference number of the outgoing concatenated sms */
 	uint8_t msg_ref_num;
-	bool host_valid;		/* Whether host contains valid string */
-	char host[MAX_HOST_LEN + 1];	/* Store the host name */
+	/* Whether host contains valid string */
+	bool host_valid;
+	char host[MAX_HOST_LEN + 1];
+	/* Number of receive paths for simultaneously receving multiple
+	 * concatenated sms's
+	 */
 	smsnas_rcv_path rcv_msg[SMSNAS_MAX_RCV_PATH];
+	/* outgoing buffer to hold user data plus smsnas protocol header data */
 	uint8_t send_msg[MAX_SMS_PL_SZ];
+	/* True when user has called to schedule any future incoming messages */
 	bool rcv_valid;
+	/* Used to hold user supplied incoming data buffer especially when
+	 * SMSNAS_MAX_RCV_PATH > 1 for which case this layer uses its internal
+	 * buffer to hold data before transferring to rcv_buf
+	 */
 	void *rcv_buf;
+	/* Size of the user supplied incoming buffer */
 	proto_pl_sz rcv_sz;
+	/* callback of the user supplied incoming buffer, when data is received */
 	proto_callback rcv_cb;
+	/* Keeps track of the polling interval for the next segment of the
+	 * concatenated sms, this variable gets passed to user to call in for
+	 * future time to check back if protocol layer has received next segment
+	 * if not, then call receive time out
+	 */
 	uint32_t cur_polling_interval;
+	/* variable to keep track of the pending ack/nack */
 	ack_nack ack_nack_pend;
 } session;
 
