@@ -156,14 +156,13 @@ static void rcv_path_cleanup(int rcv_path)
 		session.cur_polling_interval = 0;
 }
 
-static bool check_mem_overflow(void *buf, uint8_t rcv_path)
+static bool check_mem_overflow(proto_pl_sz rcv_len, proto_pl_sz pl_sz,
+				uint8_t s_id)
 {
-	smsnas_msg_t *smsnas_msg = (smsnas_msg_t *)buf;
 	/* check for storage capacity */
-	if (session.rcv_msg[rcv_path].rem_sz < msg_ptr->len) {
+	if (pl_sz < rcv_len) {
 		INVOKE_RECV_CALLBACK(session.rcv_buf, session.rcv_sz,
-				PROTO_RCVD_SMSNAS_MEM_INSUF,
-				smsnas_msg->service_id);
+				PROTO_RCVD_SMSNAS_MEM_INSUF, s_id);
 		return true;
 	}
 	return false;
@@ -234,7 +233,6 @@ static int retrieve_rcv_path(uint8_t cref, bool *new)
 
 static void smsnas_rcv_cb(at_msg_t *msg)
 {
-
 	int rcv_path  = -1;
 	/* Must be some random message that upper level is not expecting,
 	 * ignore it
@@ -249,7 +247,6 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 			printf("%s: %d: Unlikely Error\n", __func__, __LINE__);
 			return;
 		}
-
 		smsnas_rcv_path *rp = &session.rcv_msg[rcv_path];
 		if (new) {
 			/* This is the start of the concatenated messages */
@@ -275,14 +272,10 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 				 * complete concatenated message
 				 */
 				proto_pl_sz rcvd = rp->wr_idx + msg_ptr->len;
-
-				if (rcvd > session.rcv_sz) {
-					INVOKE_RECV_CALLBACK(session.rcv_buf,
-						session.rcv_sz,
-						PROTO_RCVD_SMSNAS_MEM_INSUF,
-						rp->service_id);
+				if (check_mem_overflow(rcvd, session.rcv_sz,
+					rp->service_id))
 					goto error;
-				}
+
 				/* Invoke upper level callback and let upper
 				 * level ack/nack this message, also it is upper
 				 * level's responsibility to schedule receive
@@ -313,9 +306,12 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 		smsnas_msg_t *smsnas_msg = (smsnas_msg_t *)msg_ptr->buf;
 		if (smsnas_msg->version != SMSNAS_VERSION)
 			goto error;
-		if (check_mem_overflow(msg_ptr->buf, 0))
+		if (check_mem_overflow(msg_ptr->len, session.rcv_sz,
+			smsnas_msg->service_id))
 			goto error;
 		memcpy(session.rcv_buf, msg_ptr->buf, msg_ptr->len);
+
+		session.rcv_valid = false;
 		/* let upper level decide to ack/nack this message */
 		INVOKE_RECV_CALLBACK(session.rcv_buf, msg_ptr->len,
 					PROTO_RCVD_SMSNAS_MSG,
