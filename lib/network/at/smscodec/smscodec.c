@@ -466,7 +466,7 @@ static bool decode_telesvc(const char **pdu)
 #define TELESVC_ID	0x00	/* Teleservice parameter identifier */
 #define ORIG_ADDR_ID	0x02	/* Originating address identifier */
 #define BEARER_DATA_ID	0x08	/* Bearer data identifier */
-static bool modem_sms_decode_3gpp2(uint8_t len, const char *pdu, sms_t *recv_msg)
+static bool modem_sms_decode_3gpp2(uint16_t len, const char *pdu, sms_t *recv_msg)
 {
 	const char *rptr = pdu;
 
@@ -508,7 +508,7 @@ static bool modem_sms_decode_3gpp2(uint8_t len, const char *pdu, sms_t *recv_msg
 	return true;
 }
 
-bool smscodec_decode(uint8_t len, const char *pdu, sms_t *recv_msg)
+bool smscodec_decode(uint16_t len, const char *pdu, sms_t *recv_msg)
 {
 	if (pdu == NULL || recv_msg == NULL || recv_msg->buf == NULL)
 		return false;

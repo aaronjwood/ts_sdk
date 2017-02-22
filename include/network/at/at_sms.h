@@ -18,7 +18,7 @@
 typedef sms_t at_msg_t;
 
 /* Callback that will be invoked when a URC is received */
-typedef void (*at_sms_cb)(at_msg_t *sms_seg);
+typedef void (*at_sms_cb)(const at_msg_t *sms_seg);
 
 /*
  * Initialize the AT interface for sending and receiving SMS

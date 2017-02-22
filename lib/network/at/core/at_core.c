@@ -500,10 +500,14 @@ static at_ret_code __at_process_netw_urc(const char *urc, at_core_urc u_code)
 	case EPS_STAT_URC:
 		if (net_stat == 0 || net_stat == 3 || net_stat == 4)
 			DEBUG_V0("%s: EPS network reg lost\n", __func__);
+		else
+			DEBUG_V0("%s: Registered to EPS network\n", __func__);
 		break;
 	case ExPS_STAT_URC:
 		if (net_stat == 0)
 			DEBUG_V0("%s: Extended PS network reg lost\n", __func__);
+		else
+			DEBUG_V0("%s: Registered to extended PS network\n", __func__);
 		break;
 	default:
 		return AT_FAILURE;

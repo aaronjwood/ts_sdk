@@ -10,10 +10,15 @@
  * Sizes here are in bytes taken up in the final PDU hex string. This means '4A'
  * occupies two bytes.
  */
+/* Outgoing PDU */
 #define ENC_ADDR_SZ			19	/* 15 + 2 (len) + 2 (number type) */
-#define PDU_OVR_HD			(10 + ENC_ADDR_SZ)
+#define OUT_PDU_OVR_HD			(10 + ENC_ADDR_SZ)
 #define UD_SZ				(140*2)	/* Valid only for 8-bit encoding */
-#define MAX_PDU_SZ			(PDU_OVR_HD + UD_SZ)
+#define MAX_OUT_PDU_SZ			(OUT_PDU_OVR_HD + UD_SZ)
+
+/* Incoming PDU */
+#define IN_PDU_OVR_HD			(33*2)
+#define MAX_IN_PDU_SZ			(IN_PDU_OVR_HD + UD_SZ)
 
 /* Maximum size of the buffer in bytes */
 #define MAX_DATA_SZ			140

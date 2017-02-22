@@ -38,6 +38,6 @@ uint16_t smscodec_encode(const sms_t *msg_to_send, char *pdu);
  * 	True  - If the decoding operation succeeded
  * 	False - If the decoding operation failed
  */
-bool smscodec_decode(uint8_t len, const char *pdu, sms_t *recv_msg);
+bool smscodec_decode(uint16_t len, const char *pdu, sms_t *recv_msg);
 
 #endif

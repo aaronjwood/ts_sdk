@@ -14,6 +14,8 @@
 static at_sms_cb sms_rx_cb;
 static at_msg_t msg;
 static uint8_t buf[MAX_DATA_SZ];		/* Buffer for data received */
+static char in_pdu[MAX_IN_PDU_SZ];		/* Max. length of incoming PDU */
+//static char out_pdu[MAX_OUT_PDU_SZ + 1];	/* Max. length of outgoing PDU */
 
 static void uart_cb(void)
 {
@@ -28,8 +30,8 @@ static at_ret_code process_ucmt_urc(const char *urc)
 	if (strncmp(urc, at_urcs[UCMT_URC], len) != 0)
 		return AT_FAILURE;
 
-	/* Get length of the PDU stream in bytes */
-	uint8_t msg_len = 0;
+	/* Get length of the PDU stream in bytes from the URC header */
+	buf_sz msg_len = 0;
 	uint8_t i = len;
 	while (urc[i] != '\r') {
 		if (urc[i] < '0' && urc[i] > '9')
@@ -38,9 +40,32 @@ static at_ret_code process_ucmt_urc(const char *urc)
 		msg_len += (urc[i] - '0');
 		i++;
 	}
-	DEBUG_V0("%s: Len = %u\n", __func__, msg_len);
 
 	msg_len *= 2;		/* 2 hexadecimal characters make up 1 byte */
+
+	if (msg_len > MAX_IN_PDU_SZ) {
+		DEBUG_V0("%s: Unlikely - Oversized incoming PDU (%u, %u)\n",
+				__func__, msg_len, MAX_IN_PDU_SZ);
+		return AT_FAILURE;
+	}
+
+	buf_sz av_len = at_core_rx_available();
+	if (msg_len > av_len) {
+		DEBUG_V0("%s: Unlikely - Not enough bytes (%u, %u)\n",
+				__func__, msg_len, av_len);
+		return AT_FAILURE;
+	}
+
+	at_core_read((uint8_t *)in_pdu, msg_len);
+	if (!smscodec_decode(msg_len, in_pdu, &msg)) {
+		DEBUG_V0("%s: Unlikely - Failed to decode PDU\n", __func__);
+		return AT_FAILURE;
+	}
+
+	if (sms_rx_cb)
+		sms_rx_cb(&msg);
+
+	at_core_clear_rx();
 	return AT_SUCCESS;
 }
 
@@ -53,6 +78,8 @@ static at_ret_code process_ims_urc(const char *urc)
 	uint8_t net_stat = urc[len] - '0';
 	if (net_stat != 1)
 		DEBUG_V0("%s: IMS registration lost\n", __func__);
+	else
+		DEBUG_V0("%s: Registered to IMS network\n", __func__);
 
 	return AT_SUCCESS;
 }
@@ -125,6 +152,10 @@ static at_ret_code config_modem_for_sms(void)
 	res = at_core_wcmd(&sms_cmd[SMS_SET_SMS_FORMAT_3GPP], true);
 	CHECK_SUCCESS(res, AT_SUCCESS, res);
 
+	/* Enable Phase 2+ features */
+	res = at_core_wcmd(&sms_cmd[SMS_SET_CSMS], true);
+	CHECK_SUCCESS(res, AT_SUCCESS, res);
+
 	/* Set CNMI */
 	res = at_core_wcmd(&sms_cmd[SMS_SET_CNMI], true);
 	CHECK_SUCCESS(res, AT_SUCCESS, res);
@@ -188,12 +219,12 @@ void at_sms_set_rcv_cb(at_sms_cb cb)
 
 bool at_sms_ack(void)
 {
-	/* XXX: Stub for now */
-	return true;
+	return (at_core_wcmd(&sms_cmd[SMS_SEND_ACK], true) == AT_SUCCESS) ?
+		true : false;
 }
 
 bool at_sms_nack(void)
 {
-	/* XXX: Stub for now */
-	return true;
+	return (at_core_wcmd(&sms_cmd[SMS_SEND_NACK], true) == AT_SUCCESS) ?
+		true : false;
 }
