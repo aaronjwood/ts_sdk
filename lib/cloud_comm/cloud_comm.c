@@ -26,6 +26,7 @@ static service_dispatch_entry service_table[2];
 
 static void dispatch_event_to_service(cc_service_id svc_id, cc_buffer_desc *buf,
 				      cc_event event);
+static service_dispatch_entry *lookup_service(cc_service_id svc_id);
 static cc_set_recv_result activate_buffer_for_recv(cc_buffer_desc *buf);
 
 /* Reset the connection (incoming and outgoing) and session structures */
@@ -97,42 +98,49 @@ bool cc_init(cc_svc_callback_rtn control_cb)
 	return cc_register_service(&cc_control_service_descriptor, control_cb);
 }
 
-uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf)
+uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf, cc_service_id svc_id)
 {
-	return (buf) ? buf->buf_ptr : NULL;
+	if (!buf || !buf->buf_ptr)
+		return NULL;
+
+	service_dispatch_entry *se = lookup_service(svc_id);
+	if (se == NULL)
+		return NULL;
+	return (uint8_t *)buf->buf_ptr + se->descriptor->send_offset;
 }
 
-const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf)
+const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf,
+				      cc_service_id svc_id)
 {
 	/* Check for non-NULL buffer pointers */
 	if (!buf || !buf->buf_ptr)
 		return NULL;
 	/*
-	 * Depending on the type of message and protocol, return
+	 * Depending on the type of data and the protocol, return
 	 * pointer to binary data
 	 */
-	PROTO_GET_RCVD_MSG_PTR(buf->buf_ptr);
+	const uint8_t *svc_hdr = PROTO_GET_RCVD_MSG_PTR(buf->buf_ptr);
 
+	service_dispatch_entry *se = lookup_service(svc_id);
+	if (se == NULL)
+		return NULL;
+	
+	return svc_hdr + se->descriptor->recv_offset;
 }
 
-cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf)
+cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf,
+				   cc_service_id svc_id)
 {
 	/* Check for non-NULL buffer pointers */
 	if (!buf || !buf->buf_ptr)
 		return 0;
-	return buf->current_len - PROTO_OVERHEAD_SZ;
-}
 
-bool cc_adjust_buffer_desc(cc_buffer_desc *buf, int adj)
-{
-	uint8_t *tmp = buf->buf_ptr;
-
-	if (buf->current_len < adj)
-		return false;
-
-	buf->buf_ptr = (void *)(tmp + adj);
-	buf->current_len -= adj;
-	return true;
+	service_dispatch_entry *se = lookup_service(svc_id);
+	if (se == NULL)
+		return 0;
+	
+	return buf->current_len - PROTO_OVERHEAD_SZ -
+		se->descriptor->recv_offset;
 }
 
 bool cc_set_destination(const char *dest)
@@ -172,6 +180,15 @@ cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
 
 	if (!conn_in.recv_in_progress)
 		return CC_SEND_FAILED;
+
+	service_dispatch_entry *se = lookup_service(svc_id);
+	if (se == NULL)
+		return CC_SEND_FAILED;
+
+	if (se->descriptor->add_send_hdr != NULL) {
+		if (!se->descriptor->add_send_hdr(buf))
+			return CC_SEND_FAILED;
+	}
 
 	conn_out.send_in_progress = true;
 	conn_out.buf = buf;
@@ -235,7 +252,8 @@ bool cc_register_service(const cc_service_descriptor *svc_desc,
 
 	svc_id = svc_desc->svc_id;
 
-	if (svc_id != CC_SERVICE_CONTROL && svc_id != CC_SERVICE_BASIC)
+	if ((svc_id != CC_SERVICE_CONTROL && svc_id != CC_SERVICE_BASIC) ||
+	    svc_id >= (sizeof(service_table)/sizeof(service_table[0])))
 		return false;
 
 	service_table[svc_id].descriptor = svc_desc;
@@ -243,19 +261,28 @@ bool cc_register_service(const cc_service_descriptor *svc_desc,
 	return true;
 }
 
+static service_dispatch_entry *lookup_service(cc_service_id svc_id)
+{
+	if ((svc_id != CC_SERVICE_CONTROL && svc_id != CC_SERVICE_BASIC) ||
+	    svc_id >= (sizeof(service_table)/sizeof(service_table[0])))
+		return NULL;
+
+	return &service_table[svc_id];
+}
+
 static void dispatch_event_to_service(cc_service_id svc_id, cc_buffer_desc *buf,
 				      cc_event event)
 {
+	service_dispatch_entry *e;
 	const cc_service_descriptor *desc;
 
-	/* Ignore events for unsupported service ids. */
-	if (svc_id != CC_SERVICE_CONTROL && svc_id != CC_SERVICE_BASIC) {
-		if (event == CC_EVT_RCVD_MSG) {
+	e = lookup_service(svc_id);
+	if (e == NULL) {
+		/* Ignore events for unsupported service ids. */
+		if (event == CC_EVT_RCVD_MSG)
 			cc_ack_msg();
-			return;
-		}
+		return;
 	}
-	desc = service_table[svc_id].descriptor;
-	desc->dispatch_callback(buf, event, svc_id,
-				service_table[svc_id].app_callback);
+	desc = e->descriptor;
+	desc->dispatch_callback(buf, event, svc_id, e->app_callback);
 }

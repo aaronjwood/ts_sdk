@@ -60,7 +60,8 @@ static void control_dispatch_callback(cc_buffer_desc *buf, cc_event event,
 	}
 
 	/* Process a received Control message */
-	hdr = (struct control_header *)cc_get_recv_buffer_ptr(buf);
+	hdr = (struct control_header *)
+		cc_get_recv_buffer_ptr(buf, CC_SERVICE_CONTROL);
 	if (hdr->version != CONTROL_PROTOCOL_VERSION) {
 		dbg_printf("%s:%d: Unsupported Control protocol version: %d\n",
 			   __func__, __LINE__, event);
@@ -109,7 +110,8 @@ cc_send_result cc_ctrl_resend_init_config(void)
 {
 	struct control_header *hdr;
 	
-	hdr = (struct control_header *)cc_get_send_buffer_ptr(&control_send_buf);
+	hdr = (struct control_header *)
+		cc_get_send_buffer_ptr(&control_send_buf, CC_SERVICE_CONTROL);
 	hdr->version = CONTROL_PROTOCOL_VERSION;
 	hdr->msg_type = CTRL_MSG_REQUEST_RESEND_INIT;
 
@@ -119,5 +121,12 @@ cc_send_result cc_ctrl_resend_init_config(void)
 
 const cc_service_descriptor cc_control_service_descriptor = {
 	.svc_id = CC_SERVICE_CONTROL,
-	.dispatch_callback = control_dispatch_callback
+	/*
+	 * Control service never exposes a buffer outside the service 
+	 * so give direct access to the headers.
+	 */
+	.send_offset = 0,
+	.recv_offset = 0,
+	.dispatch_callback = control_dispatch_callback,
+	.add_send_hdr = NULL
 };

@@ -27,8 +27,8 @@ static cc_data_sz send_data_sz = sizeof(status);
 
 static void receive_completed(cc_buffer_desc *buf)
 {
-	cc_data_sz sz = cc_get_receive_data_len(buf);
-	const uint8_t *recvd = cc_get_recv_buffer_ptr(buf);
+	cc_data_sz sz = cc_get_receive_data_len(buf, CC_SERVICE_BASIC);
+	const uint8_t *recvd = cc_get_recv_buffer_ptr(buf, CC_SERVICE_BASIC);
 
 	dbg_printf("\t\t\t");
 	dbg_printf("Received Update Message: \n");
@@ -107,7 +107,8 @@ int main(int argc, char *argv[])
 	int32_t wake_up_interval = 15000;	/* Interval value in ms */
 
 	dbg_printf("Setting initial value of status message\n");
-	uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer);
+	uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer,
+						    CC_SERVICE_BASIC);
 	memcpy(send_dptr, status, sizeof(status));
 
 	dbg_printf("Beginning CC API test\n\n");
@@ -127,7 +128,9 @@ int main(int argc, char *argv[])
 		dbg_printf("Sending out status messages\n");
 		for (uint8_t i = 0; i < NUM_STATUSES; i++) {
 			/* Mimics reading a value from the sensor */
-			uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer);
+			uint8_t *send_dptr =
+				cc_get_send_buffer_ptr(&send_buffer,
+						       CC_SERVICE_BASIC);
 			memcpy(send_dptr, status, send_data_sz);
 
 			dbg_printf("\tStatus (%u/%u)\n",

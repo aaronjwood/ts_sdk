@@ -26,7 +26,7 @@
                 return false; \
 } while(0)
 
-#define PROTO_GET_RCVD_MSG_PTR(msg) return ott_get_rcv_buffer_ptr((msg))
+#define PROTO_GET_RCVD_MSG_PTR(msg) ott_get_rcv_buffer_ptr((msg))
 
 #define PROTO_SET_DESTINATION(dest) do { \
         if (ott_set_destination((dest)) != PROTO_OK) \

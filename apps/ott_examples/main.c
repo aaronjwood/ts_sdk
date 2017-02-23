@@ -30,8 +30,8 @@ static bool resend_calibration;		/* Set if RESEND command was received */
 
 static void receive_completed(cc_buffer_desc *buf)
 {
-	cc_data_sz sz = cc_get_receive_data_len(buf);
-	const uint8_t *recvd = cc_get_recv_buffer_ptr(buf);
+	cc_data_sz sz = cc_get_receive_data_len(buf, CC_SERVICE_BASIC);
+	const uint8_t *recvd = cc_get_recv_buffer_ptr(buf, CC_SERVICE_BASIC);
 
 	if (recvd[0] == RESEND_CALIB && sz == 1) {
 		resend_calibration = true;
@@ -81,7 +81,7 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 static void send_all_calibration_data(void)
 {
 	array_t data;
-	data.bytes = cc_get_send_buffer_ptr(&send_buffer);
+	data.bytes = cc_get_send_buffer_ptr(&send_buffer, CC_SERVICE_BASIC);
 	ASSERT(si_read_calib(0, SEND_DATA_SZ, &data));
 	dbg_printf("\tCalibration table : %d bytes\n", data.sz);
 	ASSERT(cc_send_svc_msg_to_cloud(&send_buffer, data.sz,
@@ -91,7 +91,7 @@ static void send_all_calibration_data(void)
 static void read_and_send_all_sensor_data(void)
 {
 	array_t data;
-	data.bytes = cc_get_send_buffer_ptr(&send_buffer);
+	data.bytes = cc_get_send_buffer_ptr(&send_buffer, CC_SERVICE_BASIC);
 	for (uint8_t i = 0; i < si_get_num_sensors(); i++) {
 		ASSERT(si_read_data(i, SEND_DATA_SZ, &data));
 		dbg_printf("\tSensor [%d], ", i);

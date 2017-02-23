@@ -187,31 +187,13 @@ bool cc_set_destination(const char *dest);
 bool cc_set_auth_credentials(const uint8_t *d_id, uint32_t d_id_sz,
  				const uint8_t *d_sec, uint32_t d_sec_sz);
 
-/*
- * Adjust a buffer descriptor so that the cc_get_xxx_buffer_xxx routines will
- * skip over bytes at the beginning of the buffer.  This is intended only for
- * use in the implementation of services and isn't part of the public CC API.
- *
- * The descriptor must always be saved before using this routine and later
- * restored.  Otherwise, the descriptor will be left in an inconsistent state.
- *
- * buf : A cloud communication buffer descriptor.
- *
- * adj : Number of bytes to be skipped.
- *
- * returns:
- *    true if the buffer descriptor was adjusted.
- *    false if there were fewer than adj bytes in the buffer.  In this case,
- *    the descriptor is not altered.
- */
-bool cc_adjust_buffer_desc(cc_buffer_desc *buf, int adj);
-
 /**
  * \brief
  * Get a pointer to the first byte of the send buffer from the buffer
  * descriptor.
  *
- * \param[in] buf : A cloud communication buffer descriptor.
+ * \param[in] buf    : A cloud communication buffer descriptor.
+ * \param[in] svc_id : Service id of the message in the buffer.
  *
  * \returns
  * 	Pointer to the send buffer.
@@ -220,7 +202,7 @@ bool cc_adjust_buffer_desc(cc_buffer_desc *buf, int adj);
  * cc_send_msg_to_cloud().
  *
  */
-uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf);
+uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf, cc_service_id svc_id);
 
 /**
  * \brief
@@ -228,22 +210,26 @@ uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf);
  * descriptor.  Any received data can be read through this buffer.
  *
  * \param[in] buf : A cloud communication buffer descriptor.
+ * \param[in] svc_id : Service id of the message in the buffer.
  *
  * \returns
  * 	Pointer to the receive buffer.
  */
-const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf);
+const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf,
+				      cc_service_id svc_id);
 
 /**
  * \brief
  * Retrieve the length of the last message received.
  *
  * \param[in] buf : A cloud communication buffer descriptor.
+ * \param[in] svc_id : Service id of the message in the buffer.
  *
  * \returns
  * 	Number of bytes of data present in the receive buffer.
  */
-cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf);
+cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf,
+				   cc_service_id svc_id);
 
 /**
  * \brief
