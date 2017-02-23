@@ -33,7 +33,7 @@ typedef enum {
  */
 typedef enum {
 	CC_RECV_FAILED,		/**< Failed to set the receive buffer. */
-	CC_RECV_BUSY,		/**< A receive buffer has already been set. */
+	CC_RECV_BUSY,		/**< Cannot change buffer since it in use. */
 	CC_RECV_SUCCESS		/**< Successfully set a receive buffer */
 } cc_set_recv_result;
 
