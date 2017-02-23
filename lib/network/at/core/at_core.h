@@ -29,7 +29,7 @@ typedef enum at_return_codes {
  * 20mS
  */
 #define AT_COMM_DELAY_MS	20
-#define CHECK_MODEM_DELAY	1000	/* in mili seconds, polling for modem */
+#define CHECK_MODEM_DELAY	5000	/* in mili seconds, polling for modem */
 #endif
 
 #define MAX_RSP_LINE		2	/* Some command send response plus OK */

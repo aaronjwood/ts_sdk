@@ -6,16 +6,28 @@
 #include "at_core.h"
 #include "at_toby201_sms_command.h"
 #include "platform.h"
-#include "smscodec.h"
 
 #define MAX_TRIES_MODEM_CONFIG	3
 #define NET_REG_TIMEOUT_SEC	180000
+#define CTRL_Z			0x1A
+#define ESC			0x1B
+#define OUT_PDU_OFFSET		0x02
 
-static at_sms_cb sms_rx_cb;
-static at_msg_t msg;
+static at_sms_cb sms_rx_cb;			/* Receive callback */
+static at_msg_t msg;				/* Stores SMS segment */
+
+static char sim_num[ADDR_SZ + 1];		/* Number associated with SIM */
+
+static char addr[ADDR_SZ + 1];			/* Null terminated address */
 static uint8_t buf[MAX_DATA_SZ];		/* Buffer for data received */
 static char in_pdu[MAX_IN_PDU_SZ];		/* Max. length of incoming PDU */
-//static char out_pdu[MAX_OUT_PDU_SZ + 1];	/* Max. length of outgoing PDU */
+
+/*
+ * Max. length of outgoing PDU.
+ * Account for the NULL (0x00) and CTRL+Z (0x1A) characters at the end and "00"
+ * (i.e. 0x30 0x30) in the beginning to use the stored SMSC address.
+ */
+static char out_pdu[2 + MAX_OUT_PDU_SZ + 2];
 
 static void uart_cb(void)
 {
@@ -24,6 +36,7 @@ static void uart_cb(void)
 		at_core_process_urc(false);
 }
 
+/* Process the received SMS URC */
 static at_ret_code process_ucmt_urc(const char *urc)
 {
 	uint8_t len = strlen(at_urcs[UCMT_URC]);
@@ -41,7 +54,7 @@ static at_ret_code process_ucmt_urc(const char *urc)
 		i++;
 	}
 
-	msg_len *= 2;		/* 2 hexadecimal characters make up 1 byte */
+	msg_len *= 2;		/* 2 hexadecimal digits make up 1 byte */
 
 	if (msg_len > MAX_IN_PDU_SZ) {
 		DEBUG_V0("%s: Unlikely - Oversized incoming PDU (%u, %u)\n",
@@ -171,6 +184,7 @@ bool at_init(void)
 {
 	msg.len = 0;
 	msg.buf = buf;
+	msg.addr = addr;
 
 	if (!at_core_init(uart_cb, urc_cb))
 		return false;
@@ -207,6 +221,28 @@ bool at_init(void)
 
 bool at_sms_send(const at_msg_t *sms_seg)
 {
+	/* Encode the message into a PDU string and retrieve its length */
+	uint16_t pdu_strlen = smscodec_encode(sms_seg, out_pdu + OUT_PDU_OFFSET);
+	out_pdu[0] = '0';
+	out_pdu[1] = '0';
+	out_pdu[OUT_PDU_OFFSET + pdu_strlen] = CTRL_Z;
+	out_pdu[OUT_PDU_OFFSET + pdu_strlen + 1] = '\0';
+	char cmd[13];	/* Enough to store "AT+CMGS=xxx\r\0" */
+
+	/* Form and issue the command to send the PDU over the network */
+	snprintf(cmd, sizeof(cmd), sms_cmd[SMS_SEND].comm_sketch, pdu_strlen / 2);
+	sms_cmd[SMS_SEND].comm = cmd;
+	at_ret_code res = at_core_wcmd(&sms_cmd[SMS_SEND], false);
+	if (res != AT_SUCCESS) {
+		uint8_t esc = ESC;
+		at_core_write(&esc, 1);
+		return false;
+	}
+
+	/* Enter the PDU bytes followed by Ctrl+Z (0x1A) */
+	sms_cmd[SMS_SEND_DATA].comm = out_pdu;
+	res = at_core_wcmd(&sms_cmd[SMS_SEND_DATA], true);
+	CHECK_SUCCESS(res, AT_SUCCESS, false);
 	return true;
 }
 
@@ -227,4 +263,24 @@ bool at_sms_nack(void)
 {
 	return (at_core_wcmd(&sms_cmd[SMS_SEND_NACK], true) == AT_SUCCESS) ?
 		true : false;
+}
+
+bool at_sms_retrieve_num(char *num)
+{
+	at_ret_code res = at_core_wcmd(&mod_netw_cmd[SIM_NUM], true);
+	CHECK_SUCCESS(res, AT_SUCCESS, res);
+	strncpy(num, sim_num, strlen(sim_num) + 1);
+	return true;
+}
+
+static void parse_num(void *rcv_rsp, int rcv_rsp_len,
+		const char *stored_rsp, void *data)
+{
+	/* Retrieve the second quoted string from the response */
+	const char *start = strchr(rcv_rsp, ',') + 2;
+	size_t span = strcspn(start, "\"");
+	if (span > ADDR_SZ || span > rcv_rsp_len)
+		return;
+	strncpy(sim_num, start, span);
+	sim_num[span] = '\0';
 }

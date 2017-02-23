@@ -14,6 +14,7 @@ enum at_modem_network_commands {
 	MNO_CONF_SET,
 	AUTO_TIME_ZONE_QUERY,
 	AUTO_TIME_ZONE_SET,
+	SIM_NUM,
 	NUM_MODEM_COMMANDS
 };
 
@@ -21,6 +22,7 @@ enum at_modem_sms_commands {
 	SMS_SET_SMS_FORMAT_3GPP,
 	SMS_ENTER_PDU_MODE,
 	SMS_SEND,
+	SMS_SEND_DATA,
 	SMS_SET_CSMS,
 	SMS_SET_CNMI,
 	SMS_SEND_ACK,
@@ -41,7 +43,10 @@ static const char *at_urcs[NUM_URCS] = {
 	[UCMT_URC] = "\r\n+UCMT: "
 };
 
-static const at_command_desc sms_cmd[NUM_SMS_COMMANDS] = {
+static void parse_num(void *rcv_rsp, int rcv_rsp_len,
+		const char *stored_rsp, void *data);
+
+static at_command_desc sms_cmd[NUM_SMS_COMMANDS] = {
 	[SMS_SET_SMS_FORMAT_3GPP] = {
 		.comm = "at+uimsconf=\"KEY_MO_SMS_FORMAT\",\"3gpp\"\r",
 		.rsp_desc = {
@@ -66,11 +71,28 @@ static const at_command_desc sms_cmd[NUM_SMS_COMMANDS] = {
 		.err = NULL,
 		.comm_timeout = 100
 	},
-	[SMS_SEND] = { /* TODO: Needs to be worked on */
-		.comm = "at+cmgs=%u\r",
+	[SMS_SEND] = {
+		.comm_sketch = "at+cmgs=%u\r",
 		.rsp_desc = {
 			{
 				.rsp = "\r\n> ",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CMS ERROR: ",
+		.comm_timeout = 100
+	},
+	[SMS_SEND_DATA] = {
+		.comm = NULL,	/* Filled later with PDU string in at_sms_send */
+		.rsp_desc = {
+			{
+				.rsp = "\r\n+CMGS: ",
+				.rsp_handler = NULL,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
 				.rsp_handler = NULL,
 				.data = NULL
 			}
@@ -81,6 +103,11 @@ static const at_command_desc sms_cmd[NUM_SMS_COMMANDS] = {
 	[SMS_SET_CSMS] = {
 		.comm = "at+csms=1\r",
 		.rsp_desc = {
+			{
+				.rsp = "\r\n+CSMS: 1,1,1\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			},
 			{
 				.rsp = "\r\nOK\r\n",
 				.rsp_handler = NULL,
@@ -243,6 +270,23 @@ static const at_command_desc mod_netw_cmd[NUM_MODEM_COMMANDS] = {
 			}
 		},
 		.err = NULL,
+		.comm_timeout = 100
+	},
+	[SIM_NUM] = {
+		.comm = "at+cnum\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n+CNUM: ",
+				.rsp_handler = parse_num,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CME ERROR: ",
 		.comm_timeout = 100
 	}
 };

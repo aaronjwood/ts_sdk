@@ -264,7 +264,7 @@ static bool decode_addr(const char **pdu, sms_t *recv_msg)
 	if (val > ADDR_SZ - 1)			/* Not including the '+' */
 		return false;
 
-	memset(recv_msg->addr, 0, sizeof(recv_msg->addr));
+	memset(recv_msg->addr, 0, ADDR_SZ + 1);
 	for (uint8_t i = 0; i < val; i++) {
 		uint8_t digit = extract_bits(&bit_idx, DTMF_DIGIT_SIZE, bin);
 		recv_msg->addr[i] = bin_dtmf_to_char(digit);

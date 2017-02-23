@@ -12,7 +12,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "smsdef.h"
+#include "smscodec.h"
 
 /* Type describing the SMS segment */
 typedef sms_t at_msg_t;
@@ -80,5 +80,19 @@ bool at_sms_ack(void);
  * 	False - Failed sending the ACK
  */
 bool at_sms_nack(void);
+
+/*
+ * Helper function to retrieve the current number associated with the SIM.
+ *
+ * Parameters:
+ * 	num - Pointer to buffer that will contain the NULL terminated string
+ * 	      representation of the number associated with the SIM. This buffer
+ * 	      is assumed to be at least ADDR_SZ + 1 bytes long.
+ *
+ * Returns:
+ * 	True  - Successfully retrieved the number associated with the SIM
+ * 	False - Retrieval failed.
+ */
+bool at_sms_retrieve_num(char *num);
 
 #endif
