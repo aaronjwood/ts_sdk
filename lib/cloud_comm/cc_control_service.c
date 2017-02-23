@@ -5,6 +5,7 @@
 #include "cloud_comm.h"
 #include "service_ids.h"
 #include "service_common.h"
+#include "cc_control_service.h"
 #include "cloud_protocol_intfc.h"
 #include "dbg.h"
 
@@ -104,7 +105,7 @@ bad_msg:
 	cc_nak_msg();
 }
 
-cc_send_result cc_ctrl_resend_init_config(cc_callback_rtn cb)
+cc_send_result cc_ctrl_resend_init_config(void)
 {
 	struct control_header *hdr;
 	
@@ -113,10 +114,10 @@ cc_send_result cc_ctrl_resend_init_config(cc_callback_rtn cb)
 	hdr->msg_type = CTRL_MSG_REQUEST_RESEND_INIT;
 
 	return cc_send_svc_msg_to_cloud(&control_send_buf, sizeof(*hdr),
-					CC_SERVICE_CONTROL, cb);
+					CC_SERVICE_CONTROL);
 }
 
-cc_service_descriptor cc_control_service_descriptor = {
+const cc_service_descriptor cc_control_service_descriptor = {
 	.svc_id = CC_SERVICE_CONTROL,
 	.dispatch_callback = control_dispatch_callback
 };

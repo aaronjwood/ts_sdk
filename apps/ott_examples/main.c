@@ -9,6 +9,7 @@
 
 #include "platform.h"
 #include "cloud_comm.h"
+#include "cc_basic_service.h"
 #include "cc_control_service.h"
 #include "dbg.h"
 #include "dev_creds.h"
@@ -27,37 +28,44 @@ CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 
 static bool resend_calibration;		/* Set if RESEND command was received */
 
-/* Receive callback */
-static void recv_cb(cc_buffer_desc *buf, cc_event event, cc_service_id svc_id)
+static void receive_completed(cc_buffer_desc *buf)
 {
-	dbg_printf("\t\t[RECV CB] Received an event for service %d.\n", svc_id);
-	if (svc_id != CC_SERVICE_BASIC)
-		cc_dispatch_event_to_service(svc_id, buf, event);
-	else {
-		if (event == CC_EVT_RCVD_MSG) {
-			cc_data_sz sz = cc_get_receive_data_len(buf);
-			const uint8_t *recvd = cc_get_recv_buffer_ptr(buf);
+	cc_data_sz sz = cc_get_receive_data_len(buf);
+	const uint8_t *recvd = cc_get_recv_buffer_ptr(buf);
 
-			if (recvd[0] == RESEND_CALIB && sz == 1) {
-				resend_calibration = true;
-				dbg_printf("\t\t\t[RECV CB] Will send an ACK "
-					   "in response\n");
+	if (recvd[0] == RESEND_CALIB && sz == 1) {
+		resend_calibration = true;
+		dbg_printf("\t\t\tWill send an ACK in response\n");
 				cc_ack_msg();
-			} else {
-				resend_calibration = false;
-				dbg_printf("\t\t\t[RECV CB] NACKing an invalid "
-					   "message\n");
-				cc_nak_msg();
-			}
-		} else {
-			dbg_printf("\t\t\tUnexpected event: %d\n", event);
-			cc_ack_msg();
-		}
+	} else {
+		resend_calibration = false;
+		dbg_printf("\t\t\tNACKing an invalid message\n");
+		cc_nak_msg();
 	}
+}
 
-	/* Reschedule a receive */
-	cc_recv_result s = cc_recv_msg_from_cloud(&recv_buffer, recv_cb);
-	ASSERT(s == CC_RECV_SUCCESS || s == CC_RECV_BUSY);
+/*
+ * Handle events related to the Basic service i.e. normal data messages to
+ * and from the cloud.
+ */
+static void basic_service_cb(cc_event event, uint32_t value, void *ptr)
+{
+	dbg_printf("\t\t[BASIC CB] Received an event.\n");
+	
+	if (event == CC_EVT_RCVD_MSG)
+		receive_completed((cc_buffer_desc *)ptr);
+
+	else if (event == CC_EVT_SEND_ACKED)
+		dbg_printf("\t\t\tReceived an ACK\n");
+
+	else if (event == CC_EVT_SEND_NACKED)
+		dbg_printf("\t\t\tReceived a NACK\n");
+
+	else if (event == CC_EVT_SEND_TIMEOUT)
+		dbg_printf("\t\t\tTimed out trying to send message\n");
+
+	else
+		dbg_printf("\t\t\tUnexpected event received: %d\n", event);
 }
 
 /* Handle events related to Control service messages received from the cloud. */
@@ -70,33 +78,14 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 		dbg_printf("\t\t\tUnsupported control event: %d\n", event);
 }
 
-/* Send callback */
-static void send_cb(cc_buffer_desc *buf, cc_event event, cc_service_id svc_id)
-{
-	if (svc_id != CC_SERVICE_BASIC)
-		cc_dispatch_event_to_service(svc_id, buf, event);
-	else {
-		if (event == CC_EVT_SEND_ACKED)
-			dbg_printf("\t\t[SEND CB] Received an ACK\n");
-		else if (event == CC_EVT_SEND_NACKED)
-			dbg_printf("\t\t[SEND CB] Received a NACK\n");
-		else if (event == CC_EVT_SEND_TIMEOUT)
-			dbg_printf("\t\t[SEND CB] Timed out trying to send "
-				   "message\n");
-	}
-	/* Reschedule a receive */
-	cc_recv_result s = cc_recv_msg_from_cloud(&recv_buffer, recv_cb);
-	ASSERT(s == CC_RECV_SUCCESS || s == CC_RECV_BUSY);
-}
-
 static void send_all_calibration_data(void)
 {
 	array_t data;
 	data.bytes = cc_get_send_buffer_ptr(&send_buffer);
 	ASSERT(si_read_calib(0, SEND_DATA_SZ, &data));
 	dbg_printf("\tCalibration table : %d bytes\n", data.sz);
-	ASSERT(cc_send_msg_to_cloud(&send_buffer,
-				data.sz, send_cb) == CC_SEND_SUCCESS);
+	ASSERT(cc_send_svc_msg_to_cloud(&send_buffer, data.sz,
+					CC_SERVICE_BASIC) == CC_SEND_SUCCESS);
 }
 
 static void read_and_send_all_sensor_data(void)
@@ -107,8 +96,9 @@ static void read_and_send_all_sensor_data(void)
 		ASSERT(si_read_data(i, SEND_DATA_SZ, &data));
 		dbg_printf("\tSensor [%d], ", i);
 		dbg_printf("sending out status message : %d bytes\n", data.sz);
-		ASSERT(cc_send_msg_to_cloud(&send_buffer,
-				data.sz, send_cb) == CC_SEND_SUCCESS);
+		ASSERT(cc_send_svc_msg_to_cloud(&send_buffer, data.sz,
+						CC_SERVICE_BASIC)
+		       == CC_SEND_SUCCESS);
 	}
 }
 
@@ -125,17 +115,21 @@ int main(int argc, char *argv[])
 	dbg_printf("Initializing communications module\n");
 	ASSERT(cc_init(ctrl_cb));
 
+	dbg_printf("Register to use the Basic service\n");
+	ASSERT(cc_register_service(&cc_basic_service_descriptor,
+				   basic_service_cb));
+
 	dbg_printf("Setting remote host and port\n");
 	ASSERT(cc_set_destination(SERVER_NAME ":" SERVER_PORT));
 	dbg_printf("Setting device authentiation credentials\n");
 	ASSERT(cc_set_auth_credentials(d_ID, sizeof(d_ID),
 					d_sec, sizeof(d_sec)));
 
-	dbg_printf("Scheduling a receive\n");
-	ASSERT(cc_recv_msg_from_cloud(&recv_buffer, recv_cb) == CC_RECV_SUCCESS);
+	dbg_printf("Make a receive buffer available\n");
+	ASSERT(cc_set_recv_buffer(&recv_buffer) == CC_RECV_SUCCESS);
 
 	dbg_printf("Sending \"restarted\" message\n");
-	ASSERT(cc_ctrl_resend_init_config(send_cb) == CC_SEND_SUCCESS);
+	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
 
 	dbg_printf("Initializing the sensors\n");
 	ASSERT(si_init());

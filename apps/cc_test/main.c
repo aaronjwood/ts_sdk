@@ -9,6 +9,7 @@
 
 #include "platform.h"
 #include "cloud_comm.h"
+#include "cc_basic_service.h"
 #include "cc_control_service.h"
 #include "dbg.h"
 #include "dev_creds.h"
@@ -24,43 +25,52 @@ static cc_data_sz send_data_sz = sizeof(status);
 #define SERVER_PORT	"443"
 #define NUM_STATUSES	((uint8_t)4)
 
-/* Receive callback */
-static void recv_cb(cc_buffer_desc *buf, cc_event event, cc_service_id svc_id)
+static void receive_completed(cc_buffer_desc *buf)
 {
-	dbg_printf("\t\t[RECV CB] Received an event for service %d.\n", svc_id);
-	if (svc_id != CC_SERVICE_BASIC)
-		cc_dispatch_event_to_service(svc_id, buf, event);
-	else {
+	cc_data_sz sz = cc_get_receive_data_len(buf);
+	const uint8_t *recvd = cc_get_recv_buffer_ptr(buf);
 
-		if (event == CC_EVT_RCVD_MSG) {
-			cc_data_sz sz = cc_get_receive_data_len(buf);
-			const uint8_t *recvd = cc_get_recv_buffer_ptr(buf);
+	dbg_printf("\t\t\t");
+	dbg_printf("Received Update Message: \n");
+	for (cc_data_sz i = 0; i < sz; i++)
+		dbg_printf("\t\t\t\t[Byte %u]: 0x%x\n", i, recvd[i]);
 
-			dbg_printf("\t\t\t");
-			dbg_printf("Update Message: \n");
-			for (cc_data_sz i = 0; i < sz; i++)
-				dbg_printf("\t\t\t\t[Byte %u]: 0x%x\n", i,
-					   recvd[i]);
+	/*
+	 * For this example, replace the status message with
+	 * the newly received update message.
+	 */
+	send_data_sz = (sz > sizeof(status)) ? sizeof(status) : sz;
+	memcpy(status, recvd, send_data_sz);
 
-			/*
-			 * For this example, replace the status message with
-			 * the newly received update message.
-			 */
-			send_data_sz = (sz > sizeof(status)) ?
-				sizeof(status) : sz;
-			memcpy(status, recvd, send_data_sz);
-		} else
-			dbg_printf("\t\t\tUnexpected event: %d\n", event);
-
-		/* ACK all application messages by default */
-		dbg_printf("\t\t[RECV CB] Will send an ACK in response\n");
-		cc_ack_msg();
-	}
-
-	/* Reschedule a receive */
-	cc_recv_result s = cc_recv_msg_from_cloud(&recv_buffer, recv_cb);
-	ASSERT(s == CC_RECV_SUCCESS || s == CC_RECV_BUSY);
+	/* ACK all application messages by default */
+	dbg_printf("\t\t\tACK'ing the message\n");
+	cc_ack_msg();
 }
+
+/*
+ * Handle events related to the Basic service i.e. normal data messages to
+ * and from the cloud.
+ */
+static void basic_service_cb(cc_event event, uint32_t value, void *ptr)
+{
+	dbg_printf("\t\t[BASIC CB] Received an event.\n");
+	
+	if (event == CC_EVT_RCVD_MSG)
+		receive_completed((cc_buffer_desc *)ptr);
+
+	else if (event == CC_EVT_SEND_ACKED)
+		dbg_printf("\t\t\tReceived an ACK\n");
+
+	else if (event == CC_EVT_SEND_NACKED)
+		dbg_printf("\t\t\tReceived a NACK\n");
+
+	else if (event == CC_EVT_SEND_TIMEOUT)
+		dbg_printf("\t\t\tTimed out trying to send message\n");
+
+	else
+		dbg_printf("\t\t\tUnexpected event received: %d\n", event);
+}
+
 
 /* Handle events related to Control service messages received from the cloud. */
 static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
@@ -72,26 +82,6 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 		dbg_printf("\t\t\tUnsupported control event: %d\n", event);
 }
 
-/* Send callback */
-static void send_cb(cc_buffer_desc *buf, cc_event event, cc_service_id svc_id)
-{
-	if (svc_id != CC_SERVICE_BASIC)
-		cc_dispatch_event_to_service(svc_id, buf, event);
-	else {
-		if (event == CC_EVT_SEND_ACKED)
-			dbg_printf("\t\t[SEND CB] Received an ACK\n");
-		else if (event == CC_EVT_SEND_NACKED)
-			dbg_printf("\t\t[SEND CB] Received a NACK\n");
-		else if (event == CC_EVT_SEND_TIMEOUT)
-			dbg_printf("\t\t[SEND CB] Timed out trying to send "
-				   "message\n");
-	}
-
-	/* Reschedule a receive */
-	cc_recv_result s = cc_recv_msg_from_cloud(&recv_buffer, recv_cb);
-	ASSERT(s == CC_RECV_SUCCESS || s == CC_RECV_BUSY);
-}
-
 int main(int argc, char *argv[])
 {
 	platform_init();
@@ -100,6 +90,10 @@ int main(int argc, char *argv[])
 
 	dbg_printf("Initializing communications module\n");
 	ASSERT(cc_init(ctrl_cb));
+
+	dbg_printf("Register to use the Basic service\n");
+	ASSERT(cc_register_service(&cc_basic_service_descriptor,
+				   basic_service_cb));
 
 	dbg_printf("Setting remote destination\n");
 	ASSERT(cc_set_destination(SERVER_NAME ":" SERVER_PORT));
@@ -117,17 +111,17 @@ int main(int argc, char *argv[])
 	memcpy(send_dptr, status, sizeof(status));
 
 	dbg_printf("Beginning CC API test\n\n");
-	dbg_printf("Scheduling a receive\n");
-	ASSERT(cc_recv_msg_from_cloud(&recv_buffer, recv_cb) == CC_RECV_SUCCESS);
+	dbg_printf("Make a receive buffer available\n");
+	ASSERT(cc_set_recv_buffer(&recv_buffer) == CC_RECV_SUCCESS);
 
 	/*
 	 * Let the cloud services know the device is powering up, possibly after
-	 * a restart. This call is redundant when the device hasn't been activated
-	 * since the net effect will be to receive the initial configuration and
-	 * polling interval twice.
+	 * a restart. This call is redundant when the device hasn't been 
+	 * activated, since the net effect will be to receive the initial
+	 * configuration twice.
 	 */
 	dbg_printf("Sending \"restarted\" message\n");
-	ASSERT(cc_ctrl_resend_init_config(send_cb) == CC_SEND_SUCCESS);
+	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
 
 	while (1) {
 		dbg_printf("Sending out status messages\n");
@@ -138,9 +132,10 @@ int main(int argc, char *argv[])
 
 			dbg_printf("\tStatus (%u/%u)\n",
 					i + 1, NUM_STATUSES);
-			ASSERT(cc_send_msg_to_cloud(&send_buffer,
-						send_data_sz,
-						send_cb) == CC_SEND_SUCCESS);
+			ASSERT(cc_send_svc_msg_to_cloud(&send_buffer,
+							send_data_sz,
+							CC_SERVICE_BASIC)
+			       == CC_SEND_SUCCESS);
 		}
 
 		cur_ts = platform_get_tick_ms();

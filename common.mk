@@ -144,7 +144,8 @@ OBJ_STARTUP = startup_stm32f429xx.o
 CORELIB_SRC = dbg.c uart.c hwrng.c net.c $(MODEM_SRC)
 
 # Cloud communication / OTT protocol API sources
-CLOUD_COMM_SRC = $(PROTOCOL_SRC) cloud_comm.c cc_control_service.c
+CLOUD_COMM_SRC = $(PROTOCOL_SRC) cloud_comm.c \
+		cc_basic_service.c cc_control_service.c
 
 # Peripheral HAL sources
 HAL_LIB_SRC = stm32f4xx_hal.c

@@ -21,7 +21,7 @@
  * application to make service-specific requests of the cloud.
  */
 
-extern cc_service_descriptor cc_control_service_descriptor;
+extern const cc_service_descriptor cc_control_service_descriptor;
 
 /*
  * API functions to request the cloud to perform some Control service action.
@@ -44,6 +44,6 @@ extern cc_service_descriptor cc_control_service_descriptor;
  * 	CC_SEND_BUSY    : A send is in progress.
  * 	CC_SEND_SUCCESS : Message was sent, waiting for response from the cloud.
  */
-cc_send_result cc_ctrl_resend_init_config(cc_callback_rtn cb);
+cc_send_result cc_ctrl_resend_init_config(void);
 
 #endif /* CC_CONTROL_SERVICE_H */

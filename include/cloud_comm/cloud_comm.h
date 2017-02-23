@@ -14,11 +14,9 @@
  * This module defines the API used by devices to communicate with the cloud.
  * Data is sent and received as discrete messages passed over the selected
  * protocol.  A callback is used to notify the application if a send
- * succeeded or failed.  Callbacks are also used to notify the application
- * when data is received, or other event occurs.  The device must always
- * schedule a receive, specifying a buffer and a callback, in order to receive
- * messsages.  Communication takes place using the protocol (transport)
- * selected by a compile-time option.
+ * succeeded or failed, when data is received, or when other events occur.
+ * Communication takes place using the protocol (transport) selected by a 
+ * compile-time option.
  */
 
 /**
@@ -31,13 +29,13 @@ typedef enum {
 } cc_send_result;
 
 /**
- * Return values for cc_recv_msg_from_cloud().
+ * Return values for cc_set_recv_buffer()
  */
 typedef enum {
-	CC_RECV_FAILED,		/**< Failed to schedule a receive */
-	CC_RECV_BUSY,		/**< A receive has already been scheduled */
-	CC_RECV_SUCCESS		/**< Successfully scheduled a receive */
-} cc_recv_result;
+	CC_RECV_FAILED,		/**< Failed to set the receive buffer. */
+	CC_RECV_BUSY,		/**< A receive buffer has already been set. */
+	CC_RECV_SUCCESS		/**< Successfully set a receive buffer */
+} cc_set_recv_result;
 
 /**
  * Events delivered to the send and receive callback routines.
@@ -116,14 +114,6 @@ typedef struct cc_service_descriptor cc_service_descriptor;
 	cc_buffer_desc name = {(max_sz), 0, &(name##_bytes)}
 
 /**
- * Pointer to a callback routine. The callback receives a buffer descriptor and
- * an event indicating why it was invoked.  The service id indicates which
- * service should process the event.
- */
-typedef void (*cc_callback_rtn)(cc_buffer_desc *buf, cc_event event,
-				cc_service_id svc_id);
-
-/**
  * Pointer to a service callback routine.  The callback receives an event
  * indicating why it was invoked, and optional event parameter values,
  * as defined for each event.  A service callback is called when a registered
@@ -196,6 +186,26 @@ bool cc_set_destination(const char *dest);
  */
 bool cc_set_auth_credentials(const uint8_t *d_id, uint32_t d_id_sz,
  				const uint8_t *d_sec, uint32_t d_sec_sz);
+
+/*
+ * Adjust a buffer descriptor so that the cc_get_xxx_buffer_xxx routines will
+ * skip over bytes at the beginning of the buffer.  This is intended only for
+ * use in the implementation of services and isn't part of the public CC API.
+ *
+ * The descriptor must always be saved before using this routine and later
+ * restored.  Otherwise, the descriptor will be left in an inconsistent state.
+ *
+ * buf : A cloud communication buffer descriptor.
+ *
+ * adj : Number of bytes to be skipped.
+ *
+ * returns:
+ *    true if the buffer descriptor was adjusted.
+ *    false if there were fewer than adj bytes in the buffer.  In this case,
+ *    the descriptor is not altered.
+ */
+bool cc_adjust_buffer_desc(cc_buffer_desc *buf, int adj);
+
 /**
  * \brief
  * Get a pointer to the first byte of the send buffer from the buffer
@@ -243,8 +253,6 @@ cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf);
  *                     containing the data to be sent.
  * \param[in] sz     : Size of the data in bytes.
  * \param[in] svc_id : Id of the service that will process this message.
- * \param[in] cb     : Pointer to the callback routine that will be invoked
- *                     with the status of the send.
  *
  * \returns
  * 	CC_SEND_FAILED  : Failed to send the message.
@@ -256,56 +264,27 @@ cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf);
  * A send is said to be active when it is waiting for a response from the
  * cloud services. Only one send can be active at a time.
  */
-cc_send_result cc_send_svc_msg_to_cloud(const cc_buffer_desc *buf,
-					cc_data_sz sz, cc_service_id svc_id,
-					cc_callback_rtn cb);
-/**
- * \brief
- * Send an application message to the cloud.
- *
- * \param[in] buf    : Pointer to the cloud communication buffer descriptor
- *                     containing the data to be sent.
- * \param[in] sz     : Size of the data in bytes.
- * \param[in] cb     : Pointer to the callback routine that will be invoked
- *                     with the status of the send.
- *
- * \returns
- * 	CC_SEND_FAILED  : Failed to send the message.
- * 	CC_SEND_BUSY    : A send is in progress.
- * 	CC_SEND_SUCCESS : Message was sent, waiting for a response from the
- *                        cloud.
- *
- * The data is sent using the selected protocol to the BASIC service.
- * A send is said to be active when it is waiting for a response from the
- * cloud services. Only one send can be active at a time.
- */
-static inline cc_send_result cc_send_msg_to_cloud(const cc_buffer_desc *buf,
-						  cc_data_sz sz,
-						  cc_callback_rtn cb)
-{
-	return cc_send_svc_msg_to_cloud(buf, sz, CC_SERVICE_BASIC, cb);
-}
+cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
+					cc_data_sz sz, cc_service_id svc_id);
 
 /**
  * \brief
- * Initiate receiving a message from the cloud.
+ * Make a buffer available to hold received messages.
  *
  * \param[in] buf  : Pointer to the cloud communication buffer descriptor
  *                   that will hold the data to be received.
- * \param[in] cb   : Pointer to the callback that will be invoked when a
- *                   complete message is received.
  *
  * \returns
- * 	CC_RECV_FAILED  : Failed to schedule a receive.
- * 	CC_RECV_BUSY    : Can't initiate a receive. One is already in progress.
- * 	CC_RECV_SUCCESS : Successfully initiated a receive.
+ * 	CC_RECV_FAILED  : Failed to set the buffer.
+ * 	CC_RECV_BUSY    : A buffer has already been set.
+ * 	CC_RECV_SUCCESS : Buffer was successfully set.
  *
- * Only one receive can be scheduled at a time. A receive must be scheduled
- * once the API has been initialized.  Scheduling the receive ensures there
- * is a place to store an incoming message, or the response to an outgoing
+ * Only one buffer can be set at a time. A receive must be made available
+ * once the API has been initialized.  This ensures there is a place to
+ * store any incoming messages, or the response to an outgoing
  * message.
  */
-cc_recv_result cc_recv_msg_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb);
+cc_set_recv_result cc_set_recv_buffer(cc_buffer_desc *buf);
 
 /**
  * \brief
@@ -351,10 +330,10 @@ void cc_nak_msg(void);
 
 /**
  * \brief
- * Register a service to process messages that are not basic application data.
+ * Register to process events and data for the specified service.
  *
  * \param[in] desc : Pointer to a service descriptor that provides the
- *                   service id and entry points for the service.
+ *                   service id and other registration data.
  *
  * \param[in] cb   : Pointer to the callback routine that will be invoked
  *                   when the service generates an event which requires
@@ -367,23 +346,7 @@ void cc_nak_msg(void);
  * \note
  * The Control service is registered automatically.
  */
-bool cc_register_service(cc_service_descriptor *svc_desc,
+bool cc_register_service(const cc_service_descriptor *svc_desc,
 			 cc_svc_callback_rtn cb);
-
-
-/**
- * \brief
- * Dispatch an event to a registered service.  Call this function to allow
- * a service to process a message received on its behalf.
- *
- * \param[in] svc_id : The service id associated with the event.
- *
- * \param[in] buf    : Pointer to the buffer descriptor for the buffer
- *                     containing a message associated with the event.
- *
- * \param[in] event  : The type of the event being dispatched.
- */
-void cc_dispatch_event_to_service(cc_service_id svc_id, cc_buffer_desc *buf,
-				  cc_event event);
 
 #endif /* __CLOUD_COMM */
