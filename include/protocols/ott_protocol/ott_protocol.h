@@ -59,14 +59,6 @@ proto_result ott_protocol_init(void);
 uint32_t ott_get_polling_interval(void);
 
 /*
- * Retrieves default polling interval in milliseconds
- *
- * Returns:
- * 	Interval time in miliseconds
- */
-uint32_t ott_get_default_polling_interval(void);
-
-/*
  * Set the polling interval in mili seconds
  *
  * Parameters:

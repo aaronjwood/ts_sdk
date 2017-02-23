@@ -9,7 +9,7 @@
 #include "cloud_comm.h"
 
 /**
- * \file cc_control_service.h
+ * \file cc_basic_service.h
  *
  * This module defines a service which provides the most basic data
  * communication to and from the cloud.  This is the core service used by

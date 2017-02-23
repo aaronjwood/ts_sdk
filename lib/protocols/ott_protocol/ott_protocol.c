@@ -918,11 +918,6 @@ proto_result ott_resend_init_config(proto_callback cb)
 	return PROTO_OK;
 }
 
-uint32_t ott_get_default_polling_interval(void)
-{
-	return INIT_POLLING_MS;
-}
-
 uint32_t ott_get_polling_interval(void)
 {
         return current_polling_interval;

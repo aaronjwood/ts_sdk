@@ -38,7 +38,6 @@
 		return false; \
 } while(0)
 
-#define PROTO_GET_DEFAULT_POLLING() ott_get_default_polling_interval()
 #define PROTO_GET_POLLING() ott_get_polling_interval()
 #define PROTO_SET_POLLING(new_value) ott_set_polling_interval((new_value));
 
@@ -79,7 +78,6 @@
 #define PROTO_GET_RCVD_MSG_PTR(msg)
 #define PROTO_SET_DESTINATION(dest)
 #define PROTO_SET_AUTH(d_id, d_id_sz, d_sec, d_sec_sz)
-#define PROTO_GET_DEFAULT_POLLING()
 #define PROTO_GET_POLLING(msg)
 #define PROTO_SET_POLLING(new_value)
 #define PROTO_INITIATE_QUIT(send_nack)
