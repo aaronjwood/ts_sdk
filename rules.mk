@@ -6,6 +6,7 @@
 # Remove files common to both debug and non-debug library sources
 LIB_SRC := $(filter-out $(DBG_LIB_SRC), $(LIB_SRC))
 CLOUD_COMM_SRC := $(filter-out $(DBG_LIB_SRC), $(CLOUD_COMM_SRC))
+SERVICES_SRC := $(filter-out $(DBG_LIB_SRC), $(SERVICES_SRC))
 CORELIB_SRC := $(filter-out $(DBG_LIB_SRC), $(CORELIB_SRC))
 HAL_LIB_SRC := $(filter-out $(DBG_LIB_SRC), $(HAL_LIB_SRC))
 
@@ -14,6 +15,7 @@ OBJ_USER = $(addsuffix .o, $(basename $(notdir $(USER_SRC))))
 OBJ_LIB = $(addsuffix .o, $(basename $(CORELIB_SRC)))
 OBJ_LIB += $(addsuffix .o, $(basename $(LIB_SRC)))
 OBJ_LIB += $(addsuffix .o, $(basename $(CLOUD_COMM_SRC)))
+OBJ_LIB += $(addsuffix .o, $(basename $(SERVICES_SRC)))
 OBJ_HAL_LIB = $(addsuffix .o, $(basename $(HAL_LIB_SRC)))
 OBJ_DBG_LIB = $(addsuffix .o, $(basename $(DBG_LIB_SRC)))
 

@@ -1,9 +1,12 @@
 This repository contains a reference implementation of firmware for use
-with the Dakota "Over The Top" (OTT) IoT services.  The firmware is intended for
-use on a microcontroller (MCU) connected to an LTE modem.
+with the ThinkSpace (Dakota) IoT services.  The firmware is intended for  use
+on a microcontroller (MCU) connected to an LTE modem.  It supports communication
+using:
+	o "Over the Top" (OTT) protocol (carried via TLS protected TCP/IP)
+	o SMSNAS protocol
 
-The current target hardware is a NUCLEO-F429ZI ARM development board connected to
-a Sierrra Wireless HL7588 modem.
+The current target hardware is a NUCLEO-F429ZI ARM development board connected
+to a u-blox TOBY-201 modem.
 
 For more information see:
 
@@ -18,13 +21,16 @@ Repository contents:
                           external source.
 
 	apps/           - Sample applications built to communicate with the
-                          OTT services.
+                          ThingSpace services.
 			  This directory also includes some test programs
 			  intended to test individual library components.
 
+	doxygen/        - Config files for generating documentation for the
+			  primary APIs.
+
 	lib/            - Library components used by the apps to communicate
-                          with the OTT services (e.g. OTT protocol,
-                          modem support etc.)
+                          with the services (e.g. cloud communication API,
+                          protocols, modem support, hardware support etc.)
 
 	include/        - Header files that define the external interfaces
                           to the lib components.
@@ -33,14 +39,16 @@ Repository contents:
                           components.
 	      /mbedtls  - ARM mbed TLS library.
 
-
+        *.mk		- Common Makefiles.  Each application has a specific
+			  Makefile that uses these common files to build
+			  the application and all necessary library files.
 
 Notes on configuring mbed TLS:
 -----------------------------
 There is a script added to vendor/mbedtls: vz_configure_mbedtls
 It is intended to capture the changes needed to customize mbed TLS to the
 minimum set of features that will allow the sample applications to communicate
-with the Verizon OTT cloud services.
+with the Verizon cloud services.
 
 The script will edit:
 	vendor/mbedtls/include/mbedtls/config.h.original
