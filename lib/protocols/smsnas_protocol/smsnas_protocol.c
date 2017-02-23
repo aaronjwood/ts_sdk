@@ -569,6 +569,9 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 	return PROTO_OK;
 }
 
+/* If conatenated message is in progress, returns timeout to poll for the
+ * next segment
+ */
 uint32_t smsnas_get_polling_interval(void)
 {
 	return session.cur_polling_interval;
