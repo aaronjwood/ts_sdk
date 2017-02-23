@@ -42,6 +42,7 @@ proto_result smsnas_protocol_init(void)
 
 	for (i = 0; i < num_rcv_path; i++) {
 		if ((i == 0) && (num_rcv_path == 1)) {
+			/* buf will be used from upper level */
 			session.rcv_msg[i].buf = NULL;
 		else
 			session.rcv_msg[i].buf = (smsnas_rcv_buf +
@@ -200,17 +201,18 @@ static update_ack_rcv_path(at_msg_t *msg_ptr, uint8_t rcv_path)
 	smsnas_send_ack();
 }
 
-/* FIXME: revisit this function for logical check up */
 static int retrieve_rcv_path(uint8_t cref, bool *new)
 {
 	uint8_t i;
 	int rcvp = -1;
+	int new_rcvp = -1;
 	uint32_t timestamp = 0;
 
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
 		if (session.rcv_msg[i].rcv_path_valid &&
 			session.rcv_msg[i].conct_in_progress) {
-
+			if (i == 0)
+				timestamp = session.rcv_msg[i].init_timestamp;
 			/* middle of receiving concatenated sms */
 			if (session.rcv_msg[i].cref_num == cref) {
 				*new = false;
@@ -221,13 +223,16 @@ static int retrieve_rcv_path(uint8_t cref, bool *new)
 				timestamp = session.rcv_msg[i].init_timestamp;
 			}
 		} else if (!session.rcv_msg[i].rcv_path_valid)
-			rcvp = i;
+			new_rcvp = i;
 
 	}
 	/* Means no receive path is currently handling cref sms or all paths are
 	 * busy for that selected oldest concatenated sms.
 	 */
 	*new = true;
+	if (new_rcvp != -1)
+		return new_rcvp;
+
 	return rcvp;
 }
 
@@ -272,15 +277,20 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 				 * complete concatenated message
 				 */
 				proto_pl_sz rcvd = rp->wr_idx + msg_ptr->len;
+				/* check memory overflow before copying data to
+				 * user supplied buffer, if it is insufficient
+				 * callback with memory overflow event and let
+				 * user nack this
+				 */
 				if (check_mem_overflow(rcvd, session.rcv_sz,
 					rp->service_id))
-					goto error;
+					goto done;
 
 				/* Invoke upper level callback and let upper
 				 * level ack/nack this message, also it is upper
 				 * level's responsibility to schedule receive
 				 * buffer hence rcv_valid is false here to catch
-				 * that scenario where app misbehaves
+				 * that scenario where app services misbehaves
 				 */
 				session.rcv_valid = false;
 
@@ -303,12 +313,13 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 		return;
 
 	} else {
+		rcv_path = 0;
 		smsnas_msg_t *smsnas_msg = (smsnas_msg_t *)msg_ptr->buf;
 		if (smsnas_msg->version != SMSNAS_VERSION)
 			goto error;
 		if (check_mem_overflow(msg_ptr->len, session.rcv_sz,
 			smsnas_msg->service_id))
-			goto error;
+			goto done;
 		memcpy(session.rcv_buf, msg_ptr->buf, msg_ptr->len);
 
 		session.rcv_valid = false;
@@ -316,7 +327,6 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 		INVOKE_RECV_CALLBACK(session.rcv_buf, msg_ptr->len,
 					PROTO_RCVD_SMSNAS_MSG,
 					smsnas_msg->service_id);
-		rcv_path  = 0;
 		goto done;
 
 	}
