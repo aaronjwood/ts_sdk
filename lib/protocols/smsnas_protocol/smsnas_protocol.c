@@ -48,6 +48,7 @@ static void reset_rcv_path(uint8_t rcv_path)
 	session.rcv_msg[rcv_path].conct_in_progress = false;
 }
 
+/* Initializes receive paths and resets internal protocol state */
 proto_result smsnas_protocol_init(void)
 {
 	sl_intr = 0;
