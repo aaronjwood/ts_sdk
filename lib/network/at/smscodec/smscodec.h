@@ -12,7 +12,7 @@
  * occupies two bytes.
  */
 
-#define ADDR_SZ				16	/* 15 digit number and '+' */
+#define ADDR_SZ				21	/* 20 digit number and '+' */
 #define MAX_OUT_PDU_SZ			(OUT_PDU_OVR_HD + UD_SZ)
 #define MAX_IN_PDU_SZ			(IN_PDU_OVR_HD + UD_SZ)
 
