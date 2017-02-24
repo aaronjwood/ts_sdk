@@ -24,7 +24,6 @@ uint8_t smsnas_rcv_buf[PROTO_MAX_MSG_SZ * SMSNAS_MAX_RCV_PATH];
 #endif
 
 #define MAX_HOST_LEN		ADDR_SZ
-#define INIT_POLLING_MS		0
 
 #define RECV_TIMEOUT_MS		5000
 #define SEND_TIMEOUT_MS		5000
@@ -95,7 +94,6 @@ typedef struct __attribute__((packed)) {
 } smsnas_msg_t;
 
 typedef struct {
-	bool rcv_path_valid;
 	/* true if concatenated message is in progress */
 	bool conct_in_progress;
 	/* service id received from protocol message */

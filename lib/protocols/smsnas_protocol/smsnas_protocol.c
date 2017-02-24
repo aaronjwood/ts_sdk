@@ -44,7 +44,6 @@ static void reset_rcv_path(uint8_t rcv_path)
 	session.rcv_msg[rcv_path].wr_idx = rcv_path * PROTO_MAX_MSG_SZ;
 	session.rcv_msg[rcv_path].cur_seq = 0;
 	session.rcv_msg[rcv_path].cref_num = -1;
-	session.rcv_msg[rcv_path].rcv_path_valid = false;
 	session.rcv_msg[rcv_path].conct_in_progress = false;
 }
 
@@ -54,7 +53,11 @@ proto_result smsnas_protocol_init(void)
 	sl_intr = 0;
 	uint8_t i = 0;
 
-	session.cur_polling_interval = INIT_POLLING_MS;
+	/* This will not start until arrival of the first segement of the
+	 * concatenated sms
+	 */
+	session.cur_polling_interval = 0;
+
 	memset(session.host, 0, MAX_HOST_LEN);
 	session.host_valid = false;
 
@@ -131,10 +134,13 @@ proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
 	if (session.rcv_valid)
 		RETURN_ERROR("receiver already in progress", PROTO_ERROR);
 
+	/* If only single receive path is present, we will need to initialize
+	 * here so that concatenated state machine is ready to use when need
+	 * arise
+	 */
 	if (ARRAY_SIZE(session.rcv_msg) == 1) {
 		session.rcv_msg[0].buf = rcv_buf;
 		session.rcv_msg[0].rem_sz = sz;
-		session.rcv_msg[0].rcv_path_valid = true;
 		session.rcv_msg[0].wr_idx = 0;
 	}
 	/* place holder for the upper level buffer, used when multi receive path
@@ -173,9 +179,11 @@ static bool is_conct_in_progress(void)
 
 static void rcv_path_cleanup(int rcv_path)
 {
-	reset_rcv_path(rcv_path);
 	if (!is_conct_in_progress())
 		session.cur_polling_interval = 0;
+	if (rcv_path == -1)
+		return;
+	reset_rcv_path(rcv_path);
 }
 
 static bool check_mem_overflow(proto_pl_sz rcv_len, proto_pl_sz pl_sz,
@@ -192,6 +200,11 @@ static bool check_mem_overflow(proto_pl_sz rcv_len, proto_pl_sz pl_sz,
 
 static bool check_validity(at_msg_t *msg_ptr, uint8_t rcv_path, bool first_seg)
 {
+	/* check if total number of segements are greater then MAX_CONC_SMS_NUM
+	 */
+	if (msg_ptr->num_seg > MAX_CONC_SMS_NUM)
+		return false;
+
 	if (first_seg) {
 		smsnas_msg_t *smsnas_msg = (smsnas_msg_t *)msg_ptr->buf;
 		if (msg_ptr->seq_no != 1)
@@ -200,11 +213,6 @@ static bool check_validity(at_msg_t *msg_ptr, uint8_t rcv_path, bool first_seg)
 			return false;
 		return true;
 	}
-
-	/* check if total number of segements are greater then MAX_CONC_SMS_NUM
-	 */
-	if (msg_ptr->num_seg > MAX_CONC_SMS_NUM)
-		return false;
 
 	/* check for out of order segment */
 	if (msg_ptr->seq_no != (session.rcv_msg[rcv_path].cur_seq + 1))
@@ -230,8 +238,7 @@ static int retrieve_rcv_path(uint8_t cref, bool *new)
 	uint32_t timestamp = 0;
 
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
-		if (session.rcv_msg[i].rcv_path_valid &&
-			session.rcv_msg[i].conct_in_progress) {
+		if (session.rcv_msg[i].conct_in_progress) {
 			if (i == 0)
 				timestamp = session.rcv_msg[i].init_timestamp;
 			/* middle of receiving concatenated sms */
@@ -243,12 +250,12 @@ static int retrieve_rcv_path(uint8_t cref, bool *new)
 				rcvp = i;
 				timestamp = session.rcv_msg[i].init_timestamp;
 			}
-		} else if (!session.rcv_msg[i].rcv_path_valid)
+		} else
 			new_rcvp = i;
 
 	}
 	/* Means no receive path is currently handling cref sms or all paths are
-	 * busy for that selected oldest concatenated sms.
+	 * busy for that select oldest concatenated sms.
 	 */
 	*new = true;
 	if (new_rcvp != -1)
@@ -287,6 +294,7 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 			smsnas_msg_t *temp_msg = rp->buf;
 			rp->service_id = temp_msg->service_id;
 			rp->conct_in_progress = true;
+			/* need to determine oldest to evict */
 			rp->init_timestamp = platform_get_tick_ms();
 		} else {
 			if (!check_validity(msg_ptr, rcv_path, false))
@@ -329,14 +337,12 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 					PROTO_RCVD_SMSNAS_MSG,
 					rp->service_id);
 				goto done;
-
 			}
 		}
 		update_ack_rcv_path(msg_ptr, rcv_path);
 		return;
-
 	} else {
-		rcv_path = 0;
+		rcv_path = -1;
 		smsnas_msg_t *smsnas_msg = (smsnas_msg_t *)msg_ptr->buf;
 		if (smsnas_msg->version != SMSNAS_VERSION)
 			goto error;
@@ -396,8 +402,7 @@ void smsnas_maintenance(uint32_t cur_timestamp)
 	int rcvp = -1;
 	bool init_poll = false;
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
-		if (session.rcv_msg[i].rcv_path_valid &&
-			session.rcv_msg[i].conct_in_progress) {
+		if (session.rcv_msg[i].conct_in_progress) {
 			if (!init_poll) {
 				init_poll = true;
 				poll_intr = session.rcv_msg[i].next_seq_timeout;
