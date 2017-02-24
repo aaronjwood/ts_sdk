@@ -127,6 +127,9 @@ INC += -I $(PROJ_ROOT)/include/protocols/$(PROTOCOL_INC)
 # Cloud communication API header
 INC += -I $(PROJ_ROOT)/include/cloud_comm
 
+# Services headers
+INC += -I $(PROJ_ROOT)/include/services
+
 # Device credentials header
 INC += -I $(PROJ_ROOT)/include/dev_creds
 
@@ -143,8 +146,11 @@ OBJ_STARTUP = startup_stm32f429xx.o
 # This includes debugging, UART, NET and HW RNG modules.
 CORELIB_SRC = dbg.c uart.c hwrng.c net.c $(MODEM_SRC)
 
-# Cloud communication / OTT protocol API sources
+# Cloud communication API and target protocol sources
 CLOUD_COMM_SRC = $(PROTOCOL_SRC) cloud_comm.c
+
+# Source for standard services
+SERVICES_SRC = cc_basic_service.c cc_control_service.c
 
 # Peripheral HAL sources
 HAL_LIB_SRC = stm32f4xx_hal.c
@@ -168,6 +174,7 @@ vpath %.c $(PROJ_ROOT)/lib/platform: \
 	$(PROJ_ROOT)/lib/hwrng: \
 	$(PROJ_ROOT)/lib/protocols/$(PROTOCOL_DIR): \
 	$(PROJ_ROOT)/lib/cloud_comm: \
+	$(PROJ_ROOT)/lib/services: \
 	$(PROJ_ROOT)/lib/network: \
 	$(PROJ_ROOT)/lib/network/at/core: \
 	$(PROJ_ROOT)/lib/network/at/smscodec: \
