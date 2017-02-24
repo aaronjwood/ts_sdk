@@ -33,7 +33,7 @@ typedef enum {
  */
 typedef enum {
 	CC_RECV_FAILED,		/**< Failed to set the receive buffer. */
-	CC_RECV_BUSY,		/**< Cannot change buffer since it in use. */
+	CC_RECV_BUSY,		/**< Cannot change buffer since it is in use. */
 	CC_RECV_SUCCESS		/**< Successfully set a receive buffer */
 } cc_set_recv_result;
 
@@ -262,7 +262,7 @@ cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
  *
  * \returns
  * 	CC_RECV_FAILED  : Failed to set the buffer.
- * 	CC_RECV_BUSY    : A buffer has already been set.
+ * 	CC_RECV_BUSY    : Cannot change buffer since it is in use.
  * 	CC_RECV_SUCCESS : Buffer was successfully set.
  *
  * Only one buffer can be set at a time. A receive must be made available

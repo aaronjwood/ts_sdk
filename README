@@ -1,5 +1,5 @@
 This repository contains a reference implementation of firmware for use
-with the ThinkSpace (Dakota) IoT services.  The firmware is intended for  use
+with the ThingSpace (Dakota) IoT services.  The firmware is intended for  use
 on a microcontroller (MCU) connected to an LTE modem.  It supports communication
 using:
 	o "Over the Top" (OTT) protocol (carried via TLS protected TCP/IP)
