@@ -510,7 +510,8 @@ static bool modem_sms_decode_3gpp2(uint16_t len, const char *pdu, sms_t *recv_ms
 
 bool smscodec_decode(uint16_t len, const char *pdu, sms_t *recv_msg)
 {
-	if (pdu == NULL || recv_msg == NULL || recv_msg->buf == NULL)
+	if (pdu == NULL || recv_msg == NULL || recv_msg->buf == NULL ||
+			recv_msg->addr == NULL)
 		return false;
 
 #if MODEM_TOBY201
@@ -523,7 +524,7 @@ bool smscodec_decode(uint16_t len, const char *pdu, sms_t *recv_msg)
 uint16_t smscodec_encode(const sms_t *msg_to_send, char *pdu)
 {
 	if (msg_to_send == NULL || msg_to_send->buf == NULL ||
-			msg_to_send->addr[0] == '\0' || pdu == NULL)
+			msg_to_send->addr == NULL || pdu == NULL)
 		return 0;
 
 	if (msg_to_send->num_seg == 0 || msg_to_send->len == 0)
