@@ -5,18 +5,16 @@
 #include "smsnas_def.h"
 #include "platform.h"
 
-#define DEBUG_ERROR
-#ifdef DEBUG_ERROR
-#define PRINTF(...)	printf(__VA_ARGS__)
-#else
-#define PRINTF(...)
-#endif
-
 #define RETURN_ERROR(string, ret) \
 	do { \
-		PRINTF("%s:%d:" #string, __func__, __LINE__); \
-		PRINTF("\n"); \
+		PRINTF_ERR("%s:%d:" #string, __func__, __LINE__); \
+		PRINTF_ERR("\n"); \
 		return (ret); \
+	} while (0)
+
+#define IN_FUNCTION_AT() \
+	do { \
+		PRINTF_FUNC("%s:%d:\n", __func__, __LINE__);\
 	} while (0)
 
 #define INVOKE_RECV_CALLBACK(_buf, _sz, _evt, _s_id) \

@@ -58,14 +58,30 @@ uint8_t smsnas_rcv_buf[PROTO_MAX_MSG_SZ * SMSNAS_MAX_RCV_PATH];
 /* Defines retries in case of send failure */
 #define MAX_RETRIES			3
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
+
+/* Defines to enable printing of all the error strings */
+#define DEBUG_ERROR
+#ifdef DEBUG_ERROR
+#define PRINTF_ERR(...)	printf(__VA_ARGS__)
+#else
+#define PRINTF_ERR(...)
+#endif
+
+/* Defines to enable printf to track function entry points */
+/* #define DEBUG_FUNCTION */
+#ifdef DEBUG_FUNCTION
+#define PRINTF_FUNC(...)	printf(__VA_ARGS__)
+#else
+#define PRINTF_FUNC(...)
+#endif
+
 /* Defines flag for the ack/nack pending */
 typedef enum {
 	ACK_PENDING,
 	NACK_PENDING,
 	NO_ACK_NACK
 } ack_nack;
-
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 
 /* SMSNAS protocol message, used to quickly retrieve protocol header values from
  * received data
