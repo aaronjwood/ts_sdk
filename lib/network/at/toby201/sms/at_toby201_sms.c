@@ -7,11 +7,10 @@
 #include "at_toby201_sms_command.h"
 #include "platform.h"
 
-#define MAX_TRIES_MODEM_CONFIG	3
-#define NET_REG_TIMEOUT_SEC	180000
-#define CTRL_Z			0x1A
-#define ESC			0x1B
-#define OUT_PDU_OFFSET		0x02
+#define MAX_TRIES_MODEM_CONFIG	3		/* Retries at configuring modem */
+#define NET_REG_TIMEOUT_SEC	180000		/* Network registration timeout */
+#define CTRL_Z			0x1A		/* Ctrl + Z character code */
+#define OUT_PDU_OFFSET		0x02		/* Offset where actual PDU begins */
 
 static at_sms_cb sms_rx_cb;			/* Receive callback */
 static at_msg_t msg;				/* Stores SMS segment */
@@ -24,7 +23,7 @@ static char in_pdu[MAX_IN_PDU_SZ];		/* Max. length of incoming PDU */
 
 /*
  * Max. length of outgoing PDU.
- * Account for the NULL (0x00) and CTRL+Z (0x1A) characters at the end and "00"
+ * Account for the CTRL+Z (0x1A) and NULL (0x00) characters at the end and "00"
  * (i.e. 0x30 0x30) in the beginning to use the stored SMSC address.
  */
 static char out_pdu[2 + MAX_OUT_PDU_SZ + 2];
@@ -37,6 +36,7 @@ static void uart_cb(void)
 }
 
 /* Process the received SMS URC */
+#define SMS_RECV_URC_TIMEOUT_MS	100
 static at_ret_code process_ucmt_urc(const char *urc)
 {
 	uint8_t len = strlen(at_urcs[UCMT_URC]);
@@ -62,6 +62,19 @@ static at_ret_code process_ucmt_urc(const char *urc)
 		return AT_FAILURE;
 	}
 
+	/* Make sure the complete URC string is available to be read */
+	uint32_t start = platform_get_tick_ms();
+	uint32_t end = start;
+	int found = -1;
+	do {
+		if (end - start >= SMS_RECV_URC_TIMEOUT_MS) {
+			DEBUG_V0("%s: Unlikely - Complete URC not found\n", __func__);
+			return AT_FAILURE;
+		}
+		end = platform_get_tick_ms();
+		found = at_core_find_pattern(-1, (const uint8_t *)"\r\n", 2);
+	} while(found == -1);
+
 	buf_sz av_len = at_core_rx_available();
 	if (msg_len > av_len) {
 		DEBUG_V0("%s: Unlikely - Not enough bytes (%u, %u)\n",
@@ -69,6 +82,7 @@ static at_ret_code process_ucmt_urc(const char *urc)
 		return AT_FAILURE;
 	}
 
+	/* Read the URC data (PDU string) and decode it into an SMS segment */
 	at_core_read((uint8_t *)in_pdu, msg_len);
 	if (!smscodec_decode(msg_len, in_pdu, &msg)) {
 		DEBUG_V0("%s: Unlikely - Failed to decode PDU\n", __func__);
@@ -106,7 +120,7 @@ static void urc_cb(const char *urc)
 	res = process_ucmt_urc(urc);
 }
 
-static inline at_ret_code check_network_registration(void)
+static at_ret_code check_network_registration(void)
 {
 	if (!at_core_query_netw_reg())
 		return AT_FAILURE;
@@ -227,19 +241,15 @@ bool at_sms_send(const at_msg_t *sms_seg)
 	out_pdu[1] = '0';
 	out_pdu[OUT_PDU_OFFSET + pdu_strlen] = CTRL_Z;
 	out_pdu[OUT_PDU_OFFSET + pdu_strlen + 1] = '\0';
-	char cmd[13];	/* Enough to store "AT+CMGS=xxx\r\0" */
 
-	/* Form and issue the command to send the PDU over the network */
+	/* Issue the command to send the PDU over the network */
+	char cmd[13];	/* Enough to store "AT+CMGS=xxx\r\0" */
 	snprintf(cmd, sizeof(cmd), sms_cmd[SMS_SEND].comm_sketch, pdu_strlen / 2);
 	sms_cmd[SMS_SEND].comm = cmd;
 	at_ret_code res = at_core_wcmd(&sms_cmd[SMS_SEND], false);
-	if (res != AT_SUCCESS) {
-		uint8_t esc = ESC;
-		at_core_write(&esc, 1);
-		return false;
-	}
+	CHECK_SUCCESS(res, AT_SUCCESS, false);
 
-	/* Enter the PDU bytes followed by Ctrl+Z (0x1A) */
+	/* Enter the PDU bytes followed by Ctrl+Z */
 	sms_cmd[SMS_SEND_DATA].comm = out_pdu;
 	res = at_core_wcmd(&sms_cmd[SMS_SEND_DATA], true);
 	CHECK_SUCCESS(res, AT_SUCCESS, false);

@@ -76,8 +76,8 @@ bool at_sms_ack(void);
  * 	None
  *
  * Returns:
- * 	True  - If the ACK was sent successfully
- * 	False - Failed sending the ACK
+ * 	True  - If the NACK was sent successfully
+ * 	False - Failed sending the NACK
  */
 bool at_sms_nack(void);
 
@@ -91,7 +91,7 @@ bool at_sms_nack(void);
  *
  * Returns:
  * 	True  - Successfully retrieved the number associated with the SIM
- * 	False - Retrieval failed.
+ * 	False - Could not retrieve the phone number associated with the SIM
  */
 bool at_sms_retrieve_num(char *num);
 

@@ -17,7 +17,13 @@ static void rcv_cb(const at_msg_t *sms_seg)
 		dbg_printf("%c", sms_seg->buf[i]);
 	dbg_printf("\n");
 
-	/* XXX: ACK / NACK payload. This doesn't work on the commercial network. */
+	/*
+	 * XXX: ACK / NACK payload.
+	 * They cannot be manually issued on the commercial network.
+	 */
+	/*if (!at_sms_ack())
+	 *	dbg_printf("Error: Unable to issue an ACK\n");
+	 */
 }
 
 int main(int argc, char *argv[])
