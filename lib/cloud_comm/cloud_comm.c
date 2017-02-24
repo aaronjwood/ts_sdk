@@ -43,8 +43,8 @@ static void cc_recv_cb(const void *buf, uint32_t sz,
 	switch(event) {
 	case PROTO_RCVD_MSG:
 		conn_in.buf->current_len = sz;
-		dispatch_event_to_service(svc_id, conn_in.buf, CC_EVT_RCVD_MSG);
 		conn_in.recv_in_progress = false;
+		dispatch_event_to_service(svc_id, conn_in.buf, CC_EVT_RCVD_MSG);
 		activate_buffer_for_recv(conn_in.buf);
 		break;
 	case PROTO_RCVD_QUIT:
