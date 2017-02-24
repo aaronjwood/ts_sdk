@@ -1,10 +1,7 @@
-/**
- * \file at_sms.h
- *
- * \brief API that uses AT commands to communicate through SMS
- *
- * \copyright Copyright (C) 2017 Verizon. All rights reserved.
- *
+/* Copyright (C) 2017 Verizon. All rights reserved. */
+
+/*
+ * This API is used to send and receive SMS messages via the modem's AT interface.
  */
 
 #ifndef AT_SMS_H

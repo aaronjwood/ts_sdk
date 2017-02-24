@@ -7,7 +7,7 @@
 
 static void rcv_cb(const at_msg_t *sms_seg)
 {
-	dbg_printf("Source Addr: %s\n", sms_seg->addr);
+	dbg_printf("\nSource Addr: %s\n", sms_seg->addr);
 	dbg_printf("Ref. No. = %u\n", sms_seg->ref_no);
 	dbg_printf("No. parts = %u\n", sms_seg->num_seg);
 	dbg_printf("Seq. No. = %u\n", sms_seg->seq_no);
@@ -21,9 +21,10 @@ static void rcv_cb(const at_msg_t *sms_seg)
 	 * XXX: ACK / NACK payload.
 	 * They cannot be manually issued on the commercial network.
 	 */
-	/*if (!at_sms_ack())
-	 *	dbg_printf("Error: Unable to issue an ACK\n");
-	 */
+	/*dbg_printf("Sending ACK in response\n");
+	if (!at_sms_ack())
+		dbg_printf("Error: Unable to issue an ACK\n");
+	*/
 }
 
 int main(int argc, char *argv[])

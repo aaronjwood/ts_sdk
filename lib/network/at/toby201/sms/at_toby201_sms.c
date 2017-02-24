@@ -62,7 +62,8 @@ static at_ret_code process_ucmt_urc(const char *urc)
 		return AT_FAILURE;
 	}
 
-	/* Make sure the complete URC string is available to be read */
+	/* Make sure the complete URC string (ending in CRLF) is available to
+	 * be read */
 	uint32_t start = platform_get_tick_ms();
 	uint32_t end = start;
 	int found = -1;
@@ -77,7 +78,7 @@ static at_ret_code process_ucmt_urc(const char *urc)
 
 	buf_sz av_len = at_core_rx_available();
 	if (msg_len > av_len) {
-		DEBUG_V0("%s: Unlikely - Not enough bytes (%u, %u)\n",
+		DEBUG_V0("%s: Unlikely - Insufficient bytes available (%u, %u)\n",
 				__func__, msg_len, av_len);
 		return AT_FAILURE;
 	}
@@ -279,6 +280,8 @@ bool at_sms_retrieve_num(char *num)
 {
 	at_ret_code res = at_core_wcmd(&mod_netw_cmd[SIM_NUM], true);
 	CHECK_SUCCESS(res, AT_SUCCESS, res);
+	if (strlen(sim_num) == 0)
+		return false;
 	strncpy(num, sim_num, strlen(sim_num) + 1);
 	return true;
 }
@@ -289,8 +292,10 @@ static void parse_num(void *rcv_rsp, int rcv_rsp_len,
 	/* Retrieve the second quoted string from the response */
 	const char *start = strchr(rcv_rsp, ',') + 2;
 	size_t span = strcspn(start, "\"");
-	if (span > ADDR_SZ || span > rcv_rsp_len)
+	if (span > ADDR_SZ || span > rcv_rsp_len) {
+		memset(sim_num, 0, sizeof(sim_num));
 		return;
+	}
 	strncpy(sim_num, start, span);
 	sim_num[span] = '\0';
 }
