@@ -38,24 +38,23 @@ typedef enum {
 
 	/* Incoming message events: */
 	PROTO_RCV_TIMEOUT,	/* Timed out waiting for the receive message */
-	PROTO_RCVD_CMD_SL,	/* Received sleep time from the cloud */
-	PROTO_RCVD_CMD_PI,	/* Received polling interval from the cloud */
-	PROTO_RCVD_QUIT,	/* Received quit */
-	PROTO_RCVD_UPD,         /* Received an update message from the cloud */
-	PROTO_RCVD_SMSNAS_MSG,	/* Received an smsnas protocol message */
 	/* Insufficient memory to store received message */
-	PROTO_RCVD_SMSNAS_MEM_INSUF
+	PROTO_RCVD_MEM_OVRFL,
+	PROTO_RCVD_QUIT,	/* Received quit (i.e. session termination) */
+	PROTO_RCVD_MSG          /* Received a message from the cloud */
 } proto_event;
 
 typedef uint16_t proto_pl_sz; /* type representing total payload size */
 
+typedef uint8_t proto_service_id;
+
 /*
  * Pointer to a callback routine. The callback accepts a buffer, its size,
- * an event from the source of the callback explaining why it was invoked and
- * service id which buf belongs to.
+ * an event from the source of the callback explaining why it was invoked,
+ * and the service id of the service that should process the event.
  */
-typedef void (*proto_callback)(const void *buf, uint32_t sz, proto_event event,
-				uint8_t svc_id);
+typedef void (*proto_callback)(const void *buf, uint32_t sz,
+			       proto_event event, proto_service_id svc_id);
 
 /*
  * Define this to profile function execution time

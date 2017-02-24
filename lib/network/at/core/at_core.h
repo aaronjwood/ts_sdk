@@ -45,11 +45,11 @@ typedef enum at_return_codes {
  */
 /*#define DEBUG_AT_LIB*/
 
-static int debug_level;
 /* level v2 is normally for extensive debugging need, for example tracing
  * function calls
  */
 #ifdef DEBUG_AT_LIB
+static int debug_level;
 #define DEBUG_V2(...)	\
                         do { \
                                 if (debug_level >= 2) \

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "dbg.h"
 #include "platform.h"
+#include "service_ids.h"
 #include "ott_protocol.h"
 #include "ott_def.h"
 
@@ -18,19 +19,25 @@
 #include "mbedtls/debug.h"
 #endif
 
+/* Sanity checks.  The cloud is primarily responsible for enforcing limits. */
+/* XXX Need to set these values to allow whatever limits get documented. */
+#define MIN_SANE_POLLING_INTERVAL_MS	10000
+#define MAX_SANE_POLLING_INTERVAL_MS (2 * 24 * 60 * 60 * 1000) /* 2 days */
+
 /* Certificate that is used with the OTT services */
 #include "verizon_ott_ca.h"
 
-#define INVOKE_SEND_CALLBACK(_buf, _sz, _evt) \
+#define INVOKE_SEND_CALLBACK(_buf, _sz, _evt)	\
 	do { \
 		if (session.send_cb) \
-			session.send_cb((_buf), (_sz), (_evt)); \
+			session.send_cb((_buf), (_sz), (_evt), \
+					session.send_svc_id ); \
 	} while(0)
 
-#define INVOKE_RECV_CALLBACK(_buf, _sz, _evt) \
+#define INVOKE_RECV_CALLBACK(_buf, _sz, _evt, _svc_id)	\
 	do { \
 		if (session.rcv_cb) \
-			session.rcv_cb((_buf), (_sz), (_evt)); \
+			session.rcv_cb((_buf), (_sz), (_evt), (_svc_id)); \
 	} while(0)
 
 #ifdef MBEDTLS_DEBUG_C
@@ -69,6 +76,8 @@ static void *ott_calloc(size_t num, size_t size)
 #ifdef PROTO_TIME_PROFILE
 static uint32_t proto_begin;
 #endif
+
+static uint32_t current_polling_interval = INIT_POLLING_MS;
 
 /*
  * Assumption: Underlying transport protocol is stream oriented. So parts of
@@ -116,6 +125,7 @@ static void ott_reset_state(void)
 	session.send_buf = NULL;
 	session.send_sz = 0;
 	session.send_cb = NULL;
+	session.send_svc_id = CC_SERVICE_BASIC;
 	session.conn_done = false;
 	session.auth_done = false;
 	session.pend_bit = false;
@@ -208,21 +218,26 @@ proto_result ott_set_auth(const uint8_t *d_id, uint32_t d_id_sz,
 	return PROTO_OK;
 }
 
-proto_result ott_set_destination(const char *host, const char *port)
+proto_result ott_set_destination(const char *dest)
 {
-	if (!host || !port)
+	if (!dest)
 		return PROTO_INV_PARAM;
 
-	size_t hlen = strlen(host);
+	char *delimiter = strchr(dest, ':');
+	if (delimiter == NULL)
+		return PROTO_INV_PARAM;
+
+	ptrdiff_t hlen = delimiter - dest;
 	if (hlen > MAX_HOST_LEN || hlen == 0)
 		return PROTO_INV_PARAM;
 
-	size_t plen = strlen(port);
+	size_t plen = strlen(delimiter+1);
 	if (plen > MAX_PORT_LEN || plen == 0)
 		return PROTO_INV_PARAM;
 
-	strncpy(session.host, host, sizeof(session.host));
-	strncpy(session.port, port, sizeof(session.port));
+	strncpy(session.host, dest, hlen);
+	session.host[hlen] = '\0';
+	strncpy(session.port, delimiter+1, sizeof(session.port));
 
 	return PROTO_OK;
 }
@@ -329,33 +344,42 @@ void ott_initiate_quit(bool send_nack)
         ott_reset_state();
 }
 
-/*
- * The message can have one of two lengths depending on the type of
- * message received: length of the "interval" field or length of the
- * binary data.
- */
-uint32_t ott_get_rcvd_data_len(const void *msg)
+static void fake_receiving_service_msg(m_type_t m_type, msg_t *msg_ptr,
+				       uint32_t *rcvd_len_ptr)
 {
-	if (!msg)
-		return 0;
-	m_type_t m_type;
-	msg_t *ptr_to_msg = (msg_t *)(msg);
-	OTT_LOAD_MTYPE(ptr_to_msg->cmd_byte, m_type);
+	/*
+	 * Overwrite the original payload (i.e. the interval value for the
+	 * command) with a Control service protocol message so we can
+	 * later dispatch the message to the Control service.
+	 */
+	uint32_t interval = msg_ptr->data.interval;
+	uint8_t *data = (uint8_t *)msg_ptr;
+
+	/* Payload should always start here no matter which service. */
+	data += PROTO_OVERHEAD_SZ;
 
 	switch (m_type) {
-	case MT_UPDATE:
-		return ptr_to_msg->data.array.sz;
 	case MT_CMD_PI:
+		*data++ = CONTROL_PROTOCOL_VERSION;
+		*data++ = CTRL_MSG_SET_POLLING_INTERVAL;
+		memcpy(data, &interval, sizeof(uint32_t));
+		*rcvd_len_ptr = *rcvd_len_ptr + 1;
+		break;
 	case MT_CMD_SL:
-		return sizeof(ptr_to_msg->data.interval);
+		*data++ = CONTROL_PROTOCOL_VERSION;
+		*data++ = CTRL_MSG_MAKE_DEVICE_SLEEP;
+		memcpy(data, &interval, sizeof(uint32_t));
+		*rcvd_len_ptr = *rcvd_len_ptr + 1;
+		break;
 	default:
-		return 0;
+		dbg_printf("%s:%d: Unexpected OTT message type: %d\n",
+			   __func__, __LINE__, m_type);
 	}
 }
 
 /*
- * Process a received response. Most of the actual processing is done through the
- * user provided callbacks this function invokes. In addition, it sets some
+ * Process a received response. Most of the actual processing is done through
+ * the user provided callbacks this function invokes. In addition, it sets some
  * internal flags to decide the state of the session in the future. Calling the
  * send callback is optional and is decided through "invoke_send_cb".
  * On receiving a NACK return "false". Otherwise, return "true".
@@ -365,6 +389,7 @@ static bool process_recvd_msg(msg_t *msg_ptr, uint32_t rcvd, bool invoke_send_cb
 	c_flags_t c_flags;
 	m_type_t m_type;
 	bool no_nack_detected = true;
+	proto_service_id svc_id = CC_SERVICE_BASIC;
 	OTT_LOAD_FLAGS(msg_ptr->cmd_byte, c_flags);
 	OTT_LOAD_MTYPE(msg_ptr->cmd_byte, m_type);
 
@@ -372,21 +397,30 @@ static bool process_recvd_msg(msg_t *msg_ptr, uint32_t rcvd, bool invoke_send_cb
 	session.pend_bit = OTT_FLAG_IS_SET(c_flags, CF_PENDING);
 
 	if (OTT_FLAG_IS_SET(c_flags, CF_ACK)) {
+
+		/* ACK while authenticating completed authentication. */
+		if (!session.auth_done)
+			session.auth_done = true;
+
 		proto_event evt = PROTO_RCVD_NONE;
 		/* Messages with a body need to be ACKed in the future */
 		session.pend_ack = false;
-		if (m_type == MT_UPDATE) {
-			evt = PROTO_RCVD_UPD;
-		} else if (m_type == MT_CMD_SL) {
-			evt = PROTO_RCVD_CMD_SL;
-		} else if (m_type == MT_CMD_PI) {
-			INVOKE_RECV_CALLBACK(msg_ptr, rcvd, PROTO_RCVD_CMD_PI);
-			session.pend_ack = true;
+
+		if (m_type == MT_UPDATE || m_type == MT_CMD_SL ||
+		    m_type == MT_CMD_PI)
+			/* Received a message, not just an ACK */
+			evt = PROTO_RCVD_MSG;
+
+		if (evt == PROTO_RCVD_MSG) {
+			/* XXX OTT doesn't have service id's yet, so fake it. */
+			if (m_type == MT_CMD_SL || m_type == MT_CMD_PI) {
+				fake_receiving_service_msg(m_type, msg_ptr,
+							   &rcvd);
+				svc_id = CC_SERVICE_CONTROL;
+			}
+			INVOKE_RECV_CALLBACK(msg_ptr, rcvd, evt, svc_id);
 		}
 
-		if (m_type == MT_UPDATE || m_type == MT_CMD_SL) {
-			INVOKE_RECV_CALLBACK(msg_ptr, rcvd, evt);
-		}
 		if (invoke_send_cb) {
 			INVOKE_SEND_CALLBACK(session.send_buf, session.send_sz,
 						PROTO_RCVD_ACK);
@@ -402,7 +436,7 @@ static bool process_recvd_msg(msg_t *msg_ptr, uint32_t rcvd, bool invoke_send_cb
 	if (OTT_FLAG_IS_SET(c_flags, CF_QUIT)) {
 		ott_close_connection();
 		ott_reset_state();
-		INVOKE_RECV_CALLBACK(msg_ptr, rcvd, PROTO_RCVD_QUIT);
+		INVOKE_RECV_CALLBACK(msg_ptr, rcvd, PROTO_RCVD_QUIT, svc_id);
 	}
 
 	return no_nack_detected;
@@ -426,8 +460,6 @@ static bool msg_is_valid(msg_t *msg)
 			return true;
 	case MT_CMD_PI:
 	case MT_CMD_SL:
-		/* XXX: Limit the intervals to some realistic value: 2 days? */
-		return true;
 	case MT_NONE:
 		/* XXX: Perform additional checks? */
 		return true;
@@ -516,7 +548,7 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 
 	uint32_t start = platform_get_tick_ms();
 	uint32_t end = start;
-	bool no_nack;
+	bool no_nack = true;
 	uint32_t rcvd = 0;
 	do {
 		proto_result s = ott_retrieve_msg(session.rcv_buf,
@@ -538,7 +570,7 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 	if (end - start >= timeout) {
 		if (invoke_send_cb)
 			INVOKE_SEND_CALLBACK(session.send_buf, session.send_sz,
-						PROTO_SEND_TIMEOUT);
+					     PROTO_SEND_TIMEOUT);
 		return false;
 	}
 
@@ -553,7 +585,8 @@ static proto_result ott_initiate_connection(const char *host, const char *port)
 
 	int ret;
 	/* Connect to the cloud server over TCP */
-	ret = mbedtls_net_connect(&server_fd, host, port, MBEDTLS_NET_PROTO_TCP);
+	ret = mbedtls_net_connect(&server_fd, host, port,
+				  MBEDTLS_NET_PROTO_TCP);
 	if (ret < 0)
 		return PROTO_ERROR;
 
@@ -678,16 +711,13 @@ retry_connection:
 		goto retry_connection;
 	}
 
-	/* If neither side has nothing to send while polling, the connection
+	/* If neither side has anything to send while polling, the connection
 	 * would have been terminated in recv_resp_within_timeout().
 	 */
 	if (polling && !session.conn_done) {
 		session.auth_done = false;
 		return false;
 	}
-
-	session.auth_done = true;
-
 	return true;
 }
 
@@ -739,11 +769,36 @@ static proto_result ott_send_status_to_cloud(c_flags_t c_flags,
 	return PROTO_OK;
 }
 
+/*
+ * Until OTT supports service ID's we can only support operations
+ * that map onto the existing protocol.  That limits us to the Control service,
+ * which has only one upstream operation for OTT.
+ */
+static proto_result fake_sending_service_msg(const void* buf, uint32_t sz,
+					     proto_service_id svc_id,
+					     proto_callback cb)
+{
+	if (svc_id != CC_SERVICE_CONTROL)
+		return PROTO_INV_PARAM;
+		
+	if (sz > 0 && *((uint8_t *)(buf) + PROTO_OVERHEAD_SZ + 1) ==
+	    CTRL_MSG_REQUEST_RESEND_INIT) {
+		session.send_svc_id = CC_SERVICE_CONTROL;
+		return ott_resend_init_config(cb);
+	} else 
+		return PROTO_INV_PARAM;
+}
+
+
 proto_result ott_send_msg_to_cloud(const void *buf, uint32_t sz,
-                                        proto_callback cb)
+				   proto_service_id svc_id, proto_callback cb)
 {
 	if (!buf || sz == 0)
 		return PROTO_INV_PARAM;
+
+	/* XXX Hack until OTT is redefined to support service IDs */
+	if (svc_id != CC_SERVICE_BASIC)
+		return fake_sending_service_msg(buf, sz, svc_id, cb);
 
 	if (strlen(session.host) == 0 || strlen(session.port) == 0)
 		return PROTO_INV_PARAM;
@@ -772,6 +827,7 @@ proto_result ott_send_msg_to_cloud(const void *buf, uint32_t sz,
 	session.send_buf = buf;
 	session.send_sz = sz;
 	session.send_cb = cb;
+	session.send_svc_id = svc_id;
 	session.pend_ack = false;
 
 	/* Receive a message within a timeout and invoke the send callback */
@@ -790,21 +846,7 @@ const uint8_t *ott_get_rcv_buffer_ptr(const void *msg)
 {
 	if (!msg)
 		return NULL;
-
-	m_type_t m_type;
-	const msg_t *ptr_to_msg = (const msg_t *)(msg);
-	OTT_LOAD_MTYPE(ptr_to_msg->cmd_byte, m_type);
-
-	switch (m_type) {
-	case MT_UPDATE:
-		return (const uint8_t *)&(ptr_to_msg->data.array.bytes);
-	case MT_CMD_PI:
-	case MT_CMD_SL:
-		return (const uint8_t *)&(ptr_to_msg->data.interval);
-	default:
-		/* XXX: Unlikely because of checks in ott_retrieve_msg() */
-		return NULL;
-	}
+	return (uint8_t *)msg + PROTO_OVERHEAD_SZ;
 }
 
 void ott_send_ack(void)
@@ -818,6 +860,7 @@ void ott_send_nack(void)
         session.nack_sent = true;
 }
 
+/* XXX Remove this when we no longer need to fake Control service messages. */
 static proto_result ott_send_restarted(c_flags_t c_flags)
 {
 	PROTO_TIME_PROFILE_BEGIN();
@@ -835,6 +878,7 @@ static proto_result ott_send_restarted(c_flags_t c_flags)
 	return PROTO_OK;
 }
 
+/* XXX Remove this when we no longer need to fake Control service messages. */
 proto_result ott_resend_init_config(proto_callback cb)
 {
 	if (strlen(session.host) == 0 || strlen(session.port) == 0)
@@ -875,32 +919,22 @@ proto_result ott_resend_init_config(proto_callback cb)
 	return PROTO_OK;
 }
 
-static uint32_t ott_get_interval(const void *msg)
+uint32_t ott_get_polling_interval(void)
 {
-        if (!msg)
-                return 0;
-        m_type_t m_type;
-        const msg_t *ptr_to_msg = (const msg_t *)(msg);
-        OTT_LOAD_MTYPE(ptr_to_msg->cmd_byte, m_type);
-
-        if (m_type == MT_CMD_PI)
-                return ptr_to_msg->data.interval * MULT;
-	else if (m_type == MT_CMD_SL)
-		return ptr_to_msg->data.interval;
-        else
-                return 0;
+        return current_polling_interval;
 }
 
-uint32_t ott_get_polling_interval(const void *msg, bool default_poll)
+void ott_set_polling_interval(uint32_t interval_ms)
 {
-	if (default_poll)
-		return INIT_POLLLING_MS;
-        return ott_get_interval(msg);
-}
-
-uint32_t ott_get_sleep_interval(const void *msg)
-{
-        return ott_get_interval(msg);
+	if (interval_ms < MIN_SANE_POLLING_INTERVAL_MS ||
+	    interval_ms > MAX_SANE_POLLING_INTERVAL_MS) {
+		dbg_printf("Invalid polling interval: %"PRIu32" ms\n",
+			   interval_ms);
+	} else {
+		dbg_printf("Setting polling interval to: %"PRIu32" ms\n",
+			   interval_ms);
+		current_polling_interval = interval_ms;
+	}
 }
 
 /*

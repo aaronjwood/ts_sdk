@@ -5,19 +5,18 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "service_ids.h"
 #include "protocol_def.h"
 
 /**
  * \file cloud_comm.h
  *
- * This module forms the device facing API to communicate with the cloud.
- * Sending data to the cloud is a blocking operation. The API accepts raw bytes
- * that need to be transmitted, wraps them in the protocol headers and sends
- * them through selected protocol. A callback is used to report the success or
- * failure of the last transmitted message.
- * The device schedules a receive by specifying a buffer and a callback.
- * The callback is used to report the type of the message received. Scheduling
- * receive is non-blocking.
+ * This module defines the API used by devices to communicate with the cloud.
+ * Data is sent and received as discrete messages passed over the selected
+ * protocol.  A callback is used to notify the application if a send
+ * succeeded or failed, when data is received, or when other events occur.
+ * Communication takes place using the protocol (transport) selected by a
+ * compile-time option.
  */
 
 /**
@@ -30,37 +29,51 @@ typedef enum {
 } cc_send_result;
 
 /**
- * Return values for cc_recv_msg_from_cloud().
+ * Return values for cc_set_recv_buffer()
  */
 typedef enum {
-	CC_RECV_FAILED,		/**< Failed to schedule a receive */
-	CC_RECV_BUSY,		/**< A receive has already been scheduled */
-	CC_RECV_SUCCESS		/**< Successfully scheduled a receive */
-} cc_recv_result;
+	CC_RECV_FAILED,		/**< Failed to set the receive buffer. */
+	CC_RECV_BUSY,		/**< Cannot change buffer since it is in use. */
+	CC_RECV_SUCCESS		/**< Successfully set a receive buffer */
+} cc_set_recv_result;
 
 /**
  * Events delivered to the send and receive callback routines.
  */
 typedef enum {
-	CC_STS_NONE,		/**< Default value; No message body */
+	CC_EVT_NONE,		/**< Default value; No message body */
 
 	/* Outgoing message events: */
-	CC_STS_ACK,		/**< Received an ACK for the last message sent */
-	CC_STS_NACK,		/**< Received a NACK for the last message sent */
-	CC_STS_SEND_TIMEOUT,	/**< Timed out waiting for a response */
+	CC_EVT_SEND_ACKED,	/**< Received an ACK for the last message sent */
+	CC_EVT_SEND_NACKED,	/**< Received a NACK for the last message sent */
+	CC_EVT_SEND_TIMEOUT,	/**< Timed out waiting for a response */
 
 	/* Incoming message events: */
-	CC_STS_RCV_CMD_SL,	/**< Received sleep time from the cloud */
-	CC_STS_RCV_UPD,		/**< Received an update message from the cloud */
-	CC_STS_UNKNOWN		/**< Not supported event */
+	CC_EVT_RCVD_MSG,	/**< Received a message from the cloud */
+	CC_EVT_RCVD_MSG_HIGHPRIO, /**< Received high priority message. */
+	CC_EVT_RCVD_OVERFLOW,   /**< Received message too big for buffer. */
+
+	/* Control message events delivered to a Control callback */
+	CC_EVT_CTRL_SLEEP,	/**< Refrain from sending (i.e. airplane mode)*/
+	CC_EVT_CTRL_FACTORY_RST,/**< Protocol asked device to do factory reset*/
+
+	/* Other events are defined by their respective services */
+	CC_EVT_SERVICES_BASE=1024,
+
 } cc_event;
 
 typedef uint16_t cc_data_sz;	/**< Type representing the size of a message */
 
+typedef uint8_t cc_service_id;  /**< Type representing a service-id */
+
 typedef struct {		/* Cloud communication buffer descriptor */
 	cc_data_sz bufsz;	/* Maximum size of this buffer */
+	cc_data_sz current_len; /* Total length of rcvd data in buffer,
+				   including protocol overhead */
 	void *buf_ptr;		/* Opaque pointer to the actual data buffer */
 } cc_buffer_desc;
+
+typedef struct cc_service_descriptor cc_service_descriptor;
 
 /*
  * Macro framework for asserting at compile time for the C99 standard; Replace
@@ -86,7 +99,7 @@ typedef struct {		/* Cloud communication buffer descriptor */
 			((max_sz) >= CC_MIN_RECV_BUF_SZ), \
 			name##_does_not_have_a_valid_size_on_line); \
 	uint8_t name##_bytes[PROTO_OVERHEAD_SZ + (max_sz)]; \
-	cc_buffer_desc name = {(max_sz), &(name##_bytes)}
+	cc_buffer_desc name = {(max_sz), 0, &(name##_bytes)}
 
 /**
  * The buffer defined by CC_SEND_BUFFER is opaque to the user apart from its
@@ -98,52 +111,64 @@ typedef struct {		/* Cloud communication buffer descriptor */
 			((max_sz) >= CC_MIN_SEND_BUF_SZ), \
 			name##_does_not_have_a_valid_size_on_line); \
 	uint8_t name##_bytes[(max_sz)]; \
-	cc_buffer_desc name = {(max_sz), &(name##_bytes)}
+	cc_buffer_desc name = {(max_sz), 0, &(name##_bytes)}
 
 /**
- * Pointer to a callback routine. The callback accepts a buffer descriptor and
- * an event from the source of the callback explaining why it was invoked.
+ * Pointer to a service callback routine.  The callback receives an event
+ * indicating why it was invoked, and optional event parameter values,
+ * as defined for each event.  A service callback is called when a registered
+ * service requires the application to take some action in response to a
+ * message.
+ *
+ * Every application must provide a service callback for the Control service,
+ * as part of initializing the cloud communication API.
  */
-typedef void (*cc_callback_rtn)(cc_buffer_desc *buf, cc_event event);
+typedef void (*cc_svc_callback_rtn)(cc_event event, uint32_t value, void *ptr);
 
 /**
  * \brief
  * Initialize the cloud communication API.
  *
+ * \param[in] cb : Pointer to the callback routine that will be invoked
+ *                 when a Control event requires application action.
+ *
  * \returns
- *	True  : Initialization was successful.\n
+ *	True  : Initialization was successful.
  *	False : Initialization failed.
  *
  * This will in turn initialize any protocol specific modules, related
- * hardware etc. This API must be called before any APIs.
+ * hardware etc. This function must be called before any other cloud_comm
+ * functiion.
  *
  */
-bool cc_init(void);
+bool cc_init(cc_svc_callback_rtn control_cb);
 
 /**
  * \brief
- * Set the remote host name and host port to communicate with. Port will be used
- * for mostly TCP/IP related protocols and it is optional parameter if low
- * level transport protocol does not support it.
+ * Sets the destination for cloud communications.
+ * For a TCP/IP based protocol (i.e. OTT), specify the hostname and port
+ * number in the form:
+ *     hostname:port.
+ * This function does not need to be called if the protocol does not
+ * require a destination.
  *
- * \param[in] host : A NULL terminated string specifying the host which includes
- 		     tcp/ip host or LTE modem etc...
- * \param[in] port : Optional null terminated string specifying the host port.
+ * \param[in] dest : A null terminated string specifying the destination.
  *
  * \returns
- *	True  : Host name and port were set properly.\n
- *	False : Failed to set the host name / host port.
+ *	True  : Destination was set successfully.
+ *	False : Failed to set the destination.
  *
- * This must be called at least once before attempting to send messages.
+ * If required by the protocol, this must be called at least once before
+ * attempting to send messages.
  */
-bool cc_set_destination(const char *host, const char *port);
+bool cc_set_destination(const char *dest);
 
 /**
  * \brief
  * Sets device authorization credentials which will be used to authenticate with
- * the cloud in all future communications. This API is optional if protocol does
- * not need authentication with the cloud othewise required to be called at least
- * once before attempting to commuinicate witht the cloud.
+ * the cloud in all future communications.  If required by the protocol,
+ * this must be called at least once before attempting to communicate with the
+ * cloud.
  *
  * \param[in] d_id     : Pointer to a unique device ID.
  * \param[in] d_id_sz  : size of the d_id
@@ -151,21 +176,24 @@ bool cc_set_destination(const char *host, const char *port);
  * \param[in] d_sec_sz : Size of the device secret in bytes.
  *
  * \returns
- *	True  : device secrets were set properly.\n
+ *	True  : device secrets were set properly.
  *	False : Failed to set authentication due to wrong parameters.
  *
  * \note
- * Based on protocol d_id/d_sec can be optional. OTT protocol requires all the
- * fields.
+ * This function need not be called if the protocol is implicitly authenticated
+ * to the cloud e.g. by its cellular network identity.
+ * For the OTT protocol, both the id and secret must be supplied.
  */
 bool cc_set_auth_credentials(const uint8_t *d_id, uint32_t d_id_sz,
  				const uint8_t *d_sec, uint32_t d_sec_sz);
+
 /**
  * \brief
  * Get a pointer to the first byte of the send buffer from the buffer
  * descriptor.
  *
- * \param[in] buf : A cloud communication buffer descriptor.
+ * \param[in] buf    : A cloud communication buffer descriptor.
+ * \param[in] svc_id : Service id of the message in the buffer.
  *
  * \returns
  * 	Pointer to the send buffer.
@@ -174,7 +202,7 @@ bool cc_set_auth_credentials(const uint8_t *d_id, uint32_t d_id_sz,
  * cc_send_msg_to_cloud().
  *
  */
-uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf);
+uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf, cc_service_id svc_id);
 
 /**
  * \brief
@@ -182,98 +210,67 @@ uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf);
  * descriptor.  Any received data can be read through this buffer.
  *
  * \param[in] buf : A cloud communication buffer descriptor.
+ * \param[in] svc_id : Service id of the message in the buffer.
  *
  * \returns
  * 	Pointer to the receive buffer.
  */
-const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf);
-
-/**
- * \brief
- * Get the value of the sleep interval (in seconds) from the received message.
- *
- * \param[in] buf : A cloud communication buffer descriptor.
- *
- * \returns
- * 	Value of the sleep interval in seconds.
- *
- * \note
- * Attempting to retrieve the value from a message that does not contain the
- * sleep interval is unsupported hence it will only be used when
- * CC_STS_RCV_CMD_SL event is detected.
- *
- */
-uint32_t cc_get_sleep_interval(const cc_buffer_desc *buf);
+const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf,
+				      cc_service_id svc_id);
 
 /**
  * \brief
  * Retrieve the length of the last message received.
  *
  * \param[in] buf : A cloud communication buffer descriptor.
+ * \param[in] svc_id : Service id of the message in the buffer.
  *
  * \returns
  * 	Number of bytes of data present in the receive buffer.
  */
-cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf);
+cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf,
+				   cc_service_id svc_id);
 
 /**
  * \brief
- * A mandatory function to send messages to the cloud.
+ * Send a message to the cloud to the specified service.
  *
- * \param[in] buf : Pointer to the cloud communication buffer descriptor
- *                  containing the data to be sent.
- * \param[in] sz : Size of the data in bytes.
- * \param[in] cb : Pointer to the callback routine that will be invoked
- *                 with the status of the send.
+ * \param[in] buf    : Pointer to the cloud communication buffer descriptor
+ *                     containing the data to be sent.
+ * \param[in] sz     : Size of the data in bytes.
+ * \param[in] svc_id : Id of the service that will process this message.
  *
  * \returns
- * 	CC_SEND_FAILED  : Failed to send the message.\n
- * 	CC_SEND_BUSY    : A send is in progress. \n
+ * 	CC_SEND_FAILED  : Failed to send the message.
+ * 	CC_SEND_BUSY    : A send is in progress.
  * 	CC_SEND_SUCCESS : Message was sent, waiting for a response from the
  *                        cloud.
  *
- * The data is wrapped in protocol headers and sent over a secure channel.
+ * The data is sent using the selected protocol to the specified service.
  * A send is said to be active when it is waiting for a response from the
  * cloud services. Only one send can be active at a time.
  */
-cc_send_result cc_send_msg_to_cloud(const cc_buffer_desc *buf, cc_data_sz sz,
-		cc_callback_rtn cb);
+cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
+					cc_data_sz sz, cc_service_id svc_id);
 
 /**
  * \brief
- * Ask the cloud to send the initial configuration of the device.
- *
- * This function is used when the device has undergone a reset and is no
- * longer in the state the cloud services thinks it is in. A successful call
- * will result in the cloud sending over the initial configuration in a
- * future message.
- *
- * \returns
- * 	CC_SEND_FAILED  : Failed to send the message.\n
- * 	CC_SEND_BUSY    : A send is in progress.\n
- * 	CC_SEND_SUCCESS : Message was sent, waiting for response from the cloud.
- */
-cc_send_result cc_resend_init_config(cc_callback_rtn cb);
-
-/**
- * \brief
- * A mandatory function to initiate a receive messages from the cloud.
+ * Make a buffer available to hold received messages.
  *
  * \param[in] buf  : Pointer to the cloud communication buffer descriptor
  *                   that will hold the data to be received.
- * \param[in] cb   : Pointer to the callback that will be invoked when a
- *                   complete message is received.
  *
  * \returns
- * 	CC_RECV_FAILED  : Failed to schedule a receive.
- * 	CC_RECV_BUSY    : Can't initiate a receive. One is already in progress.
- * 	CC_RECV_SUCCESS : Successfully initiated a receive.
+ * 	CC_RECV_FAILED  : Failed to set the buffer.
+ * 	CC_RECV_BUSY    : Cannot change buffer since it is in use.
+ * 	CC_RECV_SUCCESS : Buffer was successfully set.
  *
- * Only one receive can be scheduled at a time. A receive must be scheduled
- * once the API has been initialized.  Scheduling the receive ensures there
- * is a place to receive a response and the appropriate callbacks are invoked.
+ * Only one buffer can be set at a time. A receive must be made available
+ * once the API has been initialized.  This ensures there is a place to
+ * store any incoming messages, or the response to an outgoing
+ * message.
  */
-cc_recv_result cc_recv_msg_from_cloud(cc_buffer_desc *buf, cc_callback_rtn cb);
+cc_set_recv_result cc_set_recv_buffer(cc_buffer_desc *buf);
 
 /**
  * \brief
@@ -298,18 +295,44 @@ uint32_t cc_service_send_receive(uint32_t cur_ts);
  * \brief
  * Acknowledge the last message received from the cloud services.
  * \note
- * The exact behavior is protoco-dependent, but applications must always call
+ * The exact behavior is protocol-dependent, but applications must always call
  * this function or cc_nack_msg
  */
 void cc_ack_msg(void);
 
 /**
  * \brief
- * Negatice acknowledgment of the last message received from the cloud services.
+ * Send a negative acknowledgment of the last message received from the cloud
+ * services.
  * \note
- * The exact behavior is protoco-dependent, but applications must always call
+ * The exact behavior is protocol-dependent, but applications must always call
  * this function or cc_ack_msg
  */
 void cc_nak_msg(void);
+
+/*
+ * Functions to support additional services.
+ */
+
+/**
+ * \brief
+ * Register to process events and data for the specified service.
+ *
+ * \param[in] desc : Pointer to a service descriptor that provides the
+ *                   service id and other registration data.
+ *
+ * \param[in] cb   : Pointer to the callback routine that will be invoked
+ *                   when the service generates an event which requires
+ *		     application action.
+ *
+ * \returns
+ *	True  : The service was registered.
+ *	False : Registration failed.
+ *
+ * \note
+ * The Control service is registered automatically.
+ */
+bool cc_register_service(const cc_service_descriptor *svc_desc,
+			 cc_svc_callback_rtn cb);
 
 #endif /* __CLOUD_COMM */
