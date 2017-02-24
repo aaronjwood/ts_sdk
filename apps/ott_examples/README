@@ -28,15 +28,20 @@ follows:
 
 In addition to the above, the firmware also responds to an update message with
 a single byte payload with the value '0x42'. This instructs the firmware to
-resend calibration data of all sensors. CMD_PI and CMD_SI are also supported.
-While CMD_PI changes the polling interval, CMD_SI is simply interpreted and its
-value printed in seconds on the debug output.
+resend calibration data of all sensors.
 
-To convey the usage of the Cloud Communication API in the most simple way possible,
-no measures have been taken to handle connection timeouts or to perform retries
-on failed transactions. All calls to the API are wrapped with an ASSERT macro.
-On the first unexpected return value, execution stops and the blue LED on the
-development board flashes.
+The firmware supports standard control messages from the cloud to:
+
+	- Set the polling interval.
+	- Cause the device to go silent (i.e. enter airplane mode) for a 
+          specfied interval.  The interval value is printed as debug
+	  output, but communications are not halted.
+
+To convey the usage of the Cloud Communication API in the most simple way 
+possible,  no measures have been taken to handle connection timeouts or to
+perform retries on failed transactions. All calls to the API are wrapped with
+an ASSERT macro.  On the first unexpected return value, execution stops and
+the blue LED on the development board flashes.
 
 
 Creating a Thingspace account and registering a device:

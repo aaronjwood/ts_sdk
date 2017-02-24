@@ -9,7 +9,7 @@
 
 #define RECV_TIMEOUT_MS		5000
 #define MULT			1000
-#define INIT_POLLLING_MS	((uint32_t)15000)
+#define INIT_POLLING_MS		((uint32_t)15000)
 #define VERSION_BYTE		((uint8_t)0x01)
 #define TIMEOUT_MS		5000
 
@@ -85,6 +85,7 @@ static struct {
 	bool nack_sent;			/* Set if a NACK was sent from the device */
 	char host[MAX_HOST_LEN + 1];	/* Store the host name */
 	char port[MAX_PORT_LEN + 1];	/* Store the host port */
+	proto_service_id send_svc_id;	/* Service id of last sent message */
 	msg_t *rcv_buf;
 	uint32_t rcv_sz;
 	const void *send_buf;
