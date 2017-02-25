@@ -48,6 +48,10 @@
 #define UDH_IEI_CONCAT		0x00	/* IEI for concatenated messages */
 #define UDH_IEI_CONCAT_LEN	0x03	/* Number of concat. IEI parameters */
 
+#define ISDN_NUM_TYPE		0x91	/* Number type */
+
+#define SCTS_LEN		0x07	/* Length of Service Center Timestamp */
+
 static bool udh_present;		/* Set if UDH is present in received SMS */
 
 /*
@@ -116,7 +120,7 @@ static bool hexnum(const char **src, uint8_t len, uint8_t *num)
  */
 #define STRIDE			2
 #define ADDR_HDR_SZ		4	/* Size of the header for the encoded address */
-static bool smscodec_encode_addr(const char *intl_num, char **enc_intl_num)
+static bool encode_addr(const char *intl_num, char **enc_intl_num)
 {
 	uint8_t n_idx = 0;
 	uint8_t e_idx = ADDR_HDR_SZ;
@@ -176,6 +180,73 @@ static bool encode_ud(const sms_t *msg_to_send, char **dest)
 	return true;
 }
 
+static bool decode_addr(const char **pdu, sms_t *recv_msg)
+{
+	/* Get the length of the encoded address */
+	uint8_t len = 0;
+	ON_FAIL(hexnum(pdu, 1, &len), false);
+
+	/* Get the type of the address */
+	uint8_t val = 0;
+	ON_FAIL(hexnum(pdu, 1, &val), false);
+	if (val != ISDN_NUM_TYPE)
+		return false;
+
+	/* Decode the address - take two digits at a time and swap them */
+	for (uint8_t i = 0; i < len; i += HEXLEN) {
+		recv_msg->addr[i] = (*pdu)[i + 1];
+		if ((*pdu)[i] != 'F' && (*pdu)[i] != 'f')
+			recv_msg->addr[i + 1] = (*pdu)[i];
+	}
+	recv_msg->addr[len] = '\0';
+	len = (len & 1) ? len + 1 : len;	/* Round to next even number */
+	*pdu += len;
+
+	return true;
+}
+
+static bool decode_ud(const char **pdu, sms_t *recv_msg)
+{
+	/* Get the user data length */
+	uint8_t len = 0, val = 0;
+	ON_FAIL(hexnum(pdu, 1, &len), false);
+	if (udh_present) {
+		/* Parse User Data Header */
+		recv_msg->len = len - UDHL_VAL - 1;
+		ON_FAIL(hexnum(pdu, 1, &val), false);
+		if (val != UDHL_VAL)
+			return false;
+		ON_FAIL(hexnum(pdu, 1, &val), false);
+		if (val != UDH_IEI_CONCAT)
+			return false;
+		ON_FAIL(hexnum(pdu, 1, &val), false);
+		if (val != UDH_IEI_CONCAT_LEN)
+			return false;
+		ON_FAIL(hexnum(pdu, 1, &val), false);
+		recv_msg->ref_no = val;
+		ON_FAIL(hexnum(pdu, 1, &val), false);
+		recv_msg->num_seg = val;
+		ON_FAIL(hexnum(pdu, 1, &val), false);
+		recv_msg->seq_no = val;
+
+		for (uint8_t i = 0; i < recv_msg->len; i++) {
+			ON_FAIL(hexnum(pdu, 1, &val), false);
+			recv_msg->buf[i] = val;
+		}
+	} else {
+		/* Format: Length field followed by raw 8-bit data */
+		recv_msg->len = len;
+		for (uint8_t i = 0; i < len; i++) {
+			ON_FAIL(hexnum(pdu, 1, &val), false);
+			recv_msg->buf[i] = val;
+		}
+		recv_msg->ref_no = 0;
+		recv_msg->num_seg = 1;
+		recv_msg->seq_no = 0;
+	}
+	return true;
+}
+
 bool smscodec_decode(uint16_t len, const char *pdu, sms_t *recv_msg)
 {
 	if (pdu == NULL || recv_msg == NULL || recv_msg->buf == NULL ||
@@ -197,7 +268,27 @@ bool smscodec_decode(uint16_t len, const char *pdu, sms_t *recv_msg)
 
 	/* Retrieve the first octet */
 	ON_FAIL(hexnum(&rptr, 1, &val), false);
+	uint8_t fo_expected = FO_TYPE_SMS_DELIVER | FO_MMS_FALSE | FO_LP_INACTIVE |
+		FO_SRI_NO_REPORT | FO_RP_NOT_SET;
+	if ((val & fo_expected) != fo_expected)
+		return false;
+	udh_present = ((val & FO_UDHI_PRESENT) == FO_UDHI_PRESENT);
 
+	/* Decode the originating address */
+	ON_FAIL(decode_addr(&rptr, recv_msg), false);
+
+	/* Verify PID and DCS values */
+	uint8_t pid = 0, dcs = 0;
+	ON_FAIL(hexnum(&rptr, 1, &pid), false);
+	ON_FAIL(hexnum(&rptr, 1, &dcs), false);
+	if (pid != PID_VAL && dcs != DCS_VAL)
+		return false;
+
+	/* Service center timestamp. This can be skipped since we do not use it */
+	rptr += SCTS_LEN * HEXLEN;
+
+	/* Decode the User Data */
+	ON_FAIL(decode_ud(&rptr, recv_msg), false);
 	return true;
 }
 
@@ -228,7 +319,7 @@ uint16_t smscodec_encode(const sms_t *msg_to_send, char *pdu)
 	msg_ref_no++;
 
 	/* Write the destination address length and the encoded address */
-	ON_FAIL(smscodec_encode_addr(msg_to_send->addr, &wptr), 0);
+	ON_FAIL(encode_addr(msg_to_send->addr, &wptr), 0);
 
 	/* Write the PID and DCS fields */
 	ON_FAIL(hexstr(&wptr, PID_VAL), 0);
