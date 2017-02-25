@@ -38,9 +38,9 @@ static void reset_rcv_path(uint8_t rcv_path)
 	 */
 	if (session.rcv_valid && rcv_path == 0 &&
 		(ARRAY_SIZE(session.rcv_msg) == 1))
-		session.rcv_msg[rcv_path].rem_sz = session.rcv_sz;
+		session.rcv_msg[rcv_path].rcv_sz = session.rcv_sz;
 	else
-		session.rcv_msg[rcv_path].rem_sz = PROTO_MAX_MSG_SZ;
+		session.rcv_msg[rcv_path].rcv_sz = PROTO_MAX_MSG_SZ;
 	session.rcv_msg[rcv_path].wr_idx = rcv_path * PROTO_MAX_MSG_SZ;
 	session.rcv_msg[rcv_path].cur_seq = 0;
 	session.rcv_msg[rcv_path].cref_num = -1;
@@ -140,7 +140,7 @@ proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
 	 */
 	if (ARRAY_SIZE(session.rcv_msg) == 1) {
 		session.rcv_msg[0].buf = rcv_buf;
-		session.rcv_msg[0].rem_sz = sz;
+		session.rcv_msg[0].rcv_sz = sz;
 		session.rcv_msg[0].wr_idx = 0;
 	}
 	/* place holder for the upper level buffer, used when multi receive path
@@ -223,19 +223,19 @@ static bool check_validity(at_msg_t *msg_ptr, uint8_t rcv_path, bool first_seg)
 static update_ack_rcv_path(at_msg_t *msg_ptr, uint8_t rcv_path)
 {
 	session.rcv_msg[rcv_path].cur_seq = msg_ptr->seq_no;
-	session.rcv_msg[rcv_path].rem_sz -= msg_ptr->len;
 	session.rcv_msg[rcv_path].wr_idx += msg_ptr->len;
 	session.rcv_msg[rcv_path].next_seq_timeout = platform_get_tick_ms() +
 							CONC_NEXT_SEG_TIMEOUT_MS;
 	smsnas_send_ack();
 }
 
-static int retrieve_rcv_path(uint8_t cref, bool *new)
+static int retrieve_rcv_path(at_msg_t *msg, bool *new)
 {
 	uint8_t i;
 	int rcvp = -1;
 	int new_rcvp = -1;
 	uint32_t timestamp = 0;
+	uint8_t cref = msg->concat_ref_no;
 
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
 		if (session.rcv_msg[i].conct_in_progress) {
@@ -254,12 +254,19 @@ static int retrieve_rcv_path(uint8_t cref, bool *new)
 			new_rcvp = i;
 
 	}
-	/* Means no receive path is currently handling cref sms or all paths are
-	 * busy for that select oldest concatenated sms.
+	/* Means new_rcvp receive path is free to use, else rcvp is the oldest
+	 * concatenated sms to be evicted
 	 */
 	*new = true;
 	if (new_rcvp != -1)
-		return new_rcvp;
+		rcvp = new_rcvp;
+
+	/* check validity of the new message before allocating receive path */
+	if (!check_validity(msg, rcvp, true))
+		return -1;
+
+	smsnas_msg_t *temp_msg = (smsnas_msg_t *)msg->buf;
+ 	session.rcv_msg[rcvp].service_id = temp_msg->service_id;
 
 	return rcvp;
 }
@@ -267,6 +274,7 @@ static int retrieve_rcv_path(uint8_t cref, bool *new)
 static void smsnas_rcv_cb(at_msg_t *msg)
 {
 	int rcv_path  = -1;
+	proto_pl_sz rcvd = 0;
 	/* Must be some random message that upper level is not expecting,
 	 * ignore it
 	 */
@@ -277,22 +285,33 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 
 	if (msg_ptr->num_seg > 1) {
 		bool new = false;
-		rcv_path = retrieve_rcv_path(msg->concat_ref_no, &new);
+		rcv_path = retrieve_rcv_path(msg, &new);
 
 		if (rcv_path == -1) {
-			printf("%s: %d: Unlikely Error\n", __func__, __LINE__);
-			return;
+			printf("%s: %d: Message is not valid\n",
+				__func__, __LINE__);
+			goto error;
 		}
 		smsnas_rcv_path *rp = &session.rcv_msg[rcv_path];
+		rcvd = rp->wr_idx + msg_ptr->len;
+
+		/* two step memory overflow check needed when there are multiple
+		 * receive paths are supported, one for intermediate buffer
+		 * and other for user supplied buffer
+		 */
+		if (check_mem_overflow(rcvd, session.rcv_sz, rp->service_id)) {
+			session.rcv_valid = false;
+			goto done;
+		} else if ((ARRAY_SIZE(session.rcv_msg) > 1) &&
+			(rcvd > rp->rcv_sz)) {
+			printf("%s:%d: Intermediate buffer overflow\n",
+				__func__, __LINE__);
+			goto error;
+		}
 		if (new) {
-			/* This is the start of the concatenated messages */
-			if (!check_validity(msg_ptr, rcv_path, true))
-				goto error;
 			/* wr_idx is already been initialized */
 			rp->cref_num = msg_ptr->concat_ref_no;
 			memcpy(rp->buf, msg_ptr->buf, msg_ptr->len);
-			smsnas_msg_t *temp_msg = rp->buf;
-			rp->service_id = temp_msg->service_id;
 			rp->conct_in_progress = true;
 			/* need to determine oldest to evict */
 			rp->init_timestamp = platform_get_tick_ms();
@@ -303,20 +322,7 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 
 			/* check for last segment */
 			if (msg_ptr->seq_no == msg_ptr->num_seg) {
-				/* check if user buffer size is greater then
-				 * one of those intermediate buffer which has
-				 * complete concatenated message
-				 */
-				proto_pl_sz rcvd = rp->wr_idx + msg_ptr->len;
-				/* check memory overflow before copying data to
-				 * user supplied buffer, if it is insufficient
-				 * callback with memory overflow event and let
-				 * user nack this
-				 */
 				session.rcv_valid = false;
-				if (check_mem_overflow(rcvd, session.rcv_sz,
-					rp->service_id))
-					goto done;
 
 				/* Invoke upper level callback and let upper
 				 * level ack/nack this message, also it is upper

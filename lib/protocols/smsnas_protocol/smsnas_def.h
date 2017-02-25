@@ -118,8 +118,8 @@ typedef struct {
 	uint8_t *buf;
 	/* write index of the buf */
 	proto_pl_sz wr_idx;
-	/* remaining size of the receiving buffer */
-	proto_pl_sz rem_sz;
+	/* size of the receiving buffer */
+	proto_pl_sz rcv_sz;
 } smsnas_rcv_path;
 
 static struct {
