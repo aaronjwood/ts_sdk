@@ -32,15 +32,7 @@ static uint32_t sl_intr;
 
 static void reset_rcv_path(uint8_t rcv_path)
 {
-	/* rcv_path = 0 is special case where it uses user supplied buffer
-	 * directly as oppose to intermediate buffer used when there are multiple
-	 * receive paths
-	 */
-	if (session.rcv_valid && rcv_path == 0 &&
-		(ARRAY_SIZE(session.rcv_msg) == 1))
-		session.rcv_msg[rcv_path].rcv_sz = session.rcv_sz;
-	else
-		session.rcv_msg[rcv_path].rcv_sz = PROTO_MAX_MSG_SZ;
+	session.rcv_msg[rcv_path].rcv_sz = PROTO_MAX_MSG_SZ;
 	session.rcv_msg[rcv_path].wr_idx = rcv_path * PROTO_MAX_MSG_SZ;
 	session.rcv_msg[rcv_path].cur_seq = 0;
 	session.rcv_msg[rcv_path].cref_num = -1;
@@ -192,7 +184,7 @@ static bool check_mem_overflow(proto_pl_sz rcv_len, proto_pl_sz pl_sz,
 	/* check for storage capacity */
 	if (pl_sz < rcv_len) {
 		INVOKE_RECV_CALLBACK(session.rcv_buf, session.rcv_sz,
-				PROTO_RCVD_SMSNAS_MEM_INSUF, s_id);
+				PROTO_RCVD_MEM_OVRFL, s_id);
 		return true;
 	}
 	return false;
@@ -229,6 +221,9 @@ static update_ack_rcv_path(at_msg_t *msg_ptr, uint8_t rcv_path)
 	smsnas_send_ack();
 }
 
+/* detect or select receive path for the given msg if it is new msg check for
+ * its sanity before allocating receive path
+ */
 static int retrieve_rcv_path(at_msg_t *msg, bool *new)
 {
 	uint8_t i;
@@ -276,17 +271,17 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 	int rcv_path  = -1;
 	proto_pl_sz rcvd = 0;
 	/* Must be some random message that upper level is not expecting,
-	 * ignore it
+	 * ignore it and send nack
 	 */
 	if (!session.rcv_valid) {
 		printf("%s:%d: rcv buffer not set\n", __func__, __LINE__);
-		return;
+		goto error;
 	}
 
 	if (msg_ptr->num_seg > 1) {
 		bool new = false;
 		rcv_path = retrieve_rcv_path(msg, &new);
-
+		/* only possible when allocating new receive path */
 		if (rcv_path == -1) {
 			printf("%s: %d: Message is not valid\n",
 				__func__, __LINE__);
@@ -340,8 +335,7 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 					memcpy(session.rcv_buf, rp->buf, rcvd);
 
 				INVOKE_RECV_CALLBACK(session.rcv_buf, rcvd,
-					PROTO_RCVD_SMSNAS_MSG,
-					rp->service_id);
+					PROTO_RCVD_MSG, rp->service_id);
 				goto done;
 			}
 		}
@@ -360,8 +354,7 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 
 		/* let upper level decide to ack/nack this message */
 		INVOKE_RECV_CALLBACK(session.rcv_buf, msg_ptr->len,
-					PROTO_RCVD_SMSNAS_MSG,
-					smsnas_msg->service_id);
+					PROTO_RCVD_MSG, smsnas_msg->service_id);
 		goto done;
 
 	}
