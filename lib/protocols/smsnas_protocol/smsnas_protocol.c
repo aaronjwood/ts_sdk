@@ -397,15 +397,14 @@ void smsnas_maintenance(uint32_t cur_timestamp)
 		return;
 
 	uint8_t i;
-	uint32_t poll_intr = 0;
 	int rcvp = -1;
-	bool init_poll = false;
+	uint32_t ns_time = 0;
+	uint32_t *cur_int = &session.cur_polling_interval;
+
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
 		if (session.rcv_msg[i].conct_in_progress) {
-			if (!init_poll) {
-				init_poll = true;
-				poll_intr = session.rcv_msg[i].next_seq_timeout;
-			}
+			ns_time = session.rcv_msg[i].next_seq_timeout;
+
 			if (cur_timestamp >=
 				session.rcv_msg[i].next_seq_timeout) {
 				if (session.rcv_msg[i].expected_seq !=
@@ -415,22 +414,28 @@ void smsnas_maintenance(uint32_t cur_timestamp)
 						session.rcv_sz,
 						PROTO_RCV_TIMEOUT,
 						session.rcv_msg[i].service_id);
+					session.rcv_msg[i].conct_in_progress =
+									false;
 					rcv_path_cleanup(i);
 					rcvp = i;
-
 				}
 			} else {
+				if (*cur_int == 0)
+					*cur_int = ns_time - cur_timestamp;
+				else {
+					if (*cur_int > (ns_time - cur_timestamp))
+						*cur_int = ns_time -
+								cur_timestamp;
+				}
 				if (session.rcv_msg[i].expected_seq !=
 					(session.rcv_msg[i].cur_seq + 1))
 					session.rcv_msg[i].expected_seq =
 						session.rcv_msg[i].cur_seq + 1;
 			}
-			if ((poll_intr >= session.rcv_msg[i].next_seq_timeout) &&
-				rcvp != i)
-				poll_intr = session.rcv_msg[i].next_seq_timeout;
 		}
 	}
-	session.cur_polling_interval = poll_intr;
+
+	return session.cur_polling_interval;
 }
 
 static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
