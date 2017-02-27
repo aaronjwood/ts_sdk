@@ -44,7 +44,8 @@ proto_result smsnas_protocol_init(void)
 {
 	sl_intr = 0;
 	uint8_t i = 0;
-
+	if (!at_init())
+		RETURN_ERROR("modem init failed", PROTO_ERROR);
 	/* This will not start until arrival of the first segement of the
 	 * concatenated sms
 	 */
