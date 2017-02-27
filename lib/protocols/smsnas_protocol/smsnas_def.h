@@ -3,16 +3,27 @@
 #ifndef __SMSNAS_DEF
 #define __SMSNAS_DEF
 
+#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include "protocol_def.h"
+
+#define ADDR_SZ	50
+typedef struct msg_t {
+        uint8_t len;                    /* Length of the buffer content */
+        uint8_t *buf;                   /* Pointer to the buffer containing the payload */
+        uint8_t concat_ref_no;          /* Concatenated message reference number */
+        uint8_t num_seg;                /* Number of segments making the message */
+        uint8_t seq_no;                 /* Seq No. of the current segment */
+        char addr[ADDR_SZ + 1];         /* Null terminated address */
+} at_msg_t;
 
 /* Macro indicates maximum receive stream protocol handles, if more than 1
  * define intermediate receive buffer with maximum size times receive stream
  * if it is not defined or less then 2, use buffer provided from upper level to
  * store receving data
  */
-#define SMSNAS_MAX_RCV_PATH	2
+/*#define SMSNAS_MAX_RCV_PATH	2*/
 
 #ifndef SMSNAS_MAX_RCV_PATH
 #define SMSNAS_MAX_RCV_PATH	1
@@ -21,6 +32,8 @@
 /* If more then one, define intermediate buffer to store incoming messages */
 #if SMSNAS_MAX_RCV_PATH > 1
 uint8_t smsnas_rcv_buf[PROTO_MAX_MSG_SZ * SMSNAS_MAX_RCV_PATH];
+#else
+uint8_t smsnas_rcv_buf[1];
 #endif
 
 #define MAX_HOST_LEN		ADDR_SZ

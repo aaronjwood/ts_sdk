@@ -74,15 +74,14 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
                                         uint8_t svc_id, proto_callback cb);
 
 /*
- * Maintenance of the protocol which can be used to complete any
- * pending internal protocol activities such as sending ack/nack of the processed
- * receive message before upper level possibly Application
- * decides to sleep for example or relinquish protocol control.
+ * Maintenance of the protocol, Processes pending ack/nack and also calling
+ * receive timeout event in case case of concatenated sms did not receive its
+ * next segment in a due time
  * Parameters:
- *	poll_due : True if polling is due to check if next segement of the
- *		   concatenated message is processed.
+ *	cur_timestamp : current time stamp in milliseconds to check if
+ *		        next segement of the concatenated message is processed.
  */
-void smsnas_maintenance(bool poll_due);
+void smsnas_maintenance(uint32_t cur_timestamp);
 
 /*
  * Send positive acknowledgment to cloud
@@ -116,17 +115,6 @@ void smsnas_send_nack(void);
  * 	data pointer or NULL if fails.
  */
 const uint8_t *smsnas_get_rcv_buffer_ptr(const void *msg);
-
-/*
- * Retrieve the received data size in bytes
- *
- * Parameters:
- * 	msg : Pointer to received buffer.
- *
- * Returns:
- * 	data length in bytes or 0 in case of invalid buffer or msg content
- */
-proto_pl_sz smsnas_get_rcvd_data_len(const void *msg);
 
 /*
  * Retrieves polling interval in mili seconds

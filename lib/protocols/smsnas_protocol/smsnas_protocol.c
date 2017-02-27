@@ -53,11 +53,10 @@ proto_result smsnas_protocol_init(void)
 	memset(session.host, 0, MAX_HOST_LEN);
 	session.host_valid = false;
 
-	uint8_t i;
 	uint8_t num_rcv_path = ARRAY_SIZE(session.rcv_msg);
 
 	for (i = 0; i < num_rcv_path; i++) {
-		if ((i == 0) && (num_rcv_path == 1)) {
+		if ((i == 0) && (num_rcv_path == 1))
 			/* buf will be used from upper level */
 			session.rcv_msg[i].buf = NULL;
 		else
@@ -103,47 +102,6 @@ const uint8_t *smsnas_get_rcv_buffer_ptr(const void *msg)
 
 	const smsnas_msg_t *ptr_to_msg = (const smsnas_msg_t *)(msg);
 	return (const uint8_t *)&(ptr_to_msg->payload);
-}
-
-/*
- * Length of the binary data
- */
-uint32_t smsnas_get_rcvd_data_len(const void *msg)
-{
-	if (!msg)
-		RETURN_ERROR("Invalid parameter", 0);
-	const smsnas_msg_t *ptr_to_msg = (const smsnas_msg_t *)(msg);
-	return ptr_to_msg->payload_sz;
-}
-
-proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
-					proto_callback rcv_cb)
-{
-	if (!rcv_buf || (sz > PROTO_MAX_MSG_SZ))
-		RETURN_ERROR("Invalid parameter", PROTO_INV_PARAM);
-
-	/* This means receive path currently in progress */
-	if (session.rcv_valid)
-		RETURN_ERROR("receiver already in progress", PROTO_ERROR);
-
-	/* If only single receive path is present, we will need to initialize
-	 * here so that concatenated state machine is ready to use when need
-	 * arise
-	 */
-	if (ARRAY_SIZE(session.rcv_msg) == 1) {
-		session.rcv_msg[0].buf = rcv_buf;
-		session.rcv_msg[0].rcv_sz = sz;
-		session.rcv_msg[0].wr_idx = 0;
-	}
-	/* place holder for the upper level buffer, used when multi receive path
-	 * are present
-	 */
-	session.rcv_buf = rcv_buf;
-	session.rcv_sz = sz;
-	session.rcv_valid = true;
-	session.rcv_cb = rcv_cb;
-	at_set_rcv_cb(smsnas_rcv_cb);
-	return PROTO_OK;
 }
 
 void smsnas_send_ack(void)
@@ -212,7 +170,7 @@ static bool check_validity(at_msg_t *msg_ptr, uint8_t rcv_path, bool first_seg)
 	return true;
 }
 
-static update_ack_rcv_path(at_msg_t *msg_ptr, uint8_t rcv_path)
+static void update_ack_rcv_path(at_msg_t *msg_ptr, uint8_t rcv_path)
 {
 	session.rcv_msg[rcv_path].cur_seq = msg_ptr->seq_no;
 	session.rcv_msg[rcv_path].wr_idx += msg_ptr->len;
@@ -266,7 +224,7 @@ static int retrieve_rcv_path(at_msg_t *msg, bool *new)
 	return rcvp;
 }
 
-static void smsnas_rcv_cb(at_msg_t *msg)
+static void smsnas_rcv_cb(at_msg_t *msg_ptr)
 {
 	int rcv_path  = -1;
 	proto_pl_sz rcvd = 0;
@@ -280,7 +238,7 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 
 	if (msg_ptr->num_seg > 1) {
 		bool new = false;
-		rcv_path = retrieve_rcv_path(msg, &new);
+		rcv_path = retrieve_rcv_path(msg_ptr, &new);
 		/* only possible when allocating new receive path */
 		if (rcv_path == -1) {
 			printf("%s: %d: Message is not valid\n",
@@ -331,7 +289,7 @@ static void smsnas_rcv_cb(at_msg_t *msg)
 				 * is already being set as the only receiving
 				 * buffer
 				 */
-				if (ARRAY_SIZE(sesison.rcv_msg) > 1)
+				if (ARRAY_SIZE(session.rcv_msg) > 1)
 					memcpy(session.rcv_buf, rp->buf, rcvd);
 
 				INVOKE_RECV_CALLBACK(session.rcv_buf, rcvd,
@@ -364,6 +322,36 @@ done:
 	rcv_path_cleanup(rcv_path);
 }
 
+proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
+					proto_callback rcv_cb)
+{
+	if (!rcv_buf || (sz > PROTO_MAX_MSG_SZ))
+		RETURN_ERROR("Invalid parameter", PROTO_INV_PARAM);
+
+	/* This means receive path currently in progress */
+	if (session.rcv_valid)
+		RETURN_ERROR("receiver already in progress", PROTO_ERROR);
+
+	/* If only single receive path is present, we will need to initialize
+	 * here so that concatenated state machine is ready to use when need
+	 * arise
+	 */
+	if (ARRAY_SIZE(session.rcv_msg) == 1) {
+		session.rcv_msg[0].buf = rcv_buf;
+		session.rcv_msg[0].rcv_sz = sz;
+		session.rcv_msg[0].wr_idx = 0;
+	}
+	/* place holder for the upper level buffer, used when multi receive path
+	 * are present
+	 */
+	session.rcv_buf = rcv_buf;
+	session.rcv_sz = sz;
+	session.rcv_valid = true;
+	session.rcv_cb = rcv_cb;
+	at_set_rcv_cb(smsnas_rcv_cb);
+	return PROTO_OK;
+}
+
 static void handle_pend_ack_nack(void)
 {
 	switch (session.ack_nack_pend) {
@@ -379,7 +367,6 @@ static void handle_pend_ack_nack(void)
 	session.ack_nack_pend = NO_ACK_NACK;
 }
 
-/* FIXME: verify the logic */
 /* Checks if any pending ack or nack of previously received message
  * If poll_due is true, it was in the middle of receiving concatenated message
  * and checks if it received next segment during polling time, if not then
@@ -397,7 +384,6 @@ void smsnas_maintenance(uint32_t cur_timestamp)
 		return;
 
 	uint8_t i;
-	int rcvp = -1;
 	uint32_t ns_time = 0;
 	uint32_t *cur_int = &session.cur_polling_interval;
 
@@ -417,7 +403,6 @@ void smsnas_maintenance(uint32_t cur_timestamp)
 					session.rcv_msg[i].conct_in_progress =
 									false;
 					rcv_path_cleanup(i);
-					rcvp = i;
 				}
 			} else {
 				if (*cur_int == 0)
@@ -434,8 +419,6 @@ void smsnas_maintenance(uint32_t cur_timestamp)
 			}
 		}
 	}
-
-	return session.cur_polling_interval;
 }
 
 static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
@@ -444,7 +427,7 @@ static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
 	uint8_t retry = 0;
 
 	at_msg_t sm_msg;
-	sm_msg.buf = msg;
+	sm_msg.buf = (uint8_t *)msg;
 	sm_msg.len = len;
 	sm_msg.concat_ref_no = ref_num;
 	sm_msg.num_seg = total_num;
@@ -558,14 +541,14 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 		proto_result ret = write_to_modem(temp_buf, send_sz,
 					msg_ref_num, total_msgs, cur_seq_num);
 		if (ret != PROTO_OK) {
-			invoke_send_callback(buf, sz, service_id, cb, res);
+			invoke_send_callback(buf, sz, service_id, cb, ret);
 			RETURN_ERROR("Concatenated send failed", PROTO_ERROR);
 		}
 		cur_seq_num++;
 		if (cur_seq_num > total_msgs)
 			break;
 		total_sent += send_sz;
-		temp_buf = buf + total_sent;
+		temp_buf = (uint8_t *)buf + total_sent;
 		if (rem_sz <= MAX_SMS_SZ_WITH_HD_WITHT_OVHD)
 			send_sz = rem_sz;
 		else {
