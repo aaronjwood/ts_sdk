@@ -93,7 +93,7 @@ bool cc_init(cc_svc_callback_rtn control_cb)
 	init_state();
 	init_polling_ms = PROTO_GET_POLLING();
 	memset(service_table, 0, sizeof(service_table));
-	
+
 	/* The Control service must always be registered. */
 	return cc_register_service(&cc_control_service_descriptor, control_cb);
 }
@@ -125,7 +125,7 @@ const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf,
 	service_dispatch_entry *se = lookup_service(svc_id);
 	if (se == NULL)
 		return NULL;
-	
+
 	return svc_hdr + se->descriptor->recv_offset;
 }
 
@@ -139,7 +139,7 @@ cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf,
 	service_dispatch_entry *se = lookup_service(svc_id);
 	if (se == NULL)
 		return 0;
-	
+
 	return buf->current_len - PROTO_OVERHEAD_SZ -
 		se->descriptor->recv_offset;
 }
@@ -224,9 +224,12 @@ cc_set_recv_result cc_set_recv_buffer(cc_buffer_desc *buf)
 uint32_t cc_service_send_receive(uint32_t cur_ts)
 {
 	uint32_t next_call_time_ms;
-	bool polling_due = cur_ts - timekeep.start_ts >= timekeep.polling_int_ms;
+	bool polling_due = false;
+	if (timekeep.polling_int_ms != 0)
+		polling_due = cur_ts - timekeep.start_ts >=
+							timekeep.polling_int_ms;
 
-	PROTO_MAINTENANCE(polling_due);
+	PROTO_MAINTENANCE(polling_due, cur_ts);
 
 	/* Compute when this function needs to be called next */
 	timekeep.polling_int_ms = PROTO_GET_POLLING();
