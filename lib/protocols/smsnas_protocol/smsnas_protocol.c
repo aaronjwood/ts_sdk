@@ -188,7 +188,7 @@ static int retrieve_rcv_path(at_msg_t *msg, bool *new)
 	int rcvp = -1;
 	int new_rcvp = -1;
 	uint32_t timestamp = 0;
-	uint8_t cref = msg->concat_ref_no;
+	uint8_t cref = msg->ref_no;
 
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
 		if (session.rcv_msg[i].conct_in_progress) {
@@ -263,7 +263,7 @@ static void smsnas_rcv_cb(at_msg_t *msg_ptr)
 		}
 		if (new) {
 			/* wr_idx is already been initialized */
-			rp->cref_num = msg_ptr->concat_ref_no;
+			rp->cref_num = msg_ptr->ref_no;
 			memcpy(rp->buf, msg_ptr->buf, msg_ptr->len);
 			rp->conct_in_progress = true;
 			/* need to determine oldest to evict */
@@ -429,7 +429,7 @@ static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
 	at_msg_t sm_msg;
 	sm_msg.buf = (uint8_t *)msg;
 	sm_msg.len = len;
-	sm_msg.concat_ref_no = ref_num;
+	sm_msg.ref_no = ref_num;
 	sm_msg.num_seg = total_num;
 	sm_msg.seq_no = seq_num;
 	memset(sm_msg.addr, 0, ADDR_SZ);
