@@ -62,24 +62,20 @@ static at_ret_code process_ucmt_urc(const char *urc)
 		return AT_FAILURE;
 	}
 
-	/* Make sure the complete URC string (ending in CRLF) is available to
-	 * be read */
+	/* Make sure the complete URC string is available to be read */
+	platform_raise_tick_priority(true);
 	uint32_t start = platform_get_tick_ms();
 	uint32_t end = start;
-	int found = -1;
 	do {
-		if (end - start >= SMS_RECV_URC_TIMEOUT_MS) {
-			DEBUG_V0("%s: Unlikely - Complete URC not found\n", __func__);
-			return AT_FAILURE;
-		}
+		if (at_core_rx_available() > msg_len)
+			break;
 		end = platform_get_tick_ms();
-		found = at_core_find_pattern(-1, (const uint8_t *)"\r\n", 2);
-	} while(found == -1);
+	} while(end - start < SMS_RECV_URC_TIMEOUT_MS);
+	platform_raise_tick_priority(false);
 
-	buf_sz av_len = at_core_rx_available();
-	if (msg_len > av_len) {
-		DEBUG_V0("%s: Unlikely - Insufficient bytes available (%u, %u)\n",
-				__func__, msg_len, av_len);
+	if (end - start >= SMS_RECV_URC_TIMEOUT_MS) {
+		DEBUG_V0("%s: Unlikely - Complete URC not found\n", __func__);
+		at_core_clear_rx();
 		return AT_FAILURE;
 	}
 

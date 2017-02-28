@@ -15,7 +15,7 @@
 #define TIMEOUT_BYTE_US		CEIL((8 * MICRO_SEC_MUL), BAUD_RATE)
 
 #define USART_IRQ_PRIORITY	5
-#define TIM_IRQ_PRIORITY	6	/* TIM2 priority is lower than USART2 */
+#define TIM_IRQ_PRIORITY	7	/* TIM2 priority is lower than USART2 */
 
 /* The internal buffer that will hold incoming data. */
 static volatile struct {
