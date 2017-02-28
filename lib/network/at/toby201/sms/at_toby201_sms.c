@@ -163,16 +163,14 @@ static at_ret_code config_modem_for_sms(void)
 	do {
 		DEBUG_V0("%s: Rechecking network registration\n", __func__);
 		res = check_network_registration();
-		end = platform_get_tick_ms();
-		if (end - start > NET_REG_TIMEOUT_SEC) {
-			DEBUG_V0("%s: Network registration timeout\n", __func__);
+		if (res == AT_SUCCESS)
 			break;
-		}
 		platform_delay(CHECK_MODEM_DELAY);
-	} while(res != AT_SUCCESS);
+		end = platform_get_tick_ms();
+	} while(end - start < NET_REG_TIMEOUT_SEC);
 
-	if (res != AT_SUCCESS) {
-		DEBUG_V0("%s: Network registration failed\n", __func__);
+	if (end - start >= NET_REG_TIMEOUT_SEC) {
+		DEBUG_V0("%s: Network registration timeout\n", __func__);
 		return res;
 	}
 
