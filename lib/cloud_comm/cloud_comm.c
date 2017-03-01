@@ -238,7 +238,7 @@ uint32_t cc_service_send_receive(uint32_t cur_ts)
 		timekeep.start_ts = cur_ts;
 	} else
 		next_call_time_ms = timekeep.start_ts +
-			timekeep.polling_int_ms - cur_ts;
+					timekeep.polling_int_ms - cur_ts;
 
 	PROTO_INITIATE_QUIT(false);
 	reset_conn_states();

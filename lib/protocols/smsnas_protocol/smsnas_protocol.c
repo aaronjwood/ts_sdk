@@ -32,7 +32,10 @@ static uint32_t sl_intr;
 
 static void reset_rcv_path(uint8_t rcv_path)
 {
-	session.rcv_msg[rcv_path].rcv_sz = PROTO_MAX_MSG_SZ;
+	if ((rcv_path == 0) && (ARRAY_SIZE(session.rcv_msg) == 1))
+		session.rcv_msg[rcv_path].rcv_sz = session.rcv_sz;
+	else
+		session.rcv_msg[rcv_path].rcv_sz = PROTO_MAX_MSG_SZ;
 	session.rcv_msg[rcv_path].wr_idx = rcv_path * PROTO_MAX_MSG_SZ;
 	session.rcv_msg[rcv_path].cur_seq = 0;
 	session.rcv_msg[rcv_path].cref_num = -1;
@@ -277,7 +280,6 @@ static void smsnas_rcv_cb(at_msg_t *msg_ptr)
 			/* check for last segment */
 			if (msg_ptr->seq_no == msg_ptr->num_seg) {
 				session.rcv_valid = false;
-
 				/* Invoke upper level callback and let upper
 				 * level ack/nack this message, also it is upper
 				 * level's responsibility to schedule receive
@@ -368,12 +370,13 @@ static void handle_pend_ack_nack(void)
 	session.ack_nack_pend = NO_ACK_NACK;
 }
 
+//FIXME: verify logic
 /* Checks if any pending ack or nack of previously received message
  * If poll_due is true, it was in the middle of receiving concatenated message
  * and checks if it received next segment during polling time, if not then
  * invoke callback indicating receiving timeout to upper level.
  */
-void smsnas_maintenance(uint32_t cur_timestamp)
+void smsnas_maintenance(bool poll_due, uint32_t cur_timestamp)
 {
 
 	handle_pend_ack_nack();
@@ -387,11 +390,8 @@ void smsnas_maintenance(uint32_t cur_timestamp)
 	uint8_t i;
 	uint32_t ns_time = 0;
 	uint32_t *cur_int = &session.cur_polling_interval;
-
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
 		if (session.rcv_msg[i].conct_in_progress) {
-			ns_time = session.rcv_msg[i].next_seq_timeout;
-
 			if (cur_timestamp >=
 				session.rcv_msg[i].next_seq_timeout) {
 				if (session.rcv_msg[i].expected_seq !=
@@ -406,18 +406,35 @@ void smsnas_maintenance(uint32_t cur_timestamp)
 					rcv_path_cleanup(i);
 				}
 			} else {
-				if (*cur_int == 0)
-					*cur_int = ns_time - cur_timestamp;
-				else {
-					if (*cur_int > (ns_time - cur_timestamp))
-						*cur_int = ns_time -
-								cur_timestamp;
-				}
 				if (session.rcv_msg[i].expected_seq !=
 					(session.rcv_msg[i].cur_seq + 1))
 					session.rcv_msg[i].expected_seq =
 						session.rcv_msg[i].cur_seq + 1;
 			}
+		}
+	}
+
+	if (!is_conct_in_progress()) {
+		*cur_int = 0;
+		return;
+	}
+
+	bool init_poll = false;
+	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
+		if (session.rcv_msg[i].conct_in_progress) {
+			/* If poll was due, it needs to re-adjust timeouts for
+			 * the remaining receive path
+			 */
+			if (poll_due)
+				session.rcv_msg[i].next_seq_timeout -=
+								cur_timestamp;
+			if (!init_poll) {
+				*cur_int = session.rcv_msg[i].next_seq_timeout;
+				init_poll = true;
+			}
+			/* find the minimum */
+			if (*cur_int >= session.rcv_msg[i].next_seq_timeout)
+				*cur_int = session.rcv_msg[i].next_seq_timeout;
 		}
 	}
 }

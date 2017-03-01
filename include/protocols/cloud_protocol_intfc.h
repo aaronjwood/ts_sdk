@@ -102,8 +102,7 @@
 } while(0)
 
 #define PROTO_MAINTENANCE(poll_due, cur_ts) do { \
-        (void)(poll_due); \
-        smsnas_maintenance((cur_ts)); \
+        smsnas_maintenance((poll_due), (cur_ts)); \
 } while(0)
 
 #else

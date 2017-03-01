@@ -78,10 +78,12 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
  * receive timeout event in case case of concatenated sms did not receive its
  * next segment in a due time
  * Parameters:
+ *	poll_due      : True if polling is due to check if concatenated sms's
+ *			 next segement has arrived or not.
  *	cur_timestamp : current time stamp in milliseconds to check if
  *		        next segement of the concatenated message is processed.
  */
-void smsnas_maintenance(uint32_t cur_timestamp);
+void smsnas_maintenance(bool poll_due, uint32_t cur_timestamp);
 
 /*
  * Send positive acknowledgment to cloud
