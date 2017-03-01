@@ -16,8 +16,4 @@ enum cc_control_svc_message_types {
 	CTRL_MSG_SET_POLLING_INTERVAL = 2,
 	CTRL_MSG_REQUEST_RESEND_INIT = 3,
 };
-
-#define CONTROL_SERVICE_MAX_SEND_SZ 2
-#define CONTROL_SERVICE_MAX_RECV_SZ 6
-
 #endif
