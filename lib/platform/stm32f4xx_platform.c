@@ -3,10 +3,6 @@
 #include <stm32f4xx_hal.h>
 #include <dbg.h>
 
-static uint32_t tick_priority;
-static uint32_t tick_subpriority;
-#define TICK_HIGH_PRIORITY	6
-
 /**
   * @brief  System Clock Configuration
   *         The system Clock is configured as follow :
@@ -86,26 +82,13 @@ static void SystemClock_Config(void)
 
 void platform_init()
 {
-        HAL_Init();
+	HAL_Init();
 	SystemClock_Config();
-	uint32_t priority_group = HAL_NVIC_GetPriorityGrouping();
-	HAL_NVIC_GetPriority(SysTick_IRQn, priority_group,
-			&tick_priority, &tick_subpriority);
 }
 
 void platform_delay(uint32_t delay_ms)
 {
         HAL_Delay(delay_ms);
-}
-
-void platform_raise_tick_priority(bool raise_priority)
-{
-	HAL_NVIC_DisableIRQ(SysTick_IRQn);
-	if (raise_priority)
-		HAL_NVIC_SetPriority(SysTick_IRQn, TICK_HIGH_PRIORITY, 0);
-	else
-		HAL_NVIC_SetPriority(SysTick_IRQn, tick_priority, tick_subpriority);
-	HAL_NVIC_EnableIRQ(SysTick_IRQn);
 }
 
 uint32_t platform_get_tick_ms(void)
