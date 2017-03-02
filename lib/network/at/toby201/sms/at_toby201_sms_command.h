@@ -5,21 +5,14 @@
 
 #include "at_core.h"
 
+#define NET_STAT_REG_CODE	6
 enum at_modem_network_commands {
-	IMS_REG_QUERY,
-	IMS_REG_URC_SET,
 	NET_REG_QUERY,
 	NET_REG_URC_SET,
-	MNO_CONF_QUERY,
-	MNO_CONF_SET,
-	AUTO_TIME_ZONE_QUERY,
-	AUTO_TIME_ZONE_SET,
-	SIM_NUM,
 	NUM_MODEM_COMMANDS
 };
 
 enum at_modem_sms_commands {
-	SMS_SET_SMS_FORMAT_3GPP,
 	SMS_ENTER_PDU_MODE,
 	SMS_SEND,
 	SMS_SEND_DATA,
@@ -27,38 +20,22 @@ enum at_modem_sms_commands {
 	SMS_SET_CNMI,
 	SMS_SEND_ACK,
 	SMS_SEND_NACK,
+	SMS_DEL_ALL_MSG,
 	NUM_SMS_COMMANDS
 };
 
 typedef enum at_urc {
-	IMS_STAT_URC,
 	NET_STAT_URC,
-	UCMT_URC,
+	CMT_URC,
 	NUM_URCS
 } at_urc;
 
 static const char *at_urcs[NUM_URCS] = {
-	[IMS_STAT_URC] = "\r\n+CIREGU: ",
 	[NET_STAT_URC] = "\r\n+CREG: ",
-	[UCMT_URC] = "\r\n+UCMT: "
+	[CMT_URC] = "\r\n+CMT: "
 };
 
-static void parse_num(void *rcv_rsp, int rcv_rsp_len,
-		const char *stored_rsp, void *data);
-
 static at_command_desc sms_cmd[NUM_SMS_COMMANDS] = {
-	[SMS_SET_SMS_FORMAT_3GPP] = {
-		.comm = "at+uimsconf=\"KEY_MO_SMS_FORMAT\",\"3gpp\"\r",
-		.rsp_desc = {
-			{
-				.rsp = "\r\nOK\r\n",
-				.rsp_handler = NULL,
-				.data = NULL
-			}
-		},
-		.err = NULL,
-		.comm_timeout = 100
-	},
 	[SMS_ENTER_PDU_MODE] = {
 		.comm = "at+cmgf=0\r",
 		.rsp_desc = {
@@ -118,7 +95,7 @@ static at_command_desc sms_cmd[NUM_SMS_COMMANDS] = {
 		.comm_timeout = 100
 	},
 	[SMS_SET_CNMI] = {
-		.comm = "at+cnmi=1,2,0,1,0\r",
+		.comm = "at+cnmi=1,2,0,0,0\r",
 		.rsp_desc = {
 			{
 				.rsp = "\r\nOK\r\n",
@@ -152,44 +129,27 @@ static at_command_desc sms_cmd[NUM_SMS_COMMANDS] = {
 		},
 		.err = "\r\n+CMS ERROR: ",
 		.comm_timeout = 150000
+	},
+	[SMS_DEL_ALL_MSG] = {
+		.comm = "at+cmgd=1,4\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CMS ERROR: ",
+		.comm_timeout = 55000
 	}
 };
 
 static const at_command_desc mod_netw_cmd[NUM_MODEM_COMMANDS] = {
-        [IMS_REG_QUERY] = {
-                .comm = "at+cireg?\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+CIREG: 1,1\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
-        [IMS_REG_URC_SET] = {
-                .comm = "at+cireg=1\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
 	[NET_REG_QUERY] = {
 		.comm = "at+creg?\r",
 		.rsp_desc = {
 			{
-				.rsp = "\r\n+CREG: 1,1\r\n",
+				.rsp = "\r\n+CREG: 1,6\r\n",
 				.rsp_handler = NULL,
 				.data = NULL
 			},
@@ -212,81 +172,6 @@ static const at_command_desc mod_netw_cmd[NUM_MODEM_COMMANDS] = {
 			}
 		},
 		.err = NULL,
-		.comm_timeout = 100
-	},
-        [MNO_CONF_QUERY] = {
-                .comm = "at+umnoconf?\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+UMNOCONF: 3,7\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
-        [MNO_CONF_SET] = {
-                .comm = "at+umnoconf=3,7\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 190000
-        },
-	[AUTO_TIME_ZONE_QUERY] = {
-		.comm = "at+ctzu?\r",
-		.rsp_desc = {
-			{
-				.rsp = "\r\n+CTZU: 1\r\n",
-				.rsp_handler = NULL,
-				.data = NULL
-			},
-			{
-				.rsp = "\r\nOK\r\n",
-				.rsp_handler = NULL,
-				.data = NULL
-			}
-		},
-		.err = NULL,
-		.comm_timeout = 100
-	},
-	[AUTO_TIME_ZONE_SET] = {
-		.comm = "at+ctzu=1\r",
-		.rsp_desc = {
-			{
-				.rsp = "\r\nOK\r\n",
-				.rsp_handler = NULL,
-				.data = NULL
-			}
-		},
-		.err = NULL,
-		.comm_timeout = 100
-	},
-	[SIM_NUM] = {
-		.comm = "at+cnum\r",
-		.rsp_desc = {
-			{
-				.rsp = "\r\n+CNUM: ",
-				.rsp_handler = parse_num,
-				.data = NULL
-			},
-			{
-				.rsp = "\r\nOK\r\n",
-				.rsp_handler = NULL,
-				.data = NULL
-			}
-		},
-		.err = "\r\n+CME ERROR: ",
 		.comm_timeout = 100
 	}
 };

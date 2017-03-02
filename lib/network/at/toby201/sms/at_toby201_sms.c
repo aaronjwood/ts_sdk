@@ -15,8 +15,6 @@
 static at_sms_cb sms_rx_cb;			/* Receive callback */
 static at_msg_t msg;				/* Stores SMS segment */
 
-static char sim_num[ADDR_SZ + 1];		/* Number associated with SIM */
-
 static char addr[ADDR_SZ + 1];			/* Null terminated address */
 static uint8_t buf[MAX_DATA_SZ];		/* Buffer for data received */
 static char in_pdu[MAX_IN_PDU_SZ];		/* Max. length of incoming PDU */
@@ -68,10 +66,10 @@ static void uart_cb(void)
 }
 
 /* Process the received SMS URC */
-static at_ret_code process_ucmt_urc(const char *urc)
+static at_ret_code process_cmt_urc(const char *urc)
 {
-	uint8_t len = strlen(at_urcs[UCMT_URC]);
-	if (strncmp(urc, at_urcs[UCMT_URC], len) != 0)
+	uint8_t len = strlen(at_urcs[CMT_URC]);
+	if (strncmp(urc, at_urcs[CMT_URC], len) != 0)
 		return AT_FAILURE;
 
 	/* Get length of the PDU stream in bytes from the URC header */
@@ -87,42 +85,45 @@ static at_ret_code process_ucmt_urc(const char *urc)
 
 	msg_len *= 2;		/* 2 hexadecimal digits make up 1 byte */
 
-	if (msg_len > MAX_IN_PDU_SZ) {
+	/* The length field does not include the size of the service center
+	 * address since it is not part of the PDU.
+	 */
+	if (msg_len + SMSC_ADDR_SZ > MAX_IN_PDU_SZ) {
 		DEBUG_V0("%s: Unlikely - Oversized incoming PDU (%u, %u)\n",
 				__func__, msg_len, MAX_IN_PDU_SZ);
 		return AT_FAILURE;
 	}
 
 	recv_pdu_in_progress = true;
-	wanted_bytes = msg_len;
+	wanted_bytes = msg_len + SMSC_ADDR_SZ;
 
 	attempt_pdu_retrieval();
 
 	return AT_SUCCESS;
 }
 
-static at_ret_code process_ims_urc(const char *urc)
+static at_ret_code process_net_urc(const char *urc)
 {
-	uint8_t len = strlen(at_urcs[IMS_STAT_URC]);
-	if (strncmp(urc, at_urcs[IMS_STAT_URC], len) != 0)
+	uint8_t len = strlen(at_urcs[NET_STAT_URC]);
+	if (strncmp(urc, at_urcs[NET_STAT_URC], len) != 0)
 		return AT_FAILURE;
 
 	uint8_t net_stat = urc[len] - '0';
-	if (net_stat != 1)
-		DEBUG_V0("%s: IMS registration lost\n", __func__);
+	if (net_stat != NET_STAT_REG_CODE)
+		DEBUG_V0("%s: Network registration lost\n", __func__);
 	else
-		DEBUG_V0("%s: Registered to IMS network\n", __func__);
+		DEBUG_V0("%s: Registered to network\n", __func__);
 
 	return AT_SUCCESS;
 }
 
 static void urc_cb(const char *urc)
 {
-	at_ret_code res = process_ims_urc(urc);
+	at_ret_code res = process_net_urc(urc);
 	if (res == AT_SUCCESS)
 		return;
 
-	res = process_ucmt_urc(urc);
+	res = process_cmt_urc(urc);
 }
 
 static at_ret_code check_network_registration(void)
@@ -130,8 +131,8 @@ static at_ret_code check_network_registration(void)
 	if (!at_core_query_netw_reg())
 		return AT_FAILURE;
 
-	/* If not registered to IMS after timeout, modem needs to be restarted */
-	if (at_core_wcmd(&mod_netw_cmd[IMS_REG_QUERY], true) != AT_SUCCESS)
+	/* Restart modem if not registered to the network after timeout */
+	if (at_core_wcmd(&mod_netw_cmd[NET_REG_QUERY], true) != AT_SUCCESS)
 		return AT_RECHECK_MODEM;
 
 	return AT_SUCCESS;
@@ -141,25 +142,9 @@ static at_ret_code config_modem_for_sms(void)
 {
 	at_ret_code res = AT_FAILURE;
 
-	/* Enable IMS Registration URC */
-	res = at_core_wcmd(&mod_netw_cmd[IMS_REG_URC_SET], true);
+	/* Enable Network Registration URC */
+	res = at_core_wcmd(&mod_netw_cmd[NET_REG_URC_SET], true);
 	CHECK_SUCCESS(res, AT_SUCCESS, res);
-
-	/* Set the MNO configuration for Verizon */
-	res = at_core_wcmd(&mod_netw_cmd[MNO_CONF_QUERY], true);
-	if (res != AT_SUCCESS) {
-		res = at_core_wcmd(&mod_netw_cmd[MNO_CONF_SET], true);
-		CHECK_SUCCESS(res, AT_SUCCESS, res);
-		return AT_RECHECK_MODEM;
-	}
-
-	/* Enable automatic timezone update */
-	res = at_core_wcmd(&mod_netw_cmd[AUTO_TIME_ZONE_QUERY], true);
-	if (res != AT_SUCCESS) {
-		res = at_core_wcmd(&mod_netw_cmd[AUTO_TIME_ZONE_SET], true);
-		CHECK_SUCCESS(res, AT_SUCCESS, res);
-		return AT_RECHECK_MODEM;
-	}
 
 	/* Check network registration */
 	uint32_t start = platform_get_tick_ms();
@@ -178,10 +163,6 @@ static at_ret_code config_modem_for_sms(void)
 		return res;
 	}
 
-	/* Set outgoing SMS format to 3GPP */
-	res = at_core_wcmd(&sms_cmd[SMS_SET_SMS_FORMAT_3GPP], true);
-	CHECK_SUCCESS(res, AT_SUCCESS, res);
-
 	/* Enable Phase 2+ features */
 	res = at_core_wcmd(&sms_cmd[SMS_SET_CSMS], true);
 	CHECK_SUCCESS(res, AT_SUCCESS, res);
@@ -192,6 +173,10 @@ static at_ret_code config_modem_for_sms(void)
 
 	/* Enter PDU mode */
 	res = at_core_wcmd(&sms_cmd[SMS_ENTER_PDU_MODE], true);
+	CHECK_SUCCESS(res, AT_SUCCESS, res);
+
+	/* Delete all stored SMSes */
+	res = at_core_wcmd(&sms_cmd[SMS_DEL_ALL_MSG], true);
 	CHECK_SUCCESS(res, AT_SUCCESS, res);
 
 	return res;
@@ -276,28 +261,4 @@ bool at_sms_nack(void)
 {
 	return (at_core_wcmd(&sms_cmd[SMS_SEND_NACK], true) == AT_SUCCESS) ?
 		true : false;
-}
-
-bool at_sms_retrieve_num(char *num)
-{
-	at_ret_code res = at_core_wcmd(&mod_netw_cmd[SIM_NUM], true);
-	CHECK_SUCCESS(res, AT_SUCCESS, res);
-	if (strlen(sim_num) == 0)
-		return false;
-	strncpy(num, sim_num, strlen(sim_num) + 1);
-	return true;
-}
-
-static void parse_num(void *rcv_rsp, int rcv_rsp_len,
-		const char *stored_rsp, void *data)
-{
-	/* Retrieve the second quoted string from the response */
-	const char *start = strchr(rcv_rsp, ',') + 2;
-	size_t span = strcspn(start, "\"");
-	if (span > ADDR_SZ || span > rcv_rsp_len) {
-		memset(sim_num, 0, sizeof(sim_num));
-		return;
-	}
-	strncpy(sim_num, start, span);
-	sim_num[span] = '\0';
 }

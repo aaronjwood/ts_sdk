@@ -77,19 +77,4 @@ bool at_sms_ack(void);
  * 	False - Failed sending the NACK
  */
 bool at_sms_nack(void);
-
-/*
- * Helper function to retrieve the current number associated with the SIM.
- *
- * Parameters:
- * 	num - Pointer to buffer that will contain the NULL terminated string
- * 	      representation of the number associated with the SIM. This buffer
- * 	      is assumed to be at least ADDR_SZ + 1 bytes long.
- *
- * Returns:
- * 	True  - Successfully retrieved the number associated with the SIM
- * 	False - Could not retrieve the phone number associated with the SIM
- */
-bool at_sms_retrieve_num(char *num);
-
 #endif

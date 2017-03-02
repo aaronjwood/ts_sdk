@@ -275,9 +275,6 @@ bool smscodec_decode(uint16_t len, const char *pdu, sms_t *recv_msg)
 	ON_FAIL(hexnum(&rptr, 1, &val), false);
 	rptr += val * HEXLEN;
 
-	/* The 'len' parameter does not account for the SMSC address field */
-	const char *pdu_start = rptr;
-
 	/* Retrieve the first octet */
 	ON_FAIL(hexnum(&rptr, 1, &val), false);
 	uint8_t fo_expected = FO_TYPE_SMS_DELIVER | FO_MMS_FALSE | FO_LP_INACTIVE |
@@ -301,7 +298,7 @@ bool smscodec_decode(uint16_t len, const char *pdu, sms_t *recv_msg)
 	rptr += SCTS_LEN * HEXLEN;
 
 	/* Decode the User Data */
-	ON_FAIL(decode_ud(len - (rptr - pdu_start), &rptr, recv_msg), false);
+	ON_FAIL(decode_ud(len - (rptr - pdu), &rptr, recv_msg), false);
 	return true;
 }
 
