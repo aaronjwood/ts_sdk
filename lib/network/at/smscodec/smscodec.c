@@ -25,7 +25,7 @@
 #define FO_SRR_REPORT_REQ	0x20	/* Status report requested */
 #define FO_SRR_REPORT_NOT_REQ	0x00	/* No status report requested */
 
-/* First octet bit definitions for SMS-DELIVER (bits 3 & 4 are "Don't Care") */
+/* First octet bit definitions for SMS-DELIVER (Bit 4 is "Don't Care") */
 #define FO_TYPE_SMS_DELIVER	0x00	/* SMS-DELIVER message type */
 #define FO_MMS_TRUE		0x00	/* SC has more messages to send to MS */
 #define FO_MMS_FALSE		0x04	/* SC has no more messages to send to MS */
@@ -49,7 +49,6 @@
 #define UDH_IEI_CONCAT_LEN	0x03	/* Number of concat. IEI parameters */
 
 #define ISDN_NUM_TYPE		0x91	/* Number type */
-
 #define SCTS_LEN		0x07	/* Length of Service Center Timestamp */
 
 static bool udh_present;		/* Set if UDH is present in received SMS */
@@ -180,13 +179,17 @@ static bool encode_ud(const sms_t *msg_to_send, char **dest)
 	return true;
 }
 
+/*
+ * Decode the address field of a 3GPP SMS. Returns 'true' on success and 'false'
+ * on failure.
+ */
 static bool decode_addr(const char **pdu, sms_t *recv_msg)
 {
 	/* Get the length of the encoded address */
 	uint8_t len = 0;
 	ON_FAIL(hexnum(pdu, 1, &len), false);
 
-	/* Get the type of the address */
+	/* Verify the type of the address */
 	uint8_t val = 0;
 	ON_FAIL(hexnum(pdu, 1, &val), false);
 	if (val != ISDN_NUM_TYPE)
@@ -199,17 +202,24 @@ static bool decode_addr(const char **pdu, sms_t *recv_msg)
 			recv_msg->addr[i + 1] = (*pdu)[i];
 	}
 	recv_msg->addr[len] = '\0';
-	len = (len & 1) ? len + 1 : len;	/* Round to next even number */
+	len = len + (len & 1);	/* Round to next even number */
 	*pdu += len;
 
 	return true;
 }
 
-static bool decode_ud(const char **pdu, sms_t *recv_msg)
+/*
+ * Decode the user data field into the segment structure. This function handles
+ * both single part SMSes as well as segments of concatenated SMSes.
+ */
+static bool decode_ud(uint16_t rem_len, const char **pdu, sms_t *recv_msg)
 {
-	/* Get the user data length */
+	/* Get the user data length and verify it against the remaining length */
 	uint8_t len = 0, val = 0;
 	ON_FAIL(hexnum(pdu, 1, &len), false);
+	if (rem_len != (len + 1) * HEXLEN)
+		return false;
+
 	if (udh_present) {
 		/* Parse User Data Header */
 		recv_msg->len = len - UDHL_VAL - 1;
@@ -253,24 +263,27 @@ bool smscodec_decode(uint16_t len, const char *pdu, sms_t *recv_msg)
 			recv_msg->addr == NULL)
 		return false;
 
-	/* Assume a single part 8-bit message */
 	udh_present = false;
 
 	/*
 	 * The first few bytes of the SMS-DELIVER PDU as reported by the modem
-	 * is the SMSC address. This shouldn't be relevant for the SMSNAS
-	 * protocol and is therefore skipped here.
+	 * is the SMSC address. Neither is it technically a part of the PDU, nor
+	 * is it relevant to the SMSNAS protocol. Therefore it is skipped here.
 	 */
 	const char *rptr = pdu;
 	uint8_t val = 0;
 	ON_FAIL(hexnum(&rptr, 1, &val), false);
 	rptr += val * HEXLEN;
 
+	/* The 'len' parameter does not account for the SMSC address field */
+	const char *pdu_start = rptr;
+
 	/* Retrieve the first octet */
 	ON_FAIL(hexnum(&rptr, 1, &val), false);
 	uint8_t fo_expected = FO_TYPE_SMS_DELIVER | FO_MMS_FALSE | FO_LP_INACTIVE |
 		FO_SRI_NO_REPORT | FO_RP_NOT_SET;
-	if ((val & fo_expected) != fo_expected)
+	uint8_t val_udhi_off = val & ~FO_UDHI_PRESENT;
+	if (val_udhi_off != fo_expected)
 		return false;
 	udh_present = ((val & FO_UDHI_PRESENT) == FO_UDHI_PRESENT);
 
@@ -281,14 +294,14 @@ bool smscodec_decode(uint16_t len, const char *pdu, sms_t *recv_msg)
 	uint8_t pid = 0, dcs = 0;
 	ON_FAIL(hexnum(&rptr, 1, &pid), false);
 	ON_FAIL(hexnum(&rptr, 1, &dcs), false);
-	if (pid != PID_VAL && dcs != DCS_VAL)
+	if (pid != PID_VAL || dcs != DCS_VAL)
 		return false;
 
-	/* Service center timestamp. This can be skipped since we do not use it */
+	/* Service center timestamp. This can be skipped since we don't use it */
 	rptr += SCTS_LEN * HEXLEN;
 
 	/* Decode the User Data */
-	ON_FAIL(decode_ud(&rptr, recv_msg), false);
+	ON_FAIL(decode_ud(len - (rptr - pdu_start), &rptr, recv_msg), false);
 	return true;
 }
 
