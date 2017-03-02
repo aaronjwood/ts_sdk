@@ -105,6 +105,9 @@
         smsnas_maintenance((poll_due), (cur_ts)); \
 } while(0)
 
+#define PROTO_SET_AUTH(d_id, d_id_sz, d_sec, d_sec_sz)
+#define PROTO_SET_POLLING(new_value) (void)((new_value))
+
 #else
 #error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
 

@@ -7,16 +7,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "protocol_def.h"
-
-#define ADDR_SZ	50
-typedef struct msg_t {
-        uint8_t len;                    /* Length of the buffer content */
-        uint8_t *buf;                   /* Pointer to the buffer containing the payload */
-        uint8_t concat_ref_no;          /* Concatenated message reference number */
-        uint8_t num_seg;                /* Number of segments making the message */
-        uint8_t seq_no;                 /* Seq No. of the current segment */
-        char addr[ADDR_SZ + 1];         /* Null terminated address */
-} at_msg_t;
+#include "at_sms.h"
 
 /* Macro indicates maximum receive stream protocol handles, if more than 1
  * define intermediate receive buffer with maximum size times receive stream
@@ -36,7 +27,7 @@ uint8_t smsnas_rcv_buf[PROTO_MAX_MSG_SZ * SMSNAS_MAX_RCV_PATH];
 uint8_t smsnas_rcv_buf[1];
 #endif
 
-#define MAX_HOST_LEN		ADDR_SZ
+#define MAX_HOST_LEN		16
 
 #define RECV_TIMEOUT_MS		5000
 #define SEND_TIMEOUT_MS		5000
@@ -52,7 +43,8 @@ uint8_t smsnas_rcv_buf[1];
 /* Defines for the concatenated sms */
 /* Size of the user data header element */
 #define TP_USER_HEADER_SZ		6
-#define MAX_SMS_SZ_WITH_HEADER		(MAX_SMS_PL_SZ - PROTO_OVERHEAD_SZ - TP_USER_HEADER_SZ)
+#define MAX_SMS_SZ_WITH_HEADER		(MAX_SMS_PL_SZ - PROTO_OVERHEAD_SZ - \
+                                        TP_USER_HEADER_SZ)
 
 /* Account for TP userdata header and not the protocol header overhead */
 #define MAX_SMS_SZ_WITH_HD_WITHT_OVHD	(MAX_SMS_PL_SZ - TP_USER_HEADER_SZ)

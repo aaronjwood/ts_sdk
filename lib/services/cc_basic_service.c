@@ -66,7 +66,7 @@ static bool basic_add_send_hdr(cc_buffer_desc *buf)
 		return false;
 
 #if !defined(OTT_PROTOCOL)
-	struct basic_hdr *hdr = (struct basic_hdr *)(payload -
+	struct basic_header *hdr = (struct basic_header *)(payload -
 					     sizeof(struct basic_header));
 	hdr->version = BASIC_PROTOCOL_VERSION;
 #endif

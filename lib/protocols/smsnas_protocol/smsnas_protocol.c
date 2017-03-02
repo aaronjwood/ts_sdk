@@ -32,14 +32,13 @@ static uint32_t sl_intr;
 
 static void reset_rcv_path(uint8_t rcv_path)
 {
-	if ((rcv_path == 0) && (ARRAY_SIZE(session.rcv_msg) == 1))
-		session.rcv_msg[rcv_path].rcv_sz = session.rcv_sz;
-	else
-		session.rcv_msg[rcv_path].rcv_sz = PROTO_MAX_MSG_SZ;
+	session.rcv_msg[rcv_path].rcv_sz = PROTO_MAX_MSG_SZ;
 	session.rcv_msg[rcv_path].wr_idx = rcv_path * PROTO_MAX_MSG_SZ;
 	session.rcv_msg[rcv_path].cur_seq = 0;
 	session.rcv_msg[rcv_path].cref_num = -1;
 	session.rcv_msg[rcv_path].conct_in_progress = false;
+	if ((rcv_path == 0) && (ARRAY_SIZE(session.rcv_msg) == 1))
+		session.rcv_msg[rcv_path].rcv_sz = session.rcv_sz;
 }
 
 /* Initializes receive paths and resets internal protocol state */
@@ -152,7 +151,8 @@ static bool check_mem_overflow(proto_pl_sz rcv_len, proto_pl_sz pl_sz,
 	return false;
 }
 
-static bool check_validity(at_msg_t *msg_ptr, uint8_t rcv_path, bool first_seg)
+static bool check_validity(const at_msg_t *msg_ptr, uint8_t rcv_path,
+			bool first_seg)
 {
 	/* check if total number of segements are greater then MAX_CONC_SMS_NUM
 	 */
@@ -174,7 +174,7 @@ static bool check_validity(at_msg_t *msg_ptr, uint8_t rcv_path, bool first_seg)
 	return true;
 }
 
-static void update_ack_rcv_path(at_msg_t *msg_ptr, uint8_t rcv_path)
+static void update_ack_rcv_path(const at_msg_t *msg_ptr, uint8_t rcv_path)
 {
 	session.rcv_msg[rcv_path].cur_seq = msg_ptr->seq_no;
 	session.rcv_msg[rcv_path].wr_idx += msg_ptr->len;
@@ -186,7 +186,7 @@ static void update_ack_rcv_path(at_msg_t *msg_ptr, uint8_t rcv_path)
 /* detect or select receive path for the given msg if it is new msg check for
  * its sanity before allocating receive path
  */
-static int retrieve_rcv_path(at_msg_t *msg, bool *new)
+static int retrieve_rcv_path(const at_msg_t *msg, bool *new)
 {
 	uint8_t i;
 	int rcvp = -1;
@@ -228,7 +228,7 @@ static int retrieve_rcv_path(at_msg_t *msg, bool *new)
 	return rcvp;
 }
 
-static void smsnas_rcv_cb(at_msg_t *msg_ptr)
+static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 {
 	int rcv_path  = -1;
 	proto_pl_sz rcvd = 0;
@@ -351,7 +351,7 @@ proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
 	session.rcv_sz = sz;
 	session.rcv_valid = true;
 	session.rcv_cb = rcv_cb;
-	at_set_rcv_cb(smsnas_rcv_cb);
+	at_sms_set_rcv_cb(smsnas_rcv_cb);
 	return PROTO_OK;
 }
 
@@ -359,10 +359,10 @@ static void handle_pend_ack_nack(void)
 {
 	switch (session.ack_nack_pend) {
 	case ACK_PENDING:
-		at_send_ack();
+		at_sms_ack();
 		break;
 	case NACK_PENDING:
-		at_send_nack();
+		at_sms_nack();
 		break;
 	default:
 		break;
@@ -441,9 +441,9 @@ static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
 	memset(sm_msg.addr, 0, ADDR_SZ);
 	memcpy(sm_msg.addr, session.host, strlen(session.host));
 
-	bool ret = at_send_sms(&sm_msg);
+	bool ret = at_sms_send(&sm_msg);
 	while ((!ret) && (retry < MAX_RETRIES)) {
-		ret = at_send_sms(&sm_msg);
+		ret = at_sms_send(&sm_msg);
 		retry++;
 	}
 	if (retry >= MAX_RETRIES)
