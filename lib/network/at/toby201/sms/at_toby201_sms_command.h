@@ -81,7 +81,7 @@ static at_command_desc sms_cmd[NUM_SMS_COMMANDS] = {
 			}
 		},
 		.err = "\r\n+CMS ERROR: ",
-		.comm_timeout = 100
+		.comm_timeout = 1000
 	},
 	[SMS_SEND_DATA] = {
 		.comm = NULL,	/* Filled later with PDU string in at_sms_send */

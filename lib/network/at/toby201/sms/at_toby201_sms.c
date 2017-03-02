@@ -42,14 +42,15 @@ static void attempt_pdu_retrieval(void)
 			if (!smscodec_decode(wanted_bytes, in_pdu, &msg)) {
 				DEBUG_V0("%s: Unlikely - Failed to decode PDU\n",
 						__func__);
-				at_core_clear_rx();
 				return;
 			}
 
 			if (sms_rx_cb)
 				sms_rx_cb(&msg);
 
-			at_core_clear_rx();
+			/* Read the trailing CRLF */
+			at_core_read((uint8_t *)in_pdu, 2);
+
 			wanted_bytes = 0;
 			recv_pdu_in_progress = false;
 		}
