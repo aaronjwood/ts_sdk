@@ -236,9 +236,13 @@ uint32_t cc_service_send_receive(uint32_t cur_ts)
 	if (polling_due) {
 		next_call_time_ms = timekeep.polling_int_ms;
 		timekeep.start_ts = cur_ts;
-	} else
-		next_call_time_ms = timekeep.start_ts +
-					timekeep.polling_int_ms - cur_ts;
+	} else {
+		if (timekeep.polling_int_ms != 0)
+			next_call_time_ms = timekeep.start_ts +
+						timekeep.polling_int_ms - cur_ts;
+		else
+			next_call_time_ms = 0;
+	}
 
 	PROTO_INITIATE_QUIT(false);
 	reset_conn_states();

@@ -532,6 +532,9 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 	}
 	cur_seq_num = 1;
 	total_msgs = calculate_total_msgs(sz);
+	if (total_msgs > 4)
+		RETURN_ERROR("Send size exceeds", PROTO_ERROR);
+
 	uint8_t *temp_buf = NULL;
 	proto_pl_sz rem_sz = sz;
 	proto_pl_sz send_sz = 0;
