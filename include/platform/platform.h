@@ -7,10 +7,11 @@
  *
  *
  */
- #ifndef PLAT_H
- #define PLAT_H
+#ifndef PLAT_H
+#define PLAT_H
 
- #include <stdint.h>
+#include <stdint.h>
+
  /**
   * \brief       Initializes platform, includes HAL layer init, system clock
   *              configuration, installing different handlert etc...

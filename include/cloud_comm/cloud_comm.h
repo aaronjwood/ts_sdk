@@ -67,7 +67,8 @@ typedef uint16_t cc_data_sz;	/**< Type representing the size of a message */
 typedef uint8_t cc_service_id;  /**< Type representing a service-id */
 
 typedef struct {		/* Cloud communication buffer descriptor */
-	cc_data_sz bufsz;	/* Maximum size of this buffer */
+	cc_data_sz bufsz;	/* Size of this buffer not counting space
+				   reserved for protocol overhead. */
 	cc_data_sz current_len; /* Total length of rcvd data in buffer,
 				   including protocol overhead */
 	void *buf_ptr;		/* Opaque pointer to the actual data buffer */
@@ -84,34 +85,36 @@ typedef struct cc_service_descriptor cc_service_descriptor;
 #define __compile_time_assert(predicate, error_text) \
 	typedef char __get_name(error_text, __LINE__)[2*!!(predicate) - 1]
 
-#define CC_MIN_RECV_BUF_SZ	PROTO_MIN_RECV_BUF_SZ
-#define CC_MIN_SEND_BUF_SZ	PROTO_MIN_SEND_BUF_SZ
+/**
+ * The size of buffer needed to send and receive any possible message
+ * using the current protocol (not counting protocol overhead).
+ * Use one of these values with the CC_SEND_BUFFER/CC_RECV_BUFFER macros
+ * to allocate space for the largest possible message used by any service.
+ */
 #define CC_MAX_SEND_BUF_SZ	PROTO_MAX_SEND_BUF_SZ
 #define CC_MAX_RECV_BUF_SZ	PROTO_MAX_RECV_BUF_SZ
 
 /**
  * The buffer defined by CC_RECV_BUFFER is opaque to the user apart from its
- * size.  Headers of this buffer are handled internally. The minimum size of
- * the buffer is CC_MIN_RECV_BUF_SZ and the maximum is CC_MAX_RECV_BUF_SZ.
+ * size.  Space for protocol overhead is automatically added.
+ * The maximum size for the buffer is CC_MAX_RECV_BUF_SZ.
  */
-#define CC_RECV_BUFFER(name, max_sz) \
-	__compile_time_assert(((max_sz) <= CC_MAX_RECV_BUF_SZ) && \
-			((max_sz) >= CC_MIN_RECV_BUF_SZ), \
+#define CC_RECV_BUFFER(name, data_sz) \
+	__compile_time_assert(((data_sz) <= CC_MAX_RECV_BUF_SZ), \
 			name##_does_not_have_a_valid_size_on_line); \
-	uint8_t name##_bytes[PROTO_OVERHEAD_SZ + (max_sz)]; \
-	cc_buffer_desc name = {(max_sz), 0, &(name##_bytes)}
+	uint8_t name##_bytes[PROTO_OVERHEAD_SZ + (data_sz)]; \
+	cc_buffer_desc name = {(data_sz), 0, &(name##_bytes)}
 
 /**
  * The buffer defined by CC_SEND_BUFFER is opaque to the user apart from its
- * size.  Headers of this buffer are handled internally. The minimum size of
- * the buffer is CC_MIN_SEND_BUF_SZ and the maximum is CC_MAX_SEND_BUF_SZ.
+ * size.  Space for protocol overhead is automatically added.
+ * The maximum size for the buffer is CC_MAX_SEND_BUF_SZ.
  */
-#define CC_SEND_BUFFER(name, max_sz) \
-	__compile_time_assert(((max_sz) <= CC_MAX_SEND_BUF_SZ) && \
-			((max_sz) >= CC_MIN_SEND_BUF_SZ), \
-			name##_does_not_have_a_valid_size_on_line); \
-	uint8_t name##_bytes[(max_sz)]; \
-	cc_buffer_desc name = {(max_sz), 0, &(name##_bytes)}
+#define CC_SEND_BUFFER(name, data_sz) \
+		__compile_time_assert(((data_sz) <= CC_MAX_SEND_BUF_SZ), \
+				name##_does_not_have_a_valid_size_on_line); \
+	uint8_t name##_bytes[(data_sz)]; \
+	cc_buffer_desc name = {(data_sz), 0, &(name##_bytes)}
 
 /**
  * Pointer to a service callback routine.  The callback receives an event
@@ -265,10 +268,13 @@ cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
  * 	CC_RECV_BUSY    : Cannot change buffer since it is in use.
  * 	CC_RECV_SUCCESS : Buffer was successfully set.
  *
- * Only one buffer can be set at a time. A receive must be made available
+ * Only one buffer can be set at a time. A receive buffer must be made available
  * once the API has been initialized.  This ensures there is a place to
  * store any incoming messages, or the response to an outgoing
  * message.
+ *
+ * In normal usage, the applicaton should define and make available a
+ * CC_RECV_BUFFER() of CC_MAX_RECV_BUF_SZ bytes.
  */
 cc_set_recv_result cc_set_recv_buffer(cc_buffer_desc *buf);
 

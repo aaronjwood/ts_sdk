@@ -9,6 +9,11 @@
 #include "cloud_protocol_intfc.h"
 #include "dbg.h"
 
+/* Size of the largest possible Control service messages including header */
+#define CONTROL_SERVICE_MAX_SEND_SZ  (sizeof(struct control_header) + 0)
+#define CONTROL_SERVICE_MAX_RECV_SZ  (sizeof(struct control_header) + \
+				      sizeof(uint32_t))
+
 /*
  * This is the implementation of the Control service which is automatically
  * registered in all applications.  This service provides for configuration
@@ -16,12 +21,12 @@
  * which all applications are expected to handle.
  */
 
-CC_SEND_BUFFER(control_send_buf, CC_MIN_SEND_BUF_SZ);
-
 struct __attribute__((packed)) control_header {
 	uint8_t version;		/* Version of control service protocol*/
 	uint8_t msg_type;		/* Control service message type */
 };
+
+CC_SEND_BUFFER(control_send_buf, CONTROL_SERVICE_MAX_SEND_SZ);
 
 static inline uint32_t load_uint32_le(uint8_t *src)
 {

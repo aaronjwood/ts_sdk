@@ -28,15 +28,46 @@ static char in_pdu[MAX_IN_PDU_SZ];		/* Max. length of incoming PDU */
  */
 static char out_pdu[2 + MAX_OUT_PDU_SZ + 2];
 
+/* Aids in retrieving the PDU from the URC */
+static volatile bool recv_pdu_in_progress;
+static volatile buf_sz wanted_bytes;
+
+static void attempt_pdu_retrieval(void)
+{
+	if (recv_pdu_in_progress) {
+		if (at_core_rx_available() >= wanted_bytes) {
+			/* Read the URC data (PDU string) and decode it into an
+			 * SMS segment */
+			at_core_read((uint8_t *)in_pdu, wanted_bytes);
+			if (!smscodec_decode(wanted_bytes, in_pdu, &msg)) {
+				DEBUG_V0("%s: Unlikely - Failed to decode PDU\n",
+						__func__);
+				return;
+			}
+
+			if (sms_rx_cb)
+				sms_rx_cb(&msg);
+
+			/* Read the trailing CRLF */
+			at_core_read((uint8_t *)in_pdu, 2);
+
+			wanted_bytes = 0;
+			recv_pdu_in_progress = false;
+		}
+	}
+}
+
 static void uart_cb(void)
 {
 	DEBUG_V0("%s: URC from callback\n", __func__);
+
+	attempt_pdu_retrieval();
+
 	if (!at_core_is_proc_rsp() && !at_core_is_proc_urc())
 		at_core_process_urc(false);
 }
 
 /* Process the received SMS URC */
-#define SMS_RECV_URC_TIMEOUT_MS	100
 static at_ret_code process_ucmt_urc(const char *urc)
 {
 	uint8_t len = strlen(at_urcs[UCMT_URC]);
@@ -62,38 +93,11 @@ static at_ret_code process_ucmt_urc(const char *urc)
 		return AT_FAILURE;
 	}
 
-	/* Make sure the complete URC string (ending in CRLF) is available to
-	 * be read */
-	uint32_t start = platform_get_tick_ms();
-	uint32_t end = start;
-	int found = -1;
-	do {
-		if (end - start >= SMS_RECV_URC_TIMEOUT_MS) {
-			DEBUG_V0("%s: Unlikely - Complete URC not found\n", __func__);
-			return AT_FAILURE;
-		}
-		end = platform_get_tick_ms();
-		found = at_core_find_pattern(-1, (const uint8_t *)"\r\n", 2);
-	} while(found == -1);
+	recv_pdu_in_progress = true;
+	wanted_bytes = msg_len;
 
-	buf_sz av_len = at_core_rx_available();
-	if (msg_len > av_len) {
-		DEBUG_V0("%s: Unlikely - Insufficient bytes available (%u, %u)\n",
-				__func__, msg_len, av_len);
-		return AT_FAILURE;
-	}
+	attempt_pdu_retrieval();
 
-	/* Read the URC data (PDU string) and decode it into an SMS segment */
-	at_core_read((uint8_t *)in_pdu, msg_len);
-	if (!smscodec_decode(msg_len, in_pdu, &msg)) {
-		DEBUG_V0("%s: Unlikely - Failed to decode PDU\n", __func__);
-		return AT_FAILURE;
-	}
-
-	if (sms_rx_cb)
-		sms_rx_cb(&msg);
-
-	at_core_clear_rx();
 	return AT_SUCCESS;
 }
 
@@ -163,16 +167,14 @@ static at_ret_code config_modem_for_sms(void)
 	do {
 		DEBUG_V0("%s: Rechecking network registration\n", __func__);
 		res = check_network_registration();
-		end = platform_get_tick_ms();
-		if (end - start > NET_REG_TIMEOUT_SEC) {
-			DEBUG_V0("%s: Network registration timeout\n", __func__);
+		if (res == AT_SUCCESS)
 			break;
-		}
 		platform_delay(CHECK_MODEM_DELAY);
-	} while(res != AT_SUCCESS);
+		end = platform_get_tick_ms();
+	} while(end - start < NET_REG_TIMEOUT_SEC);
 
-	if (res != AT_SUCCESS) {
-		DEBUG_V0("%s: Network registration failed\n", __func__);
+	if (end - start >= NET_REG_TIMEOUT_SEC) {
+		DEBUG_V0("%s: Network registration timeout\n", __func__);
 		return res;
 	}
 

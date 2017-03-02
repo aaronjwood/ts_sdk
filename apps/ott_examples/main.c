@@ -16,7 +16,6 @@
 #include "sensor_interface.h"
 
 #define SEND_DATA_SZ	22
-#define RECV_DATA_SZ	CC_MIN_RECV_BUF_SZ
 #define RESEND_CALIB	0x42		/* Resend calibration command */
 #define NONE		(-1)		/* Represents 'Wake up interval not set' */
 

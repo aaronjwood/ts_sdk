@@ -5,6 +5,7 @@
 #include "at_sms.h"
 #include "platform.h"
 
+#define WAIT_TIME_SEC	((uint8_t)30)
 static void rcv_cb(const at_msg_t *sms_seg)
 {
 	dbg_printf("\nSource Addr: %s\n", sms_seg->addr);
@@ -97,7 +98,8 @@ int main(int argc, char *argv[])
 			goto done;
 		}
 
-		platform_delay(30000);
+		dbg_printf("Waiting for %u seconds\n", WAIT_TIME_SEC);
+		platform_delay(WAIT_TIME_SEC * 1000);
 	}
 
 done:
