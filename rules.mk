@@ -15,7 +15,7 @@ OBJ_DBG_LIB = $(addsuffix .o, $(basename $(DBG_LIB_SRC)))
 
 OBJ = $(OBJ_USER) $(OBJ_CORELIB) $(OBJ_PLATFORM) $(OBJ_DBG_LIB)
 
-CFLAGS_COM = -Werror -std=c99 $(INC) -D$(PROTOCOL)
+CFLAGS_COM = -Werror -std=c99 $(INC) -D$(PROTOCOL) -D$(MODEM)
 CFLAGS_USER = -Wall -Wcast-align $(CFLAGS_COM) $(DBG_OP_USER_FLAGS)
 CFLAGS_LIB = -Wall -Wcast-align $(CFLAGS_COM) $(DBG_OP_LIB_FLAGS) \
 	-fdata-sections -ffunction-sections

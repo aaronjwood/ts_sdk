@@ -1,7 +1,7 @@
 # Copyright(C) 2016,2017 Verizon. All rights reserved.
 
 # Makefile variables to select the necessary files depending on which
-# protocol modules are built
+# protocol is selected.
 
 ifeq ($(PROTOCOL),OTT_PROTOCOL)
 PROTOCOL_SRC = ott_protocol.c
@@ -19,7 +19,7 @@ export PROTOCOL
 INC += -I $(PROJ_ROOT)/include/protocols
 INC += -I $(PROJ_ROOT)/include/protocols/$(PROTOCOL_INC)
 
-vpath %.c $(PROJ_ROOT)/lib/protocol/$(PROTOCOL_DIR):
+vpath %.c $(PROJ_ROOT)/lib/protocols/$(PROTOCOL_DIR):
 
 # OTT requires the mbed TLS library
 ifeq ($(PROTOCOL),OTT_PROTOCOL)
