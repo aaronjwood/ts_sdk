@@ -390,6 +390,7 @@ void smsnas_maintenance(bool poll_due, uint32_t cur_timestamp)
 	uint8_t i;
 	uint32_t ns_time = 0;
 	uint32_t *cur_int = &session.cur_polling_interval;
+	bool init_poll = false;
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
 		if (session.rcv_msg[i].conct_in_progress) {
 			if (cur_timestamp >=
@@ -406,35 +407,22 @@ void smsnas_maintenance(bool poll_due, uint32_t cur_timestamp)
 					rcv_path_cleanup(i);
 				}
 			} else {
+				ns_time = session.rcv_msg[i].next_seq_timeout;
 				if (session.rcv_msg[i].expected_seq !=
 					(session.rcv_msg[i].cur_seq + 1))
 					session.rcv_msg[i].expected_seq =
 						session.rcv_msg[i].cur_seq + 1;
+				if (poll_due)
+					ns_time -= cur_timestamp;
+				session.rcv_msg[i].next_seq_timeout = ns_time;
+				if (!init_poll) {
+					*cur_int = ns_time;
+					init_poll = true;
+				}
+				/* find the minimum */
+				if (*cur_int >= ns_time)
+					*cur_int = ns_time;
 			}
-		}
-	}
-
-	if (!is_conct_in_progress()) {
-		*cur_int = 0;
-		return;
-	}
-
-	bool init_poll = false;
-	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
-		if (session.rcv_msg[i].conct_in_progress) {
-			/* If poll was due, it needs to re-adjust timeouts for
-			 * the remaining receive path
-			 */
-			if (poll_due)
-				session.rcv_msg[i].next_seq_timeout -=
-								cur_timestamp;
-			if (!init_poll) {
-				*cur_int = session.rcv_msg[i].next_seq_timeout;
-				init_poll = true;
-			}
-			/* find the minimum */
-			if (*cur_int >= session.rcv_msg[i].next_seq_timeout)
-				*cur_int = session.rcv_msg[i].next_seq_timeout;
 		}
 	}
 }
