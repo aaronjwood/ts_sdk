@@ -16,12 +16,6 @@
 #define PROTO_OVERHEAD_SZ		(PROTO_CMD_SZ + PROTO_LEN_SZ)
 #define PROTO_DATA_SZ                   (PROTO_MAX_MSG_SZ - PROTO_OVERHEAD_SZ)
 
-/*
- * XXX Need to revisit if it makes sense to have a min recv buffer size when
- * different services may have different minimums.
- */
-#define PROTO_MIN_RECV_BUF_SZ           CONTROL_SERVICE_MAX_RECV_SZ
-#define PROTO_MIN_SEND_BUF_SZ           CONTROL_SERVICE_MAX_SEND_SZ
 #define PROTO_MAX_SEND_BUF_SZ           PROTO_DATA_SZ
 #define PROTO_MAX_RECV_BUF_SZ           PROTO_DATA_SZ
 

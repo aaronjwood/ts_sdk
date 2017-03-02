@@ -27,8 +27,6 @@ static void __at_parse_tcp_conf_rsp(void *rcv_rsp, int rcv_rsp_len,
 
 /** Unsolicited result codes */
 typedef enum at_urc {
-        NET_STAT_URC = 0, /** network status */
-        EPS_STAT_URC, /** data network status */
         TCP_CLOSED, /** TCP close */
         PDP_DEACT, /** PDP connection is deactivated by network */
         DISCONNECT, /** disconnect from direct link mode */
@@ -37,13 +35,8 @@ typedef enum at_urc {
 
 /** For modem status check and configuration related commands */
 typedef enum at_modem_stat_command {
-        NET_STAT = 0, /** turn on network status urc */
-        EPS_STAT, /** turn on data network status urc */
         MNO_STAT, /** check mobile network opertor */
         MNO_SET, /** set mobile network opertor */
-        SIM_READY,
-        NET_REG_STAT,
-        EPS_REG_STAT,
         MOD_END
 } at_modem_stat_command;
 
@@ -68,38 +61,12 @@ typedef enum at_tcp_command {
 
 
 static const char *at_urcs[URC_END] = {
-                [NET_STAT_URC] = "\r\n+CEREG: ",
-                [EPS_STAT_URC] = "\r\n+UREG: ",
                 [TCP_CLOSED] = "\r\n+UUSOCL: ",
                 [PDP_DEACT] = "\r\n+UUPSDD: ",
                 [DISCONNECT] = "\r\nDISCONNECT\r\n"
 };
 
 static const at_command_desc modem_net_status_comm[MOD_END] = {
-        [NET_STAT] = {
-                .comm = "at+cereg=1\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
-        [EPS_STAT] = {
-                .comm = "at+ureg=1\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
         [MNO_STAT] = {
                 .comm = "at+umnoconf?\r",
                 .rsp_desc = {
@@ -128,57 +95,6 @@ static const at_command_desc modem_net_status_comm[MOD_END] = {
                 },
                 .err = NULL,
                 .comm_timeout = 190000
-        },
-        [SIM_READY] = {
-                .comm = "at+cpin?\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+CPIN: READY\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 15000
-        },
-        [NET_REG_STAT] = {
-                .comm = "at+cereg?\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+CEREG: 1,1\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
-        [EPS_REG_STAT] = {
-                .comm = "at+ureg?\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+UREG: 1,7\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
         }
 };
 

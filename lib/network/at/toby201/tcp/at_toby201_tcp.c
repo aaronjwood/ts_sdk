@@ -48,26 +48,6 @@ static volatile bool pdp_conf;
 /* maximum timeout value in searching for the network coverage */
 #define NET_REG_CHECK_DELAY     60000 /* In milli seconds */
 
-static at_ret_code __at_process_network_urc(const char *urc, at_urc u_code)
-{
-
-        if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) != 0)
-                return AT_FAILURE;
-
-        uint8_t count = strlen(at_urcs[u_code]);
-        uint8_t net_stat = urc[count] - '0';
-        DEBUG_V0("%s: net stat (%u): %u\n", __func__, u_code, net_stat);
-        if (((u_code == NET_STAT_URC) && (net_stat != 1)) ||
-                ((u_code == EPS_STAT_URC) && (net_stat == 0))) {
-                state |= NETWORK_LOST;
-                DEBUG_V0("%s: network lost\n", __func__);
-        } else {
-                state &= ~NETWORK_LOST;
-                DEBUG_V0("%s: network restored\n", __func__);
-        }
-        return AT_SUCCESS;
-}
-
 static at_ret_code __at_process_dl_close_urc(const char *urc, at_urc u_code)
 {
         if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) == 0) {
@@ -296,15 +276,7 @@ static void at_uart_callback(void)
 
 static void urc_callback(const char *urc)
 {
-	at_ret_code result = __at_process_network_urc(urc, NET_STAT_URC);
-	if (result == AT_SUCCESS)
-		return;
-
-	result = __at_process_network_urc(urc, EPS_STAT_URC);
-	if (result == AT_SUCCESS)
-		return;
-
-	result = __at_process_pdp_tcp_close_urc(urc, TCP_CLOSED);
+	at_ret_code result = __at_process_pdp_tcp_close_urc(urc, TCP_CLOSED);
 	if (result == AT_SUCCESS)
 		return;
 
@@ -315,17 +287,9 @@ static void urc_callback(const char *urc)
 	result = __at_process_pdp_tcp_close_urc(urc, PDP_DEACT);
 }
 
-static at_ret_code __at_check_network_registration()
+static inline at_ret_code __at_check_network_registration()
 {
-        at_ret_code result1 = AT_SUCCESS;
-        at_ret_code result2 = AT_SUCCESS;
-        /* Check network registration status */
-        result1 = at_core_wcmd(&modem_net_status_comm[NET_REG_STAT], true);
-
-        /* Check packet switch network registration status */
-        result2 = at_core_wcmd(&modem_net_status_comm[EPS_REG_STAT], true);
-
-        if ((result1 == AT_SUCCESS) && (result2 == AT_SUCCESS))
+	if (at_core_query_netw_reg())
                 return AT_SUCCESS;
         return AT_FAILURE;
 }
@@ -333,18 +297,6 @@ static at_ret_code __at_check_network_registration()
 static at_ret_code __at_modem_conf()
 {
         at_ret_code result = AT_SUCCESS;
-
-        /* Enable EPS network status URCs */
-	result = at_core_wcmd(&modem_net_status_comm[EPS_STAT], true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result);
-
-        /* ENABLE network status URCs */
-	result = at_core_wcmd(&modem_net_status_comm[NET_STAT], true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result);
-
-        /* Check if simcard is inserted */
-        result = at_core_wcmd(&modem_net_status_comm[SIM_READY], true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result);
 
         /* set escape sequence delay */
         char temp_comm[TEMP_COMM_LIMIT];

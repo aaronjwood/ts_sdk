@@ -40,7 +40,23 @@ enum modem_core_commands {
 	ECHO_OFF,	/* Turn off echoing AT commands given to the modem */
 	CME_CONF,	/* Change the error output format to numerical */
 	MODEM_RESET,	/* Command to reset the modem */
+	SIM_READY,	/* Check if the SIM is present */
+	EPS_REG_QUERY,	/* Query EPS registration */
+	EPS_URC_SET,	/* Set the EPS registration URC */
+	ExPS_REG_QUERY,	/* Query extended packet switched network registration */
+	ExPS_URC_SET,	/* Set the extended packet switched network reg URC */
 	MODEM_CORE_END	/* End-of-commands marker */
+};
+
+typedef enum at_core_urc {
+	EPS_STAT_URC,
+	ExPS_STAT_URC,
+	NUM_URCS
+} at_core_urc;
+
+static const char *at_urcs[NUM_URCS] = {
+	[EPS_STAT_URC] = "\r\n+CEREG: ",
+	[ExPS_STAT_URC] = "\r\n+UREG: "
 };
 
 static const at_command_desc modem_core[MODEM_CORE_END] = {
@@ -70,6 +86,81 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
         },
         [CME_CONF] = {
                 .comm = "at+cmee=1\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        }
+                },
+                .err = NULL,
+                .comm_timeout = 100
+        },
+        [SIM_READY] = {
+                .comm = "at+cpin?\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\n+CPIN: READY\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        },
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        }
+                },
+                .err = "\r\n+CME ERROR: ",
+                .comm_timeout = 15000
+        },
+        [EPS_REG_QUERY] = {
+                .comm = "at+cereg?\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\n+CEREG: 1,1\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        },
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        }
+                },
+                .err = NULL,
+                .comm_timeout = 100
+        },
+        [EPS_URC_SET] = {
+                .comm = "at+cereg=1\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        }
+                },
+                .err = NULL,
+                .comm_timeout = 100
+        },
+        [ExPS_REG_QUERY] = {
+                .comm = "at+ureg?\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\n+UREG: 1,7\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        },
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        }
+                },
+                .err = NULL,
+                .comm_timeout = 100
+        },
+        [ExPS_URC_SET] = {
+                .comm = "at+ureg=1\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
@@ -397,6 +488,33 @@ done:
 	return result;
 }
 
+static at_ret_code __at_process_netw_urc(const char *urc, at_core_urc u_code)
+{
+	if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) != 0)
+		return AT_FAILURE;
+
+	uint8_t last_char = strlen(at_urcs[u_code]);
+	uint8_t net_stat = urc[last_char] - '0';
+	DEBUG_V0("%s: Net stat (%u): %u\n", __func__, u_code, net_stat);
+	switch (u_code) {
+	case EPS_STAT_URC:
+		if (net_stat == 0 || net_stat == 3 || net_stat == 4)
+			DEBUG_V0("%s: EPS network reg lost\n", __func__);
+		else
+			DEBUG_V0("%s: Registered to EPS network\n", __func__);
+		break;
+	case ExPS_STAT_URC:
+		if (net_stat == 0)
+			DEBUG_V0("%s: Extended PS network reg lost\n", __func__);
+		else
+			DEBUG_V0("%s: Registered to extended PS network\n", __func__);
+		break;
+	default:
+		return AT_FAILURE;
+	}
+	return AT_SUCCESS;
+}
+
 void at_core_process_urc(bool mode)
 {
 	if (mode)
@@ -405,16 +523,22 @@ void at_core_process_urc(bool mode)
 		uint16_t read_bytes = uart_line_avail(rsp_header, rsp_trailer);
 		if (read_bytes == 0)
 			break;
-		uint8_t urc[read_bytes + 1];
+		char urc[read_bytes + 1];
 		urc[read_bytes] = 0x0;
-		if (uart_read(urc, read_bytes) < 0) {
+		if (uart_read((uint8_t *)urc, read_bytes) < 0) {
 			DEBUG_V0("%s: read err (Unlikely)\n", __func__);
 			continue;
 		}
-		DEBUG_V0("%s: looking to process urc: %s\n",
-				__func__, (char *)urc);
+		DEBUG_V0("%s: looking to process urc: %s\n", __func__, urc);
 
-		urc_callback((const char*)urc);
+		/* Process the network URCs within the core module */
+		if (__at_process_netw_urc(urc, EPS_STAT_URC) == AT_SUCCESS)
+			continue;
+
+		if (__at_process_netw_urc(urc, ExPS_STAT_URC) == AT_SUCCESS)
+			continue;
+
+		urc_callback(urc);
 	}
 	if (mode)
 		state.proc_urc = false;
@@ -512,10 +636,24 @@ at_ret_code at_core_modem_reset(void)
 		platform_delay(CHECK_MODEM_DELAY);
 	}
 
+	/* Switch off TX echo */
 	result = at_core_wcmd(&modem_core[ECHO_OFF], false);
 	CHECK_SUCCESS(result, AT_SUCCESS, result);
 
+	/* Check if the SIM card is present */
+	result = at_core_wcmd(&modem_core[SIM_READY], true);
+	CHECK_SUCCESS(result, AT_SUCCESS, result);
+
+	/* Set error format to numerical */
 	result = at_core_wcmd(&modem_core[CME_CONF], true);
+	CHECK_SUCCESS(result, AT_SUCCESS, result);
+
+	/* Enable the Extended Packet Switched network registration URC */
+	result = at_core_wcmd(&modem_core[ExPS_URC_SET], true);
+	CHECK_SUCCESS(result, AT_SUCCESS, result);
+
+	/* Enable the EPS network registration URC */
+	result = at_core_wcmd(&modem_core[EPS_URC_SET], true);
 
 	return result;
 }
@@ -579,4 +717,17 @@ buf_sz at_core_rx_available(void)
 int at_core_read(uint8_t *buf, buf_sz sz)
 {
 	return uart_read(buf, sz);
+}
+
+bool at_core_query_netw_reg(void)
+{
+	at_ret_code res = at_core_wcmd(&modem_core[EPS_REG_QUERY], true);
+	if (res != AT_SUCCESS)
+		return false;
+
+	res = at_core_wcmd(&modem_core[ExPS_REG_QUERY], true);
+	if (res != AT_SUCCESS)
+		return false;
+
+	return true;
 }

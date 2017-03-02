@@ -22,6 +22,29 @@
  *
  */
 
+/* XXX Remove the second value once OTT starts including BASIC header. */
+#if !defined(OTT_PROTOCOL)
+#define __CC_BASIC_SERVICE_OVERHEAD (1)
+#else
+#define __CC_BASIC_SERVICE_OVERHEAD (0)
+#endif
+
+/**
+ * The maximum size of the binary blob that can be sent or received in a
+ * Basic service message.
+ */
+#define CC_BASIC_MAX_RECV_DATA_SZ (CC_MAX_RECV_BUF_SZ - \
+				   __CC_BASIC_SERVICE_OVERHEAD)
+#define CC_BASIC_MAX_SEND_DATA_SZ (CC_MAX_SEND_BUF_SZ - \
+				   __CC_BASIC_SERVICE_OVERHEAD)
+
+/**
+ * The size of CC_RECV_BUFFER() or CC_SEND_BUFFER() needed to receive or send
+ * a zero-length Basic service message.
+ */
+#define CC_BASIC_MIN_RECV_BUF_SZ (__CC_BASIC_SERVICE_OVERHEAD)
+#define CC_BASIC_MIN_SEND_BUF_SZ (__CC_BASIC_SERVICE_OVERHEAD)
+
 extern const cc_service_descriptor cc_basic_service_descriptor;
 
 #endif /* CC_BASIC_SERVICE_H */
