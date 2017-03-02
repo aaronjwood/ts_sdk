@@ -10,11 +10,14 @@ else
 	$(error "Makefile must define the BUILD_TARGET variable")
 endif
 
-# Defines which modem to use. Currently only ublox-toby201 is supported.
+# Defines which modem to use. Currently only the ublox toby201 is supported.
 MODEM_TARGET ?= toby201
 
-# Defines which cloud protocol to use. Currently only OTT is supported.
-CLOUD_PROTOCOL ?= ott
+# Defines which cloud protocol to use. Valid options are:
+#  OTT_PROTOCOL
+#  SMSNAS_PROTOCOL
+# Override on the command line with: make PROTOCOL=<option>
+PROTOCOL ?= OTT_PROTOCOL
 
 # Debug and optimization flags
 # Comment this out to disable LTO and enable debug
@@ -25,9 +28,11 @@ CLOUD_PROTOCOL ?= ott
 # the user code, use the following instead:
 #DBG_OP_USER_FLAGS = -Os $(LTOFLAG)
 DBG_OP_USER_FLAGS = -g -ggdb3 -O0 $(LTOFLAG)
+
+# By default, build the library modules for reduced size
 DBG_OP_LIB_FLAGS = -Os $(LTOFLAG)
 
-# Firmware name
+# Name of the resulting firmware image file
 FW_EXEC = firmware.elf
 LDFLAGS ?= -Wl,-Map,fw.map,--cref
 
@@ -41,6 +46,12 @@ INC += -I $(PROJ_ROOT)/include/hwrng
 # Platform related headers (beyond standard device drivers)
 INC += $(PLATFORM_INC)
 
+# Header files for the cloud_comm API
+INC += -I $(PROJ_ROOT)/include/cloud_comm
+
+# Header files for services
+INC += -I $(PROJ_ROOT)/include/services
+
 # Header files for certificates
 INC += -I $(PROJ_ROOT)/include/certs
 
@@ -50,24 +61,30 @@ INC += -I $(PROJ_ROOT)/include/dev_creds
 # Header files for vendor libraries
 INC += $(VENDOR_INC)
 
-ifeq ($(MODEM_TARGET),toby201)
-MODEM_SRC += at_toby201.c
-MODEM_DIR += toby201
-endif
+# Source for the main cloud API
+CLOUD_COMM_SRC = cloud_comm.c
+
+# Source for the standard services.
+# An application may append to this variable if it uses additional services.
+SERVICES_SRC += cc_basic_service.c cc_control_service.c
 
 # List of core library components to be included in the build process
-# This includes the standard per-platform device drivers and other platform
-# support files.
+# This includes the standard per-platform device drivers but not any
+# toolchain or externally supplied files that may need to be built with
+# different compiler options.
 CORELIB_SRC = dbg_$(BUILD_TARGET).c uart_$(BUILD_TARGET).c
 CORELIB_SRC += hwrng_$(BUILD_TARGET).c platform_$(BUILD_TARGET).c
-CORELIB_SRC +=  $(PLATFORM_SRC)
+CORELIB_SRC +=  $(MODEM_SRC) $(PROTOCOL_SRC) $(CLOUD_COMM_SRC) $(SERVICES_SRC)
 
 # Search paths for device driver sources
 vpath %.c $(PROJ_ROOT)/lib/platform: \
 	$(PROJ_ROOT)/lib/dbg: \
 	$(PROJ_ROOT)/lib/uart: \
-	$(PROJ_ROOT)/lib/hwrng:
+	$(PROJ_ROOT)/lib/hwrng: \
+	$(PROJ_ROOT)/lib/cloud_comm: \
+	$(PROJ_ROOT)/lib/services: \
+	$(PROJ_ROOT)/lib/
 
 include $(PROJ_ROOT)/protocol.mk
-include $(PROJ_ROOT)/net.mk
+include $(PROJ_ROOT)/modem.mk
 
