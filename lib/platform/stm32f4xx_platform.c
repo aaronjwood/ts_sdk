@@ -82,7 +82,7 @@ static void SystemClock_Config(void)
 
 void platform_init()
 {
-        HAL_Init();
+	HAL_Init();
 	SystemClock_Config();
 }
 
