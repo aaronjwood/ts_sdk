@@ -264,7 +264,7 @@ static bool decode_addr(const char **pdu, sms_t *recv_msg)
 	if (val > ADDR_SZ - 1)			/* Not including the '+' */
 		return false;
 
-	memset(recv_msg->addr, 0, sizeof(recv_msg->addr));
+	memset(recv_msg->addr, 0, ADDR_SZ + 1);
 	for (uint8_t i = 0; i < val; i++) {
 		uint8_t digit = extract_bits(&bit_idx, DTMF_DIGIT_SIZE, bin);
 		recv_msg->addr[i] = bin_dtmf_to_char(digit);
@@ -466,7 +466,7 @@ static bool decode_telesvc(const char **pdu)
 #define TELESVC_ID	0x00	/* Teleservice parameter identifier */
 #define ORIG_ADDR_ID	0x02	/* Originating address identifier */
 #define BEARER_DATA_ID	0x08	/* Bearer data identifier */
-static bool modem_sms_decode_3gpp2(uint8_t len, const char *pdu, sms_t *recv_msg)
+static bool modem_sms_decode_3gpp2(uint16_t len, const char *pdu, sms_t *recv_msg)
 {
 	const char *rptr = pdu;
 
@@ -508,9 +508,10 @@ static bool modem_sms_decode_3gpp2(uint8_t len, const char *pdu, sms_t *recv_msg
 	return true;
 }
 
-bool smscodec_decode(uint8_t len, const char *pdu, sms_t *recv_msg)
+bool smscodec_decode(uint16_t len, const char *pdu, sms_t *recv_msg)
 {
-	if (pdu == NULL || recv_msg == NULL || recv_msg->buf == NULL)
+	if (pdu == NULL || recv_msg == NULL || recv_msg->buf == NULL ||
+			recv_msg->addr == NULL)
 		return false;
 
 #if MODEM_TOBY201
@@ -523,7 +524,7 @@ bool smscodec_decode(uint8_t len, const char *pdu, sms_t *recv_msg)
 uint16_t smscodec_encode(const sms_t *msg_to_send, char *pdu)
 {
 	if (msg_to_send == NULL || msg_to_send->buf == NULL ||
-			msg_to_send->addr[0] == '\0' || pdu == NULL)
+			msg_to_send->addr == NULL || pdu == NULL)
 		return 0;
 
 	if (msg_to_send->num_seg == 0 || msg_to_send->len == 0)

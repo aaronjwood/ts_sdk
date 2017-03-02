@@ -293,6 +293,9 @@ int uart_line_avail(const char *header, const char *trailer)
 	buf_sz hlen = strlen(header);
 	buf_sz tlen = strlen(trailer);
 
+	if (rx.num_unread < hlen + tlen)
+		return 0;
+
 	if (header) {
 		/* Search for the header from where we left off reading. */
 		hidx = find_substr_in_ring_buffer(rx.ridx,

@@ -29,7 +29,7 @@ typedef enum at_return_codes {
  * 20mS
  */
 #define AT_COMM_DELAY_MS	20
-#define CHECK_MODEM_DELAY	1000	/* in mili seconds, polling for modem */
+#define CHECK_MODEM_DELAY	5000	/* in mili seconds, polling for modem */
 #endif
 
 #define MAX_RSP_LINE		2	/* Some command send response plus OK */
@@ -49,7 +49,7 @@ typedef enum at_return_codes {
  * function calls
  */
 #ifdef DEBUG_AT_LIB
-static int debug_level;
+static int __attribute__((unused)) debug_level;
 #define DEBUG_V2(...)	\
                         do { \
                                 if (debug_level >= 2) \
@@ -295,4 +295,16 @@ bool at_core_is_proc_urc(void);
  * 	False - The core AT module is not processing a response
  */
 bool at_core_is_proc_rsp(void);
+
+/*
+ * Check if the modem is registered to the network.
+ *
+ * Parameters:
+ * 	None
+ *
+ * Returns:
+ * 	True  - The modem is registered to the network
+ * 	False - The modem is not correctly registered to the network
+ */
+bool at_core_query_netw_reg(void);
 #endif /* at_core.h */
