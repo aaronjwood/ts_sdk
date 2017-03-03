@@ -27,6 +27,9 @@ CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 
 static bool resend_calibration;		/* Set if RESEND command was received */
 
+/* Arbitrary long sleep time in milliseconds */
+#define LONG_SLEEP_INT_MS	180000
+
 static void receive_completed(cc_buffer_desc *buf)
 {
 	cc_data_sz sz = cc_get_receive_data_len(buf, CC_SERVICE_BASIC);
@@ -43,6 +46,12 @@ static void receive_completed(cc_buffer_desc *buf)
 	}
 }
 
+static void handle_buf_overflow()
+{
+	dbg_printf("\t\t\tBuffer overflow\n");
+	cc_nak_msg();
+}
+
 /*
  * Handle events related to the Basic service i.e. normal data messages to
  * and from the cloud.
@@ -50,7 +59,7 @@ static void receive_completed(cc_buffer_desc *buf)
 static void basic_service_cb(cc_event event, uint32_t value, void *ptr)
 {
 	dbg_printf("\t\t[BASIC CB] Received an event.\n");
-	
+
 	if (event == CC_EVT_RCVD_MSG)
 		receive_completed((cc_buffer_desc *)ptr);
 
@@ -63,6 +72,8 @@ static void basic_service_cb(cc_event event, uint32_t value, void *ptr)
 	else if (event == CC_EVT_SEND_TIMEOUT)
 		dbg_printf("\t\t\tTimed out trying to send message\n");
 
+	else if (event == CC_EVT_RCVD_OVERFLOW)
+		handle_buf_overflow();
 	else
 		dbg_printf("\t\t\tUnexpected event received: %d\n", event);
 }
@@ -73,6 +84,8 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 	dbg_printf("\t\t[CTRL CB] Received an event.\n");
 	if (event == CC_EVT_CTRL_SLEEP)
 		dbg_printf("\t\t\tSleep interval (secs): %"PRIu32"\n", value);
+	else if (event == CC_EVT_RCVD_OVERFLOW)
+		handle_buf_overflow();
 	else
 		dbg_printf("\t\t\tUnsupported control event: %d\n", event);
 }
@@ -147,7 +160,11 @@ int main(int argc, char *argv[])
 
 		cur_ts = platform_get_tick_ms();
 		next_wakeup_interval = cc_service_send_receive(cur_ts);
-		if (next_wakeup_interval != NONE) {
+		if (next_wakeup_interval == 0) {
+			wake_up_interval = LONG_SLEEP_INT_MS;
+			dbg_printf("Sleeping for long time (%u secs)\n",
+					wake_up_interval / 1000);
+		} else if (next_wakeup_interval != NONE) {
 			if (wake_up_interval != next_wakeup_interval)
 				dbg_printf("New wakeup time received\n");
 			dbg_printf("Relative wakeup time set to +%"PRIi32" sec\n",
