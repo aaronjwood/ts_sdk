@@ -42,7 +42,7 @@ static void control_dispatch_callback(cc_buffer_desc *buf, cc_event event,
 				      cc_svc_callback_rtn cb)
 {
 	struct control_header *hdr;
-	
+
 	if (svc_id != CC_SERVICE_CONTROL) {
 		dbg_printf("%s:%d: Callback called for wrong svc_id: %d\n",
 			   __func__, __LINE__, svc_id);
@@ -57,6 +57,10 @@ static void control_dispatch_callback(cc_buffer_desc *buf, cc_event event,
 		return;
 	} else if (event == CC_EVT_SEND_TIMEOUT) {
 		dbg_printf("Timeout while sending Control service message\n");
+		return;
+	} else if (event == CC_EVT_RCVD_OVERFLOW) {
+		dbg_printf("Memory overflow for Control service message\n");
+		cb(event, 0, (void *)buf);
 		return;
 	} else if (event != CC_EVT_RCVD_MSG) {
 		dbg_printf("%s:%d: Dispatched an unsupported event: %d\n",
@@ -114,7 +118,7 @@ bad_msg:
 cc_send_result cc_ctrl_resend_init_config(void)
 {
 	struct control_header *hdr;
-	
+
 	hdr = (struct control_header *)
 		cc_get_send_buffer_ptr(&control_send_buf, CC_SERVICE_CONTROL);
 	hdr->version = CONTROL_PROTOCOL_VERSION;
@@ -127,7 +131,7 @@ cc_send_result cc_ctrl_resend_init_config(void)
 const cc_service_descriptor cc_control_service_descriptor = {
 	.svc_id = CC_SERVICE_CONTROL,
 	/*
-	 * Control service never exposes a buffer outside the service 
+	 * Control service never exposes a buffer outside the service
 	 * so give direct access to the headers.
 	 */
 	.send_offset = 0,

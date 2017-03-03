@@ -37,7 +37,6 @@ typedef enum {
 	PROTO_SEND_TIMEOUT,	/* Timed out waiting for a response */
 
 	/* Incoming message events: */
-	PROTO_RCV_TIMEOUT,	/* Timed out waiting for the receive message */
 	/* Insufficient memory to store received message */
 	PROTO_RCVD_MEM_OVRFL,
 	PROTO_RCVD_QUIT,	/* Received quit (i.e. session termination) */

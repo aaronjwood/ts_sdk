@@ -27,9 +27,6 @@
 static uint32_t proto_begin;
 #endif
 
-/* sleep interval, which can be set during control message sleep type */
-static uint32_t sl_intr;
-
 /* Define intermediate buffer to store incoming messages */
 static uint8_t smsnas_rcv_buf[PROTO_MAX_MSG_SZ * SMSNAS_MAX_RCV_PATH];
 
@@ -40,12 +37,12 @@ static void reset_rcv_path(uint8_t rcv_path)
 	session.rcv_msg[rcv_path].cur_seq = 0;
 	session.rcv_msg[rcv_path].cref_num = -1;
 	session.rcv_msg[rcv_path].conct_in_progress = false;
+	session.rcv_msg[rcv_path].expected_seq = 0;
 }
 
 /* Initializes receive paths and resets internal protocol state */
 proto_result smsnas_protocol_init(void)
 {
-	sl_intr = 0;
 	uint8_t i = 0;
 	if (!at_init())
 		RETURN_ERROR("modem init failed", PROTO_ERROR);
@@ -83,16 +80,6 @@ proto_result smsnas_set_destination(const char *host)
 	strncpy(session.host, host, strlen(host));
 	session.host_valid = true;
 	return PROTO_OK;
-}
-
-void smsnas_set_sleep_interval(uint32_t sleep_int)
-{
-	sl_intr = sleep_int;
-}
-
-uint32_t smsnas_get_sleep_interval(void)
-{
-	return sl_intr;
 }
 
 const uint8_t *smsnas_get_rcv_buffer_ptr(const void *msg)
@@ -157,15 +144,19 @@ static bool check_validity(const at_msg_t *msg_ptr, uint8_t rcv_path,
 		return false;
 
 	if (first_seg) {
-		smsnas_msg_t *smsnas_msg = (smsnas_msg_t *)msg_ptr->buf;
 		if (msg_ptr->seq_no != 1)
 			return false;
+		smsnas_msg_t *smsnas_msg = (smsnas_msg_t *)msg_ptr->buf;
 		if (smsnas_msg->version != SMSNAS_VERSION)
 			return false;
 		return true;
 	}
 
 	/* check for out of order segment */
+	/* FIXME: action to perform for duplicate message, currently it will
+	 * nack and discard whole concatenated message for any out of sequence
+	 * sms
+	 */
 	if (msg_ptr->seq_no != (session.rcv_msg[rcv_path].cur_seq + 1))
 		return false;
 	return true;
@@ -249,24 +240,29 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 		smsnas_rcv_path *rp = &session.rcv_msg[rcv_path];
 		rcvd = rp->wr_idx + msg_ptr->len;
 
-		/* two step memory overflow check when there are multiple
-		 * receive paths are supported, one for intermediate buffer
+		/* two step memory overflow check, one for intermediate buffer
 		 * and other for user supplied buffer
 		 */
 		if (check_mem_overflow(rcvd, session.rcv_sz, rp->service_id)) {
+			/* let upper level nack this sms first and then
+			 * reschedule receive buffer
+			 */
 			session.rcv_valid = false;
 			goto done;
 		} else if (rcvd > rp->rcv_sz) {
 			printf("%s:%d: Unlikely Intermediate buffer overflow\n",
 				__func__, __LINE__);
+
+			/* FIXME: Current behaviour is to nack this message
+			 * and return resetting receive path
+			 */
 			goto error;
 		}
 		if (new) {
-			/* wr_idx is already been initialized */
 			rp->cref_num = msg_ptr->ref_no;
 			memcpy(rp->buf, msg_ptr->buf, msg_ptr->len);
 			rp->conct_in_progress = true;
-			/* need to determine oldest to evict */
+			/* Needed to determine oldest to evict */
 			rp->init_timestamp = platform_get_tick_ms();
 		} else {
 			if (!check_validity(msg_ptr, rcv_path, false))
@@ -333,6 +329,7 @@ proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
 	return PROTO_OK;
 }
 
+/* FIXME: handle scenario where ack/nack function fails */
 static void handle_pend_ack_nack(void)
 {
 	switch (session.ack_nack_pend) {
@@ -369,17 +366,14 @@ void smsnas_maintenance(bool poll_due, uint32_t cur_timestamp)
 	uint32_t ns_time = 0;
 	uint32_t *cur_int = &session.cur_polling_interval;
 	bool init_poll = false;
+
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
 		if (session.rcv_msg[i].conct_in_progress) {
 			if (cur_timestamp >=
 				session.rcv_msg[i].next_seq_timeout) {
-				if (session.rcv_msg[i].expected_seq !=
-					session.rcv_msg[i].cur_seq) {
-					INVOKE_RECV_CALLBACK(
-						session.rcv_buf,
-						session.rcv_sz,
-						PROTO_RCV_TIMEOUT,
-						session.rcv_msg[i].service_id);
+				if (session.rcv_msg[i].cur_seq <
+					session.rcv_msg[i].expected_seq) {
+					/* Discard whole concatenated sms */
 					session.rcv_msg[i].conct_in_progress =
 									false;
 					rcv_path_cleanup(i);

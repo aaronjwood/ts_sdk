@@ -127,18 +127,4 @@ const uint8_t *smsnas_get_rcv_buffer_ptr(const void *msg);
  */
 uint32_t smsnas_get_polling_interval(void);
 
-/*
- * Sets sleeping interval in seconds
- * Parameters:
- * 	sleep_int : sleeping interval in seconds.
- */
-void smsnas_set_sleep_interval(uint32_t sleep_int);
-
-/*
- * Retrieves sleeping interval in seconds
- * Returns:
- * 	Interval time in seconds.
- */
-uint32_t smsnas_get_sleep_interval(void);
-
 #endif
