@@ -30,6 +30,11 @@ static bool resend_calibration;		/* Set if RESEND command was received */
 /* Arbitrary long sleep time in milliseconds */
 #define LONG_SLEEP_INT_MS	180000
 
+/* status report interval in milliseconds */
+#define STATUS_REPORT_INT_MS	15000
+/* last status message sent timestamp */
+uint32_t last_st_ts = 0;
+
 static void receive_completed(cc_buffer_desc *buf)
 {
 	cc_data_sz sz = cc_get_receive_data_len(buf, CC_SERVICE_BASIC);
@@ -102,6 +107,11 @@ static void send_all_calibration_data(void)
 
 static void read_and_send_all_sensor_data(void)
 {
+	if (last_st_ts != 0) {
+		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS)
+			return;
+	}
+	dbg_printf("Reading sensor data\n");
 	array_t data;
 	data.bytes = cc_get_send_buffer_ptr(&send_buffer, CC_SERVICE_BASIC);
 	for (uint8_t i = 0; i < si_get_num_sensors(); i++) {
@@ -112,6 +122,7 @@ static void read_and_send_all_sensor_data(void)
 						CC_SERVICE_BASIC)
 		       == CC_SEND_SUCCESS);
 	}
+	last_st_ts = platform_get_tick_ms();
 }
 
 int main(int argc, char *argv[])
@@ -140,9 +151,10 @@ int main(int argc, char *argv[])
 	dbg_printf("Make a receive buffer available\n");
 	ASSERT(cc_set_recv_buffer(&recv_buffer) == CC_RECV_SUCCESS);
 
+#if defined(OTT_PROTOCOL)
 	dbg_printf("Sending \"restarted\" message\n");
 	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
-
+#endif
 	dbg_printf("Initializing the sensors\n");
 	ASSERT(si_init());
 
@@ -150,15 +162,13 @@ int main(int argc, char *argv[])
 	send_all_calibration_data();
 
 	while (1) {
-		dbg_printf("Reading sensor data\n");
+		cur_ts = platform_get_tick_ms();
 		read_and_send_all_sensor_data();
 		if (resend_calibration) {
 			resend_calibration = false;
 			dbg_printf("\tResending calibration data\n");
 			send_all_calibration_data();
 		}
-
-		cur_ts = platform_get_tick_ms();
 		next_wakeup_interval = cc_service_send_receive(cur_ts);
 		if (next_wakeup_interval == 0) {
 			wake_up_interval = LONG_SLEEP_INT_MS;
@@ -175,6 +185,8 @@ int main(int argc, char *argv[])
 		dbg_printf("Powering down for %"PRIi32" seconds\n\n",
 				wake_up_interval / 1000);
 		ASSERT(si_sleep());
+		if (wake_up_interval > STATUS_REPORT_INT_MS)
+			wake_up_interval = STATUS_REPORT_INT_MS;
 		platform_delay(wake_up_interval);
 		ASSERT(si_wakeup());
 	}

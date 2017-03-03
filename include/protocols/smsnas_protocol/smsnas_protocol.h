@@ -71,7 +71,7 @@ proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
  * 	PROTO_TIMEOUT   : Timed out sending the message. Sending failed.
  */
 proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
-                                        uint8_t svc_id, proto_callback cb);
+                                proto_service_id svc_id, proto_callback cb);
 
 /*
  * Maintenance of the protocol, Processes pending ack/nack and also calling

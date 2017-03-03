@@ -82,7 +82,7 @@ typedef enum {
 typedef struct __attribute__((packed)) {
 	/* Protocol version bytes */
 	uint8_t version;
-	uint8_t service_id;
+	proto_service_id service_id;
 	proto_pl_sz payload_sz;
 	uint8_t payload[];
 } smsnas_msg_t;
@@ -91,7 +91,7 @@ typedef struct {
 	/* true if concatenated message is in progress */
 	bool conct_in_progress;
 	/* service id received from protocol message */
-	uint8_t service_id;
+	proto_service_id service_id;
 	/* message reference number in case of concatenated sms from
 	 * tp-user header
 	 */

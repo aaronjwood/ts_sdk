@@ -76,7 +76,7 @@ proto_result smsnas_set_destination(const char *host)
 
 	if (((strlen(host) + 1) > MAX_HOST_LEN) || (strlen(host) == 0))
 		RETURN_ERROR("Invalid parameter", PROTO_INV_PARAM);
-
+	
 	strncpy(session.host, host, strlen(host));
 	session.host_valid = true;
 	return PROTO_OK;
@@ -124,7 +124,7 @@ static void rcv_path_cleanup(int rcv_path)
 }
 
 static bool check_mem_overflow(proto_pl_sz rcv_len, proto_pl_sz pl_sz,
-				uint8_t s_id)
+				proto_service_id s_id)
 {
 	/* check for storage capacity */
 	if (pl_sz < rcv_len) {
@@ -174,7 +174,8 @@ static void update_ack_rcv_path(const at_msg_t *msg_ptr, uint8_t rcv_path)
 /* Select receive path for the given msg if it is new msg check for
  * its sanity before allocating receive path
  */
-static int retrieve_rcv_path(const at_msg_t *msg, bool *new, uint8_t *s_id)
+static int retrieve_rcv_path(const at_msg_t *msg, bool *new,
+				proto_service_id *s_id)
 {
 	uint8_t i;
 	int rcvp = -1;
@@ -219,7 +220,7 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 {
 	int rcv_path  = -1;
 	proto_pl_sz rcvd = 0;
-	uint8_t s_id = 0;
+	proto_service_id s_id = 0;
 	/* Must be some random message that upper level is not expecting,
 	 * ignore it and send nack
 	 */
@@ -425,7 +426,8 @@ static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
 }
 
 /* takes a payload and builds SMSNAS protocol message */
-static void build_smsnas_msg(const void *payload, proto_pl_sz sz, uint8_t s_id)
+static void build_smsnas_msg(const void *payload, proto_pl_sz sz,
+				proto_service_id s_id)
 {
 	memset(session.send_msg, 0, MAX_SMS_PL_SZ);
 	session.send_msg[0] = SMSNAS_VERSION;
@@ -462,8 +464,9 @@ int calculate_total_msgs(proto_pl_sz sz)
 	return total_msg;
 }
 
-static void invoke_send_callback(const void *buf, proto_pl_sz sz, uint8_t s_id,
-				proto_callback cb, proto_result res)
+static void invoke_send_callback(const void *buf, proto_pl_sz sz,
+				proto_service_id s_id, proto_callback cb,
+				proto_result res)
 {
 	switch (res) {
 	case PROTO_TIMEOUT:
@@ -479,7 +482,8 @@ static void invoke_send_callback(const void *buf, proto_pl_sz sz, uint8_t s_id,
  * concatenated message
  */
 proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
-					uint8_t service_id, proto_callback cb)
+					proto_service_id service_id,
+					proto_callback cb)
 {
 	if (!buf || (sz == 0) || (sz > PROTO_MAX_MSG_SZ))
 		RETURN_ERROR("Invalid parameter", PROTO_INV_PARAM);
