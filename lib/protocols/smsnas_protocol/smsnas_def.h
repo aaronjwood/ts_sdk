@@ -21,13 +21,6 @@
 #define SMSNAS_MAX_RCV_PATH	1
 #endif
 
-/* If more then one, define intermediate buffer to store incoming messages */
-#if SMSNAS_MAX_RCV_PATH > 1
-uint8_t smsnas_rcv_buf[PROTO_MAX_MSG_SZ * SMSNAS_MAX_RCV_PATH];
-#else
-uint8_t smsnas_rcv_buf[1];
-#endif
-
 /* Defines retries in case of send failure */
 #define MAX_RETRIES			3
 

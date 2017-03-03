@@ -30,6 +30,9 @@ static uint32_t proto_begin;
 /* sleep interval, which can be set during control message sleep type */
 static uint32_t sl_intr;
 
+/* Define intermediate buffer to store incoming messages */
+static uint8_t smsnas_rcv_buf[PROTO_MAX_MSG_SZ * SMSNAS_MAX_RCV_PATH];
+
 static void reset_rcv_path(uint8_t rcv_path)
 {
 	session.rcv_msg[rcv_path].rcv_sz = PROTO_MAX_MSG_SZ;
@@ -37,8 +40,6 @@ static void reset_rcv_path(uint8_t rcv_path)
 	session.rcv_msg[rcv_path].cur_seq = 0;
 	session.rcv_msg[rcv_path].cref_num = -1;
 	session.rcv_msg[rcv_path].conct_in_progress = false;
-	if ((rcv_path == 0) && (ARRAY_SIZE(session.rcv_msg) == 1))
-		session.rcv_msg[rcv_path].rcv_sz = session.rcv_sz;
 }
 
 /* Initializes receive paths and resets internal protocol state */
@@ -59,11 +60,7 @@ proto_result smsnas_protocol_init(void)
 	uint8_t num_rcv_path = ARRAY_SIZE(session.rcv_msg);
 
 	for (i = 0; i < num_rcv_path; i++) {
-		if ((i == 0) && (num_rcv_path == 1))
-			/* buf will be used from upper level */
-			session.rcv_msg[i].buf = NULL;
-		else
-			session.rcv_msg[i].buf = (smsnas_rcv_buf +
+		session.rcv_msg[i].buf = (smsnas_rcv_buf +
 							(i * PROTO_MAX_MSG_SZ));
 		reset_rcv_path(i);
 	}
@@ -252,16 +249,15 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 		smsnas_rcv_path *rp = &session.rcv_msg[rcv_path];
 		rcvd = rp->wr_idx + msg_ptr->len;
 
-		/* two step memory overflow check needed when there are multiple
+		/* two step memory overflow check when there are multiple
 		 * receive paths are supported, one for intermediate buffer
 		 * and other for user supplied buffer
 		 */
 		if (check_mem_overflow(rcvd, session.rcv_sz, rp->service_id)) {
 			session.rcv_valid = false;
 			goto done;
-		} else if ((ARRAY_SIZE(session.rcv_msg) > 1) &&
-			(rcvd > rp->rcv_sz)) {
-			printf("%s:%d: Intermediate buffer overflow\n",
+		} else if (rcvd > rp->rcv_sz) {
+			printf("%s:%d: Unlikely Intermediate buffer overflow\n",
 				__func__, __LINE__);
 			goto error;
 		}
@@ -287,14 +283,7 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 				 * that scenario where app/services misbehave
 				 */
 
-				/* for the case where only single receive path
-				 * exists, no need to copy into rcv_buf as it
-				 * is already being set as the only receiving
-				 * buffer
-				 */
-				if (ARRAY_SIZE(session.rcv_msg) > 1)
-					memcpy(session.rcv_buf, rp->buf, rcvd);
-
+				memcpy(session.rcv_buf, rp->buf, rcvd);
 				INVOKE_RECV_CALLBACK(session.rcv_buf, rcvd,
 					PROTO_RCVD_MSG, rp->service_id);
 				goto done;
@@ -307,6 +296,7 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 		smsnas_msg_t *smsnas_msg = (smsnas_msg_t *)msg_ptr->buf;
 		if (smsnas_msg->version != SMSNAS_VERSION)
 			goto error;
+		/* Upper level has to activate receive buffer again */
 		session.rcv_valid = false;
 		if (check_mem_overflow(msg_ptr->len, session.rcv_sz,
 			smsnas_msg->service_id))
@@ -335,18 +325,6 @@ proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
 	if (session.rcv_valid)
 		RETURN_ERROR("receiver already in progress", PROTO_ERROR);
 
-	/* If only single receive path is present, we will need to initialize
-	 * here so that concatenated state machine is ready to use when need
-	 * arises
-	 */
-	if (ARRAY_SIZE(session.rcv_msg) == 1) {
-		session.rcv_msg[0].buf = rcv_buf;
-		session.rcv_msg[0].rcv_sz = sz;
-		session.rcv_msg[0].wr_idx = 0;
-	}
-	/* place holder for the upper level buffer, used when multi receive path
-	 * are present
-	 */
 	session.rcv_buf = rcv_buf;
 	session.rcv_sz = sz;
 	session.rcv_valid = true;
