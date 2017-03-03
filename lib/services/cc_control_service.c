@@ -117,6 +117,7 @@ bad_msg:
 
 cc_send_result cc_ctrl_resend_init_config(void)
 {
+#if defined(OTT_PROTOCOL)
 	struct control_header *hdr;
 
 	hdr = (struct control_header *)
@@ -126,6 +127,10 @@ cc_send_result cc_ctrl_resend_init_config(void)
 
 	return cc_send_svc_msg_to_cloud(&control_send_buf, sizeof(*hdr),
 					CC_SERVICE_CONTROL);
+#else
+	return CC_SEND_SUCCESS;
+#endif
+
 }
 
 const cc_service_descriptor cc_control_service_descriptor = {

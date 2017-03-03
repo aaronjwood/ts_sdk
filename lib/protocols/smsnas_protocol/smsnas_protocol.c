@@ -174,7 +174,7 @@ static void update_ack_rcv_path(const at_msg_t *msg_ptr, uint8_t rcv_path)
 /* Select receive path for the given msg if it is new msg check for
  * its sanity before allocating receive path
  */
-static int retrieve_rcv_path(const at_msg_t *msg, bool *new)
+static int retrieve_rcv_path(const at_msg_t *msg, bool *new, uint8_t *s_id)
 {
 	uint8_t i;
 	int rcvp = -1;
@@ -211,8 +211,7 @@ static int retrieve_rcv_path(const at_msg_t *msg, bool *new)
 		return -1;
 
 	smsnas_msg_t *temp_msg = (smsnas_msg_t *)msg->buf;
- 	session.rcv_msg[rcvp].service_id = temp_msg->service_id;
-
+	*s_id = temp_msg->service_id;
 	return rcvp;
 }
 
@@ -220,6 +219,7 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 {
 	int rcv_path  = -1;
 	proto_pl_sz rcvd = 0;
+	uint8_t s_id = 0;
 	/* Must be some random message that upper level is not expecting,
 	 * ignore it and send nack
 	 */
@@ -230,7 +230,7 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 
 	if (msg_ptr->num_seg > 1) {
 		bool new = false;
-		rcv_path = retrieve_rcv_path(msg_ptr, &new);
+		rcv_path = retrieve_rcv_path(msg_ptr, &new, &s_id);
 		/* only possible when allocating new receive path */
 		if (rcv_path == -1) {
 			printf("%s: %d: Message is not valid\n",
@@ -243,7 +243,7 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 		/* two step memory overflow check, one for intermediate buffer
 		 * and other for user supplied buffer
 		 */
-		if (check_mem_overflow(rcvd, session.rcv_sz, rp->service_id)) {
+		if (check_mem_overflow(rcvd, session.rcv_sz, s_id)) {
 			/* let upper level nack this sms first and then
 			 * reschedule receive buffer
 			 */
@@ -259,6 +259,7 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 			goto error;
 		}
 		if (new) {
+			rp->service_id = s_id;
 			rp->cref_num = msg_ptr->ref_no;
 			memcpy(rp->buf, msg_ptr->buf, msg_ptr->len);
 			rp->conct_in_progress = true;

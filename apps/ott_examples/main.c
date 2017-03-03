@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
 		next_wakeup_interval = cc_service_send_receive(cur_ts);
 		if (next_wakeup_interval == 0) {
 			wake_up_interval = LONG_SLEEP_INT_MS;
-			dbg_printf("Sleeping for long time (%u secs)\n",
+			dbg_printf("Sleeping for long time: %"PRIi32" secs\n",
 					wake_up_interval / 1000);
 		} else if (next_wakeup_interval != NONE) {
 			if (wake_up_interval != next_wakeup_interval)
