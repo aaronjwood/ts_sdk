@@ -9,11 +9,12 @@
 #include "protocol_def.h"
 #include "at_sms.h"
 
-/* Macro indicates maximum receive stream protocol handles, if more than 1
- * define intermediate receive buffer with maximum size times receive stream
- * if it is not defined or less then 2, use buffer provided from upper level to
- * store receving data
+/* Macro indicates maximum concatenated sms receive stream protocol handles,
+ * if more than 1, define intermediate receive buffer with maximum size times
+ * receive stream or use buffer provided from upper level to store receving data
+ * directly for single concatenated sms receive stream
  */
+
 /*#define SMSNAS_MAX_RCV_PATH	2*/
 
 #ifndef SMSNAS_MAX_RCV_PATH
@@ -27,30 +28,27 @@ uint8_t smsnas_rcv_buf[PROTO_MAX_MSG_SZ * SMSNAS_MAX_RCV_PATH];
 uint8_t smsnas_rcv_buf[1];
 #endif
 
-#define MAX_HOST_LEN		16
+/* Defines retries in case of send failure */
+#define MAX_RETRIES			3
 
-#define RECV_TIMEOUT_MS		5000
-#define SEND_TIMEOUT_MS		5000
-#define MULT			1000
+/* Version implemention of the smsnas protocol */
 #define SMSNAS_VERSION		0x1
 
-/* Max SMS size without user data header (TP-UDH) */
-#define MAX_SMS_PL_SZ			140
+/* Payload upper limit when TP-User header is not present and protocol header is
+ * present
+ */
+#define SMS_SZ_WITHT_TUHD_WITH_PHD	(MAX_SMS_PL_SZ - PROTO_OVERHEAD_SZ)
 
-/* Payload upper limit when TP-User header is not present */
-#define MAX_SMS_PL_WITHOUT_HEADER	(MAX_SMS_PL_SZ - PROTO_OVERHEAD_SZ)
+/* Defines for the concatenated sms starts */
 
-/* Defines for the concatenated sms */
-/* Size of the user data header element */
-#define TP_USER_HEADER_SZ		6
-#define MAX_SMS_SZ_WITH_HEADER		(MAX_SMS_PL_SZ - PROTO_OVERHEAD_SZ - \
-                                        TP_USER_HEADER_SZ)
+/* Payload upper limit when TP-User header is present and protocol header is not
+ */
+#define SMS_SZ_WITH_TUHD_WITHT_PHD	CONCT_SMS_SZ
 
-/* Account for TP userdata header and not the protocol header overhead */
-#define MAX_SMS_SZ_WITH_HD_WITHT_OVHD	(MAX_SMS_PL_SZ - TP_USER_HEADER_SZ)
-
-/* 8bit reference number for the concatenated sms */
-#define MAX_SMS_REF_NUMBER		256
+/* Payload upper limit when TP-User header and protocol header are present
+ */
+#define SMS_SZ_WITH_TUDH_WITH_PHD	(SMS_SZ_WITH_TUHD_WITHT_PHD - \
+                                                PROTO_OVERHEAD_SZ)
 
 /* Upper limit for the total messages in the concatenated sms */
 #define MAX_CONC_SMS_NUM		4
@@ -58,9 +56,7 @@ uint8_t smsnas_rcv_buf[1];
 /* Time out waiting for the next segment of the concatenated sms in milliseconds
  */
 #define CONC_NEXT_SEG_TIMEOUT_MS	2000
-
-/* Defines retries in case of send failure */
-#define MAX_RETRIES			3
+/* Defines for the concatenated sms ends */
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 

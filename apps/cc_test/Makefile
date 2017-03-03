@@ -35,9 +35,11 @@ USER_SRC = $(wildcard $(SRCDIR)/*.c)
 # Eg: DBG_LIB_SRC = stm32l0xx_hal_uart.c stm32l0xx_hal_uart_ex.c
 DBG_LIB_SRC =
 
-# Build the  mbed TLS library
+# Build the mbed TLS library when transport is tcp
+ifeq ($(MODEM_TRANS),TCP)
 VENDOR_LIB_DIRS += mbedtls
 VENDOR_LIB_FLAGS += -L. -lmbedtls -lmbedx509 -lmbedcrypto
+endif
 
 # Defines the target rules
 include $(PROJ_ROOT)/rules.mk

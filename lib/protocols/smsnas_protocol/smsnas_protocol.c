@@ -183,7 +183,7 @@ static void update_ack_rcv_path(const at_msg_t *msg_ptr, uint8_t rcv_path)
 	smsnas_send_ack();
 }
 
-/* detect or select receive path for the given msg if it is new msg check for
+/* Select receive path for the given msg if it is new msg check for
  * its sanity before allocating receive path
  */
 static int retrieve_rcv_path(const at_msg_t *msg, bool *new)
@@ -284,7 +284,7 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 				 * level ack/nack this message, also it is upper
 				 * level's responsibility to schedule receive
 				 * buffer hence rcv_valid is false here to catch
-				 * that scenario where app services misbehaves
+				 * that scenario where app/services misbehave
 				 */
 
 				/* for the case where only single receive path
@@ -337,7 +337,7 @@ proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
 
 	/* If only single receive path is present, we will need to initialize
 	 * here so that concatenated state machine is ready to use when need
-	 * arise
+	 * arises
 	 */
 	if (ARRAY_SIZE(session.rcv_msg) == 1) {
 		session.rcv_msg[0].buf = rcv_buf;
@@ -370,11 +370,11 @@ static void handle_pend_ack_nack(void)
 	session.ack_nack_pend = NO_ACK_NACK;
 }
 
-//FIXME: verify logic
 /* Checks if any pending ack or nack of previously received message
  * If poll_due is true, it was in the middle of receiving concatenated message
  * and checks if it received next segment during polling time, if not then
- * invoke callback indicating receiving timeout to upper level.
+ * invoke callback indicating receiving timeout to upper level, also adjust
+ * remaining timeouts for other receiving paths
  */
 void smsnas_maintenance(bool poll_due, uint32_t cur_timestamp)
 {
@@ -446,7 +446,7 @@ static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
 		ret = at_sms_send(&sm_msg);
 		retry++;
 	}
-	if (retry >= MAX_RETRIES)
+	if (retry > MAX_RETRIES)
 		RETURN_ERROR("Retries exausted", PROTO_TIMEOUT);
 	return PROTO_OK;
 }
@@ -463,19 +463,19 @@ static void build_smsnas_msg(const void *payload, proto_pl_sz sz, uint8_t s_id)
 }
 
 /* Calculates number of segments for the given size when sz exceeds
- * MAX_SMS_PL_WITHOUT_HEADER bytes of payload
+ * SMS_SZ_WITHT_TUHD_WITH_PHD bytes of payload
  */
 
 int calculate_total_msgs(proto_pl_sz sz)
 {
 	bool first = true;
 	int total_msg = 1;
-	int max_size = MAX_SMS_SZ_WITH_HEADER;
+	int max_size = SMS_SZ_WITH_TUDH_WITH_PHD;
 	while (sz > 0) {
 		if (first) {
 			sz = sz - max_size;
 			total_msg++;
-			max_size = MAX_SMS_SZ_WITH_HD_WITHT_OVHD;
+			max_size = SMS_SZ_WITH_TUHD_WITHT_PHD;
 			first = false;
 			continue;
 		}
@@ -502,7 +502,7 @@ static void invoke_send_callback(const void *buf, proto_pl_sz sz, uint8_t s_id,
 }
 
 /* Prepares SMSNAS protocol message and sends it over to lower level
- * if sz exceeds MAX_SMS_PL_WITHOUT_HEADER bytes , it has to be sent as a
+ * if sz exceeds SMS_SZ_WITHT_TUHD_WITH_PHD bytes , it has to be sent as a
  * concatenated message
  */
 proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
@@ -519,7 +519,7 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 	uint8_t total_msgs = 0;
 	uint8_t cur_seq_num = 0;
 	/* check if it needs to be concatenated message */
-	if (sz <= MAX_SMS_PL_WITHOUT_HEADER) {
+	if (sz <= SMS_SZ_WITHT_TUHD_WITH_PHD) {
 		build_smsnas_msg(buf, sz, service_id);
 		proto_result res = write_to_modem(session.send_msg,
 					sz + PROTO_OVERHEAD_SZ, msg_ref_num,
@@ -541,11 +541,11 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 	proto_pl_sz total_sent = 0;
 	while (1) {
 		if (cur_seq_num == 1) {
-			build_smsnas_msg(buf, MAX_SMS_SZ_WITH_HEADER,
+			build_smsnas_msg(buf, SMS_SZ_WITH_TUDH_WITH_PHD,
 					service_id);
 			temp_buf = session.send_msg;
-			rem_sz = rem_sz - MAX_SMS_SZ_WITH_HEADER;
-			send_sz = MAX_SMS_SZ_WITH_HEADER + PROTO_OVERHEAD_SZ;
+			rem_sz = rem_sz - SMS_SZ_WITH_TUDH_WITH_PHD;
+			send_sz = SMS_SZ_WITH_TUDH_WITH_PHD + PROTO_OVERHEAD_SZ;
 		}
 		proto_result ret = write_to_modem(temp_buf, send_sz,
 					msg_ref_num, total_msgs, cur_seq_num);
@@ -558,11 +558,11 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 			break;
 		total_sent += send_sz;
 		temp_buf = (uint8_t *)buf + total_sent;
-		if (rem_sz <= MAX_SMS_SZ_WITH_HD_WITHT_OVHD)
+		if (rem_sz <= SMS_SZ_WITH_TUHD_WITHT_PHD)
 			send_sz = rem_sz;
 		else {
-			rem_sz = rem_sz - MAX_SMS_SZ_WITH_HD_WITHT_OVHD;
-			send_sz = MAX_SMS_SZ_WITH_HD_WITHT_OVHD;
+			rem_sz = rem_sz - SMS_SZ_WITH_TUHD_WITHT_PHD;
+			send_sz = SMS_SZ_WITH_TUHD_WITHT_PHD;
 		}
 	}
 	session.msg_ref_num = (msg_ref_num + 1) % MAX_SMS_REF_NUMBER;
