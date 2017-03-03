@@ -15,8 +15,6 @@
 #define PROTO_OVERHEAD_SZ	(PROTO_VER_SZ + PROTO_SERV_ID_SZ + PROTO_LEN_SZ)
 #define PROTO_DATA_SZ           (PROTO_MAX_MSG_SZ - PROTO_OVERHEAD_SZ)
 
-#define PROTO_MIN_RECV_BUF_SZ           5 /* command byte + sizeof(uint32_t) */
-#define PROTO_MIN_SEND_BUF_SZ           1 /* command byte */
 #define PROTO_MAX_SEND_BUF_SZ           PROTO_DATA_SZ
 #define PROTO_MAX_RECV_BUF_SZ           PROTO_DATA_SZ
 
