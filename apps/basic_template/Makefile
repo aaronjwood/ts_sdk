@@ -1,4 +1,4 @@
-# Copyright(C) 2016 Verizon. All rights reserved.
+# Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
 # Makefile for the barebones template application.
 
@@ -32,10 +32,6 @@ USER_SRC = $(wildcard $(SRCDIR)/*.c)
 # debug flag enabled
 # Eg: DBG_LIB_SRC = stm32l0xx_hal_uart.c stm32l0xx_hal_uart_ex.c
 DBG_LIB_SRC =
-
-# This template uses no networking or cloud protocol
-NET_TYPE = none
-CLOUD_PROTOCOL = none
 
 # Common and per-platform Makefile variables
 include $(PROJ_ROOT)/common.mk

@@ -1,4 +1,4 @@
-# Copyright(C) 2016 Verizon. All rights reserved.
+# Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
 # Makefile for the device side application API test program.
 
@@ -33,6 +33,10 @@ INC += -I $(SRCDIR)/include
 # User application sources
 USER_SRC = $(wildcard $(SRCDIR)/*.c)
 USER_SRC += $(wildcard $(SRCDIR)/$(PROJ_NAME)/*_$(BUILD_TARGET).c)
+
+# This application uses I2C hardware which may require additional platform
+# support files depending on the BUILD_TARGET.
+PLATFORM_SRC_stm32f4 += stm32f4xx_hal_i2c.c
 
 # Library sources are built without debug info and optimized for size.
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the

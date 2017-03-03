@@ -1,4 +1,4 @@
-# Copyright(C) 2016 Verizon. All rights reserved.
+# Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
 # Makefile for the UART driver test program.
 PROJ_ROOT = $(shell git rev-parse --show-toplevel)
@@ -13,6 +13,13 @@ else
 BUILD_TARGET ?= stm32f4
 export BUILD_TARGET
 
+# This low-level test program bypasses the protocol layer and above.
+# This requires overriding some of the normal configuration.
+PROTOCOL = NO_PROTOCOL
+MODEM_PROTOCOL = tcp
+CLOUD_COMM_SRC = 
+SERVICES_SRC = 
+
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG
 
@@ -24,10 +31,6 @@ INC += -I $(SRCDIR)/include
 
 # User application sources
 USER_SRC = $(wildcard $(SRCDIR)/*.c)
-
-# This test uses no network support or cloud protocol.
-NET_TYPE = none
-CLOUD_PROTOCOL = none
 
 # Library sources are built without debug info and optimized for size.
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the

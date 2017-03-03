@@ -1,9 +1,9 @@
+/* Copyright (C) 2016, 2017 Verizon. All rights reserved. */
+
 /*
  *  \file net.c
  *
  *  \brief net functions for mbedtls library
- *
- *  \copyright Copyright (C) 2016, 2017 Verizon. All rights reserved.
  *
  */
 
@@ -19,8 +19,6 @@
 #include <stm32f4xx_hal.h>
 #include "at_tcp.h"
 #include "mbedtls/net.h"
-
-#include "ott_protocol.h"
 
 #if defined(OTT_EXPLICIT_NETWORK_TIME) && defined(OTT_TIME_PROFILE)
 

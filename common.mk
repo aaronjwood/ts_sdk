@@ -7,7 +7,7 @@ include $(PROJ_ROOT)/common_osx.mk
 else ifeq ($(BUILD_TARGET),stm32f4)
 include $(PROJ_ROOT)/common_stm32f4.mk
 else
-	$(error "Makefile must define the BUILD_TARGET variable")
+$(error "Makefile must define the BUILD_TARGET variable")
 endif
 
 # Defines which modem to use. Currently only the ublox toby201 is supported.
@@ -62,11 +62,11 @@ INC += -I $(PROJ_ROOT)/include/dev_creds
 INC += $(VENDOR_INC)
 
 # Source for the main cloud API
-CLOUD_COMM_SRC = cloud_comm.c
+CLOUD_COMM_SRC ?= cloud_comm.c
 
 # Source for the standard services.
 # An application may append to this variable if it uses additional services.
-SERVICES_SRC += cc_basic_service.c cc_control_service.c
+SERVICES_SRC ?= cc_basic_service.c cc_control_service.c
 
 # List of core library components to be included in the build process
 # This includes the standard per-platform device drivers but not any

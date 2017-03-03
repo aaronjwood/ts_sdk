@@ -1,4 +1,4 @@
-# Copyright(C) 2016 Verizon. All rights reserved.
+# Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
 # Makefile for the network driver test program.
 
@@ -14,6 +14,13 @@ else
 BUILD_TARGET ?= stm32f4
 #BUILD_TARGET = osx
 export BUILD_TARGET
+
+# This low-level test program bypasses the protocol layer and above.
+# This requires overriding some of the normal configuration.
+PROTOCOL = NO_PROTOCOL
+MODEM_PROTOCOL = tcp
+CLOUD_COMM_SRC = 
+SERVICES_SRC = 
 
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG

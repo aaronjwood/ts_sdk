@@ -1,6 +1,7 @@
-# Copyright(C) 2016 Verizon. All rights reserved.
+# Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
 # Makefile for the TLS library test program.
+
 PROJ_ROOT = $(shell git rev-parse --show-toplevel)
 export PROJ_ROOT
 
@@ -14,6 +15,16 @@ else
 BUILD_TARGET = stm32f4
 #BUILD_TARGET = osx
 export BUILD_TARGET
+
+# This low-level test program bypasses the protocol layer and above.
+# This requires overriding some of the normal configuration.
+PROTOCOL = NO_PROTOCOL
+MODEM_PROTOCOL = tcp
+SERVICES_SRC = 
+CLOUD_COMM_SRC = 
+VENDOR_INC += -I $(PROJ_ROOT)/vendor/mbedtls/include
+VENDOR_LIB_DIRS += mbedtls
+VENDOR_LIB_FLAGS += -L. -lmbedtls -lmbedx509 -lmbedcrypto
 
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG

@@ -1,6 +1,7 @@
-# Copyright(C) 2016 Verizon. All rights reserved.
+# Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
-# Makefile for the modem AT command test program.
+# Makefile for the AT TCP driver test program.  This also tests the 
+# "TCP over AT commands" shim used by mbedtls.
 
 PROJ_ROOT = $(shell git rev-parse --show-toplevel)
 export PROJ_ROOT
@@ -14,6 +15,13 @@ else
 BUILD_TARGET ?= stm32f4
 export BUILD_TARGET
 
+# This low-level test program bypasses the protocol layer and above.
+# This requires overriding some of the normal configuration.
+PROTOCOL = NO_PROTOCOL
+MODEM_PROTOCOL = tcp
+CLOUD_COMM_SRC = 
+SERVICES_SRC =
+
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG
 
@@ -26,10 +34,6 @@ INC += -I $(SRCDIR)/include
 # User application sources
 USER_SRC = $(wildcard $(SRCDIR)/*.c)
 
-# This test uses no network support or cloud protocol.
-NET_TYPE = none
-CLOUD_PROTOCOL = none
-
 # Library sources are built without debug info and optimized for size.
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
 # debug flag enabled
@@ -38,12 +42,6 @@ DBG_LIB_SRC =
 
 # Common and per-platform Makefile variables.
 include $(PROJ_ROOT)/common.mk
-
-# This test also requires only the modem portion of the "networking over AT
-# commands" support.
-INC += -I $(PROJ_ROOT)/include/network/at
-LIB_SRC += $(MODEM_SRC)
-vpath %.c $(PROJ_ROOT)/lib/network/at/$(MODEM_DIR):
 
 # Defines the target rules
 include $(PROJ_ROOT)/rules.mk

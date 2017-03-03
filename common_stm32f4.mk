@@ -65,7 +65,9 @@ PLATFORM_SRC += stm32f4xx_hal_pwr_ex.c
 PLATFORM_SRC += stm32f4xx_hal_tim.c
 PLATFORM_SRC += stm32f4xx_hal_tim_ex.c
 PLATFORM_SRC += stm32f4xx_hal_rng.c
-PLATFORM_SRC += stm32f4xx_hal_i2c.c
+PLATFORM_SRC += $(PLATFORM_SRC_$(BUILD_TARGET))
+
+#####PLATFORM_SRC += stm32f4xx_hal_i2c.c
 
 
 vpath %.c $(STM32_PLIB): \
