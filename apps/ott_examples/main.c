@@ -22,8 +22,13 @@
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
 CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 
-#define SERVER_NAME	"iwk.ott.thingspace.verizon.com"
-#define SERVER_PORT	"443"
+#if defined (OTT_PROTOCOL)
+#define REMOTE_HOST	"iwk.ott.thingspace.verizon.com:443"
+#elif defined (SMSNAS_PROTOCOL)
+#define REMOTE_HOST	"+12345678"
+#else
+#error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
+#endif
 
 static bool resend_calibration;		/* Set if RESEND command was received */
 
@@ -105,7 +110,7 @@ static void send_all_calibration_data(void)
 					CC_SERVICE_BASIC) == CC_SEND_SUCCESS);
 }
 
-static void read_and_send_all_sensor_data(void)
+static void read_and_send_all_sensor_data(uint32_t cur_ts)
 {
 	if (last_st_ts != 0) {
 		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS)
@@ -143,7 +148,7 @@ int main(int argc, char *argv[])
 				   basic_service_cb));
 
 	dbg_printf("Setting remote host and port\n");
-	ASSERT(cc_set_destination(SERVER_NAME ":" SERVER_PORT));
+	ASSERT(cc_set_destination(REMOTE_HOST));
 	dbg_printf("Setting device authentiation credentials\n");
 	ASSERT(cc_set_auth_credentials(d_ID, sizeof(d_ID),
 					d_sec, sizeof(d_sec)));
@@ -163,7 +168,7 @@ int main(int argc, char *argv[])
 
 	while (1) {
 		cur_ts = platform_get_tick_ms();
-		read_and_send_all_sensor_data();
+		read_and_send_all_sensor_data(cur_ts);
 		if (resend_calibration) {
 			resend_calibration = false;
 			dbg_printf("\tResending calibration data\n");

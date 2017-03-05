@@ -21,8 +21,13 @@ static uint8_t status[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
 static cc_data_sz send_data_sz = sizeof(status);
 
-#define SERVER_NAME	"iwk.ott.thingspace.verizon.com"
-#define SERVER_PORT	"443"
+#if defined (OTT_PROTOCOL)
+#define REMOTE_HOST	"iwk.ott.thingspace.verizon.com:443"
+#elif defined (SMSNAS_PROTOCOL)
+#define REMOTE_HOST	"+12345678"
+#else
+#error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
+#endif
 
 #define NUM_STATUSES	((uint8_t)4)
 
@@ -139,7 +144,7 @@ int main(int argc, char *argv[])
 				   basic_service_cb));
 
 	dbg_printf("Setting remote destination\n");
-	ASSERT(cc_set_destination(SERVER_NAME ":" SERVER_PORT));
+	ASSERT(cc_set_destination(REMOTE_HOST));
 
 	dbg_printf("Setting device authentiation credentials\n");
 	ASSERT(cc_set_auth_credentials(d_ID, sizeof(d_ID),
