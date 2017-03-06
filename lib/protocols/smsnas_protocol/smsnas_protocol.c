@@ -182,11 +182,13 @@ static int retrieve_rcv_path(const at_msg_t *msg, bool *new,
 	int new_rcvp = -1;
 	uint32_t timestamp = 0;
 	uint8_t cref = msg->ref_no;
-
+	bool first = true;
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
 		if (session.rcv_msg[i].conct_in_progress) {
-			if (i == 0)
+			if (first) {
 				timestamp = session.rcv_msg[i].init_timestamp;
+				first = false;
+			}
 			/* middle of receiving concatenated sms */
 			if (session.rcv_msg[i].cref_num == cref) {
 				*new = false;
