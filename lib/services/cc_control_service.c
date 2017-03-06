@@ -60,7 +60,7 @@ static void control_dispatch_callback(cc_buffer_desc *buf, cc_event event,
 		return;
 	} else if (event == CC_EVT_RCVD_OVERFLOW) {
 		dbg_printf("Memory overflow for Control service message\n");
-		cb(event, 0, (void *)buf);
+		cc_nak_msg();
 		return;
 	} else if (event != CC_EVT_RCVD_MSG) {
 		dbg_printf("%s:%d: Dispatched an unsupported event: %d\n",
@@ -117,6 +117,7 @@ bad_msg:
 
 cc_send_result cc_ctrl_resend_init_config(void)
 {
+#if defined(OTT_PROTOCOL)
 	struct control_header *hdr;
 
 	hdr = (struct control_header *)
@@ -126,6 +127,9 @@ cc_send_result cc_ctrl_resend_init_config(void)
 
 	return cc_send_svc_msg_to_cloud(&control_send_buf, sizeof(*hdr),
 					CC_SERVICE_CONTROL);
+#else
+	return CC_SEND_SUCCESS;
+#endif
 }
 
 const cc_service_descriptor cc_control_service_descriptor = {
