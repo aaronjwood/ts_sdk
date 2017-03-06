@@ -100,8 +100,6 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 	dbg_printf("\t\t[CTRL CB] Received an event.\n");
 	if (event == CC_EVT_CTRL_SLEEP)
 		dbg_printf("\t\t\tSleep interval (secs): %"PRIu32"\n", value);
-	else if (event == CC_EVT_RCVD_OVERFLOW)
-		handle_buf_overflow();
 	else
 		dbg_printf("\t\t\tUnsupported control event: %d\n", event);
 }
@@ -150,9 +148,9 @@ int main(int argc, char *argv[])
 	ASSERT(cc_set_auth_credentials(d_ID, sizeof(d_ID),
 				d_sec, sizeof(d_sec)));
 
-	int32_t next_wakeup_interval = -1;	/* Interval value in ms */
+	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
 	uint32_t cur_ts;			/* Current timestamp in ms */
-	int32_t wake_up_interval = 15000;	/* Interval value in ms */
+	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
 	last_st_ts = 0;
 	dbg_printf("Setting initial value of status message\n");
 	uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer,
@@ -163,35 +161,29 @@ int main(int argc, char *argv[])
 	dbg_printf("Make a receive buffer available\n");
 	ASSERT(cc_set_recv_buffer(&recv_buffer) == CC_RECV_SUCCESS);
 
-	/* For OTT protocol Only:
+	/*
 	 * Let the cloud services know the device is powering up, possibly after
 	 * a restart. This call is redundant when the device hasn't been
 	 * activated, since the net effect will be to receive the initial
 	 * configuration twice.
 	 */
-#if defined(OTT_PROTOCOL)
 	dbg_printf("Sending \"restarted\" message\n");
 	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
-#endif
 	while (1) {
 		cur_ts = platform_get_tick_ms();
 		send_status_msgs(cur_ts);
 		next_wakeup_interval = cc_service_send_receive(cur_ts);
-		if (next_wakeup_interval == 0) {
+		if (next_wakeup_interval == 0)
 			wake_up_interval = LONG_SLEEP_INT_MS;
-			dbg_printf("Sleeping for long time: %"PRIi32" secs\n",
-					wake_up_interval / 1000);
-		} else if (next_wakeup_interval != -1) {
-			if (wake_up_interval != next_wakeup_interval)
-				dbg_printf("New wakeup time received\n");
-			dbg_printf("Relative wakeup time set to +%"PRIi32" sec\n",
-					next_wakeup_interval / 1000);
+		else if (wake_up_interval != next_wakeup_interval) {
+			dbg_printf("New wakeup time received: %"PRIu32" sec\n",
+				next_wakeup_interval / 1000);
 			wake_up_interval = next_wakeup_interval;
 		}
 
 		if (wake_up_interval > STATUS_REPORT_INT_MS)
 			wake_up_interval = STATUS_REPORT_INT_MS;
-		dbg_printf("Powering down for %"PRIi32" seconds\n\n",
+		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
 		platform_delay(wake_up_interval);
 	}

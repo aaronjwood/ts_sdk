@@ -17,7 +17,6 @@
 
 #define SEND_DATA_SZ	22
 #define RESEND_CALIB	0x42		/* Resend calibration command */
-#define NONE		(-1)		/* Represents 'Wake up interval not set' */
 
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
 CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
@@ -94,8 +93,6 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 	dbg_printf("\t\t[CTRL CB] Received an event.\n");
 	if (event == CC_EVT_CTRL_SLEEP)
 		dbg_printf("\t\t\tSleep interval (secs): %"PRIu32"\n", value);
-	else if (event == CC_EVT_RCVD_OVERFLOW)
-		handle_buf_overflow();
 	else
 		dbg_printf("\t\t\tUnsupported control event: %d\n", event);
 }
@@ -132,9 +129,9 @@ static void read_and_send_all_sensor_data(uint32_t cur_ts)
 
 int main(int argc, char *argv[])
 {
-	int32_t next_wakeup_interval = NONE;	/* Interval value in ms */
+	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
 	uint32_t cur_ts;			/* Current timestamp in ms */
-	int32_t wake_up_interval = 15000;	/* Interval value in ms */
+	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
 
 	platform_init();
 	dbg_module_init();
@@ -156,10 +153,9 @@ int main(int argc, char *argv[])
 	dbg_printf("Make a receive buffer available\n");
 	ASSERT(cc_set_recv_buffer(&recv_buffer) == CC_RECV_SUCCESS);
 
-#if defined(OTT_PROTOCOL)
 	dbg_printf("Sending \"restarted\" message\n");
 	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
-#endif
+
 	dbg_printf("Initializing the sensors\n");
 	ASSERT(si_init());
 
@@ -175,19 +171,15 @@ int main(int argc, char *argv[])
 			send_all_calibration_data();
 		}
 		next_wakeup_interval = cc_service_send_receive(cur_ts);
-		if (next_wakeup_interval == 0) {
+		if (next_wakeup_interval == 0)
 			wake_up_interval = LONG_SLEEP_INT_MS;
-			dbg_printf("Sleeping for long time: %"PRIi32" secs\n",
-					wake_up_interval / 1000);
-		} else if (next_wakeup_interval != NONE) {
-			if (wake_up_interval != next_wakeup_interval)
-				dbg_printf("New wakeup time received\n");
-			dbg_printf("Relative wakeup time set to +%"PRIi32" sec\n",
-					next_wakeup_interval / 1000);
+		else if (wake_up_interval != next_wakeup_interval) {
+			dbg_printf("New wakeup time received: %"PRIu32" sec\n",
+				next_wakeup_interval / 1000);
 			wake_up_interval = next_wakeup_interval;
 		}
 
-		dbg_printf("Powering down for %"PRIi32" seconds\n\n",
+		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
 		ASSERT(si_sleep());
 		if (wake_up_interval > STATUS_REPORT_INT_MS)
