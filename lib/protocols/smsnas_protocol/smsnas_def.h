@@ -9,23 +9,20 @@
 #include "protocol_def.h"
 #include "at_sms.h"
 
-/* Macro indicates maximum concatenated sms receive stream protocol handles,
- * if more than 1, define intermediate receive buffer with maximum size times
- * receive stream or use buffer provided from upper level to store receving data
- * directly for single concatenated sms receive stream
+/* Macro indicates maximum concatenated sms receive stream protocol handles
  */
 
 /*#define SMSNAS_MAX_RCV_PATH	2*/
 
 #ifndef SMSNAS_MAX_RCV_PATH
-#define SMSNAS_MAX_RCV_PATH	1
+#define SMSNAS_MAX_RCV_PATH	        1
 #endif
 
 /* Defines retries in case of send failure */
 #define MAX_RETRIES			3
 
 /* Version implemention of the smsnas protocol */
-#define SMSNAS_VERSION		0x1
+#define SMSNAS_VERSION		        0x1
 
 /* Payload upper limit when TP-User header is not present and protocol header is
  * present
@@ -144,7 +141,7 @@ static struct {
 	 * future time to check back if protocol layer has received next segment
 	 * if not, then call receive time out
 	 */
-	uint32_t cur_polling_interval;
+	uint32_t next_seg_rcv_timeout;
 	/* variable to keep track of the pending ack/nack */
 	ack_nack ack_nack_pend;
 } session;

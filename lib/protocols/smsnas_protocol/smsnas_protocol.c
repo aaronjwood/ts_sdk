@@ -49,14 +49,12 @@ proto_result smsnas_protocol_init(void)
 	/* This will not be set until arrival of the first segement of the
 	 * concatenated sms
 	 */
-	session.cur_polling_interval = 0;
+	session.next_seg_rcv_timeout = 0;
 
 	memset(session.host, 0, MAX_HOST_LEN);
 	session.host_valid = false;
 
-	uint8_t num_rcv_path = ARRAY_SIZE(session.rcv_msg);
-
-	for (i = 0; i < num_rcv_path; i++) {
+	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
 		session.rcv_msg[i].buf = (smsnas_rcv_buf +
 							(i * PROTO_MAX_MSG_SZ));
 		reset_rcv_path(i);
@@ -74,7 +72,7 @@ proto_result smsnas_set_destination(const char *host)
 	if (!host)
 		RETURN_ERROR("Invalid parameter", PROTO_INV_PARAM);
 
-	if (((strlen(host) + 1) > MAX_HOST_LEN) || (strlen(host) == 0))
+	if ((strlen(host) > MAX_HOST_LEN) || (strlen(host) == 0))
 		RETURN_ERROR("Invalid parameter", PROTO_INV_PARAM);
 
 	strncpy(session.host, host, strlen(host));
@@ -88,7 +86,7 @@ const uint8_t *smsnas_get_rcv_buffer_ptr(const void *msg)
 		RETURN_ERROR("Invalid parameter", NULL);
 
 	const smsnas_msg_t *ptr_to_msg = (const smsnas_msg_t *)(msg);
-	return (const uint8_t *)&(ptr_to_msg->payload);
+	return ptr_to_msg->payload;
 }
 
 void smsnas_send_ack(void)
@@ -98,7 +96,7 @@ void smsnas_send_ack(void)
 
 void smsnas_send_nack(void)
 {
-        session.ack_nack_pend = NACK_PENDING;
+	session.ack_nack_pend = NACK_PENDING;
 }
 
 static bool is_conct_in_progress(void)
@@ -117,7 +115,7 @@ static bool is_conct_in_progress(void)
 static void rcv_path_cleanup(int rcv_path)
 {
 	if (!is_conct_in_progress())
-		session.cur_polling_interval = 0;
+		session.next_seg_rcv_timeout = 0;
 	if (rcv_path == -1)
 		return;
 	reset_rcv_path(rcv_path);
@@ -368,7 +366,7 @@ void smsnas_maintenance(bool poll_due, uint32_t cur_timestamp)
 
 	uint8_t i;
 	uint32_t ns_time = 0;
-	uint32_t *cur_int = &session.cur_polling_interval;
+	uint32_t *cur_int = &session.next_seg_rcv_timeout;
 	bool init_poll = false;
 
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
@@ -553,5 +551,5 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
  */
 uint32_t smsnas_get_polling_interval(void)
 {
-	return session.cur_polling_interval;
+	return session.next_seg_rcv_timeout;
 }
