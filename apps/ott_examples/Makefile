@@ -1,4 +1,4 @@
-# Copyright(C) 2016 Verizon. All rights reserved.
+# Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
 # Makefile for the device side application API test program for the
 # STM32F4 platform. Uses the GCC toolchain and the STMicro STM32CubeF4
@@ -45,9 +45,11 @@ LIB_SRC += stm32f4xx_hal_i2c.c
 # Eg: DBG_LIB_SRC = stm32l0xx_hal_uart.c stm32l0xx_hal_uart_ex.c
 DBG_LIB_SRC =
 
-# Build the  mbed TLS library
+# Build the mbed TLS library when transport is tcp
+ifeq ($(MODEM_TRANS),TCP)
 VENDOR_LIB_DIRS += mbedtls
 VENDOR_LIB_FLAGS += -L. -lmbedtls -lmbedx509 -lmbedcrypto
+endif
 
 # Defines the target rules
 include $(PROJ_ROOT)/rules.mk

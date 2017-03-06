@@ -15,7 +15,7 @@
  * Data is sent and received as discrete messages passed over the selected
  * protocol.  A callback is used to notify the application if a send
  * succeeded or failed, when data is received, or when other events occur.
- * Communication takes place using the protocol (transport) selected by a 
+ * Communication takes place using the protocol (transport) selected by a
  * compile-time option.
  */
 
@@ -287,7 +287,9 @@ cc_set_recv_result cc_set_recv_buffer(cc_buffer_desc *buf);
  *
  * \returns
  * 	Positive value : Number of milliseconds after which this function should
- * 	                 be called again.
+ * 	                 be called again. 0 is a special value where upper level
+ *			 can sleep indefinitely without needing to call this
+ *			 function until low level hardware activity wakes it up
  *
  * This function performs time based activities related to managing the
  * the connection to the cloud and the transactions on it. The CC

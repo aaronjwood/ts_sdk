@@ -11,6 +11,19 @@
 #include <stdint.h>
 #include "smscodec.h"
 
+/* Max address length in bytes for the remote host */
+#define MAX_HOST_LEN		ADDR_SZ
+
+/* Max SMS size in bytes without user data header (TP-UDH) */
+#define MAX_SMS_PL_SZ		MAX_DATA_SZ
+
+/* Max concatenated sms size in bytes
+ */
+#define CONCT_SMS_SZ            MAX_CONCAT_DATA_SZ
+
+/* Upper limit for the concatenated sms reference number */
+#define MAX_SMS_REF_NUMBER		256
+
 /* Type describing the SMS segment */
 typedef sms_t at_msg_t;
 

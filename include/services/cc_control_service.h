@@ -15,7 +15,7 @@
  * functions for cloud communications.  Messages for this service id
  * (CC_SERVICE_CONTROL) may be handled transparently by the service, or may
  * result in events being sent to the application's callback for the
- * Control service. 
+ * Control service.
  *
  * The service also defines a set of API functions which allow the
  * application to make service-specific requests of the cloud.

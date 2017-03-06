@@ -71,7 +71,12 @@ MODEM_TARGET = toby201
 
 # Define the transport mechanism. Currently, TCP over LTE and SMS over NAS are supported
 MODEM_TRANS = TCP
-#MODEM_TRANS = SMS
+
+ifeq ($(PROTOCOL),SMSNAS_PROTOCOL)
+MODEM_TRANS = SMS
+endif
+
+export MODEM_TRANS
 
 MODEM_SRC += at_core.c
 
@@ -79,7 +84,7 @@ ifeq ($(MODEM_TARGET),toby201)
 	MOD_TAR = -DMODEM_TOBY201
 	export MOD_TAR
 ifeq ($(MODEM_TRANS),TCP)
-	MODEM_SRC += at_toby201_tcp.c
+	MODEM_SRC += net.c at_toby201_tcp.c
 	MODEM_DIR += $(MODEM_TARGET)/tcp
 else ifeq ($(MODEM_TRANS),SMS)
 	MODEM_SRC += at_toby201_sms.c
@@ -144,7 +149,7 @@ OBJ_STARTUP = startup_stm32f429xx.o
 
 # List of core library components to be included in the build process
 # This includes debugging, UART, NET and HW RNG modules.
-CORELIB_SRC = dbg.c uart.c hwrng.c net.c $(MODEM_SRC)
+CORELIB_SRC = dbg.c uart.c hwrng.c $(MODEM_SRC)
 
 # Cloud communication API and target protocol sources
 CLOUD_COMM_SRC = $(PROTOCOL_SRC) cloud_comm.c
