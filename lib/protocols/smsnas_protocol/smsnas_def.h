@@ -97,10 +97,6 @@ typedef struct {
 	uint8_t cur_seq;
 	/* Expected next sequence number within receive timeout */
 	uint8_t expected_seq;
-	/* initial timestamp, set when receive path first gets used to receive
-	 * incoming concatenated sms
-	 */
-	uint32_t init_timestamp;
 	/* Future Time interval within which next sequence from the concatenated
 	 * sms should be received
 	 */

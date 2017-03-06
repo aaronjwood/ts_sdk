@@ -176,44 +176,30 @@ static int retrieve_rcv_path(const at_msg_t *msg, bool *new,
 				proto_service_id *s_id)
 {
 	uint8_t i;
-	int rcvp = -1;
 	int new_rcvp = -1;
-	uint32_t timestamp = 0;
-	uint8_t cref = msg->ref_no;
-	bool first = true;
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {
 		if (session.rcv_msg[i].conct_in_progress) {
-			if (first) {
-				timestamp = session.rcv_msg[i].init_timestamp;
-				first = false;
-			}
 			/* middle of receiving concatenated sms */
-			if (session.rcv_msg[i].cref_num == cref) {
+			if (session.rcv_msg[i].cref_num == msg->ref_no) {
 				*new = false;
 				return i;
-			}
-			if (session.rcv_msg[i].init_timestamp <= timestamp) {
-				rcvp = i;
-				timestamp = session.rcv_msg[i].init_timestamp;
 			}
 		} else
 			new_rcvp = i;
 
 	}
-	/* Means new_rcvp receive path is free to use, else rcvp is the oldest
-	 * concatenated sms to be evicted
+	if (new_rcvp == -1)
+		return -1;
+	/* Means new_rcvp receive path is free to use
 	 */
 	*new = true;
-	if (new_rcvp != -1)
-		rcvp = new_rcvp;
-
 	/* check validity of the new message before allocating receive path */
-	if (!check_validity(msg, rcvp, true))
+	if (!check_validity(msg, new_rcvp, true))
 		return -1;
 
 	smsnas_msg_t *temp_msg = (smsnas_msg_t *)msg->buf;
 	*s_id = temp_msg->service_id;
-	return rcvp;
+	return new_rcvp;
 }
 
 static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
@@ -264,8 +250,6 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 			rp->cref_num = msg_ptr->ref_no;
 			memcpy(rp->buf, msg_ptr->buf, msg_ptr->len);
 			rp->conct_in_progress = true;
-			/* Needed to determine oldest to evict */
-			rp->init_timestamp = platform_get_tick_ms();
 		} else {
 			if (!check_validity(msg_ptr, rcv_path, false))
 				goto error;
