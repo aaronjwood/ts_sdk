@@ -26,8 +26,10 @@ struct __attribute__((packed)) basic_header {
 #endif
 };
 
+#if !defined(OTT_PROTOCOL)
 static bool check_validity(cc_buffer_desc *buf)
 {
+
 	const uint8_t *payload = cc_get_recv_buffer_ptr(buf, CC_SERVICE_BASIC);
 	if (payload == NULL) {
 		dbg_printf("Empty BASIC_SERVICE protocol msg\n");
@@ -45,6 +47,7 @@ static bool check_validity(cc_buffer_desc *buf)
 	}
 	return true;
 }
+#endif
 
 /*
  * This callback is invoked when the protocol stack dispatches an event
