@@ -288,7 +288,7 @@ cc_set_recv_result cc_set_recv_buffer(cc_buffer_desc *buf);
  * \returns
  * 	Positive value : Number of milliseconds after which this function should
  * 	                 be called again. 0 is a special value where upper level
- *			 can sleep indifinately without needing to call this
+ *			 can sleep indefinitely without needing to call this
  *			 function until low level hardware activity wakes it up
  *
  * This function performs time based activities related to managing the
