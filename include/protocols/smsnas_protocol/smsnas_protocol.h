@@ -35,8 +35,8 @@ proto_result smsnas_protocol_init(void);
  * 	host : A NULL terminated string specifying the host number.
  *
  * Returns:
- * 	PROTO_OK : Setting host and port was successful.
- * 	PROTO_INV_PARAM : Passed parameters are not valid.
+ * 	PROTO_OK : Setting host number was successful.
+ * 	PROTO_INV_PARAM : Passed parameter is not valid.
  * Note: This must be called at least once before attempting to send messages.
  */
 proto_result smsnas_set_destination(const char *host);
