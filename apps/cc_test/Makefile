@@ -1,4 +1,4 @@
-# Copyright(C) 2016 Verizon. All rights reserved.
+# Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
 # Makefile for the device side application API test program for the
 # STM32F4 platform. Uses the GCC toolchain and the STMicro STM32CubeF4
