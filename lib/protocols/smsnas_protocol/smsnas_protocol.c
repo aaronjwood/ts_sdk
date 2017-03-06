@@ -46,7 +46,7 @@ proto_result smsnas_protocol_init(void)
 	uint8_t i = 0;
 	if (!at_init())
 		RETURN_ERROR("modem init failed", PROTO_ERROR);
-	/* This will not start until arrival of the first segement of the
+	/* This will not be set until arrival of the first segement of the
 	 * concatenated sms
 	 */
 	session.cur_polling_interval = 0;
@@ -76,7 +76,7 @@ proto_result smsnas_set_destination(const char *host)
 
 	if (((strlen(host) + 1) > MAX_HOST_LEN) || (strlen(host) == 0))
 		RETURN_ERROR("Invalid parameter", PROTO_INV_PARAM);
-	
+
 	strncpy(session.host, host, strlen(host));
 	session.host_valid = true;
 	return PROTO_OK;
