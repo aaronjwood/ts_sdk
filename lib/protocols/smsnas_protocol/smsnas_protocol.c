@@ -318,7 +318,9 @@ proto_result smsnas_set_recv_buffer_cb(void *rcv_buf, proto_pl_sz sz,
 /* FIXME: handle scenario where ack/nack function fails */
 static void handle_pend_ack_nack(void)
 {
-	switch (session.ack_nack_pend) {
+	ack_nack an = session.ack_nack_pend;
+	session.ack_nack_pend = NO_ACK_NACK;
+	switch (an) {
 	case ACK_PENDING:
 		at_sms_ack();
 		break;
@@ -328,7 +330,6 @@ static void handle_pend_ack_nack(void)
 	default:
 		break;
 	}
-	session.ack_nack_pend = NO_ACK_NACK;
 }
 
 /* Checks if any pending ack or nack of previously received message
