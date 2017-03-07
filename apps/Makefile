@@ -1,6 +1,12 @@
 # Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
 # Build all the test and sample applications with their default configurations.
+#
+# Override one or more of these variables to build all apps with for the 
+# specified build targets (not all combinations are relevant to all apps).
+#     make PROTOCOL=target-protocol
+#     make MODEM_TARGET=target-modem
+#     make BUILD_TARGET=target-mcu
 
 DIRS=$(shell find . -type d -depth 1)
 clean_DIRS=$(addprefix clean_,$(DIRS))

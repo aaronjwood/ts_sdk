@@ -17,7 +17,8 @@ export BUILD_TARGET
 
 # This low-level test program bypasses the protocol layer and above.
 # This requires overriding some of the normal configuration.
-PROTOCOL = NO_PROTOCOL
+# Must always build with NO_PROTOCOL even if PROTOCOL is set externally.
+override PROTOCOL = NO_PROTOCOL
 MODEM_PROTOCOL = tcp
 CLOUD_COMM_SRC = 
 SERVICES_SRC =
