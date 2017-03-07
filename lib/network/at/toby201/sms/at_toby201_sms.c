@@ -146,6 +146,14 @@ static at_ret_code config_modem_for_sms(void)
 	res = at_core_wcmd(&mod_netw_cmd[NET_REG_URC_SET], true);
 	CHECK_SUCCESS(res, AT_SUCCESS, res);
 
+	/* Set the MNO configuration for Verizon */
+	res = at_core_wcmd(&mod_netw_cmd[MNO_CONF_QUERY], true);
+	if (res != AT_SUCCESS) {
+		res = at_core_wcmd(&mod_netw_cmd[MNO_CONF_SET], true);
+		CHECK_SUCCESS(res, AT_SUCCESS, res);
+		return AT_RECHECK_MODEM;
+	}
+
 	/* Check network registration */
 	uint32_t start = platform_get_tick_ms();
 	uint32_t end = start;

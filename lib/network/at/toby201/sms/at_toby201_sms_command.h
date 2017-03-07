@@ -9,6 +9,8 @@
 enum at_modem_network_commands {
 	NET_REG_QUERY,
 	NET_REG_URC_SET,
+	MNO_CONF_QUERY,
+	MNO_CONF_SET,
 	NUM_MODEM_COMMANDS
 };
 
@@ -173,6 +175,35 @@ static const at_command_desc mod_netw_cmd[NUM_MODEM_COMMANDS] = {
 		},
 		.err = NULL,
 		.comm_timeout = 100
+	},
+	[MNO_CONF_QUERY] = {
+		.comm = "at+umnoconf?\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n+UMNOCONF: 1,7,0\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = NULL,
+		.comm_timeout = 100
+	},
+	[MNO_CONF_SET] = {
+		.comm = "at+umnoconf=1,7\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = NULL,
+		.comm_timeout = 190000
 	}
 };
 
