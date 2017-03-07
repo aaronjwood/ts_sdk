@@ -37,10 +37,13 @@ typedef enum {
 	PROTO_SEND_TIMEOUT,	/* Timed out waiting for a response */
 
 	/* Incoming message events: */
+	/* Insufficient memory to store received message */
+	PROTO_RCVD_MEM_OVRFL,
 	PROTO_RCVD_QUIT,	/* Received quit (i.e. session termination) */
 	PROTO_RCVD_MSG          /* Received a message from the cloud */
 } proto_event;
 
+typedef uint16_t proto_pl_sz; /* type representing total payload size */
 
 typedef uint8_t proto_service_id;
 

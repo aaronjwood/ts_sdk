@@ -21,9 +21,23 @@ static uint8_t status[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
 static cc_data_sz send_data_sz = sizeof(status);
 
-#define SERVER_NAME	"iwk.ott.thingspace.verizon.com"
-#define SERVER_PORT	"443"
+#if defined (OTT_PROTOCOL)
+#define REMOTE_HOST	"iwk.ott.thingspace.verizon.com:443"
+#elif defined (SMSNAS_PROTOCOL)
+#define REMOTE_HOST	"+12345678"
+#else
+#error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
+#endif
+
 #define NUM_STATUSES	((uint8_t)4)
+
+/* Arbitrary long sleep time in milliseconds */
+#define LONG_SLEEP_INT_MS	180000
+
+/* status report interval in milliseconds */
+#define STATUS_REPORT_INT_MS	15000
+/* last status message sent timestamp */
+uint32_t last_st_ts = 0;
 
 static void receive_completed(cc_buffer_desc *buf)
 {
@@ -47,6 +61,12 @@ static void receive_completed(cc_buffer_desc *buf)
 	cc_ack_msg();
 }
 
+static void handle_buf_overflow()
+{
+	dbg_printf("\t\t\tBuffer overflow\n");
+	cc_nak_msg();
+}
+
 /*
  * Handle events related to the Basic service i.e. normal data messages to
  * and from the cloud.
@@ -54,7 +74,7 @@ static void receive_completed(cc_buffer_desc *buf)
 static void basic_service_cb(cc_event event, uint32_t value, void *ptr)
 {
 	dbg_printf("\t\t[BASIC CB] Received an event.\n");
-	
+
 	if (event == CC_EVT_RCVD_MSG)
 		receive_completed((cc_buffer_desc *)ptr);
 
@@ -67,6 +87,8 @@ static void basic_service_cb(cc_event event, uint32_t value, void *ptr)
 	else if (event == CC_EVT_SEND_TIMEOUT)
 		dbg_printf("\t\t\tTimed out trying to send message\n");
 
+	else if (event == CC_EVT_RCVD_OVERFLOW)
+		handle_buf_overflow();
 	else
 		dbg_printf("\t\t\tUnexpected event received: %d\n", event);
 }
@@ -80,6 +102,30 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 		dbg_printf("\t\t\tSleep interval (secs): %"PRIu32"\n", value);
 	else
 		dbg_printf("\t\t\tUnsupported control event: %d\n", event);
+}
+
+static void send_status_msgs(uint32_t cur_ts)
+{
+	if (last_st_ts != 0) {
+		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS)
+			return;
+	}
+	dbg_printf("Sending out status messages\n");
+	for (uint8_t i = 0; i < NUM_STATUSES; i++) {
+		/* Mimics reading a value from the sensor */
+		uint8_t *send_dptr =
+			cc_get_send_buffer_ptr(&send_buffer,
+					       CC_SERVICE_BASIC);
+		memcpy(send_dptr, status, send_data_sz);
+
+		dbg_printf("\tStatus (%u/%u)\n",
+				i + 1, NUM_STATUSES);
+		ASSERT(cc_send_svc_msg_to_cloud(&send_buffer,
+						send_data_sz,
+						CC_SERVICE_BASIC)
+		       == CC_SEND_SUCCESS);
+	}
+	last_st_ts = platform_get_tick_ms();
 }
 
 int main(int argc, char *argv[])
@@ -96,16 +142,16 @@ int main(int argc, char *argv[])
 				   basic_service_cb));
 
 	dbg_printf("Setting remote destination\n");
-	ASSERT(cc_set_destination(SERVER_NAME ":" SERVER_PORT));
+	ASSERT(cc_set_destination(REMOTE_HOST));
 
 	dbg_printf("Setting device authentiation credentials\n");
 	ASSERT(cc_set_auth_credentials(d_ID, sizeof(d_ID),
 				d_sec, sizeof(d_sec)));
 
-	int32_t next_wakeup_interval = -1;	/* Interval value in ms */
+	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
 	uint32_t cur_ts;			/* Current timestamp in ms */
-	int32_t wake_up_interval = 15000;	/* Interval value in ms */
-
+	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
+	last_st_ts = 0;
 	dbg_printf("Setting initial value of status message\n");
 	uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer,
 						    CC_SERVICE_BASIC);
@@ -117,41 +163,27 @@ int main(int argc, char *argv[])
 
 	/*
 	 * Let the cloud services know the device is powering up, possibly after
-	 * a restart. This call is redundant when the device hasn't been 
+	 * a restart. This call is redundant when the device hasn't been
 	 * activated, since the net effect will be to receive the initial
 	 * configuration twice.
 	 */
 	dbg_printf("Sending \"restarted\" message\n");
 	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
-
 	while (1) {
-		dbg_printf("Sending out status messages\n");
-		for (uint8_t i = 0; i < NUM_STATUSES; i++) {
-			/* Mimics reading a value from the sensor */
-			uint8_t *send_dptr =
-				cc_get_send_buffer_ptr(&send_buffer,
-						       CC_SERVICE_BASIC);
-			memcpy(send_dptr, status, send_data_sz);
-
-			dbg_printf("\tStatus (%u/%u)\n",
-					i + 1, NUM_STATUSES);
-			ASSERT(cc_send_svc_msg_to_cloud(&send_buffer,
-							send_data_sz,
-							CC_SERVICE_BASIC)
-			       == CC_SEND_SUCCESS);
-		}
-
 		cur_ts = platform_get_tick_ms();
+		send_status_msgs(cur_ts);
 		next_wakeup_interval = cc_service_send_receive(cur_ts);
-		if (next_wakeup_interval != -1) {
-			if (wake_up_interval != next_wakeup_interval)
-				dbg_printf("New wakeup time received\n");
-			dbg_printf("Relative wakeup time set to +%"PRIi32" sec\n",
-					next_wakeup_interval / 1000);
+		if (next_wakeup_interval == 0)
+			wake_up_interval = LONG_SLEEP_INT_MS;
+		else if (wake_up_interval != next_wakeup_interval) {
+			dbg_printf("New wakeup time received: %"PRIu32" sec\n",
+				next_wakeup_interval / 1000);
 			wake_up_interval = next_wakeup_interval;
 		}
 
-		dbg_printf("Powering down for %"PRIi32" seconds\n\n",
+		if (wake_up_interval > STATUS_REPORT_INT_MS)
+			wake_up_interval = STATUS_REPORT_INT_MS;
+		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
 		platform_delay(wake_up_interval);
 	}

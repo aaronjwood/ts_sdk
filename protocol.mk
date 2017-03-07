@@ -7,14 +7,16 @@ ifeq ($(PROTOCOL),OTT_PROTOCOL)
 PROTOCOL_SRC = ott_protocol.c
 PROTOCOL_DIR = ott_protocol
 PROTOCOL_INC = ott_protocol
+
 else ifeq ($(PROTOCOL),SMSNAS_PROTOCOL)
 PROTOCOL_SRC = smsnas_protocol.c
 PROTOCOL_DIR = smsnas_protocol
-
 PROTOCOL_INC = smsnas_protocol
+
 else ifeq ($(PROTOCOL),NO_PROTOCOL)
 # Some lower-level test programs bypass the protocol layer.
 # They may need to set additional variables.
+
 else
 $(error The PROTOCOL variable has an invalid value: $(PROTOCOL))
 endif
