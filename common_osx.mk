@@ -15,5 +15,4 @@ PLATFORM_SRC =
 PLATFORM_INC =
 
 # Use native networking on this platform
-NET_TYPE = none
 MODEM_TARGET = none

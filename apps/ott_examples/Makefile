@@ -35,7 +35,7 @@ USER_SRC = $(wildcard $(SRCDIR)/*.c)
 USER_SRC += $(wildcard $(SRCDIR)/$(PROJ_NAME)/*_$(BUILD_TARGET).c)
 
 # This application uses I2C hardware which may require additional platform
-# support files depending on the BUILD_TARGET.
+# support files.  The additional files depends on the BUILD_TARGET.
 PLATFORM_SRC_stm32f4 += stm32f4xx_hal_i2c.c
 
 # Library sources are built without debug info and optimized for size.

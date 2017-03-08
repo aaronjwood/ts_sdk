@@ -39,9 +39,6 @@ LDSCRIPT = -T $(STM32_LIB_COMMON)/Projects/STM32F429ZI-Nucleo/Templates/SW4STM32
 STARTUP_SRC = $(STM32_CMSIS)/Source/Templates/gcc/startup_stm32f429xx.s
 OBJ_STARTUP = startup_stm32f429xx.o
 
-# Default to networking via LTE modem and AT commands on this platform.
-NET_TYPE ?= at
-
 # Platform support is based on STMicro's HAL library
 # Peripheral related headers
 PLATFORM_INC = -I $(STM32_LIB_COMMON)/Drivers/STM32F4xx_HAL_Driver/Inc
@@ -66,9 +63,6 @@ PLATFORM_SRC += stm32f4xx_hal_tim.c
 PLATFORM_SRC += stm32f4xx_hal_tim_ex.c
 PLATFORM_SRC += stm32f4xx_hal_rng.c
 PLATFORM_SRC += $(PLATFORM_SRC_$(BUILD_TARGET))
-
-#####PLATFORM_SRC += stm32f4xx_hal_i2c.c
-
 
 vpath %.c $(STM32_PLIB): \
 	  $(STM32_CMSIS)/Source/Templates:

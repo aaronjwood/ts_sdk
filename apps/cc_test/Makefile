@@ -1,4 +1,4 @@
-# Copyright(C) 2016 Verizon. All rights reserved.
+# Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
 # Makefile for the device side application API test program.
 PROJ_ROOT = $(shell git rev-parse --show-toplevel)
@@ -11,7 +11,6 @@ include $(PROJ_ROOT)/build_in_subdir.mk
 else
 
 BUILD_TARGET ?= stm32f4
-#BUILD_TARGET = osx
 export BUILD_TARGET
 
 # Define this macro to turn off debug messages globally.

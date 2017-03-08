@@ -12,7 +12,6 @@ include $(PROJ_ROOT)/build_in_subdir.mk
 else
 
 BUILD_TARGET ?= stm32f4
-#BUILD_TARGET = osx
 export BUILD_TARGET
 
 # This low-level test program bypasses the protocol layer and above.

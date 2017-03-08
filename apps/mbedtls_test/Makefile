@@ -11,9 +11,7 @@ ifneq (build,$(notdir $(CURDIR)))
 include $(PROJ_ROOT)/build_in_subdir.mk
 else
 
-# Uncomment to build a host OS version of the test program
 BUILD_TARGET = stm32f4
-#BUILD_TARGET = osx
 export BUILD_TARGET
 
 # This low-level test program bypasses the protocol layer and above.
