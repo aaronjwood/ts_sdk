@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
 	printf("SIM Number : %s\n", num);
 
 	while (1) {
-		/* Send single part SMS to self */
+		/* Send single part SMS to destination */
 		uint8_t payload[] = "This is a test.";
 		at_msg_t outgoing_msg = {
 			.len = sizeof(payload),
@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
 			.addr = num
 		};
 
-		dbg_printf("Sending a single part message to self (%s)\n", num);
+		dbg_printf("Sending a single part message (%s)\n", num);
 		if (!at_sms_send(&outgoing_msg)) {
 			dbg_printf("Error sending message\n");
 			goto done;
@@ -84,8 +84,8 @@ int main(int argc, char *argv[])
 
 		platform_delay(2500);
 
-		/* Send multi part SMS to self */
-		dbg_printf("Sending a multi-part message to self (%s)\n", num);
+		/* Send multi part SMS to destination */
+		dbg_printf("Sending a multi-part message (%s)\n", num);
 		uint8_t payload1[] = "First payload.";
 		uint8_t payload2[] = "Second payload.";
 		at_msg_t outgoing_segment1 = {
