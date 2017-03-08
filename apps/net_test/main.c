@@ -11,7 +11,7 @@ const char *port = "80";
 
 #define RECV_BUFFER	64
 #define NUM_RETRIES	5
-#define DELAY_MS	2000
+#define DELAY_MS	500
 
 static void net_connect(mbedtls_net_context *ctx)
 {
@@ -21,6 +21,8 @@ static void net_connect(mbedtls_net_context *ctx)
 	while (res < 0 && count < NUM_RETRIES) {
 		res = mbedtls_net_connect(ctx, host, port,
 			MBEDTLS_NET_PROTO_TCP);
+		if (res >= 0)
+			break;
 		platform_delay(DELAY_MS);
 		count++;
 	}
@@ -72,14 +74,18 @@ static void net_rcv(mbedtls_net_context *ctx)
 	while (count < NUM_RETRIES) {
 		memset(read_buf, 0, RECV_BUFFER);
 		bytes = mbedtls_net_recv(ctx, read_buf, RECV_BUFFER);
-		if (bytes == MBEDTLS_ERR_NET_RECV_FAILED) {
+		if (bytes == MBEDTLS_ERR_SSL_WANT_READ) {
 			count++;
 			platform_delay(DELAY_MS);
 			continue;
-		} else if (bytes == MBEDTLS_ERR_NET_CONN_RESET || (bytes == 0)) {
-			dbg_printf("###### Read completed ######\n");
+		} else if ((bytes == 0) ||
+			(bytes == MBEDTLS_ERR_NET_CONN_RESET)) {
+			dbg_printf("Read Complete\n");
 			break;
-		}
+		} else if (bytes == MBEDTLS_ERR_NET_RECV_FAILED)
+			break;
+		else if (bytes > 0)
+			count = 0;
 		read_buf[bytes] = 0x0;
 		printf("%s", (char *)read_buf);
 	}

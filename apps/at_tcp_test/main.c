@@ -11,7 +11,7 @@ const char *port = "80";
 
 #define RECV_BUFFER	64
 #define NUM_RETRIES	5
-#define DELAY_MS	2000
+#define DELAY_MS	500
 
 static int tcp_connect()
 {
