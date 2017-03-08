@@ -8,13 +8,13 @@
  */
 
 #include <errno.h>
-#include <stm32f4xx_hal.h>
 #include "at_tcp.h"
 #include "at_toby201_tcp_command.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 #include "platform.h"
+#include "dbg.h"
 
 /*
  * Intermediate buffer to hold data from uart buffer when disconnect string
