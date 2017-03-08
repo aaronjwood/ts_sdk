@@ -16,13 +16,12 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <stm32f4xx_hal.h>
 #include "at_tcp.h"
 #include "mbedtls/net.h"
+#include "platform.h"
 
 #if defined(OTT_EXPLICIT_NETWORK_TIME) && defined(OTT_TIME_PROFILE)
 
-#include "platform.h"
 uint32_t network_time_ms;
 static uint32_t net_begin;
 
@@ -162,10 +161,10 @@ int mbedtls_net_recv_timeout(void *ctx, unsigned char *buf,
         if (fd < 0)
                 return MBEDTLS_ERR_NET_INVALID_CONTEXT;
         ret = at_read_available(fd);
-        uint32_t start = HAL_GetTick();
+        uint32_t start = platform_get_tick_ms();
         bool timeout_flag = false;
         while (ret <= 0) {
-                if ((HAL_GetTick() - start) > timeout) {
+                if ((platform_get_tick_ms() - start) > timeout) {
                         timeout_flag = true;
                         break;
                 } else

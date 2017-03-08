@@ -6,7 +6,7 @@ VENDOR_ROOT=$(PROJ_ROOT)/vendor
 
 mbedtls:
 	@echo "[Building mbedtls libraries.}"
-	make -C $(VENDOR_ROOT)/mbedtls \
+	$(MAKE) -C $(VENDOR_ROOT)/mbedtls \
 		CFLAGS='-O2 $(LTOFLAG) $(INC) $(ARCHFLAGS) $(MDEF) \
 		-fdata-sections -ffunction-sections' \
 		lib

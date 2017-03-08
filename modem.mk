@@ -14,9 +14,10 @@ else
 $(error The PROTOCOL variable has an invalid value: $(PROTOCOL))
 endif
 
+ifneq ($(MODEM_TARGET),none)
 # Currently, all modems supporting TCP and SMS do so via AT commands.
 ifeq ($(MODEM_PROTOCOL),$(filter $(MODEM_PROTOCOL),tcp sms))
-MODEM_SRC += at_core.c 
+MODEM_SRC += at_core.c
 INC += -I $(PROJ_ROOT)/include/network/at
 INC += -I $(PROJ_ROOT)/lib/network/at -I $(PROJ_ROOT)/lib/network/at/core
 endif
@@ -32,6 +33,7 @@ ifeq ($(MODEM_PROTOCOL),sms)
 MODEM_SRC += smscodec.c
 INC += -I $(PROJ_ROOT)/lib/network/at/smscodec
 endif
+endif
 
 #
 # Support for specific modems.
@@ -40,6 +42,9 @@ ifeq ($(MODEM_TARGET),toby201)
 MODEM = MODEM_TOBY201
 MODEM_SRC += at_toby201_$(MODEM_PROTOCOL).c
 MODEM_DIR += at/$(MODEM_TARGET)/$(MODEM_PROTOCOL)
+else ifeq ($(MODEM_TARGET),none)
+# Special case for some tests using native networking
+MODEM = none
 else
 $(error The MODEM_TARGET variable has an invalid value: $(MODEM_TARGET))
 endif
