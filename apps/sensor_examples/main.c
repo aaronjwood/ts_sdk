@@ -17,15 +17,27 @@
 
 #define SEND_DATA_SZ	22
 #define RESEND_CALIB	0x42		/* Resend calibration command */
-#define NONE		(-1)		/* Represents 'Wake up interval not set' */
 
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
 CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 
-#define SERVER_NAME	"iwk.ott.thingspace.verizon.com"
-#define SERVER_PORT	"443"
+#if defined (OTT_PROTOCOL)
+#define REMOTE_HOST	"iwk.ott.thingspace.verizon.com:443"
+#elif defined (SMSNAS_PROTOCOL)
+#define REMOTE_HOST	"+12345678"
+#else
+#error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
+#endif
 
 static bool resend_calibration;		/* Set if RESEND command was received */
+
+/* Arbitrary long sleep time in milliseconds */
+#define LONG_SLEEP_INT_MS	180000
+
+/* status report interval in milliseconds */
+#define STATUS_REPORT_INT_MS	15000
+/* last status message sent timestamp */
+uint32_t last_st_ts = 0;
 
 static void receive_completed(cc_buffer_desc *buf)
 {
@@ -43,6 +55,12 @@ static void receive_completed(cc_buffer_desc *buf)
 	}
 }
 
+static void handle_buf_overflow()
+{
+	dbg_printf("\t\t\tBuffer overflow\n");
+	cc_nak_msg();
+}
+
 /*
  * Handle events related to the Basic service i.e. normal data messages to
  * and from the cloud.
@@ -50,7 +68,7 @@ static void receive_completed(cc_buffer_desc *buf)
 static void basic_service_cb(cc_event event, uint32_t value, void *ptr)
 {
 	dbg_printf("\t\t[BASIC CB] Received an event.\n");
-	
+
 	if (event == CC_EVT_RCVD_MSG)
 		receive_completed((cc_buffer_desc *)ptr);
 
@@ -63,6 +81,8 @@ static void basic_service_cb(cc_event event, uint32_t value, void *ptr)
 	else if (event == CC_EVT_SEND_TIMEOUT)
 		dbg_printf("\t\t\tTimed out trying to send message\n");
 
+	else if (event == CC_EVT_RCVD_OVERFLOW)
+		handle_buf_overflow();
 	else
 		dbg_printf("\t\t\tUnexpected event received: %d\n", event);
 }
@@ -87,8 +107,13 @@ static void send_all_calibration_data(void)
 					CC_SERVICE_BASIC) == CC_SEND_SUCCESS);
 }
 
-static void read_and_send_all_sensor_data(void)
+static void read_and_send_all_sensor_data(uint32_t cur_ts)
 {
+	if (last_st_ts != 0) {
+		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS)
+			return;
+	}
+	dbg_printf("Reading sensor data\n");
 	array_t data;
 	data.bytes = cc_get_send_buffer_ptr(&send_buffer, CC_SERVICE_BASIC);
 	for (uint8_t i = 0; i < si_get_num_sensors(); i++) {
@@ -99,13 +124,14 @@ static void read_and_send_all_sensor_data(void)
 						CC_SERVICE_BASIC)
 		       == CC_SEND_SUCCESS);
 	}
+	last_st_ts = platform_get_tick_ms();
 }
 
 int main(int argc, char *argv[])
 {
-	int32_t next_wakeup_interval = NONE;	/* Interval value in ms */
+	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
 	uint32_t cur_ts;			/* Current timestamp in ms */
-	int32_t wake_up_interval = 15000;	/* Interval value in ms */
+	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
 
 	platform_init();
 	dbg_module_init();
@@ -119,7 +145,7 @@ int main(int argc, char *argv[])
 				   basic_service_cb));
 
 	dbg_printf("Setting remote host and port\n");
-	ASSERT(cc_set_destination(SERVER_NAME ":" SERVER_PORT));
+	ASSERT(cc_set_destination(REMOTE_HOST));
 	dbg_printf("Setting device authentiation credentials\n");
 	ASSERT(cc_set_auth_credentials(d_ID, sizeof(d_ID),
 					d_sec, sizeof(d_sec)));
@@ -137,27 +163,27 @@ int main(int argc, char *argv[])
 	send_all_calibration_data();
 
 	while (1) {
-		dbg_printf("Reading sensor data\n");
-		read_and_send_all_sensor_data();
+		cur_ts = platform_get_tick_ms();
+		read_and_send_all_sensor_data(cur_ts);
 		if (resend_calibration) {
 			resend_calibration = false;
 			dbg_printf("\tResending calibration data\n");
 			send_all_calibration_data();
 		}
-
-		cur_ts = platform_get_tick_ms();
 		next_wakeup_interval = cc_service_send_receive(cur_ts);
-		if (next_wakeup_interval != NONE) {
-			if (wake_up_interval != next_wakeup_interval)
-				dbg_printf("New wakeup time received\n");
-			dbg_printf("Relative wakeup time set to +%"PRIi32" sec\n",
-					next_wakeup_interval / 1000);
+		if (next_wakeup_interval == 0)
+			wake_up_interval = LONG_SLEEP_INT_MS;
+		else if (wake_up_interval != next_wakeup_interval) {
+			dbg_printf("New wakeup time received: %"PRIu32" sec\n",
+				next_wakeup_interval / 1000);
 			wake_up_interval = next_wakeup_interval;
 		}
 
-		dbg_printf("Powering down for %"PRIi32" seconds\n\n",
+		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
 		ASSERT(si_sleep());
+		if (wake_up_interval > STATUS_REPORT_INT_MS)
+			wake_up_interval = STATUS_REPORT_INT_MS;
 		platform_delay(wake_up_interval);
 		ASSERT(si_wakeup());
 	}

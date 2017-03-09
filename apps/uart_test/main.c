@@ -27,7 +27,7 @@ static void rx_cb(callback_event event)
 		if (sz == 0 || sz == -1)
 			return;
 		sz = uart_read(response, sz);
-		ASSERT(sz != UART_READ_ERR);
+		ASSERT(sz != UART_INV_PARAM);
 		response[sz] = 0x00;
 		dbg_printf("Res:\n%s\n", response);
 	} else if (event == UART_EVENT_RX_OVERFLOW) {
