@@ -34,7 +34,7 @@ typedef enum at_urc {
 
 static const char *at_urcs[NUM_URCS] = {
 	[NET_STAT_URC] = "\r\n+CREG: ",
-	[CMT_URC] = "\r\n+CMT: "
+	[CMT_URC] = "\r\n+CMT: ,"
 };
 
 static at_command_desc sms_cmd[NUM_SMS_COMMANDS] = {

@@ -1,5 +1,10 @@
 /* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
+/*
+ * This example program tests the SMSNAS AT layer. The program repeatedly sends
+ * a single part SMS followed by a two part SMS every 30 seconds. Any SMS
+ * segments it receives is printed out along with its metadata.
+ */
 #include <string.h>
 #include "dbg.h"
 #include "at_sms.h"
@@ -38,9 +43,10 @@ static void wait_ms(uint32_t ms)
 			ack_pending = false;
 			bool ack_sent = at_sms_ack();
 			num_tries++;
-			if (!ack_sent && (num_tries <= MAX_ACK_TRIES)) {
+			if (!ack_sent) {
 				dbg_printf("Error: Unable to issue an ACK\n");
-				ack_pending = true; /* Retry in next iteration */
+				if (num_tries <= MAX_ACK_TRIES)
+					ack_pending = true;
 			}
 		}
 		end = platform_get_tick_ms();
