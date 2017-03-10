@@ -185,7 +185,6 @@ int main(int argc, char *argv[])
 			wake_up_interval = next_report_interval;
 			dbg_printf("Reporting required in %"
 				   PRIu32" sec.\n", wake_up_interval / 1000);
-			
 		}
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
