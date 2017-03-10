@@ -124,7 +124,7 @@ static void read_and_send_all_sensor_data(uint32_t cur_ts)
 						CC_SERVICE_BASIC)
 		       == CC_SEND_SUCCESS);
 	}
-	last_st_ts = platform_get_tick_ms();
+	last_st_ts = cur_ts;
 }
 
 int main(int argc, char *argv[])
@@ -173,17 +173,21 @@ int main(int argc, char *argv[])
 		next_wakeup_interval = cc_service_send_receive(cur_ts);
 		if (next_wakeup_interval == 0)
 			wake_up_interval = LONG_SLEEP_INT_MS;
-		else if (wake_up_interval != next_wakeup_interval) {
-			dbg_printf("New wakeup time received: %"PRIu32" sec\n",
-				next_wakeup_interval / 1000);
+		else {
+			dbg_printf("Protocol requests wakeup in %"
+				   PRIu32" sec.\n", next_wakeup_interval /1000);
 			wake_up_interval = next_wakeup_interval;
 		}
 
+		if (wake_up_interval > STATUS_REPORT_INT_MS) {
+			wake_up_interval = STATUS_REPORT_INT_MS;
+			dbg_printf("Reporting required in %"
+				   PRIu32" sec.\n", wake_up_interval / 1000);
+			
+		}
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
 		ASSERT(si_sleep());
-		if (wake_up_interval > STATUS_REPORT_INT_MS)
-			wake_up_interval = STATUS_REPORT_INT_MS;
 		platform_delay(wake_up_interval);
 		ASSERT(si_wakeup());
 	}
