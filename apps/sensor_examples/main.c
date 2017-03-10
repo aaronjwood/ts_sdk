@@ -107,11 +107,11 @@ static void send_all_calibration_data(void)
 					CC_SERVICE_BASIC) == CC_SEND_SUCCESS);
 }
 
-static void read_and_send_all_sensor_data(uint32_t cur_ts)
+static uint32_t read_and_send_all_sensor_data(uint32_t cur_ts)
 {
 	if (last_st_ts != 0) {
 		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS)
-			return;
+			return last_st_ts + STATUS_REPORT_INT_MS - cur_ts;
 	}
 	dbg_printf("Reading sensor data\n");
 	array_t data;
@@ -125,6 +125,7 @@ static void read_and_send_all_sensor_data(uint32_t cur_ts)
 		       == CC_SEND_SUCCESS);
 	}
 	last_st_ts = cur_ts;
+	return STATUS_REPORT_INT_MS;
 }
 
 int main(int argc, char *argv[])
@@ -132,6 +133,7 @@ int main(int argc, char *argv[])
 	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
 	uint32_t cur_ts;			/* Current timestamp in ms */
 	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
+	uint32_t next_report_interval = 0;	/* Interval in ms */
 
 	platform_init();
 	dbg_module_init();
@@ -164,7 +166,7 @@ int main(int argc, char *argv[])
 
 	while (1) {
 		cur_ts = platform_get_tick_ms();
-		read_and_send_all_sensor_data(cur_ts);
+		next_report_interval = read_and_send_all_sensor_data(cur_ts);
 		if (resend_calibration) {
 			resend_calibration = false;
 			dbg_printf("\tResending calibration data\n");
@@ -179,8 +181,8 @@ int main(int argc, char *argv[])
 			wake_up_interval = next_wakeup_interval;
 		}
 
-		if (wake_up_interval > STATUS_REPORT_INT_MS) {
-			wake_up_interval = STATUS_REPORT_INT_MS;
+		if (wake_up_interval > next_report_interval) {
+			wake_up_interval = next_report_interval;
 			dbg_printf("Reporting required in %"
 				   PRIu32" sec.\n", wake_up_interval / 1000);
 			
