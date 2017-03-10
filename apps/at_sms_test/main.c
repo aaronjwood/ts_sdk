@@ -1,11 +1,21 @@
 /* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
+/*
+ * This example program tests the SMSNAS AT layer. The program repeatedly sends
+ * a single part SMS followed by a two part SMS every 30 seconds. Any SMS
+ * segments it receives is printed out along with its metadata.
+ */
 #include <string.h>
 #include "dbg.h"
 #include "at_sms.h"
 #include "platform.h"
 
 #define WAIT_TIME_SEC	((uint8_t)30)
+#define MAX_ACK_TRIES	((uint8_t)5)
+
+static volatile bool ack_pending;
+
+/* Print information about the received message segment */
 static void rcv_cb(const at_msg_t *sms_seg)
 {
 	dbg_printf("\nSource Addr: %s\n", sms_seg->addr);
@@ -18,14 +28,29 @@ static void rcv_cb(const at_msg_t *sms_seg)
 		dbg_printf("%c", sms_seg->buf[i]);
 	dbg_printf("\n");
 
-	/*
-	 * XXX: ACK / NACK payload.
-	 * They cannot be manually issued on the commercial network.
-	 */
-	/*dbg_printf("Sending ACK in response\n");
-	if (!at_sms_ack())
-		dbg_printf("Error: Unable to issue an ACK\n");
-	*/
+	ack_pending = true;
+}
+
+/* Wait for 'ms' milliseconds, ACKing any messages received */
+static void wait_ms(uint32_t ms)
+{
+	uint32_t start = platform_get_tick_ms();
+	uint32_t end = start;
+	uint8_t num_tries = 0;
+	do {
+		if (ack_pending) {
+			dbg_printf("Sending ACK in response\n");
+			ack_pending = false;
+			bool ack_sent = at_sms_ack();
+			num_tries++;
+			if (!ack_sent) {
+				dbg_printf("Error: Unable to issue an ACK\n");
+				if (num_tries <= MAX_ACK_TRIES)
+					ack_pending = true;
+			}
+		}
+		end = platform_get_tick_ms();
+	} while(end - start <= ms);
 }
 
 int main(int argc, char *argv[])
@@ -41,13 +66,12 @@ int main(int argc, char *argv[])
 		goto done;
 	}
 
-	/* Retrieve the number associated with the SIM for a loopback test */
-	char num[ADDR_SZ + 1];
-	at_sms_retrieve_num(num);
+	/* When testing in the lab, the destination is the same regardless of number. */
+	char num[ADDR_SZ + 1] = {"+11234567890"};
 	printf("SIM Number : %s\n", num);
 
 	while (1) {
-		/* Send single part SMS to self */
+		/* Send single part SMS to destination */
 		uint8_t payload[] = "This is a test.";
 		at_msg_t outgoing_msg = {
 			.len = sizeof(payload),
@@ -58,7 +82,7 @@ int main(int argc, char *argv[])
 			.addr = num
 		};
 
-		dbg_printf("Sending a single part message to self (%s)\n", num);
+		dbg_printf("Sending a single part message (%s)\n", num);
 		if (!at_sms_send(&outgoing_msg)) {
 			dbg_printf("Error sending message\n");
 			goto done;
@@ -66,8 +90,8 @@ int main(int argc, char *argv[])
 
 		platform_delay(2500);
 
-		/* Send multi part SMS to self */
-		dbg_printf("Sending a multi-part message to self (%s)\n", num);
+		/* Send multi part SMS to destination */
+		dbg_printf("Sending a multi-part message (%s)\n", num);
 		uint8_t payload1[] = "First payload.";
 		uint8_t payload2[] = "Second payload.";
 		at_msg_t outgoing_segment1 = {
@@ -99,7 +123,7 @@ int main(int argc, char *argv[])
 		}
 
 		dbg_printf("Waiting for %u seconds\n", WAIT_TIME_SEC);
-		platform_delay(WAIT_TIME_SEC * 1000);
+		wait_ms(WAIT_TIME_SEC * 1000);
 	}
 
 done:

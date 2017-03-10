@@ -12,9 +12,10 @@
  * occupies two bytes.
  */
 
-#define ADDR_SZ				16	/* 15 digit number and '+' */
+#define SMSC_ADDR_SZ			14
+#define ADDR_SZ				21	/* 20 digit number and '+' */
 #define MAX_OUT_PDU_SZ			(OUT_PDU_OVR_HD + UD_SZ)
-#define MAX_IN_PDU_SZ			(IN_PDU_OVR_HD + UD_SZ)
+#define MAX_IN_PDU_SZ			(SMSC_ADDR_SZ + IN_PDU_OVR_HD + UD_SZ)
 
 /* Maximum size of the buffer in bytes */
 #define MAX_DATA_SZ			140
