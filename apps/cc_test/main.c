@@ -104,11 +104,11 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 		dbg_printf("\t\t\tUnsupported control event: %d\n", event);
 }
 
-static void send_status_msgs(uint32_t cur_ts)
+static uint32_t send_status_msgs(uint32_t cur_ts)
 {
 	if (last_st_ts != 0) {
 		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS)
-			return;
+			return last_st_ts + STATUS_REPORT_INT_MS - cur_ts;
 	}
 	dbg_printf("Sending out status messages\n");
 	for (uint8_t i = 0; i < NUM_STATUSES; i++) {
@@ -125,7 +125,8 @@ static void send_status_msgs(uint32_t cur_ts)
 						CC_SERVICE_BASIC)
 		       == CC_SEND_SUCCESS);
 	}
-	last_st_ts = platform_get_tick_ms();
+	last_st_ts = cur_ts;
+	return STATUS_REPORT_INT_MS;
 }
 
 int main(int argc, char *argv[])
@@ -151,6 +152,8 @@ int main(int argc, char *argv[])
 	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
 	uint32_t cur_ts;			/* Current timestamp in ms */
 	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
+	uint32_t next_report_interval = 0;	/* Interval in ms */
+
 	last_st_ts = 0;
 	dbg_printf("Setting initial value of status message\n");
 	uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer,
@@ -171,18 +174,22 @@ int main(int argc, char *argv[])
 	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
 	while (1) {
 		cur_ts = platform_get_tick_ms();
-		send_status_msgs(cur_ts);
+		next_report_interval = send_status_msgs(cur_ts);
 		next_wakeup_interval = cc_service_send_receive(cur_ts);
 		if (next_wakeup_interval == 0)
 			wake_up_interval = LONG_SLEEP_INT_MS;
-		else if (wake_up_interval != next_wakeup_interval) {
-			dbg_printf("New wakeup time received: %"PRIu32" sec\n",
-				next_wakeup_interval / 1000);
+		else {
+			dbg_printf("Protocol requests wakeup in %"
+				   PRIu32" sec.\n", next_wakeup_interval /1000);
 			wake_up_interval = next_wakeup_interval;
 		}
 
-		if (wake_up_interval > STATUS_REPORT_INT_MS)
-			wake_up_interval = STATUS_REPORT_INT_MS;
+		if (wake_up_interval > next_report_interval) {
+			wake_up_interval = next_report_interval;
+			dbg_printf("Reporting required in %"
+				   PRIu32" sec.\n", wake_up_interval / 1000);
+		}
+
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
 		platform_delay(wake_up_interval);
