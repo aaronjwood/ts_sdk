@@ -196,6 +196,7 @@ int main(int argc, char *argv[])
 
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
+		cur_ts = platform_get_tick_ms();
 		slept_till = platform_sleep_ms(wake_up_interval);
 		if (slept_till == 0)
 			slept_till = wake_up_interval;
