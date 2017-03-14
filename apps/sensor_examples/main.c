@@ -134,6 +134,7 @@ int main(int argc, char *argv[])
 	uint32_t cur_ts;			/* Current timestamp in ms */
 	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
 	uint32_t next_report_interval = 0;	/* Interval in ms */
+	uint32_t slept_till = 0;
 
 	platform_init();
 	dbg_module_init();
@@ -163,9 +164,12 @@ int main(int argc, char *argv[])
 
 	dbg_printf("Sending out calibration data\n");
 	send_all_calibration_data();
-
+	cur_ts = platform_get_tick_ms();
 	while (1) {
-		cur_ts = platform_get_tick_ms();
+		/* Since systick timer will be off for during sleep adjust
+		 * current timestamp here
+		 */
+		cur_ts = cur_ts + slept_till;
 		next_report_interval = read_and_send_all_sensor_data(cur_ts);
 		if (resend_calibration) {
 			resend_calibration = false;
@@ -189,7 +193,13 @@ int main(int argc, char *argv[])
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
 		ASSERT(si_sleep());
-		platform_sleep_ms(wake_up_interval);
+		cur_ts = platform_get_tick_ms();
+		slept_till = platform_sleep_ms(wake_up_interval);
+		if (slept_till == 0)
+			slept_till = wake_up_interval;
+		else
+			slept_till = wake_up_interval - slept_till;
+		dbg_printf("Slept for %"PRIu32" seconds\n\n", slept_till / 1000);
 		ASSERT(si_wakeup());
 	}
 	return 0;

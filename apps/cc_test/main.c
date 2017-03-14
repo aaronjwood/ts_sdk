@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
 	uint32_t cur_ts;			/* Current timestamp in ms */
 	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
 	uint32_t next_report_interval = 0;	/* Interval in ms */
-
+	uint32_t slept_till = 0;
 	last_st_ts = 0;
 	dbg_printf("Setting initial value of status message\n");
 	uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer,
@@ -172,8 +172,12 @@ int main(int argc, char *argv[])
 	 */
 	dbg_printf("Sending \"restarted\" message\n");
 	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
+	cur_ts = platform_get_tick_ms();
 	while (1) {
-		cur_ts = platform_get_tick_ms();
+		/* Since systick timer will be off for during sleep adjust
+		 * current timestamp here
+		 */
+		cur_ts = cur_ts + slept_till;
 		next_report_interval = send_status_msgs(cur_ts);
 		next_wakeup_interval = cc_service_send_receive(cur_ts);
 		if (next_wakeup_interval == 0)
@@ -192,7 +196,12 @@ int main(int argc, char *argv[])
 
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
-		platform_sleep_ms(wake_up_interval);
+		slept_till = platform_sleep_ms(wake_up_interval);
+		if (slept_till == 0)
+			slept_till = wake_up_interval;
+		else
+			slept_till = wake_up_interval - slept_till;
+		dbg_printf("Slept for %"PRIu32" seconds\n\n", slept_till / 1000);
 	}
 	return 0;
 }

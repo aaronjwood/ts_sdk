@@ -40,6 +40,9 @@ uint32_t platform_get_tick_ms(void);
  * \returns
  * 	0 if sleep was completed uninterrupted or remaining sleep time in milli
  *      seconds.
+ * \note
+ * This function stops systick timer before going into sleep and resumes it
+ * right after wake up for stm32f429 platform.
  */
 uint32_t platform_sleep_ms(uint32_t sleep_ms);
 
