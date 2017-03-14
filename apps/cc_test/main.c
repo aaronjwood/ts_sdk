@@ -24,7 +24,7 @@ static cc_data_sz send_data_sz = sizeof(status);
 #if defined (OTT_PROTOCOL)
 #define REMOTE_HOST	"iwk.ott.thingspace.verizon.com:443"
 #elif defined (SMSNAS_PROTOCOL)
-#define REMOTE_HOST	"+12345678"
+#define REMOTE_HOST	"+12345678912"
 #else
 #error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
 #endif
@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
 			wake_up_interval = LONG_SLEEP_INT_MS;
 		else {
 			dbg_printf("Protocol requests wakeup in %"
-				   PRIu32" sec.\n", next_wakeup_interval /1000);
+				   PRIu32" sec.\n", next_wakeup_interval / 1000);
 			wake_up_interval = next_wakeup_interval;
 		}
 
@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
 
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
-		platform_delay(wake_up_interval);
+		platform_sleep_ms(wake_up_interval);
 	}
 	return 0;
 }

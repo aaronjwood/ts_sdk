@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
 		ASSERT(si_sleep());
-		platform_delay(wake_up_interval);
+		platform_sleep_ms(wake_up_interval);
 		ASSERT(si_wakeup());
 	}
 	return 0;

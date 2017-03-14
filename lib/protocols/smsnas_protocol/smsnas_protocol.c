@@ -386,6 +386,8 @@ void smsnas_maintenance(bool poll_due, uint32_t cur_timestamp)
 	}
 }
 
+/* FIXME: handle scenario where message is received when in middle of sending sms
+ */
 static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
 			uint8_t ref_num, uint8_t total_num, uint8_t seq_num)
 {

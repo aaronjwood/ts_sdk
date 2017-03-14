@@ -1,7 +1,17 @@
-/* Copyright(C) 2016 Verizon. All rights reserved. */
+/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
 #include <stm32f4xx_hal.h>
 #include <dbg.h>
+
+/* Timer related definations */
+static TIM_HandleTypeDef timer;
+static volatile bool timer_expired;
+static uint32_t rem_sleep;
+#define TIM5_IRQ_PRIORITY	7	/* TIM5 priority is lower than TIM2 */
+/* Maximum timeout period it can be programmed for in miliseconds */
+#define MAX_TIMER_RES_MS	(uint32_t)2147483648
+/* End of timer defination */
+
 
 /**
   * @brief  System Clock Configuration
@@ -80,10 +90,40 @@ static void SystemClock_Config(void)
 		raise_err();
 }
 
+/* Set up timer module 5 (TIM5) to fecilitate sleep functionality */
+static bool timer_module_init(void)
+{
+	/* Timer 5's prescaler is fed by APB clock which is 90MHz, setting
+	 * precaler to highest divider possible to make generate counter clock
+	 * 90MHz / 45000 = 2KHz = 0.5mS
+	 * Minumum resolution = 0.5mS
+	 * Maximum resolution = 0.5mS * Auto Reload register (Period) value
+	 */
+
+	__HAL_RCC_TIM5_CLK_ENABLE();
+	timer.Instance = TIM5;
+	timer.Init.Prescaler = 45000;
+	timer.Init.CounterMode = TIM_COUNTERMODE_UP;
+	/* It will not start until first call to platform_sleep function */
+	timer.Init.Period = 0;
+	timer.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+	if (HAL_TIM_Base_Init(&timer) != HAL_OK)
+		return false;
+
+	/* Enable the TIM2 interrupt. */
+	HAL_NVIC_SetPriority(TIM5_IRQn, TIM5_IRQ_PRIORITY, 0);
+	HAL_NVIC_EnableIRQ(TIM5_IRQn);
+	timer_expired = false;
+	rem_sleep = 0;
+	return true;
+}
+
 void platform_init()
 {
 	HAL_Init();
 	SystemClock_Config();
+	if (!timer_module_init())
+		dbg_printf("Timer module init failed\n");
 }
 
 void platform_delay(uint32_t delay_ms)
@@ -94,6 +134,65 @@ void platform_delay(uint32_t delay_ms)
 uint32_t platform_get_tick_ms(void)
 {
 	return HAL_GetTick();
+}
+
+static uint32_t set_timer(uint32_t sleep)
+{
+	if (sleep > MAX_TIMER_RES_MS) {
+		rem_sleep = sleep - MAX_TIMER_RES_MS;
+		sleep = MAX_TIMER_RES_MS;
+	} else
+		rem_sleep = 0;
+	__HAL_TIM_SET_AUTORELOAD(&timer, sleep * 2);
+	HAL_TIM_Base_Start_IT(&timer);
+	return sleep;
+}
+
+/* Returns remaining time left if sleep was interrupted */
+static uint32_t handle_wakeup_event(uint32_t sleep)
+{
+	uint32_t slept_till = 0;
+	/* means it woke up from some other source */
+	if (!timer_expired) {
+		rem_sleep = 0;
+		slept_till = __HAL_TIM_GET_COUNTER(&timer) / 2;
+		HAL_TIM_Base_Stop_IT(&timer);
+	} else {
+		slept_till = sleep;
+		timer_expired = false;
+	}
+	return slept_till;
+}
+
+uint32_t platform_sleep_ms(uint32_t sleep)
+{
+	uint32_t total_slept = 0;
+	uint32_t sleep_temp = 0;
+	/* Disbale systick so that processor does not wake up every 1ms */
+	HAL_SuspendTick();
+	/* Request to enter SLEEP mode */
+	do {
+		sleep_temp = set_timer(sleep);
+		HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+		total_slept += handle_wakeup_event(sleep_temp);;
+		sleep = sleep - total_slept;
+	} while (rem_sleep);
+
+	/* Resume systick interrupt */
+	HAL_ResumeTick();
+	return sleep;
+}
+
+void TIM5_IRQHandler(void)
+{
+	/* TIM Update event */
+	if(__HAL_TIM_GET_FLAG(&timer, TIM_FLAG_UPDATE) != RESET) {
+		if(__HAL_TIM_GET_IT_SOURCE(&timer, TIM_IT_UPDATE) != RESET) {
+			__HAL_TIM_CLEAR_IT(&timer, TIM_IT_UPDATE);
+			HAL_TIM_Base_Stop_IT(&timer);
+			timer_expired = true;
+		}
+	}
 }
 
 /* Increments the SysTick value. */
