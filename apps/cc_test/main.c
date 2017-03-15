@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
 			wake_up_interval = LONG_SLEEP_INT_MS;
 			dbg_printf("Protocol does not required to be called"
 				",sleeping for %"PRIu32" sec.\n",
-				next_wakeup_interval / 1000);
+				wake_up_interval / 1000);
 		} else {
 			dbg_printf("Protocol requests wakeup in %"
 				   PRIu32" sec.\n", next_wakeup_interval / 1000);
