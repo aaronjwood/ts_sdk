@@ -91,7 +91,7 @@ static void SystemClock_Config(void)
 }
 
 /* Set up timer module 5 (TIM5) to fecilitate sleep functionality */
-static bool timer_module_init(void)
+static bool timer_module_init(uint32_t period)
 {
 	/* Timer 5's prescaler is fed by APB clock which is 90MHz, setting
 	 * precaler to highest divider possible to make generate counter clock
@@ -105,12 +105,11 @@ static bool timer_module_init(void)
 	timer.Init.Prescaler = 45000;
 	timer.Init.CounterMode = TIM_COUNTERMODE_UP;
 	/* It will not start until first call to platform_sleep function */
-	timer.Init.Period = 0;
+	timer.Init.Period = period;
 	timer.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	if (HAL_TIM_Base_Init(&timer) != HAL_OK)
 		return false;
-
-	/* Enable the TIM2 interrupt. */
+	/* Enable the TIM5 interrupt. */
 	HAL_NVIC_SetPriority(TIM5_IRQn, TIM5_IRQ_PRIORITY, 0);
 	HAL_NVIC_EnableIRQ(TIM5_IRQn);
 	timer_expired = false;
@@ -122,7 +121,7 @@ void platform_init()
 {
 	HAL_Init();
 	SystemClock_Config();
-	if (!timer_module_init())
+	if (!timer_module_init(0))
 		dbg_printf("Timer module init failed\n");
 }
 
@@ -144,6 +143,7 @@ static uint32_t set_timer(uint32_t sleep)
 	} else
 		rem_sleep = 0;
 	__HAL_TIM_SET_AUTORELOAD(&timer, sleep * 2);
+	__HAL_TIM_SET_COUNTER(&timer, 0);
 	HAL_TIM_Base_Start_IT(&timer);
 	return sleep;
 }
@@ -151,13 +151,14 @@ static uint32_t set_timer(uint32_t sleep)
 /* Returns remaining time left if sleep was interrupted */
 static uint32_t handle_wakeup_event(uint32_t sleep)
 {
-	uint32_t slept_till = 0;
+	uint32_t slept_till = __HAL_TIM_GET_COUNTER(&timer) / 2;
+	HAL_TIM_Base_Stop_IT(&timer);
 	/* means it woke up from some other source */
 	if (!timer_expired) {
+		dbg_printf("Timer was not expired\n");
 		rem_sleep = 0;
-		slept_till = __HAL_TIM_GET_COUNTER(&timer) / 2;
-		HAL_TIM_Base_Stop_IT(&timer);
 	} else {
+		dbg_printf("Timer expired\n");
 		slept_till = sleep;
 		timer_expired = false;
 	}
@@ -166,6 +167,8 @@ static uint32_t handle_wakeup_event(uint32_t sleep)
 
 uint32_t platform_sleep_ms(uint32_t sleep)
 {
+	if (sleep == 0)
+		return 0;
 	uint32_t total_slept = 0;
 	uint32_t sleep_temp = 0;
 	/* Disbale systick so that processor does not wake up every 1ms */
@@ -174,7 +177,7 @@ uint32_t platform_sleep_ms(uint32_t sleep)
 	do {
 		sleep_temp = set_timer(sleep);
 		HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-		total_slept += handle_wakeup_event(sleep_temp);;
+		total_slept += handle_wakeup_event(sleep_temp);
 		sleep = sleep - total_slept;
 	} while (rem_sleep);
 
@@ -189,7 +192,7 @@ void TIM5_IRQHandler(void)
 	if(__HAL_TIM_GET_FLAG(&timer, TIM_FLAG_UPDATE) != RESET) {
 		if(__HAL_TIM_GET_IT_SOURCE(&timer, TIM_IT_UPDATE) != RESET) {
 			__HAL_TIM_CLEAR_IT(&timer, TIM_IT_UPDATE);
-			HAL_TIM_Base_Stop_IT(&timer);
+			//HAL_TIM_Base_Stop_IT(&timer);
 			timer_expired = true;
 		}
 	}

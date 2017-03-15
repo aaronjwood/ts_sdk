@@ -107,8 +107,12 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 static uint32_t send_status_msgs(uint32_t cur_ts)
 {
 	if (last_st_ts != 0) {
-		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS)
-			return last_st_ts + STATUS_REPORT_INT_MS - cur_ts;
+		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS) {
+			dbg_printf("Last send was at: %lu, cur_ts is: %lu\n", last_st_ts, cur_ts);
+			uint32_t temp_ts = last_st_ts + STATUS_REPORT_INT_MS - cur_ts;
+			dbg_printf("Returning rem time to report staatus: %lu\n", temp_ts);
+			return temp_ts;
+		}
 	}
 	dbg_printf("Sending out status messages\n");
 	for (uint8_t i = 0; i < NUM_STATUSES; i++) {
@@ -126,6 +130,7 @@ static uint32_t send_status_msgs(uint32_t cur_ts)
 		       == CC_SEND_SUCCESS);
 	}
 	last_st_ts = cur_ts;
+	dbg_printf("Last sent status message at %lu sec\n", last_st_ts / 1000);
 	return STATUS_REPORT_INT_MS;
 }
 
@@ -150,7 +155,7 @@ int main(int argc, char *argv[])
 				d_sec, sizeof(d_sec)));
 
 	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
-	uint32_t cur_ts;			/* Current timestamp in ms */
+	uint32_t cur_ts = 0;			/* Current timestamp in ms */
 	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
 	uint32_t next_report_interval = 0;	/* Interval in ms */
 	uint32_t slept_till = 0;
@@ -172,17 +177,29 @@ int main(int argc, char *argv[])
 	 */
 	dbg_printf("Sending \"restarted\" message\n");
 	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
-	cur_ts = platform_get_tick_ms();
+	uint32_t start = 0;
+	uint32_t end = 0;
 	while (1) {
 		/* Since systick timer will be off for during sleep adjust
 		 * current timestamp here
 		 */
 		cur_ts = cur_ts + slept_till;
+		dbg_printf("Current timestamp after adjustment: %"PRIu32" seconds\n\n",
+ 				cur_ts / 1000);
+		start = platform_get_tick_ms();
 		next_report_interval = send_status_msgs(cur_ts);
+		end = platform_get_tick_ms();
+		cur_ts = cur_ts + (end - start);
+		dbg_printf("Current timestamp after adjustment and status send: %"PRIu32" seconds\n\n",
+ 				cur_ts / 1000);
+		start = platform_get_tick_ms();
 		next_wakeup_interval = cc_service_send_receive(cur_ts);
-		if (next_wakeup_interval == 0)
+		if (next_wakeup_interval == 0) {
 			wake_up_interval = LONG_SLEEP_INT_MS;
-		else {
+			dbg_printf("Protocol does not required to be called"
+				",sleeping for %"PRIu32" sec.\n",
+				next_wakeup_interval / 1000);
+		} else {
 			dbg_printf("Protocol requests wakeup in %"
 				   PRIu32" sec.\n", next_wakeup_interval / 1000);
 			wake_up_interval = next_wakeup_interval;
@@ -196,7 +213,10 @@ int main(int argc, char *argv[])
 
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
-		cur_ts = platform_get_tick_ms();
+		end = platform_get_tick_ms();
+		cur_ts = cur_ts + (end - start);
+		dbg_printf("Current timestamp b4 sleep: %"PRIu32" seconds\n\n",
+ 				cur_ts / 1000);
 		slept_till = platform_sleep_ms(wake_up_interval);
 		if (slept_till == 0)
 			slept_till = wake_up_interval;
