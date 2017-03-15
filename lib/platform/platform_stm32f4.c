@@ -154,11 +154,9 @@ static uint32_t handle_wakeup_event(uint32_t sleep)
 	uint32_t slept_till = __HAL_TIM_GET_COUNTER(&timer) / 2;
 	HAL_TIM_Base_Stop_IT(&timer);
 	/* means it woke up from some other source */
-	if (!timer_expired) {
-		dbg_printf("Timer was not expired\n");
+	if (!timer_expired)
 		rem_sleep = 0;
-	} else {
-		dbg_printf("Timer expired\n");
+	else {
 		slept_till = sleep;
 		timer_expired = false;
 	}
@@ -192,7 +190,6 @@ void TIM5_IRQHandler(void)
 	if(__HAL_TIM_GET_FLAG(&timer, TIM_FLAG_UPDATE) != RESET) {
 		if(__HAL_TIM_GET_IT_SOURCE(&timer, TIM_IT_UPDATE) != RESET) {
 			__HAL_TIM_CLEAR_IT(&timer, TIM_IT_UPDATE);
-			//HAL_TIM_Base_Stop_IT(&timer);
 			timer_expired = true;
 		}
 	}

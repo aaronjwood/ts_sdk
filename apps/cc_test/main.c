@@ -107,12 +107,8 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 static uint32_t send_status_msgs(uint32_t cur_ts)
 {
 	if (last_st_ts != 0) {
-		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS) {
-			dbg_printf("Last send was at: %lu, cur_ts is: %lu\n", last_st_ts, cur_ts);
-			uint32_t temp_ts = last_st_ts + STATUS_REPORT_INT_MS - cur_ts;
-			dbg_printf("Returning rem time to report staatus: %lu\n", temp_ts);
-			return temp_ts;
-		}
+		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS)
+			return last_st_ts + STATUS_REPORT_INT_MS - cur_ts;
 	}
 	dbg_printf("Sending out status messages\n");
 	for (uint8_t i = 0; i < NUM_STATUSES; i++) {
@@ -130,7 +126,6 @@ static uint32_t send_status_msgs(uint32_t cur_ts)
 		       == CC_SEND_SUCCESS);
 	}
 	last_st_ts = cur_ts;
-	dbg_printf("Last sent status message at %lu sec\n", last_st_ts / 1000);
 	return STATUS_REPORT_INT_MS;
 }
 
@@ -184,14 +179,12 @@ int main(int argc, char *argv[])
 		 * current timestamp here
 		 */
 		cur_ts = cur_ts + slept_till;
-		dbg_printf("Current timestamp after adjustment: %"PRIu32" seconds\n\n",
- 				cur_ts / 1000);
+
 		start = platform_get_tick_ms();
 		next_report_interval = send_status_msgs(cur_ts);
 		end = platform_get_tick_ms();
 		cur_ts = cur_ts + (end - start);
-		dbg_printf("Current timestamp after adjustment and status send: %"PRIu32" seconds\n\n",
- 				cur_ts / 1000);
+
 		start = platform_get_tick_ms();
 		next_wakeup_interval = cc_service_send_receive(cur_ts);
 		if (next_wakeup_interval == 0) {
@@ -215,8 +208,6 @@ int main(int argc, char *argv[])
 				wake_up_interval / 1000);
 		end = platform_get_tick_ms();
 		cur_ts = cur_ts + (end - start);
-		dbg_printf("Current timestamp b4 sleep: %"PRIu32" seconds\n\n",
- 				cur_ts / 1000);
 		slept_till = platform_sleep_ms(wake_up_interval);
 		if (slept_till == 0)
 			slept_till = wake_up_interval;
