@@ -29,11 +29,14 @@ void platform_delay(uint32_t delay_ms);
  * \brief       Provides system tick functionality
  *
  * \return      Number of milliseconds since calling platform_init()
+ * \note
+ * This function needs to be called atleast once within 49 days since boot up
+ * for stm32f429 platform.
  */
-uint32_t platform_get_tick_ms(void);
+uint64_t platform_get_tick_ms(void);
 
 /**
- * \brief       Provides slee functionality. It will return on any event i.e.
+ * \brief       Provides sleep functionality. It will return on any event i.e.
  *              hardware interrupts or system events.
  *
  * \param[in] sleep    sleep time value in miliseconds

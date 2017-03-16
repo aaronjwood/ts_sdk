@@ -131,7 +131,6 @@ static uint32_t read_and_send_all_sensor_data(uint32_t cur_ts)
 int main(int argc, char *argv[])
 {
 	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
-	uint32_t cur_ts = 0;			/* Current timestamp in ms */
 	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
 	uint32_t next_report_interval = 0;	/* Interval in ms */
 	uint32_t slept_till = 0;
@@ -164,29 +163,20 @@ int main(int argc, char *argv[])
 
 	dbg_printf("Sending out calibration data\n");
 	send_all_calibration_data();
-	uint32_t start = 0;
-	uint32_t end = 0;
 	while (1) {
 		/* Since systick timer will be off for during sleep adjust
 		 * current timestamp here
 		 */
-		cur_ts = cur_ts + slept_till;
-		start = platform_get_tick_ms();
-		next_report_interval = read_and_send_all_sensor_data(cur_ts);
-		end = platform_get_tick_ms();
-		cur_ts = cur_ts + (end - start);
-
-		start = platform_get_tick_ms();
+		next_report_interval = read_and_send_all_sensor_data(
+							platform_get_tick_ms());
 		if (resend_calibration) {
 			resend_calibration = false;
 			dbg_printf("\tResending calibration data\n");
 			send_all_calibration_data();
 		}
-		end = platform_get_tick_ms();
-		cur_ts = cur_ts + (end - start);
 
-		start = platform_get_tick_ms();
-		next_wakeup_interval = cc_service_send_receive(cur_ts);
+		next_wakeup_interval = cc_service_send_receive(
+							platform_get_tick_ms());
 		if (next_wakeup_interval == 0) {
 			wake_up_interval = LONG_SLEEP_INT_MS;
 			dbg_printf("Protocol does not required to be called"
@@ -206,13 +196,8 @@ int main(int argc, char *argv[])
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
 		ASSERT(si_sleep());
-		end = platform_get_tick_ms();
-		cur_ts = cur_ts + (end - start);
 		slept_till = platform_sleep_ms(wake_up_interval);
-		if (slept_till == 0)
-			slept_till = wake_up_interval;
-		else
-			slept_till = wake_up_interval - slept_till;
+		slept_till = wake_up_interval - slept_till;
 		dbg_printf("Slept for %"PRIu32" seconds\n\n", slept_till / 1000);
 		ASSERT(si_wakeup());
 	}

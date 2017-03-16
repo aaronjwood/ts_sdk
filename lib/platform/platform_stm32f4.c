@@ -7,11 +7,17 @@
 static TIM_HandleTypeDef timer;
 static volatile bool timer_expired;
 static uint32_t rem_sleep;
+/* total time in milliseconds CPU spent in sleep */
+static uint64_t total_sleep_time;
 #define TIM5_IRQ_PRIORITY	7	/* TIM5 priority is lower than TIM2 */
 /* Maximum timeout period it can be programmed for in miliseconds */
 #define MAX_TIMER_RES_MS	(uint32_t)2147483648
 /* End of timer defination */
 
+/* Sys tick counter definations */
+static uint32_t base_tick;
+static uint64_t accu_tick;
+/* End of sys tick counter defination */
 
 /**
   * @brief  System Clock Configuration
@@ -90,8 +96,8 @@ static void SystemClock_Config(void)
 		raise_err();
 }
 
-/* Set up timer module 5 (TIM5) to fecilitate sleep functionality */
-static bool timer_module_init(uint32_t period)
+/* Set up timer module 5 (TIM5) to facilitate sleep functionality */
+static bool timer_module_init(void)
 {
 	/* Timer 5's prescaler is fed by APB clock which is 90MHz, setting
 	 * precaler to highest divider possible to make generate counter clock
@@ -105,7 +111,7 @@ static bool timer_module_init(uint32_t period)
 	timer.Init.Prescaler = 45000;
 	timer.Init.CounterMode = TIM_COUNTERMODE_UP;
 	/* It will not start until first call to platform_sleep function */
-	timer.Init.Period = period;
+	timer.Init.Period = 0;
 	timer.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	if (HAL_TIM_Base_Init(&timer) != HAL_OK)
 		return false;
@@ -114,6 +120,7 @@ static bool timer_module_init(uint32_t period)
 	HAL_NVIC_EnableIRQ(TIM5_IRQn);
 	timer_expired = false;
 	rem_sleep = 0;
+	total_sleep_time = 0;
 	return true;
 }
 
@@ -121,8 +128,11 @@ void platform_init()
 {
 	HAL_Init();
 	SystemClock_Config();
-	if (!timer_module_init(0))
+	if (!timer_module_init())
 		dbg_printf("Timer module init failed\n");
+	base_tick = 0;
+	accu_tick = 0;
+
 }
 
 void platform_delay(uint32_t delay_ms)
@@ -130,9 +140,18 @@ void platform_delay(uint32_t delay_ms)
         HAL_Delay(delay_ms);
 }
 
-uint32_t platform_get_tick_ms(void)
+uint64_t platform_get_tick_ms(void)
 {
-	return HAL_GetTick();
+	uint32_t cur_ts = HAL_GetTick();
+	uint32_t diff_ms = 0;
+	if (cur_ts >= base_tick)
+		diff_ms = cur_ts - base_tick;
+	else
+		diff_ms = 0xffffffff - base_tick + cur_ts;
+
+	accu_tick += diff_ms;
+	base_tick = cur_ts;
+	return accu_tick + total_sleep_time;
 }
 
 static uint32_t set_timer(uint32_t sleep)
@@ -169,7 +188,7 @@ uint32_t platform_sleep_ms(uint32_t sleep)
 		return 0;
 	uint32_t total_slept = 0;
 	uint32_t sleep_temp = 0;
-	/* Disbale systick so that processor does not wake up every 1ms */
+	/* Disable systick so that processor does not wake up every 1ms */
 	HAL_SuspendTick();
 	/* Request to enter SLEEP mode */
 	do {
@@ -179,6 +198,7 @@ uint32_t platform_sleep_ms(uint32_t sleep)
 		sleep = sleep - total_slept;
 	} while (rem_sleep);
 
+	total_sleep_time += total_slept;
 	/* Resume systick interrupt */
 	HAL_ResumeTick();
 	return sleep;
