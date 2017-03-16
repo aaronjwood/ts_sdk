@@ -547,9 +547,9 @@ void at_core_process_urc(bool mode)
 /*
  * Resetting modem is a special case where its response depends on the previous
  * setting of the echo in the modem, where if echo is on it sends
- * command plus OK or OK otherwise as a response
+ * command plus OK or OK otherwise as a response.
  */
-static at_ret_code __at_modem_reset_comm()
+static at_ret_code __at_modem_reset_comm(void)
 {
 	at_ret_code result = AT_FAILURE;
 
@@ -617,7 +617,10 @@ done:
 at_ret_code at_core_modem_reset(void)
 {
 	at_ret_code result = __at_modem_reset_comm();
-	CHECK_SUCCESS(result, AT_SUCCESS, result);
+	if (result != AT_SUCCESS) {
+		DEBUG_V0("%s: Trying hardware reset\n", __func__);
+		platform_reset_modem();
+	}
 	/* sending at command right after reset command succeeds which is not
 	 * desirable, wait here for few seconds before we send at command to
 	 * poll for modem

@@ -32,4 +32,11 @@ void platform_delay(uint32_t delay_ms);
  */
 uint32_t platform_get_tick_ms(void);
 
+/**
+ * \brief	Reset the modem through hardware means
+ * \note	This will abruptly reset the modem without saving the current
+ * parameters to NVM and without properly detaching from the network.
+ */
+void platform_reset_modem(void);
+
 #endif
