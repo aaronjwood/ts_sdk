@@ -164,9 +164,6 @@ int main(int argc, char *argv[])
 	dbg_printf("Sending out calibration data\n");
 	send_all_calibration_data();
 	while (1) {
-		/* Since systick timer will be off for during sleep adjust
-		 * current timestamp here
-		 */
 		next_report_interval = read_and_send_all_sensor_data(
 							platform_get_tick_ms());
 		if (resend_calibration) {
