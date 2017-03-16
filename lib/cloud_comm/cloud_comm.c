@@ -227,7 +227,7 @@ cc_set_recv_result cc_set_recv_buffer(cc_buffer_desc *buf)
 	return activate_buffer_for_recv(buf);
 }
 
-uint32_t cc_service_send_receive(uint32_t cur_ts)
+uint32_t cc_service_send_receive(uint64_t cur_ts)
 {
 	uint32_t next_call_time_ms;
 	bool polling_due = false;

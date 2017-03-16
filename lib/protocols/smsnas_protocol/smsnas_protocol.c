@@ -338,7 +338,7 @@ static void handle_pend_ack_nack(void)
  * invoke callback indicating receiving timeout to upper level, also adjust
  * remaining timeouts for other receiving paths
  */
-void smsnas_maintenance(bool poll_due, uint32_t cur_timestamp)
+void smsnas_maintenance(bool poll_due, uint64_t cur_timestamp)
 {
 
 	handle_pend_ack_nack();
@@ -351,7 +351,7 @@ void smsnas_maintenance(bool poll_due, uint32_t cur_timestamp)
 
 	uint8_t i;
 	uint32_t ns_time = 0;
-	uint32_t *cur_int = &session.next_seg_rcv_timeout;
+	uint64_t *cur_int = &session.next_seg_rcv_timeout;
 	bool init_poll = false;
 
 	for (i = 0; i < ARRAY_SIZE(session.rcv_msg); i++) {

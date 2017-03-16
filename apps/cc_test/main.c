@@ -37,7 +37,7 @@ static cc_data_sz send_data_sz = sizeof(status);
 /* status report interval in milliseconds */
 #define STATUS_REPORT_INT_MS	15000
 /* last status message sent timestamp */
-uint32_t last_st_ts = 0;
+uint64_t last_st_ts = 0;
 
 static void receive_completed(cc_buffer_desc *buf)
 {
@@ -104,7 +104,7 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 		dbg_printf("\t\t\tUnsupported control event: %d\n", event);
 }
 
-static uint32_t send_status_msgs(uint32_t cur_ts)
+static uint32_t send_status_msgs(uint64_t cur_ts)
 {
 	if (last_st_ts != 0) {
 		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS)

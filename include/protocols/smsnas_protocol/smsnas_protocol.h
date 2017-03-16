@@ -83,7 +83,7 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
  *	cur_timestamp : current time stamp in milliseconds to check if
  *		        next segement of the concatenated message is processed.
  */
-void smsnas_maintenance(bool poll_due, uint32_t cur_timestamp);
+void smsnas_maintenance(bool poll_due, uint64_t cur_timestamp);
 
 /*
  * Send positive acknowledgment to cloud

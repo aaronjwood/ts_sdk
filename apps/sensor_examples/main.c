@@ -37,7 +37,7 @@ static bool resend_calibration;		/* Set if RESEND command was received */
 /* status report interval in milliseconds */
 #define STATUS_REPORT_INT_MS	15000
 /* last status message sent timestamp */
-uint32_t last_st_ts = 0;
+uint64_t last_st_ts = 0;
 
 static void receive_completed(cc_buffer_desc *buf)
 {
@@ -107,7 +107,7 @@ static void send_all_calibration_data(void)
 					CC_SERVICE_BASIC) == CC_SEND_SUCCESS);
 }
 
-static uint32_t read_and_send_all_sensor_data(uint32_t cur_ts)
+static uint32_t read_and_send_all_sensor_data(uint64_t cur_ts)
 {
 	if (last_st_ts != 0) {
 		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS)
