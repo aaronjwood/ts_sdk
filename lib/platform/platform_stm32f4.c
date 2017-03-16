@@ -3,8 +3,6 @@
 #include <stm32f4xx_hal.h>
 #include <dbg.h>
 
-#define RESET_TIME_MS		2100	/* Toby-L2 data sheet Section 4.2.9 */
-
 /**
   * @brief  System Clock Configuration
   *         The system Clock is configured as follow :
@@ -84,6 +82,7 @@ static void SystemClock_Config(void)
 
 static void init_reset_gpio(void)
 {
+	/* Port D Pin 2 is designated as the reset control pin */
 	GPIO_InitTypeDef reset_pins;
 	__HAL_RCC_GPIOD_CLK_ENABLE();
 	reset_pins.Pin = GPIO_PIN_2;
@@ -146,9 +145,12 @@ void UsageFault_Handler(void)
 		;
 }
 
+#define TOBY_L2_RESET_TIME_MS	2100	/* Toby-L2 data sheet Section 4.2.9 */
 void platform_reset_modem(void)
 {
+#ifdef MODEM_TOBY201
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET);
-	platform_delay(RESET_TIME_MS);
+	platform_delay(TOBY_L2_RESET_TIME_MS);
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
+#endif
 }
