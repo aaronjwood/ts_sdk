@@ -21,7 +21,7 @@
 #define MAX_DATA_SZ			140
 
 /* Maximum size of the data in bytes in a segment belonging to a concatenated SMS */
-#define MAX_CONCAT_DATA_SZ		(MAX_DATA_SZ - UDH_LEN - 1)
+#define MAX_CONCAT_DATA_SZ		(MAX_DATA_SZ - UDHL_VAL - 1)
 
 /*
  * This structure encodes a single segment of the SMS.

@@ -297,7 +297,7 @@ cc_set_recv_result cc_set_recv_buffer(cc_buffer_desc *buf);
  * performs any pending activities and indicates when it next needs to be called
  * to service a time based event.
  */
-uint32_t cc_service_send_receive(uint32_t cur_ts);
+uint32_t cc_service_send_receive(uint64_t cur_ts);
 
 /**
  * \brief

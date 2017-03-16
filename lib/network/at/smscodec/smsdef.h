@@ -3,7 +3,7 @@
 #ifndef __SMSDEF_H
 #define __SMSDEF_H
 
-#define UDHL_VAL			5	/* Length of total user data header */
+#define UDHL_VAL			5 /* Length of total user data header */
 
 /* Field lengths */
 #define LEN_PID				1

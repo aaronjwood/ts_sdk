@@ -96,8 +96,8 @@ static inline void init_state(void)
 bool cc_init(cc_svc_callback_rtn control_cb)
 {
 	PROTO_INIT();
-	init_state();
 	init_polling_ms = PROTO_GET_POLLING();
+	init_state();
 	memset(service_table, 0, sizeof(service_table));
 
 	/* The Control service must always be registered. */
@@ -227,7 +227,7 @@ cc_set_recv_result cc_set_recv_buffer(cc_buffer_desc *buf)
 	return activate_buffer_for_recv(buf);
 }
 
-uint32_t cc_service_send_receive(uint32_t cur_ts)
+uint32_t cc_service_send_receive(uint64_t cur_ts)
 {
 	uint32_t next_call_time_ms;
 	bool polling_due = false;

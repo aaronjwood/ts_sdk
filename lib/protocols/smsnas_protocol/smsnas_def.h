@@ -100,7 +100,7 @@ typedef struct {
 	/* Future Time interval within which next sequence from the concatenated
 	 * sms should be received
 	 */
-	uint32_t next_seq_timeout;
+	uint64_t next_seq_timeout;
 	/* buffer to store receiving data */
 	uint8_t *buf;
 	/* write index of the buf */
@@ -137,7 +137,7 @@ static struct {
 	 * future time to check back if protocol layer has received next segment
 	 * if not, then call receive time out
 	 */
-	uint32_t next_seg_rcv_timeout;
+	uint64_t next_seg_rcv_timeout;
 	/* variable to keep track of the pending ack/nack */
 	ack_nack ack_nack_pend;
 } session;

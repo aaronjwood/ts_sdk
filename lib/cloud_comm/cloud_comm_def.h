@@ -18,9 +18,9 @@ static struct {
 } conn_in;
 
 static struct {
-	uint32_t start_ts;		/* Polling interval measurement starts
+	uint64_t start_ts;		/* Polling interval measurement starts
 					 * from this timestamp */
-	uint32_t polling_int_ms;	/* Polling interval in milliseconds */
+	uint64_t polling_int_ms;	/* Polling interval in milliseconds */
 } timekeep;
 
 #endif
