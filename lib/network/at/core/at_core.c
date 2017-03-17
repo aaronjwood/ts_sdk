@@ -7,6 +7,7 @@
 
 #ifdef MODEM_TOBY201
 #define MODEM_RESET_DELAY		25000 /* In milli seconds */
+#define RESET_PULSE_WIDTH_MS		2100  /* Toby-L2 data sheet Section 4.2.9 */
 #define AT_UART_TX_WAIT_MS		10000
 #define IDLE_CHARS			10
 
@@ -619,7 +620,7 @@ at_ret_code at_core_modem_reset(void)
 	at_ret_code result = __at_modem_reset_comm();
 	if (result != AT_SUCCESS) {
 		DEBUG_V0("%s: Trying hardware reset\n", __func__);
-		platform_reset_modem();
+		platform_reset_modem(RESET_PULSE_WIDTH_MS);
 	}
 	/* sending at command right after reset command succeeds which is not
 	 * desirable, wait here for few seconds before we send at command to

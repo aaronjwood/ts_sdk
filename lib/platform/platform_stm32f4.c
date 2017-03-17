@@ -98,7 +98,12 @@ static void SystemClock_Config(void)
 
 static void init_reset_gpio(void)
 {
-	/* Port D Pin 2 is designated as the reset control pin */
+	/*
+	 * Port D Pin 2 (Pin no. 12 on the CN8 header) is designated as the
+	 * reset control pin. The modem is reset through RESET_N which is the
+	 * 26th pin on the DIL B2B J200 connector.
+	 */
+	/* XXX: The GPIO pin settings might be different for another modem. */
 	GPIO_InitTypeDef reset_pins;
 	__HAL_RCC_GPIOD_CLK_ENABLE();
 	reset_pins.Pin = GPIO_PIN_2;
@@ -263,12 +268,9 @@ void UsageFault_Handler(void)
 		;
 }
 
-#define TOBY_L2_RESET_TIME_MS	2100	/* Toby-L2 data sheet Section 4.2.9 */
-void platform_reset_modem(void)
+void platform_reset_modem(uint16_t pulse_width_ms)
 {
-#ifdef MODEM_TOBY201
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET);
-	platform_delay(TOBY_L2_RESET_TIME_MS);
+	platform_delay(pulse_width_ms);
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
-#endif
 }
