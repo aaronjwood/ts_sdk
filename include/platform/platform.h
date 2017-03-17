@@ -49,4 +49,12 @@ uint64_t platform_get_tick_ms(void);
  */
 uint32_t platform_sleep_ms(uint32_t sleep_ms);
 
+/**
+ * \brief	Reset the modem through hardware means
+ * \param[in] pulse_width_ms	Width of the pulse (in ms) needed to reset the modem
+ * \note	This will abruptly reset the modem without saving the current
+ * parameters to NVM and without properly detaching from the network.
+ */
+void platform_reset_modem(uint16_t pulse_width_ms);
+
 #endif

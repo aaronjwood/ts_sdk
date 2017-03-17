@@ -34,3 +34,8 @@ uint32_t platform_get_tick_ms(void)
 	uint64_t time_ns = time_count * time_base.numer / time_base.denom;
 	return (time_ns / MS_NS_MULT);
 }
+
+void platform_reset_modem(void)
+{
+	/* Stub */
+}

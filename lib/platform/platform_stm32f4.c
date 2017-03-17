@@ -96,6 +96,24 @@ static void SystemClock_Config(void)
 		raise_err();
 }
 
+static void init_reset_gpio(void)
+{
+	/*
+	 * Port D Pin 2 (Pin no. 12 on the CN8 header of the Nucleo board) is
+	 * designated as the reset control pin. The modem is reset through
+	 * RESET_N which is the 26th pin on the DIL B2B J300 connector.
+	 */
+	/* XXX: The GPIO pin settings might be different for another modem. */
+	GPIO_InitTypeDef reset_pins;
+	__HAL_RCC_GPIOD_CLK_ENABLE();
+	reset_pins.Pin = GPIO_PIN_2;
+	reset_pins.Mode = GPIO_MODE_OUTPUT_OD;
+	reset_pins.Pull = GPIO_PULLUP;
+	reset_pins.Speed = GPIO_SPEED_FREQ_HIGH;
+	HAL_GPIO_Init(GPIOD, &reset_pins);
+	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
+}
+
 /* Set up timer module 5 (TIM5) to facilitate sleep functionality */
 static bool timer_module_init(void)
 {
@@ -128,11 +146,11 @@ void platform_init()
 {
 	HAL_Init();
 	SystemClock_Config();
+	init_reset_gpio();
 	if (!timer_module_init())
 		dbg_printf("Timer module init failed\n");
 	base_tick = 0;
 	accu_tick = 0;
-
 }
 
 void platform_delay(uint32_t delay_ms)
@@ -248,4 +266,11 @@ void UsageFault_Handler(void)
 {
 	while (1)
 		;
+}
+
+void platform_reset_modem(uint16_t pulse_width_ms)
+{
+	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET);
+	platform_delay(pulse_width_ms);
+	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
 }
