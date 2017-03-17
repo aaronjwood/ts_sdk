@@ -37,7 +37,7 @@ static bool resend_calibration;		/* Set if RESEND command was received */
 /* status report interval in milliseconds */
 #define STATUS_REPORT_INT_MS	15000
 /* last status message sent timestamp */
-uint32_t last_st_ts = 0;
+uint64_t last_st_ts = 0;
 
 static void receive_completed(cc_buffer_desc *buf)
 {
@@ -107,7 +107,7 @@ static void send_all_calibration_data(void)
 					CC_SERVICE_BASIC) == CC_SEND_SUCCESS);
 }
 
-static uint32_t read_and_send_all_sensor_data(uint32_t cur_ts)
+static uint32_t read_and_send_all_sensor_data(uint64_t cur_ts)
 {
 	if (last_st_ts != 0) {
 		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS)
@@ -131,9 +131,9 @@ static uint32_t read_and_send_all_sensor_data(uint32_t cur_ts)
 int main(int argc, char *argv[])
 {
 	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
-	uint32_t cur_ts;			/* Current timestamp in ms */
 	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
 	uint32_t next_report_interval = 0;	/* Interval in ms */
+	uint32_t slept_till = 0;
 
 	platform_init();
 	dbg_module_init();
@@ -163,19 +163,23 @@ int main(int argc, char *argv[])
 
 	dbg_printf("Sending out calibration data\n");
 	send_all_calibration_data();
-
 	while (1) {
-		cur_ts = platform_get_tick_ms();
-		next_report_interval = read_and_send_all_sensor_data(cur_ts);
+		next_report_interval = read_and_send_all_sensor_data(
+							platform_get_tick_ms());
 		if (resend_calibration) {
 			resend_calibration = false;
 			dbg_printf("\tResending calibration data\n");
 			send_all_calibration_data();
 		}
-		next_wakeup_interval = cc_service_send_receive(cur_ts);
-		if (next_wakeup_interval == 0)
+
+		next_wakeup_interval = cc_service_send_receive(
+							platform_get_tick_ms());
+		if (next_wakeup_interval == 0) {
 			wake_up_interval = LONG_SLEEP_INT_MS;
-		else {
+			dbg_printf("Protocol does not required to be called"
+				",sleeping for %"PRIu32" sec.\n",
+				wake_up_interval / 1000);
+		} else {
 			dbg_printf("Protocol requests wakeup in %"
 				   PRIu32" sec.\n", next_wakeup_interval /1000);
 			wake_up_interval = next_wakeup_interval;
@@ -189,7 +193,9 @@ int main(int argc, char *argv[])
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
 		ASSERT(si_sleep());
-		platform_delay(wake_up_interval);
+		slept_till = platform_sleep_ms(wake_up_interval);
+		slept_till = wake_up_interval - slept_till;
+		dbg_printf("Slept for %"PRIu32" seconds\n\n", slept_till / 1000);
 		ASSERT(si_wakeup());
 	}
 	return 0;

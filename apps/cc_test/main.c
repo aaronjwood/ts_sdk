@@ -24,7 +24,7 @@ static cc_data_sz send_data_sz = sizeof(status);
 #if defined (OTT_PROTOCOL)
 #define REMOTE_HOST	"iwk.ott.thingspace.verizon.com:443"
 #elif defined (SMSNAS_PROTOCOL)
-#define REMOTE_HOST	"+12345678"
+#define REMOTE_HOST	"+12345678912"
 #else
 #error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
 #endif
@@ -37,7 +37,7 @@ static cc_data_sz send_data_sz = sizeof(status);
 /* status report interval in milliseconds */
 #define STATUS_REPORT_INT_MS	15000
 /* last status message sent timestamp */
-uint32_t last_st_ts = 0;
+uint64_t last_st_ts = 0;
 
 static void receive_completed(cc_buffer_desc *buf)
 {
@@ -104,7 +104,7 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 		dbg_printf("\t\t\tUnsupported control event: %d\n", event);
 }
 
-static uint32_t send_status_msgs(uint32_t cur_ts)
+static uint32_t send_status_msgs(uint64_t cur_ts)
 {
 	if (last_st_ts != 0) {
 		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS)
@@ -150,10 +150,9 @@ int main(int argc, char *argv[])
 				d_sec, sizeof(d_sec)));
 
 	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
-	uint32_t cur_ts;			/* Current timestamp in ms */
 	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
 	uint32_t next_report_interval = 0;	/* Interval in ms */
-
+	uint32_t slept_till = 0;
 	last_st_ts = 0;
 	dbg_printf("Setting initial value of status message\n");
 	uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer,
@@ -173,14 +172,17 @@ int main(int argc, char *argv[])
 	dbg_printf("Sending \"restarted\" message\n");
 	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
 	while (1) {
-		cur_ts = platform_get_tick_ms();
-		next_report_interval = send_status_msgs(cur_ts);
-		next_wakeup_interval = cc_service_send_receive(cur_ts);
-		if (next_wakeup_interval == 0)
+		next_report_interval = send_status_msgs(platform_get_tick_ms());
+		next_wakeup_interval = cc_service_send_receive(
+						platform_get_tick_ms());
+		if (next_wakeup_interval == 0) {
 			wake_up_interval = LONG_SLEEP_INT_MS;
-		else {
+			dbg_printf("Protocol does not required to be called"
+				",sleeping for %"PRIu32" sec.\n",
+				wake_up_interval / 1000);
+		} else {
 			dbg_printf("Protocol requests wakeup in %"
-				   PRIu32" sec.\n", next_wakeup_interval /1000);
+				   PRIu32" sec.\n", next_wakeup_interval / 1000);
 			wake_up_interval = next_wakeup_interval;
 		}
 
@@ -192,7 +194,9 @@ int main(int argc, char *argv[])
 
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
-		platform_delay(wake_up_interval);
+		slept_till = platform_sleep_ms(wake_up_interval);
+		slept_till = wake_up_interval - slept_till;
+		dbg_printf("Slept for %"PRIu32" seconds\n\n", slept_till / 1000);
 	}
 	return 0;
 }
