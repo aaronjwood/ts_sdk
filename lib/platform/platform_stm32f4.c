@@ -101,7 +101,7 @@ static void init_reset_gpio(void)
 	/*
 	 * Port D Pin 2 (Pin no. 12 on the CN8 header) is designated as the
 	 * reset control pin. The modem is reset through RESET_N which is the
-	 * 26th pin on the DIL B2B J200 connector.
+	 * 26th pin on the DIL B2B J300 connector.
 	 */
 	/* XXX: The GPIO pin settings might be different for another modem. */
 	GPIO_InitTypeDef reset_pins;
