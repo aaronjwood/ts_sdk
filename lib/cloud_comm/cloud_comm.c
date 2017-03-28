@@ -177,6 +177,7 @@ void cc_nak_msg(void)
 cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
 					cc_data_sz sz, cc_service_id svc_id)
 {
+	buf->current_len = 0;
 	conn_out.buf = NULL;
 
 	if (conn_out.send_in_progress)
@@ -191,15 +192,18 @@ cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
 	service_dispatch_entry *se = lookup_service(svc_id);
 	if (se == NULL)
 		return CC_SEND_FAILED;
-
 	if (se->descriptor->add_send_hdr != NULL) {
 		if (!se->descriptor->add_send_hdr(buf))
 			return CC_SEND_FAILED;
 	}
-
 	conn_out.send_in_progress = true;
 	conn_out.buf = buf;
-	PROTO_SEND_MSG_TO_CLOUD(buf->buf_ptr, sz, svc_id, cc_send_cb);
+	/* FIXME: modify services add_send_hdr calls to return number of bytes
+	 * added, so 1 in below is replaced by that return value
+	 */
+	buf->current_len += (sz + 1);
+	PROTO_SEND_MSG_TO_CLOUD(buf->buf_ptr, buf->current_len, svc_id,
+				cc_send_cb);
 
 	conn_out.send_in_progress = false;
 	return CC_SEND_SUCCESS;

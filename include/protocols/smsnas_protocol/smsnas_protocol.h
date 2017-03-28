@@ -125,6 +125,6 @@ const uint8_t *smsnas_get_rcv_buffer_ptr(const void *msg);
  * Note: Function is mainly used when polling is required to check for arrival of
  *       the next segement in the concatenated message case.
  */
-uint32_t smsnas_get_polling_interval(void);
+uint64_t smsnas_get_polling_interval(void);
 
 #endif

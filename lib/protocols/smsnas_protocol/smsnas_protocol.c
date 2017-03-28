@@ -44,8 +44,9 @@ static void reset_rcv_path(uint8_t rcv_path)
 proto_result smsnas_protocol_init(void)
 {
 	uint8_t i = 0;
-	if (!at_init())
+	if (!at_init()) {
 		RETURN_ERROR("modem init failed", PROTO_ERROR);
+	}
 	/* This will not be set until arrival of the first segement of the
 	 * concatenated sms
 	 */
@@ -399,9 +400,8 @@ static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
 	sm_msg.ref_no = ref_num;
 	sm_msg.num_seg = total_num;
 	sm_msg.seq_no = seq_num;
-	memset(sm_msg.addr, 0, ADDR_SZ);
-	memcpy(sm_msg.addr, session.host, strlen(session.host));
-
+	sm_msg.addr = session.host;
+	printf("%s:%d: size to send:%u\n", __func__, __LINE__, sm_msg.len);
 	bool ret = at_sms_send(&sm_msg);
 	while ((!ret) && (retry < MAX_RETRIES)) {
 		ret = at_sms_send(&sm_msg);
@@ -413,15 +413,15 @@ static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
 }
 
 /* takes a payload and builds SMSNAS protocol message */
-static void build_smsnas_msg(const void *payload, proto_pl_sz sz,
-				proto_service_id s_id)
+static void build_smsnas_msg(const void *payload, proto_pl_sz total_sz,
+				proto_pl_sz cp_sz, proto_service_id s_id)
 {
 	memset(session.send_msg, 0, MAX_SMS_PL_SZ);
 	session.send_msg[0] = SMSNAS_VERSION;
 	session.send_msg[1] = s_id;
-	session.send_msg[2] = (uint8_t)(sz & 0xff);
-	session.send_msg[3] = (uint8_t)((sz >> 8) & 0xff);
-	memcpy((session.send_msg + PROTO_OVERHEAD_SZ), payload, sz);
+	session.send_msg[2] = (uint8_t)(total_sz & 0xff);
+	session.send_msg[3] = (uint8_t)((total_sz >> 8) & 0xff);
+	memcpy((session.send_msg + PROTO_OVERHEAD_SZ), payload, cp_sz);
 }
 
 /* Calculates number of segments for the given size when sz exceeds
@@ -477,14 +477,14 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 
 	/* flag gets set during smsnas_set_destination API call */
 	if (!session.host_valid)
-		RETURN_ERROR("Invalid parameter", PROTO_INV_PARAM);
+		RETURN_ERROR("Host is not valid", PROTO_INV_PARAM);
 
 	uint8_t msg_ref_num = session.msg_ref_num;
-	uint8_t total_msgs = 0;
+	uint8_t total_msgs = 1;
 	uint8_t cur_seq_num = 0;
 	/* check if it needs to be concatenated message */
 	if (sz <= SMS_SZ_WITHT_TUHD_WITH_PHD) {
-		build_smsnas_msg(buf, sz, service_id);
+		build_smsnas_msg(buf + PROTO_OVERHEAD_SZ, sz, sz, service_id);
 		proto_result res = write_to_modem(session.send_msg,
 					sz + PROTO_OVERHEAD_SZ, msg_ref_num,
 					total_msgs, cur_seq_num);
@@ -492,21 +492,22 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 			invoke_send_callback(buf, sz, service_id, cb, res);
 			RETURN_ERROR("Send failed", PROTO_ERROR);
 		}
-
+		return PROTO_OK;
 	}
 	cur_seq_num = 1;
 	total_msgs = calculate_total_msgs(sz);
 	if (total_msgs > 4)
 		RETURN_ERROR("Send size exceeds", PROTO_ERROR);
-
+	printf("%s:%d: Sending concatenated sms with total segs: %u\n",
+						__func__, __LINE__, total_msgs);
 	uint8_t *temp_buf = NULL;
 	proto_pl_sz rem_sz = sz;
 	proto_pl_sz send_sz = 0;
 	proto_pl_sz total_sent = 0;
 	while (1) {
 		if (cur_seq_num == 1) {
-			build_smsnas_msg(buf, SMS_SZ_WITH_TUDH_WITH_PHD,
-					service_id);
+			build_smsnas_msg(buf + PROTO_OVERHEAD_SZ, sz,
+				SMS_SZ_WITH_TUDH_WITH_PHD, service_id);
 			temp_buf = session.send_msg;
 			rem_sz = rem_sz - SMS_SZ_WITH_TUDH_WITH_PHD;
 			send_sz = SMS_SZ_WITH_TUDH_WITH_PHD + PROTO_OVERHEAD_SZ;
@@ -536,7 +537,7 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 /* If conatenated message is in progress, returns timeout to poll for the
  * next segment
  */
-uint32_t smsnas_get_polling_interval(void)
+uint64_t smsnas_get_polling_interval(void)
 {
 	return session.next_seg_rcv_timeout;
 }

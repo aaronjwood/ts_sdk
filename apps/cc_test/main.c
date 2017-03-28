@@ -17,7 +17,13 @@
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
 CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 
+#define CONCAT_SMS
+
+#if defined (CONCAT_SMS)
+static uint8_t status[500];
+#else
 static uint8_t status[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+#endif
 
 static cc_data_sz send_data_sz = sizeof(status);
 
@@ -32,7 +38,7 @@ static cc_data_sz send_data_sz = sizeof(status);
 #define NUM_STATUSES	((uint8_t)4)
 
 /* Arbitrary long sleep time in milliseconds */
-#define LONG_SLEEP_INT_MS	180000
+#define LONG_SLEEP_INT_MS	30000
 
 /* status report interval in milliseconds */
 #define STATUS_REPORT_INT_MS	15000
@@ -104,6 +110,21 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 		dbg_printf("\t\t\tUnsupported control event: %d\n", event);
 }
 
+static void set_send_buffer(bool init)
+{
+	if (init) {
+#if defined (CONCAT_SMS)
+		memset(status, 1, 130);
+		memset(status + 130, 2, 134);
+		memset(status + 130 + 134, 3, 134);
+		memset(status + 130 + 134 + 134, 4, 102);
+#endif
+	}
+	uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer,
+						    CC_SERVICE_BASIC);
+	memcpy(send_dptr, status, send_data_sz);
+}
+
 static uint32_t send_status_msgs(uint64_t cur_ts)
 {
 	if (last_st_ts != 0) {
@@ -113,11 +134,7 @@ static uint32_t send_status_msgs(uint64_t cur_ts)
 	dbg_printf("Sending out status messages\n");
 	for (uint8_t i = 0; i < NUM_STATUSES; i++) {
 		/* Mimics reading a value from the sensor */
-		uint8_t *send_dptr =
-			cc_get_send_buffer_ptr(&send_buffer,
-					       CC_SERVICE_BASIC);
-		memcpy(send_dptr, status, send_data_sz);
-
+		set_send_buffer(false);
 		dbg_printf("\tStatus (%u/%u)\n",
 				i + 1, NUM_STATUSES);
 		ASSERT(cc_send_svc_msg_to_cloud(&send_buffer,
@@ -155,10 +172,7 @@ int main(int argc, char *argv[])
 	uint32_t slept_till = 0;
 	last_st_ts = 0;
 	dbg_printf("Setting initial value of status message\n");
-	uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer,
-						    CC_SERVICE_BASIC);
-	memcpy(send_dptr, status, sizeof(status));
-
+	set_send_buffer(true);
 	dbg_printf("Beginning CC API test\n\n");
 	dbg_printf("Make a receive buffer available\n");
 	ASSERT(cc_set_recv_buffer(&recv_buffer) == CC_RECV_SUCCESS);
