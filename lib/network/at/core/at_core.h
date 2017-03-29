@@ -82,7 +82,8 @@ static int __attribute__((unused)) debug_level;
 
 #define CHECK_NULL(x, y) do { \
                                 if (!((x))) { \
-                                        printf("Fail at line: %d\n", __LINE__); \
+                                        printf("%s: Fail at line: %d\n", \
+                                                __func__, __LINE__); \
                                         return ((y)); \
                                 } \
                          } while (0)
@@ -90,7 +91,8 @@ static int __attribute__((unused)) debug_level;
 #define CHECK_SUCCESS(x, y, z)	\
                         do { \
                                 if ((x) != (y)) { \
-                                        printf("Fail at line: %d\n", __LINE__); \
+                                        printf("%s: Fail at line: %d\n", \
+                                                __func__, __LINE__); \
                                         return (z); \
                                 } \
                         } while (0)

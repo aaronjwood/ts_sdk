@@ -19,23 +19,21 @@ CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 
 #define CONCAT_SMS
 
-#if defined (CONCAT_SMS)
-static uint8_t status[500];
-#else
-static uint8_t status[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-#endif
-
-static cc_data_sz send_data_sz = sizeof(status);
-
 #if defined (OTT_PROTOCOL)
 #define REMOTE_HOST	"iwk.ott.thingspace.verizon.com:443"
+static uint8_t status[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 #elif defined (SMSNAS_PROTOCOL)
 #define REMOTE_HOST	"+12345678912"
+#if defined (CONCAT_SMS)
+static uint8_t status[500];
+#endif
 #else
 #error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
 #endif
 
-#define NUM_STATUSES	((uint8_t)4)
+static cc_data_sz send_data_sz = sizeof(status);
+
+#define NUM_STATUSES	((uint8_t)1)
 
 /* Arbitrary long sleep time in milliseconds */
 #define LONG_SLEEP_INT_MS	30000
@@ -113,7 +111,7 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 static void set_send_buffer(bool init)
 {
 	if (init) {
-#if defined (CONCAT_SMS)
+#if defined (CONCAT_SMS) && defined (SMSNAS_PROTOCOL)
 		memset(status, 1, 130);
 		memset(status + 130, 2, 134);
 		memset(status + 130 + 134, 3, 134);

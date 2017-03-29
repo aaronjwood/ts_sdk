@@ -618,12 +618,11 @@ done:
 at_ret_code at_core_modem_reset(void)
 {
 	at_ret_code result = __at_modem_reset_comm();
-#if 1
 	if (result != AT_SUCCESS) {
 		DEBUG_V0("%s: Trying hardware reset:%u\n", __func__, result);
 		//platform_reset_modem(RESET_PULSE_WIDTH_MS);
 	}
-#endif
+
 	/* sending at command right after reset command succeeds which is not
 	 * desirable, wait here for few seconds before we send at command to
 	 * poll for modem
