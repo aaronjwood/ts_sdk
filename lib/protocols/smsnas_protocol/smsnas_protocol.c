@@ -4,6 +4,7 @@
 #include "smsnas_protocol.h"
 #include "smsnas_def.h"
 #include "platform.h"
+#include "dbg.h"
 
 #define RETURN_ERROR(string, ret) \
 	do { \
@@ -282,10 +283,11 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 		/* Upper level has to activate receive buffer again */
 		session.rcv_valid = false;
 		if (check_mem_overflow(msg_ptr->len, session.rcv_sz,
-			smsnas_msg->service_id))
+			smsnas_msg->service_id)) {
+			IN_FUNCTION_AT();
 			goto done;
+		}
 		memcpy(session.rcv_buf, msg_ptr->buf, msg_ptr->len);
-
 		/* let upper level decide to ack/nack this message */
 		INVOKE_RECV_CALLBACK(session.rcv_buf, msg_ptr->len,
 					PROTO_RCVD_MSG, smsnas_msg->service_id);
@@ -323,10 +325,12 @@ static void handle_pend_ack_nack(void)
 	session.ack_nack_pend = NO_ACK_NACK;
 	switch (an) {
 	case ACK_PENDING:
-		at_sms_ack();
+		if(!at_sms_ack())
+			printf("Ack failed\n");
 		break;
 	case NACK_PENDING:
-		at_sms_nack();
+		if(!at_sms_nack())
+			printf("Nack failed\n");
 		break;
 	default:
 		break;
@@ -484,7 +488,7 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 	uint8_t cur_seq_num = 0;
 	/* check if it needs to be concatenated message */
 	if (sz <= SMS_SZ_WITHT_TUHD_WITH_PHD) {
-		build_smsnas_msg(buf + PROTO_OVERHEAD_SZ, sz, sz, service_id);
+		build_smsnas_msg(buf, sz, sz, service_id);
 		proto_result res = write_to_modem(session.send_msg,
 					sz + PROTO_OVERHEAD_SZ, msg_ref_num,
 					total_msgs, cur_seq_num);
@@ -506,8 +510,8 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 	proto_pl_sz total_sent = 0;
 	while (1) {
 		if (cur_seq_num == 1) {
-			build_smsnas_msg(buf + PROTO_OVERHEAD_SZ, sz,
-				SMS_SZ_WITH_TUDH_WITH_PHD, service_id);
+			build_smsnas_msg(buf, sz, SMS_SZ_WITH_TUDH_WITH_PHD,
+				service_id);
 			temp_buf = session.send_msg;
 			rem_sz = rem_sz - SMS_SZ_WITH_TUDH_WITH_PHD;
 			send_sz = SMS_SZ_WITH_TUDH_WITH_PHD + PROTO_OVERHEAD_SZ;
