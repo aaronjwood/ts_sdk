@@ -7,7 +7,7 @@
 
 #ifdef MODEM_TOBY201
 #define MODEM_RESET_DELAY		25000 /* In milli seconds */
-#define RESET_PULSE_WIDTH_MS		2100  /* Toby-L2 data sheet Section 4.2.9 */
+#define RESET_PULSE_WIDTH_MS		3000  /* Toby-L2 data sheet Section 4.2.9 */
 #define AT_UART_TX_WAIT_MS		10000
 #define IDLE_CHARS			10
 
@@ -179,7 +179,7 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                  */
                 .comm = "at+cfun=16\r",
                 .err = NULL,
-                .comm_timeout = 5000
+                .comm_timeout = 7000
         }
 };
 

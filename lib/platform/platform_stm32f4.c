@@ -108,7 +108,7 @@ static void init_reset_gpio(void)
 	__HAL_RCC_GPIOD_CLK_ENABLE();
 	reset_pins.Pin = GPIO_PIN_2;
 	reset_pins.Mode = GPIO_MODE_OUTPUT_OD;
-	reset_pins.Pull = GPIO_PULLUP;
+	reset_pins.Pull = GPIO_NOPULL;
 	reset_pins.Speed = GPIO_SPEED_FREQ_HIGH;
 	HAL_GPIO_Init(GPIOD, &reset_pins);
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
