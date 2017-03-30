@@ -476,7 +476,7 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 					proto_service_id service_id,
 					proto_callback cb)
 {
-	if (!buf || (sz == 0) || (sz > PROTO_MAX_MSG_SZ))
+	if (!buf || (sz == 0) || ((sz + PROTO_OVERHEAD_SZ) > PROTO_MAX_MSG_SZ))
 		RETURN_ERROR("Invalid parameter", PROTO_INV_PARAM);
 
 	/* flag gets set during smsnas_set_destination API call */
@@ -499,7 +499,7 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 		return PROTO_OK;
 	}
 	cur_seq_num = 1;
-	total_msgs = calculate_total_msgs(sz);
+	total_msgs = calculate_total_msgs(sz + PROTO_OVERHEAD_SZ);
 	if (total_msgs > 4)
 		RETURN_ERROR("Send size exceeds", PROTO_ERROR);
 	printf("%s:%d: Sending concatenated sms with total segs: %u\n",
