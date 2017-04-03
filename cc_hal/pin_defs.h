@@ -1,0 +1,168 @@
+#ifndef PIN_DEF_H
+#define PIN_DEF_H
+
+#include <stdint.h>
+
+/* Platform specific encoding of ports and pins */
+#define PD_GET_PORT(name)	((uint8_t)((name) >> 4))
+#define PD_GET_PIN(name)	((uint8_t)((name) & 0x0F))
+#define PD_GET_NAME(port, pin)	((uint8_t)(port << 4 | pin))
+
+#define END_OF_MAP	{NC, {0}, 0}
+
+typedef enum {
+	PORT_A,
+	PORT_B,
+	PORT_C,
+	PORT_D,
+	PORT_E,
+	PORT_F,
+	PORT_G,
+	PORT_H,
+	NUM_PORTS
+} port_id_t;
+
+typedef uint16_t pin_id_t;
+
+typedef enum {
+	PA0 = PD_GET_NAME(PORT_A, 0),
+	PA1 = PD_GET_NAME(PORT_A, 1),
+	PA2 = PD_GET_NAME(PORT_A, 2),
+	PA3 = PD_GET_NAME(PORT_A, 3),
+	PA4 = PD_GET_NAME(PORT_A, 4),
+	PA5 = PD_GET_NAME(PORT_A, 5),
+	PA6 = PD_GET_NAME(PORT_A, 6),
+	PA7 = PD_GET_NAME(PORT_A, 7),
+	PA8 = PD_GET_NAME(PORT_A, 8),
+	PA9 = PD_GET_NAME(PORT_A, 9),
+	PA10 = PD_GET_NAME(PORT_A, 10),
+	PA11 = PD_GET_NAME(PORT_A, 11),
+	PA12 = PD_GET_NAME(PORT_A, 12),
+	PA13 = PD_GET_NAME(PORT_A, 13),
+	PA14 = PD_GET_NAME(PORT_A, 14),
+	PA15 = PD_GET_NAME(PORT_A, 15),
+
+	PB0 = PD_GET_NAME(PORT_B, 0),
+	PB1 = PD_GET_NAME(PORT_B, 1),
+	PB2 = PD_GET_NAME(PORT_B, 2),
+	PB3 = PD_GET_NAME(PORT_B, 3),
+	PB4 = PD_GET_NAME(PORT_B, 4),
+	PB5 = PD_GET_NAME(PORT_B, 5),
+	PB6 = PD_GET_NAME(PORT_B, 6),
+	PB7 = PD_GET_NAME(PORT_B, 7),
+	PB8 = PD_GET_NAME(PORT_B, 8),
+	PB9 = PD_GET_NAME(PORT_B, 9),
+	PB10 = PD_GET_NAME(PORT_B, 10),
+	PB11 = PD_GET_NAME(PORT_B, 11),
+	PB12 = PD_GET_NAME(PORT_B, 12),
+	PB13 = PD_GET_NAME(PORT_B, 13),
+	PB14 = PD_GET_NAME(PORT_B, 14),
+	PB15 = PD_GET_NAME(PORT_B, 15),
+
+	PC0 = PD_GET_NAME(PORT_C, 0),
+	PC1 = PD_GET_NAME(PORT_C, 1),
+	PC2 = PD_GET_NAME(PORT_C, 2),
+	PC3 = PD_GET_NAME(PORT_C, 3),
+	PC4 = PD_GET_NAME(PORT_C, 4),
+	PC5 = PD_GET_NAME(PORT_C, 5),
+	PC6 = PD_GET_NAME(PORT_C, 6),
+	PC7 = PD_GET_NAME(PORT_C, 7),
+	PC8 = PD_GET_NAME(PORT_C, 8),
+	PC9 = PD_GET_NAME(PORT_C, 9),
+	PC10 = PD_GET_NAME(PORT_C, 10),
+	PC11 = PD_GET_NAME(PORT_C, 11),
+	PC12 = PD_GET_NAME(PORT_C, 12),
+	PC13 = PD_GET_NAME(PORT_C, 13),
+	PC14 = PD_GET_NAME(PORT_C, 14),
+	PC15 = PD_GET_NAME(PORT_C, 15),
+
+	PD0 = PD_GET_NAME(PORT_D, 0),
+	PD1 = PD_GET_NAME(PORT_D, 1),
+	PD2 = PD_GET_NAME(PORT_D, 2),
+	PD3 = PD_GET_NAME(PORT_D, 3),
+	PD4 = PD_GET_NAME(PORT_D, 4),
+	PD5 = PD_GET_NAME(PORT_D, 5),
+	PD6 = PD_GET_NAME(PORT_D, 6),
+	PD7 = PD_GET_NAME(PORT_D, 7),
+	PD8 = PD_GET_NAME(PORT_D, 8),
+	PD9 = PD_GET_NAME(PORT_D, 9),
+	PD10 = PD_GET_NAME(PORT_D, 10),
+	PD11 = PD_GET_NAME(PORT_D, 11),
+	PD12 = PD_GET_NAME(PORT_D, 12),
+	PD13 = PD_GET_NAME(PORT_D, 13),
+	PD14 = PD_GET_NAME(PORT_D, 14),
+	PD15 = PD_GET_NAME(PORT_D, 15),
+
+	PE0 = PD_GET_NAME(PORT_E, 0),
+	PE1 = PD_GET_NAME(PORT_E, 1),
+	PE2 = PD_GET_NAME(PORT_E, 2),
+	PE3 = PD_GET_NAME(PORT_E, 3),
+	PE4 = PD_GET_NAME(PORT_E, 4),
+	PE5 = PD_GET_NAME(PORT_E, 5),
+	PE6 = PD_GET_NAME(PORT_E, 6),
+	PE7 = PD_GET_NAME(PORT_E, 7),
+	PE8 = PD_GET_NAME(PORT_E, 8),
+	PE9 = PD_GET_NAME(PORT_E, 9),
+	PE10 = PD_GET_NAME(PORT_E, 10),
+	PE11 = PD_GET_NAME(PORT_E, 11),
+	PE12 = PD_GET_NAME(PORT_E, 12),
+	PE13 = PD_GET_NAME(PORT_E, 13),
+	PE14 = PD_GET_NAME(PORT_E, 14),
+	PE15 = PD_GET_NAME(PORT_E, 15),
+
+	PF0 = PD_GET_NAME(PORT_F, 0),
+	PF1 = PD_GET_NAME(PORT_F, 1),
+	PF2 = PD_GET_NAME(PORT_F, 2),
+	PF3 = PD_GET_NAME(PORT_F, 3),
+	PF4 = PD_GET_NAME(PORT_F, 4),
+	PF5 = PD_GET_NAME(PORT_F, 5),
+	PF6 = PD_GET_NAME(PORT_F, 6),
+	PF7 = PD_GET_NAME(PORT_F, 7),
+	PF8 = PD_GET_NAME(PORT_F, 8),
+	PF9 = PD_GET_NAME(PORT_F, 9),
+	PF10 = PD_GET_NAME(PORT_F, 10),
+	PF11 = PD_GET_NAME(PORT_F, 11),
+	PF12 = PD_GET_NAME(PORT_F, 12),
+	PF13 = PD_GET_NAME(PORT_F, 13),
+	PF14 = PD_GET_NAME(PORT_F, 14),
+	PF15 = PD_GET_NAME(PORT_F, 15),
+
+	PG0 = PD_GET_NAME(PORT_G, 0),
+	PG1 = PD_GET_NAME(PORT_G, 1),
+	PG2 = PD_GET_NAME(PORT_G, 2),
+	PG3 = PD_GET_NAME(PORT_G, 3),
+	PG4 = PD_GET_NAME(PORT_G, 4),
+	PG5 = PD_GET_NAME(PORT_G, 5),
+	PG6 = PD_GET_NAME(PORT_G, 6),
+	PG7 = PD_GET_NAME(PORT_G, 7),
+	PG8 = PD_GET_NAME(PORT_G, 8),
+	PG9 = PD_GET_NAME(PORT_G, 9),
+	PG10 = PD_GET_NAME(PORT_G, 10),
+	PG11 = PD_GET_NAME(PORT_G, 11),
+	PG12 = PD_GET_NAME(PORT_G, 12),
+	PG13 = PD_GET_NAME(PORT_G, 13),
+	PG14 = PD_GET_NAME(PORT_G, 14),
+	PG15 = PD_GET_NAME(PORT_G, 15),
+
+	PH0 = PD_GET_NAME(PORT_H, 0),
+	PH1 = PD_GET_NAME(PORT_H, 1),
+
+	NC = 0xFFFFFFFF
+} pin_name_t;
+
+typedef struct __attribute__((packed)) {
+	uint16_t mode : 2;
+	uint16_t out_type : 1;
+	uint16_t speed : 2;
+	uint16_t pull : 2;
+	uint16_t alt_func : 4;
+	uint16_t reserved : 5;
+} settings_t;
+
+typedef struct pin_t {
+	pin_name_t pin;		/* Associated pin name from the above list */
+	settings_t settings;	/* Pin configuration */
+	uint32_t peripheral;	/* Associated peripheral if any */
+} pin_t;
+
+#endif
