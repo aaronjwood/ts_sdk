@@ -3,31 +3,10 @@
 
 #include "pp_api.h"
 
-/* XXX: Not all configurations will be supported across targets */
-typedef enum {
-	INPUT,
-	OUTPUT
-} dir_t;
-
-typedef enum {
-	OD_NO_PULLL,
-	OD_PULL_UP,
-	OD_PULL_DOWN,
-	PP_NO_PULL,
-	PP_PULL_UP,
-	PP_PULL_DOWN
-} pull_mode_t;
-
-typedef enum {
-	SPEED_LOW,
-	SPEED_MEDIUM,
-	SPEED_HIGH,
-	SPEED_VERY_HIGH
-} speed_t;
-
-typedef enum {
-	PIN_HIGH,
-	PIN_LOW
+/** Type that represents a bit value */
+typedef enum bit_value {
+	PIN_HIGH,	/**< Logical HIGH */
+	PIN_LOW		/**< Logical LOW */
 } bit_value_t;
 
 /*

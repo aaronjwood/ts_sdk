@@ -1,30 +1,58 @@
+/**
+ * \file pin_defs.h
+ * \brief Defines pins and ports supported by the chipset.
+ * \details Variant : \b STM32F4xx \n \n
+ * \b Porting \b Guide: \n
+ * This header forms the base for all peripheral related HALs that rely on the
+ * pins of the MCU. At minimum, it must expose the following symbols:
+ * 	- A \ref port_id_t type that represents a GPIO port
+ * 	- A \ref pin_id_t type that represents a pin number of a GPIO port
+ * 	- A \ref pin_name_t type that represents a pin name (Eg. PA4, PC0 etc.)
+ * 	- A \ref pin_t that encapsulates all information needed to configure a
+ * 	pin for a given peripheral
+ * 	- A \ref pd_get_port routine to retrieve the port from a \ref pin_name_t
+ * 	- A \ref pd_get_pin routine to retrieve the pin number from a \ref pin_name_t
+ */
 #ifndef PIN_DEF_H
 #define PIN_DEF_H
 
 #include <stdint.h>
 
-/* Platform specific encoding of ports and pins */
-#define PD_GET_PORT(name)	((uint8_t)((name) >> 4))
-#define PD_GET_PIN(name)	((uint8_t)((name) & 0x0F))
-#define PD_GET_NAME(port, pin)	((uint8_t)(port << 4 | pin))
+#ifndef IN_DOXYGEN
+#define ATTRIB_PACKED	__attribute__((packed))
+#else
+#define ATTRIB_PACKED
+#endif
 
-#define END_OF_MAP	{NC, {0}, 0}
-
-typedef enum {
-	PORT_A,
-	PORT_B,
-	PORT_C,
-	PORT_D,
-	PORT_E,
-	PORT_F,
-	PORT_G,
-	PORT_H,
-	NUM_PORTS
+/**
+ * \brief Type that represents the ports available for this chipset.
+ */
+typedef enum port_id {
+	PORT_A,		/**< PORT A */
+	PORT_B,		/**< PORT B */
+	PORT_C,		/**< PORT C */
+	PORT_D,		/**< PORT D */
+	PORT_E,		/**< PORT E */
+	PORT_F,		/**< PORT F */
+	PORT_G,		/**< PORT G */
+	PORT_H,		/**< PORT H */
+	NUM_PORTS	/**< Maximum number of ports */
 } port_id_t;
 
-typedef uint16_t pin_id_t;
+/**
+ * \brief Type that stores the pin number of a port.
+ */
+typedef uint8_t pin_id_t;
 
-typedef enum {
+#define PD_GET_NAME(port, pin)	((uint8_t)(port << 4 | pin))
+
+/**
+ * \brief Type that stores the pin name.
+ * \details Pins are named according to the following convention: \n
+ * P\<port letter\>\<pin ID\>. \n
+ * For example, Port A Pin 4 is named PA4.
+ */
+typedef enum pin_name {
 	PA0 = PD_GET_NAME(PORT_A, 0),
 	PA1 = PD_GET_NAME(PORT_A, 1),
 	PA2 = PD_GET_NAME(PORT_A, 2),
@@ -147,22 +175,114 @@ typedef enum {
 	PH0 = PD_GET_NAME(PORT_H, 0),
 	PH1 = PD_GET_NAME(PORT_H, 1),
 
-	NC = 0xFFFFFFFF
+	NC = 0xFFFFFFFF		/**< Used to denote a pin that's not connected */
 } pin_name_t;
 
-typedef struct __attribute__((packed)) {
-	uint16_t mode : 2;
-	uint16_t out_type : 1;
-	uint16_t speed : 2;
-	uint16_t pull : 2;
-	uint16_t alt_func : 4;
-	uint16_t reserved : 5;
+/**
+ * \brief Type that defines the direction of the GPIO.
+ */
+typedef enum dir {
+	INPUT,		/**< GPIO pin is set as input */
+	OUTPUT		/**< GPIO pin is set as output */
+} dir_t;
+
+/**
+ * \brief Type that defines the output type and pull configuration of the pin.
+ */
+typedef enum pull_mode {
+	OD_NO_PULLL,	/**< Open Drain output without any pull */
+	OD_PULL_UP,	/**< Open Drain output with a weak pull up */
+	OD_PULL_DOWN,	/**< Open Drain output with a weak pull down */
+	PP_NO_PULL,	/**< Push Pull output without any pull */
+	PP_PULL_UP,	/**< Push Pull output with a weak pull up */
+	PP_PULL_DOWN	/**< Push Pull output with a weak pull down */
+} pull_mode_t;
+
+/**
+ * \brief Type that defines the output pin speed.
+ * \details This determines the electrical characteristics of the pin.
+ */
+typedef enum speed {
+	SPEED_LOW,	/**< Low Speed pin */
+	SPEED_MEDIUM,	/**< Medium Speed pin */
+	SPEED_HIGH,	/**< High Speed pin */
+	SPEED_VERY_HIGH	/**< Very high speed pin */
+} speed_t;
+
+/**
+ * \brief Type that represents the alternate functions of the GPIO pins.
+ */
+typedef enum alt_func {
+	AF0,	/**< Alternate function 0 */
+	AF1,	/**< Alternate function 1 */
+	AF2,	/**< Alternate function 2 */
+	AF3,	/**< Alternate function 3 */
+	AF4,	/**< Alternate function 4 */
+	AF5,	/**< Alternate function 5 */
+	AF6,	/**< Alternate function 6 */
+	AF7,	/**< Alternate function 7 */
+	AF8,	/**< Alternate function 8 */
+	AF9,	/**< Alternate function 9 */
+	AF10,	/**< Alternate function 10 */
+	AF11,	/**< Alternate function 11 */
+	AF12,	/**< Alternate function 12 */
+	AF13,	/**< Alternate function 13 */
+	AF14,	/**< Alternate function 14 */
+	AF15	/**< Alternate function 15 */
+} alt_func_t;
+
+/**
+ * \brief Structure that stores the pin settings for a given peripheral.
+ * \details This structure varies between chipsets. Variant : \b STM32F4
+ */
+typedef struct ATTRIB_PACKED settings_t {
+	uint16_t dir : 1;	/**< Direction of the GPIO pin.
+				  Accepts \ref dir_t. */
+	uint16_t pull_mode : 3;	/**< Output type and pull configuration.
+				  Accepts \ref pull_mode_t. */
+	uint16_t speed : 2;	/**< Maximum Speed of the pin.
+				  Accepts \ref speed_t. */
+	uint16_t alt_func : 4;	/**< Alternate function associated with this pin.
+				  Accepts \ref alt_func_t */
+	uint16_t reserved : 6;	/**< Reserved bits */
 } settings_t;
 
-typedef struct pin_t {
-	pin_name_t pin;		/* Associated pin name from the above list */
-	settings_t settings;	/* Pin configuration */
-	uint32_t peripheral;	/* Associated peripheral if any */
+/**
+ * \brief Structure that stores a single pin configuration.
+ * \details A pin configuration has enough information to configure the pin to
+ * become the interface of a given peripheral. Each entry in the peripheral pin
+ * map is of this type. \ref END_OF_MAP is a special instance of this structure
+ * marking the end of the peripheral map.
+ */
+typedef struct {
+	pin_name_t pin;		/**< Associated pin name from the above list */
+	settings_t settings;	/**< Pin configuration */
+	uint32_t peripheral;	/**< Associated peripheral, if any */
 } pin_t;
+
+/**
+ * \brief Marks the end of the peripheral pin map.
+ */
+#define END_OF_MAP	{NC, {0}, 0}
+
+/**
+ * \brief Retrieve the port associated with the pin name
+ * \param[in] pin_name Name of the pin
+ * \return Port ID of the pin
+ */
+static inline port_id_t pd_get_port(pin_name_t pin_name)
+{
+	return ((port_id_t)(pin_name >> 4));
+}
+
+/**
+ * \brief Retrieve the pin associated with the pin name
+ * \param[in] pin_name Name of the pin
+ * \return Pin ID associated with the pin name
+ */
+static inline pin_id_t pd_get_pin(pin_name_t pin_name)
+{
+	return ((pin_id_t)(pin_name & 0x0F));
+}
 
 #endif

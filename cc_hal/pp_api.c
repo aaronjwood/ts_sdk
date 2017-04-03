@@ -39,8 +39,8 @@ static bool is_valid_port_pin(port_id_t port, pin_id_t pin)
 
 void pp_mark_pin_used(pin_name_t pin_name)
 {
-	port_id_t port = PD_GET_PORT(pin_name);
-	pin_id_t pin = PD_GET_PIN(pin_name);
+	port_id_t port = pd_get_port(pin_name);
+	pin_id_t pin = pd_get_pin(pin_name);
 
 	if (!is_valid_port_pin(port, pin))
 		return;
@@ -50,8 +50,8 @@ void pp_mark_pin_used(pin_name_t pin_name)
 
 bool pp_is_pin_used(pin_name_t pin_name)
 {
-	port_id_t port = PD_GET_PORT(pin_name);
-	pin_id_t pin = PD_GET_PIN(pin_name);
+	port_id_t port = pd_get_port(pin_name);
+	pin_id_t pin = pd_get_pin(pin_name);
 
 	if (!is_valid_port_pin(port, pin))
 		return false;
@@ -61,8 +61,8 @@ bool pp_is_pin_used(pin_name_t pin_name)
 
 bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_t *mapping)
 {
-	port_id_t port = PD_GET_PORT(pin_name);
-	pin_id_t pin = PD_GET_PIN(pin_name);
+	port_id_t port = pd_get_port(pin_name);
+	pin_id_t pin = pd_get_pin(pin_name);
 
 	if (!is_valid_port_pin(port, pin))
 		return false;
