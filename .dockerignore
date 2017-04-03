@@ -1,0 +1,9 @@
+.git
+doxygen
+targets/stmicro/chipset/toolchain/gcc-arm-none-eabi-5_4-2016q2
+module_tests
+config_files
+tools/config
+tools/openocd-configs
+tools/scripts
+tools/installed
