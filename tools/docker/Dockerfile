@@ -1,4 +1,4 @@
-FROM ubuntu:16.04
+FROM thingservice.verizon.com:5000/dpatel/ubuntu
 RUN apt-get update \
     && apt-get install -y wget \
     && apt-get install -y make \
