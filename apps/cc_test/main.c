@@ -26,6 +26,8 @@ static uint8_t status[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 #define REMOTE_HOST	"+12345678912"
 #if defined (CONCAT_SMS)
 static uint8_t status[500];
+#else
+static uint8_t status[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 #endif
 #else
 #error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
@@ -49,9 +51,12 @@ static void receive_completed(cc_buffer_desc *buf)
 	const uint8_t *recvd = cc_get_recv_buffer_ptr(buf, CC_SERVICE_BASIC);
 
 	dbg_printf("\t\t\t");
+#if 0
 	dbg_printf("Received Update Message: \n");
 	for (cc_data_sz i = 0; i < sz; i++)
-		dbg_printf("\t\t\t\t[Byte %u]: 0x%x\n", i, recvd[i]);
+		dbg_printf("\t\t\t\t[Byte %u]: 0x%x, ", i, recvd[i]);
+	dbg_printf("\n");
+#endif
 
 	/*
 	 * For this example, replace the status message with
@@ -133,8 +138,8 @@ static uint32_t send_status_msgs(uint64_t cur_ts)
 	for (uint8_t i = 0; i < NUM_STATUSES; i++) {
 		/* Mimics reading a value from the sensor */
 		set_send_buffer(false);
-		dbg_printf("\tStatus (%u/%u)\n",
-				i + 1, NUM_STATUSES);
+		dbg_printf("\tStatus (%u/%u) of bytes: %u\n",
+				i + 1, NUM_STATUSES, send_data_sz);
 		ASSERT(cc_send_svc_msg_to_cloud(&send_buffer,
 						send_data_sz,
 						CC_SERVICE_BASIC)
@@ -167,7 +172,7 @@ int main(int argc, char *argv[])
 	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
 	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
 	uint32_t next_report_interval = 0;	/* Interval in ms */
-	uint32_t slept_till = 0;
+	//uint32_t slept_till = 0;
 	last_st_ts = 0;
 	dbg_printf("Setting initial value of status message\n");
 	set_send_buffer(true);
@@ -184,31 +189,33 @@ int main(int argc, char *argv[])
 	dbg_printf("Sending \"restarted\" message\n");
 	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
 	while (1) {
+		//printf("Current time stamp: %"PRIu32"\n",
+		//	(uint32_t)platform_get_tick_ms() / 1000);
 		next_report_interval = send_status_msgs(platform_get_tick_ms());
 		next_wakeup_interval = cc_service_send_receive(
 						platform_get_tick_ms());
 		if (next_wakeup_interval == 0) {
 			wake_up_interval = LONG_SLEEP_INT_MS;
-			dbg_printf("Protocol does not required to be called"
-				",sleeping for %"PRIu32" sec.\n",
-				wake_up_interval / 1000);
+			//dbg_printf("Protocol does not required to be called"
+			//	",sleeping for %"PRIu32" sec.\n",
+			//	wake_up_interval / 1000);
 		} else {
-			dbg_printf("Protocol requests wakeup in %"
-				   PRIu32" sec.\n", next_wakeup_interval / 1000);
+			//dbg_printf("Protocol requests wakeup in %"
+			//	   PRIu32" sec.\n", next_wakeup_interval / 1000);
 			wake_up_interval = next_wakeup_interval;
 		}
 
 		if (wake_up_interval > next_report_interval) {
 			wake_up_interval = next_report_interval;
-			dbg_printf("Reporting required in %"
-				   PRIu32" sec.\n", wake_up_interval / 1000);
+			//dbg_printf("Reporting required in %"
+			//	   PRIu32" sec.\n", wake_up_interval / 1000);
 		}
 
-		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
-				wake_up_interval / 1000);
-		slept_till = platform_sleep_ms(wake_up_interval);
-		slept_till = wake_up_interval - slept_till;
-		dbg_printf("Slept for %"PRIu32" seconds\n\n", slept_till / 1000);
+		//dbg_printf("Powering down for %"PRIu32" seconds\n\n",
+		//		wake_up_interval / 1000);
+		//slept_till = platform_sleep_ms(wake_up_interval);
+		//slept_till = wake_up_interval - slept_till;
+		//dbg_printf("Slept for %"PRIu32" seconds\n\n", slept_till / 1000);
 	}
 	return 0;
 }

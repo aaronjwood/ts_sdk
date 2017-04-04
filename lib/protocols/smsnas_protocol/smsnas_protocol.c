@@ -218,6 +218,7 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 	}
 
 	if (msg_ptr->num_seg > 1) {
+		IN_FUNCTION_AT();
 		bool new = false;
 		rcv_path = retrieve_rcv_path(msg_ptr, &new, &s_id);
 		/* only possible when allocating new receive path */
@@ -228,7 +229,7 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 		}
 		smsnas_rcv_path *rp = &session.rcv_msg[rcv_path];
 		rcvd = rp->wr_idx + msg_ptr->len;
-
+		IN_FUNCTION_AT();
 		/* two step memory overflow check, one for intermediate buffer
 		 * and other for user supplied buffer
 		 */
@@ -236,6 +237,7 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 			/* let upper level nack this sms first and then
 			 * reschedule receive buffer
 			 */
+			IN_FUNCTION_AT();
 			session.rcv_valid = false;
 			goto done;
 		} else if (rcvd > rp->rcv_sz) {
@@ -248,15 +250,17 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 			goto error;
 		}
 		if (new) {
+			IN_FUNCTION_AT();
 			rp->service_id = s_id;
 			rp->cref_num = msg_ptr->ref_no;
 			memcpy(rp->buf, msg_ptr->buf, msg_ptr->len);
 			rp->conct_in_progress = true;
 		} else {
+			IN_FUNCTION_AT();
 			if (!check_validity(msg_ptr, rcv_path, false))
 				goto error;
 			memcpy(rp->buf + rp->wr_idx, msg_ptr->buf, msg_ptr->len);
-
+			IN_FUNCTION_AT();
 			/* check for last segment */
 			if (msg_ptr->seq_no == msg_ptr->num_seg) {
 				session.rcv_valid = false;
@@ -268,6 +272,9 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 				 */
 
 				memcpy(session.rcv_buf, rp->buf, rcvd);
+				dbg_printf("Received Update Message of bytes: %u\n", rcvd);
+				for (uint16_t i = 0; i < rcvd; i++)
+					dbg_printf("\t\t\t\t[Byte %u]: 0x%x, ", i, rp->buf[i]);
 				INVOKE_RECV_CALLBACK(session.rcv_buf, rcvd,
 					PROTO_RCVD_MSG, rp->service_id);
 				goto done;
@@ -522,10 +529,13 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 			invoke_send_callback(buf, sz, service_id, cb, ret);
 			RETURN_ERROR("Concatenated send failed", PROTO_ERROR);
 		}
+		if (cur_seq_num == 1)
+			total_sent += (send_sz - PROTO_OVERHEAD_SZ);
+		else
+			total_sent += send_sz;
 		cur_seq_num++;
 		if (cur_seq_num > total_msgs)
 			break;
-		total_sent += send_sz;
 		temp_buf = (uint8_t *)buf + total_sent;
 		if (rem_sz <= SMS_SZ_WITH_TUHD_WITHT_PHD)
 			send_sz = rem_sz;
