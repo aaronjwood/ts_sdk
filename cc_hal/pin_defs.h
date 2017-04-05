@@ -10,11 +10,11 @@
  * 	- A \ref pin_name_t type that represents a pin name (Eg. PA4, PC0 etc.)
  * 	- A \ref pin_t that encapsulates all information needed to configure a
  * 	pin for a given peripheral
+ * 	- A \ref gpio_config_t that encapsulates all information needed to
+ * 	configure a pin as a GPIO not attached to a peripheral
  * 	- A \ref dir_t type that defines the directions the GPIO pin can take
  * 	- A \ref pull_mode_t type that represents the output type and pull up
  * 	resistor values
- * 	- A \ref gpio_config_t that encapsulates all information needed to
- * 	configure a pin as a GPIO not attached to a peripheral
  * 	- A \ref speed_t type that defines the maximum speed of the pin
  * 	- A \ref pd_get_port routine to retrieve the \ref port_id_t from a
  * 	\ref pin_name_t
@@ -182,6 +182,7 @@ typedef enum pin_name {
 
 	PH0 = PD_GET_NAME(PORT_H, 0),
 	PH1 = PD_GET_NAME(PORT_H, 1),
+	PH2 = PD_GET_NAME(PORT_H, 2),
 
 	NC = 0xFFFFFFFF		/**< Used to denote a pin that's not connected */
 } pin_name_t;
@@ -236,7 +237,8 @@ typedef enum alt_func {
 	AF12,	/**< Alternate function 12 */
 	AF13,	/**< Alternate function 13 */
 	AF14,	/**< Alternate function 14 */
-	AF15	/**< Alternate function 15 */
+	AF15,	/**< Alternate function 15 */
+	AF_NONE	/**< No alternate function selected */
 } alt_func_t;
 
 /**
@@ -251,7 +253,6 @@ typedef struct {
 				  Accepts \ref speed_t. */
 } gpio_config_t;
 
-
 /**
  * \brief Structure that stores a single pin configuration.
  * \details A pin configuration has enough information to configure the pin to
@@ -262,7 +263,7 @@ typedef struct {
 typedef struct {
 	pin_name_t pin_name;	/**< Associated pin name from the above list */
 	gpio_config_t settings;	/**< GPIO pin configuration to go with peripheral */
-	uint8_t alt_func;	/**< Alternate function ID */
+	uint8_t alt_func;	/**< Alternate function ID for the pin */
 	uint32_t peripheral;	/**< Associated peripheral, if any */
 } pin_t;
 

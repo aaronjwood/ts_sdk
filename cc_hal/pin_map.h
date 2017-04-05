@@ -4,6 +4,8 @@
  * \details These structures contain all possible pin mappings for a given MCU &
  * board combination. Each entry is of type \ref pin_t and has all the information
  * needed to connect and initialize a specific pin to work with an MCU peripheral.
+ * For example, uart_tx_map maps all pins that are capable of transmitting serial
+ * data with their respective UART / USART hardware peripherals.
  */
 #ifndef PIN_MAP_H
 #define PIN_MAP_H
