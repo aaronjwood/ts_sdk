@@ -4,14 +4,22 @@
  * \details Variant : \b STM32F4xx \n \n
  * \b Porting \b Guide: \n
  * This header forms the base for all peripheral related HALs that rely on the
- * pins of the MCU. At minimum, it must expose the following symbols:
+ * pins of the MCU. It must expose the following symbols:
  * 	- A \ref port_id_t type that represents a GPIO port
  * 	- A \ref pin_id_t type that represents a pin number of a GPIO port
  * 	- A \ref pin_name_t type that represents a pin name (Eg. PA4, PC0 etc.)
  * 	- A \ref pin_t that encapsulates all information needed to configure a
  * 	pin for a given peripheral
- * 	- A \ref pd_get_port routine to retrieve the port from a \ref pin_name_t
- * 	- A \ref pd_get_pin routine to retrieve the pin number from a \ref pin_name_t
+ * 	- A \ref dir_t type that defines the directions the GPIO pin can take
+ * 	- A \ref pull_mode_t type that represents the output type and pull up
+ * 	resistor values
+ * 	- A \ref gpio_config_t that encapsulates all information needed to
+ * 	configure a pin as a GPIO not attached to a peripheral
+ * 	- A \ref speed_t type that defines the maximum speed of the pin
+ * 	- A \ref pd_get_port routine to retrieve the \ref port_id_t from a
+ * 	\ref pin_name_t
+ * 	- A \ref pd_get_pin routine to retrieve the \ref pin_id_t from a
+ * 	\ref pin_name_t
  */
 #ifndef PIN_DEF_H
 #define PIN_DEF_H
@@ -47,7 +55,7 @@ typedef uint8_t pin_id_t;
 #define PD_GET_NAME(port, pin)	((uint8_t)(port << 4 | pin))
 
 /**
- * \brief Type that stores the pin name.
+ * \brief Type that represents the pin name.
  * \details Pins are named according to the following convention: \n
  * P\<port letter\>\<pin ID\>. \n
  * For example, Port A Pin 4 is named PA4.
@@ -232,20 +240,17 @@ typedef enum alt_func {
 } alt_func_t;
 
 /**
- * \brief Structure that stores the pin settings for a given peripheral.
- * \details This structure varies between chipsets. Variant : \b STM32F4
+ * \brief Type that represents a GPIO configuration.
  */
-typedef struct ATTRIB_PACKED settings_t {
-	uint16_t dir : 1;	/**< Direction of the GPIO pin.
+typedef struct {
+	uint8_t dir : 1;	/**< Direction of the GPIO pin.
 				  Accepts \ref dir_t. */
-	uint16_t pull_mode : 3;	/**< Output type and pull configuration.
+	uint8_t pull_mode : 3;	/**< Output type and pull configuration.
 				  Accepts \ref pull_mode_t. */
-	uint16_t speed : 2;	/**< Maximum Speed of the pin.
+	uint8_t speed : 2;	/**< Maximum Speed of the pin.
 				  Accepts \ref speed_t. */
-	uint16_t alt_func : 4;	/**< Alternate function associated with this pin.
-				  Accepts \ref alt_func_t */
-	uint16_t reserved : 6;	/**< Reserved bits */
-} settings_t;
+} gpio_config_t;
+
 
 /**
  * \brief Structure that stores a single pin configuration.
@@ -255,15 +260,16 @@ typedef struct ATTRIB_PACKED settings_t {
  * marking the end of the peripheral map.
  */
 typedef struct {
-	pin_name_t pin;		/**< Associated pin name from the above list */
-	settings_t settings;	/**< Pin configuration */
+	pin_name_t pin_name;	/**< Associated pin name from the above list */
+	gpio_config_t settings;	/**< GPIO pin configuration to go with peripheral */
+	uint8_t alt_func;	/**< Alternate function ID */
 	uint32_t peripheral;	/**< Associated peripheral, if any */
 } pin_t;
 
 /**
  * \brief Marks the end of the peripheral pin map.
  */
-#define END_OF_MAP	{NC, {0}, 0}
+#define END_OF_MAP	{NC, {0}, 0, 0}
 
 /**
  * \brief Retrieve the port associated with the pin name

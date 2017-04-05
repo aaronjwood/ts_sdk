@@ -1,24 +1,43 @@
+/**
+ * \file pin_map.h
+ * \brief Define tables that map pins to peripherals
+ * \details These structures contain all possible pin mappings for a given MCU &
+ * board combination. Each entry is of type \ref pin_t and has all the information
+ * needed to connect and initialize a specific pin to work with an MCU peripheral.
+ */
 #ifndef PIN_MAP_H
 #define PIN_MAP_H
 
 #include "pin_defs.h"
 
-/* UART TX pin mappings */
+/**
+ * \brief UART TX pin mappings
+ */
 extern const pin_t uart_tx_map[];
 
-/* UART RX pin mappings */
+/**
+ * \brief UART RX pin mappings
+ */
 extern const pin_t uart_rx_map[];
 
-/* UART RTS pin mappings */
+/**
+ * \brief UART RTS pin mappings
+ */
 extern const pin_t uart_rts_map[];
 
-/* UART CTS pin mappings */
+/**
+ * \brief UART CTS pin mappings
+ */
 extern const pin_t uart_cts_map[];
 
-/* I2C SDA pin mappings */
+/**
+ * \brief I2C SDA pin mappings
+ */
 extern const pin_t i2c_sda_map[];
 
-/* I2C SCL pin mappings */
+/**
+ * \brief I2C SCL pin mappings
+ */
 extern const pin_t i2c_scl_map[];
 
 #endif

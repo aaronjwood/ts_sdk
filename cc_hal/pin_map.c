@@ -1,5 +1,4 @@
 #include "pin_map.h"
-//#include <stm32f4xx_hal.h>
 
 const pin_t uart_tx_map[] = {
 	END_OF_MAP

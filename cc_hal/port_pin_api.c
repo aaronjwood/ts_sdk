@@ -1,4 +1,4 @@
-#include "pp_api.h"
+#include "port_pin_api.h"
 
 /*
  * XXX: Chipset specific implementation, i.e. One implementation for the STM32F4
@@ -57,6 +57,14 @@ bool pp_is_pin_used(pin_name_t pin_name)
 		return false;
 
 	return QUERY_USAGE(port, pin);
+}
+
+bool pp_is_port_used(port_id_t port_id)
+{
+	if (port_id >= NUM_PORTS)
+		return false;
+
+	return (port_usage[port_id] != 0) ? true : false;
 }
 
 bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_t *mapping)
