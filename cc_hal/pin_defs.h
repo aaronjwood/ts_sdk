@@ -264,7 +264,7 @@ typedef struct {
 	pin_name_t pin_name;	/**< Associated pin name from the above list */
 	gpio_config_t settings;	/**< GPIO pin configuration to go with peripheral */
 	uint8_t alt_func;	/**< Alternate function ID for the pin */
-	uint32_t peripheral;	/**< Associated peripheral, if any */
+	uintptr_t peripheral;	/**< Associated peripheral, if any */
 } pin_t;
 
 /**
