@@ -12,10 +12,6 @@
  * 	pin for a given peripheral
  * 	- A \ref gpio_config_t that encapsulates all information needed to
  * 	configure a pin as a GPIO not attached to a peripheral
- * 	- A \ref dir_t type that defines the directions the GPIO pin can take
- * 	- A \ref pull_mode_t type that represents the output type and pull up
- * 	resistor values
- * 	- A \ref speed_t type that defines the maximum speed of the pin
  * 	- A \ref pd_get_port routine to retrieve the \ref port_id_t from a
  * 	\ref pin_name_t
  * 	- A \ref pd_get_pin routine to retrieve the \ref pin_id_t from a
