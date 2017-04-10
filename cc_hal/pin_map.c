@@ -22,8 +22,8 @@
 
 const pin_t uart_tx_map[] = {
 	{PA0, DEFAULT_UART_PIN_CONF, AF8, (uintptr_t)UART4},
-	{PA2, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART2},
-	{PA9, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART1},
+	/*{PA2, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART2},*/ /* Ethernet */
+	/*{PA9, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART1},*/ /* USB */
 	{PB6, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART1},
 	{PB10, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART3},
 	{PC6, DEFAULT_UART_PIN_CONF, AF8, (uintptr_t)USART6},
@@ -40,10 +40,10 @@ const pin_t uart_tx_map[] = {
 };
 
 const pin_t uart_rx_map[] = {
-	{PA1, DEFAULT_UART_PIN_CONF, AF8, (uintptr_t)UART4},
+	/*{PA1, DEFAULT_UART_PIN_CONF, AF8, (uintptr_t)UART4},*/ /* Ethernet */
 	{PA3, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART2},
-	{PA10, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART1},
-	{PB7, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART1},
+	/*{PA10, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART1},*/ /* USB */
+	/*{PB7, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART1},*/ /* LED2 */
 	{PB11, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART3},
 	{PC7, DEFAULT_UART_PIN_CONF, AF8, (uintptr_t)USART6},
 	{PC11, DEFAULT_UART_PIN_CONF, AF8, (uintptr_t)UART4},
@@ -59,9 +59,9 @@ const pin_t uart_rx_map[] = {
 };
 
 const pin_t uart_rts_map[] = {
-	{PA1, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART2},
-	{PA12, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART1},
-	{PB14, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART3},
+	/*{PA1, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART2},*/ /* Ethernet */
+	/*{PA12, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART1},*/ /* USB */
+	/*{PB14, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART3},*/ /* LED3 */
 	{PD4, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART2},
 	{PD12, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART3},
 	{PG8, DEFAULT_UART_PIN_CONF, AF8, (uintptr_t)USART6},
@@ -71,11 +71,11 @@ const pin_t uart_rts_map[] = {
 
 const pin_t uart_cts_map[] = {
 	{PA0, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART2},
-	{PA11, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART1},
-	{PB13, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART3},
+	/*{PA11, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART1},*/ /* USB */
+	{PB13, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART3}, /* With JP7 open */
 	{PD3, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART2},
 	{PD11, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART3},
-	{PG13, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART6},
+	/*{PG13, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART6},*/ /* Ethernet */
 	{PG15, DEFAULT_UART_PIN_CONF, AF7, (uintptr_t)USART6},
 	END_OF_MAP
 };
@@ -87,11 +87,11 @@ const pin_t uart_cts_map[] = {
 }
 
 const pin_t i2c_sda_map[] = {
-	{PB7, DEFAULT_I2C_PIN_CONF, AF4, (uintptr_t)I2C1},
+	/*{PB7, DEFAULT_I2C_PIN_CONF, AF4, (uintptr_t)I2C1},*/ /* LED2 */
 	{PB9, DEFAULT_I2C_PIN_CONF, AF4, (uintptr_t)I2C1},
 	{PB11, DEFAULT_I2C_PIN_CONF, AF4, (uintptr_t)I2C2},
 	{PC9, DEFAULT_I2C_PIN_CONF, AF4, (uintptr_t)I2C3},
-	{PF0, DEFAULT_I2C_PIN_CONF, AF4, (uintptr_t)I2C2},
+	/*{PF0, DEFAULT_I2C_PIN_CONF, AF4, (uintptr_t)I2C2},*/ /* MCO */
 	END_OF_MAP
 };
 
@@ -100,6 +100,6 @@ const pin_t i2c_scl_map[] = {
 	{PB6, DEFAULT_I2C_PIN_CONF, AF4, (uintptr_t)I2C1},
 	{PB8, DEFAULT_I2C_PIN_CONF, AF4, (uintptr_t)I2C1},
 	{PB10, DEFAULT_I2C_PIN_CONF, AF4, (uintptr_t)I2C2},
-	{PF1, DEFAULT_I2C_PIN_CONF, AF4, (uintptr_t)I2C2},
+	{PF1, DEFAULT_I2C_PIN_CONF, AF4, (uintptr_t)I2C2}, /* No external clock */
 	END_OF_MAP
 };
