@@ -19,7 +19,7 @@ export BUILD_TARGET
 # Must always build with NO_PROTOCOL even if PROTOCOL is set externally.
 override PROTOCOL = NO_PROTOCOL
 MODEM_PROTOCOL = sms
-CLOUD_COMM_SRC = 
+CLOUD_COMM_SRC =
 SERVICES_SRC =
 
 # Define this macro to turn off debug messages globally.

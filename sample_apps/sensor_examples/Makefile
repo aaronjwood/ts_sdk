@@ -6,14 +6,25 @@
 # 'bmp180' as the project. This means that 'make' is equivalent to
 # 'make PROJ_NAME=bmp180'
 
-PROJ_ROOT = $(shell git rev-parse --show-toplevel)
+# Makefile for the device side application API test program.
+APP_ROOT = $(shell dirname $$PWD)
+#PROJ_ROOT = $(shell dirname $(APP_ROOT))
+#CHIPSET_BUILDENV = $(shell dirname $(PROJ_ROOT))/ts_sdk_bldenv
+
+
 export PROJ_ROOT
+export APP_ROOT
+export CHIPSET_BUILDENV
 
 ifneq (build,$(notdir $(CURDIR)))
 # If not invoked in the build directory, change to that directory and
 # re-invoke the Makefile with SRCDIR set.
-include $(PROJ_ROOT)/build_in_subdir.mk
+include $(APP_ROOT)/build_in_subdir.mk
 else
+
+APP_ROOT = $(shell dirname $(SRCDIR))
+PROJ_ROOT = $(shell dirname $(APP_ROOT))
+CHIPSET_BUILDENV = $(shell dirname $(PROJ_ROOT))ts_sdk_bldenv
 
 BUILD_TARGET ?= stm32f4
 export BUILD_TARGET
@@ -34,20 +45,22 @@ INC += -I $(SRCDIR)/include
 USER_SRC = $(wildcard $(SRCDIR)/*.c)
 USER_SRC += $(wildcard $(SRCDIR)/$(PROJ_NAME)/*_$(BUILD_TARGET).c)
 
-# This application uses I2C hardware which may require additional platform
-# support files.  The additional files depends on the BUILD_TARGET.
-PLATFORM_SRC_stm32f4 += stm32f4xx_hal_i2c.c
-
 # Library sources are built without debug info and optimized for size.
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
 # debug flag enabled
 # Eg: DBG_LIB_SRC = stm32l0xx_hal_uart.c stm32l0xx_hal_uart_ex.c
 DBG_LIB_SRC =
 
+include $(APP_ROOT)/common_stm32f4.mk
+
+# chipset device drivers, provided by common_xxxx.mk from above
+INC += $(CHIPSET_INC)
+
 # Common and per-platform Makefile variables
-include $(PROJ_ROOT)/common.mk
+include $(APP_ROOT)/common.mk
 
 # Defines the target rules
-include $(PROJ_ROOT)/rules.mk
+include $(APP_ROOT)/rules.mk
+print-%: ; @echo $* = $($*)
 
 endif
