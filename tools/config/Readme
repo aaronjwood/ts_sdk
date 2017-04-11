@@ -1,0 +1,5 @@
+Currently directory contains follwing files:
+1) build_in_subdir.mk: Creates build directory in the source directory to house
+        all the object files
+2) common_stm32f4.mk: Make include to be used by sample_apps and module_test
+        applications to set up build for the stmicro F4 family chipset

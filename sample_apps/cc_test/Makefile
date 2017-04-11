@@ -2,6 +2,7 @@
 
 # Makefile for the device side application API test program.
 APP_ROOT = $(shell dirname $$PWD)
+BUILD_MK_PATH = $(shell dirname $(APP_ROOT))/tools/config
 #PROJ_ROOT = $(shell dirname $(APP_ROOT))
 #CHIPSET_BUILDENV = $(shell dirname $(PROJ_ROOT))/ts_sdk_bldenv
 
@@ -13,7 +14,7 @@ export CHIPSET_BUILDENV
 ifneq (build,$(notdir $(CURDIR)))
 # If not invoked in the build directory, change to that directory and
 # re-invoke the Makefile with SRCDIR set.
-include $(APP_ROOT)/build_in_subdir.mk
+include $(BUILD_MK_PATH)/build_in_subdir.mk
 else
 
 APP_ROOT = $(shell dirname $(SRCDIR))
@@ -45,7 +46,7 @@ DBG_LIB_SRC =
 ifeq ($(BUILD_TARGET),osx)
 include $(APP_ROOT)/common_osx.mk
 else ifeq ($(BUILD_TARGET),stm32f4)
-include $(APP_ROOT)/common_stm32f4.mk
+include $(PROJ_ROOT)/tools/config/common_stm32f4.mk
 else
 $(error "Makefile must define the BUILD_TARGET variable")
 endif
