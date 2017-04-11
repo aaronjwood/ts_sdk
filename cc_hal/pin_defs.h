@@ -6,6 +6,7 @@
  * This header forms the base for all peripheral related HALs that rely on the
  * pins of the MCU. It must expose the following symbols:
  * 	- A \ref port_id_t type that represents a GPIO port
+ * 	- A \ref port_size_t type that can contain all pin values of any port
  * 	- A \ref pin_id_t type that represents a pin number of a GPIO port
  * 	- A \ref pin_name_t type that represents a pin name (Eg. PA4, PC0 etc.)
  * 	- A \ref pin_t that encapsulates all information needed to configure a
@@ -16,11 +17,13 @@
  * 	\ref pin_name_t
  * 	- A \ref pd_get_pin routine to retrieve the \ref pin_id_t from a
  * 	\ref pin_name_t
+ * 	- A \ref pd_is_pin_name_valid routine to validate the \ref pin_name_t
  */
 #ifndef PIN_DEF_H
 #define PIN_DEF_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifndef IN_DOXYGEN
 #define ATTRIB_PACKED	__attribute__((packed))
@@ -49,6 +52,13 @@ typedef enum port_id {
 typedef uint8_t pin_id_t;
 
 #define PD_GET_NAME(port, pin)	((uint8_t)(port << 4 | pin))
+#define NUM_PINS_PORT_A_TO_G		16
+#define NUM_PINS_PORT_H			2
+
+/**
+ * \brief Type that can contain the bit values at all pins of any port.
+ */
+typedef uint16_t port_size_t;
 
 /**
  * \brief Type that represents the pin name.
@@ -286,6 +296,38 @@ static inline port_id_t pd_get_port(pin_name_t pin_name)
 static inline pin_id_t pd_get_pin(pin_name_t pin_name)
 {
 	return ((pin_id_t)(pin_name & 0x0F));
+}
+
+/**
+ * \brief Check if the pin name is valid for this target
+ * \param[in] pin_name Name of the pin
+ * \retval true The pin name is valid
+ * \retval false The pin name is invalid
+ */
+static inline bool pd_is_pin_name_valid(pin_name_t pin_name)
+{
+	port_id_t port = pd_get_port(pin_name);
+	pin_id_t pin = pd_get_pin(pin_name);
+
+	switch (port) {
+	case PORT_A:
+	case PORT_B:
+	case PORT_C:
+	case PORT_D:
+	case PORT_E:
+	case PORT_F:
+	case PORT_G:
+		if (pin >= NUM_PINS_PORT_A_TO_G)
+			return false;
+		break;
+	case PORT_H:
+		if (pin >= NUM_PINS_PORT_H)
+			return false;
+		break;
+	default:
+		return false;
+	}
+	return true;
 }
 
 #endif

@@ -47,8 +47,8 @@ bit_value_t gpio_read(pin_name_t pin_name);
 /**
  * \brief Write a value to the GPIO pin.
  *
- * \param [in] pin_name Name of the pin to be written to
- * \param [in] bit Bit value that needs to be written to the GPIO
+ * \param[in] pin_name Name of the pin to be written to
+ * \param[in] bit Bit value that needs to be written to the GPIO
  *
  * \pre \ref gpio_init must be called on this pin before writing to it.
  */
