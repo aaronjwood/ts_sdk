@@ -205,7 +205,7 @@ typedef enum dir {
  * \brief Type that defines the output type and pull configuration of the pin.
  */
 typedef enum pull_mode {
-	OD_NO_PULLL,	/**< Open Drain output without any pull */
+	OD_NO_PULL,	/**< Open Drain output without any pull */
 	OD_PULL_UP,	/**< Open Drain output with a weak pull up */
 	OD_PULL_DOWN,	/**< Open Drain output with a weak pull down */
 	PP_NO_PULL,	/**< Push Pull output without any pull */
