@@ -34,8 +34,8 @@ process_app_args()
 		VALUE=$(echo $ARGUMENT | cut -f2 -d=)
 		if ! [ -z "$VALUE" ]; then
 			case "$KEY" in
-				app)		BUILD_APP_ARG="--build-arg APP=${VALUE}";;
-				protocol)	BUILD_APP_PROTO="--build-arg PROTO=${VALUE}" ;;
+				APP)	BUILD_APP_ARG="-e ${KEY}=${VALUE}";;
+				PROTO)	BUILD_APP_PROTO="-e ${KEY}=${VALUE}";;
 				*)
 			esac
 		fi
@@ -69,8 +69,7 @@ if [ -z "$2" ]; then
 else
 	check_for_dir "$2"
 	process_app_args "$3" "$4"
-	echo "$BUILD_APP_PROTO"
-	echo "$BUILD_APP_ARG"
+	echo "runtime env args $BUILD_APP_PROTO $BUILD_APP_ARG"
 fi
 
 APP_DIR_PATH=`dirname $2`
@@ -84,5 +83,5 @@ echo "Application to build: $APP_DIR"
 # Three steps build starts from here
 docker build -t stm32f429_buildenv -f $1 $PROJ_ROOT
 docker build -t ts_sdk -f $SDK_ROOT/Dockerfile $PROJ_ROOT
-docker build -t $APP_DIR $BUILD_APP_ARG $BUILD_APP_PROTO -f $2 $PROJ_ROOT
-docker run --rm -v $PROJ_ROOT/build:/build $APP_DIR
+docker build -t $APP_DIR -f $2 $PROJ_ROOT
+docker run --rm $BUILD_APP_PROTO $BUILD_APP_ARG -v $PROJ_ROOT/build:/build $APP_DIR

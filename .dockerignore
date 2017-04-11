@@ -1,7 +1,5 @@
 .git
 doxygen
 config_files
-tools/config
 tools/openocd-configs
-tools/scripts
 tools/installed

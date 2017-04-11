@@ -1,13 +1,12 @@
 # Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
-# Makefile for the device side application API test program.
-
 # PROJ_NAME selects which example to build. By default, the Makefile assumes
 # 'bmp180' as the project. This means that 'make' is equivalent to
 # 'make PROJ_NAME=bmp180'
 
 # Makefile for the device side application API test program.
 APP_ROOT = $(shell dirname $$PWD)
+BUILD_MK_PATH = $(shell dirname $(APP_ROOT))/tools/config
 #PROJ_ROOT = $(shell dirname $(APP_ROOT))
 #CHIPSET_BUILDENV = $(shell dirname $(PROJ_ROOT))/ts_sdk_bldenv
 
@@ -19,7 +18,7 @@ export CHIPSET_BUILDENV
 ifneq (build,$(notdir $(CURDIR)))
 # If not invoked in the build directory, change to that directory and
 # re-invoke the Makefile with SRCDIR set.
-include $(APP_ROOT)/build_in_subdir.mk
+include $(BUILD_MK_PATH)/build_in_subdir.mk
 else
 
 APP_ROOT = $(shell dirname $(SRCDIR))
@@ -51,7 +50,7 @@ USER_SRC += $(wildcard $(SRCDIR)/$(PROJ_NAME)/*_$(BUILD_TARGET).c)
 # Eg: DBG_LIB_SRC = stm32l0xx_hal_uart.c stm32l0xx_hal_uart_ex.c
 DBG_LIB_SRC =
 
-include $(APP_ROOT)/common_stm32f4.mk
+include $(PROJ_ROOT)/tools/config/common_stm32f4.mk
 
 # chipset device drivers, provided by common_xxxx.mk from above
 INC += $(CHIPSET_INC)

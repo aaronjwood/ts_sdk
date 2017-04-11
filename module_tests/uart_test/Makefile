@@ -1,10 +1,10 @@
 # Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
-# Makefile for the AT SMS driver test program.
+# Makefile for the uart driver for stm32f4 platform test program.
 
 APP_ROOT = $(shell dirname $$PWD)
-#PROJ_ROOT = $(shell dirname $(APP_ROOT))
-#CHIPSET_BUILDENV = $(shell dirname $(PROJ_ROOT))/ts_sdk_bldenv
+BUILD_MK_PATH = $(shell dirname $(APP_ROOT))/tools/config
+
 export PROJ_ROOT
 export APP_ROOT
 export CHIPSET_BUILDENV
@@ -12,7 +12,7 @@ export CHIPSET_BUILDENV
 ifneq (build,$(notdir $(CURDIR)))
 # If not invoked in the build directory, change to that directory and
 # re-invoke the Makefile with SRCDIR set.
-include $(APP_ROOT)/build_in_subdir.mk
+include $(BUILD_MK_PATH)/build_in_subdir.mk
 else
 
 APP_ROOT = $(shell dirname $(SRCDIR))
@@ -49,14 +49,7 @@ USER_SRC = $(wildcard $(SRCDIR)/*.c)
 # Eg: DBG_LIB_SRC = stm32l0xx_hal_uart.c stm32l0xx_hal_uart_ex.c
 DBG_LIB_SRC =
 
-# Selecting platform according to BUILD_TARGET
-ifeq ($(BUILD_TARGET),osx)
-include $(APP_ROOT)/common_osx.mk
-else ifeq ($(BUILD_TARGET),stm32f4)
-include $(APP_ROOT)/common_stm32f4.mk
-else
-$(error "Makefile must define the BUILD_TARGET variable")
-endif
+include $(PROJ_ROOT)/tools/config/common_stm32f4.mk
 
 # chipset device drivers, provided by common_xxxx.mk from above
 INC += $(CHIPSET_INC)

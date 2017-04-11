@@ -43,13 +43,7 @@ USER_SRC = $(wildcard $(SRCDIR)/*.c)
 DBG_LIB_SRC =
 
 # Selecting platform according to BUILD_TARGET
-ifeq ($(BUILD_TARGET),osx)
-include $(APP_ROOT)/common_osx.mk
-else ifeq ($(BUILD_TARGET),stm32f4)
 include $(PROJ_ROOT)/tools/config/common_stm32f4.mk
-else
-$(error "Makefile must define the BUILD_TARGET variable")
-endif
 
 # chipset device drivers, provided by common_xxxx.mk from above
 INC += $(CHIPSET_INC)
