@@ -283,20 +283,14 @@ typedef struct {
  * \param[in] pin_name Name of the pin
  * \return Port ID of the pin
  */
-static inline port_id_t pd_get_port(pin_name_t pin_name)
-{
-	return ((port_id_t)(pin_name >> 4));
-}
+port_id_t pd_get_port(pin_name_t pin_name);
 
 /**
  * \brief Retrieve the pin associated with the pin name
  * \param[in] pin_name Name of the pin
  * \return Pin ID associated with the pin name
  */
-static inline pin_id_t pd_get_pin(pin_name_t pin_name)
-{
-	return ((pin_id_t)(pin_name & 0x0F));
-}
+pin_id_t pd_get_pin(pin_name_t pin_name);
 
 /**
  * \brief Check if the pin name is valid for this target
@@ -304,30 +298,22 @@ static inline pin_id_t pd_get_pin(pin_name_t pin_name)
  * \retval true The pin name is valid
  * \retval false The pin name is invalid
  */
-static inline bool pd_is_pin_name_valid(pin_name_t pin_name)
-{
-	port_id_t port = pd_get_port(pin_name);
-	pin_id_t pin = pd_get_pin(pin_name);
+bool pd_is_pin_name_valid(pin_name_t pin_name);
 
-	switch (port) {
-	case PORT_A:
-	case PORT_B:
-	case PORT_C:
-	case PORT_D:
-	case PORT_E:
-	case PORT_F:
-	case PORT_G:
-		if (pin >= NUM_PINS_PORT_A_TO_G)
-			return false;
-		break;
-	case PORT_H:
-		if (pin >= NUM_PINS_PORT_H)
-			return false;
-		break;
-	default:
-		return false;
-	}
-	return true;
-}
+/**
+ * \brief Get the underlying driver's representation of the pin number.
+ *
+ * \param[in] pin_name Name of the pin
+ *
+ * \returns Representation of the pin compatible with the underlying driver.
+ */
+uint32_t pd_map_drv_pin(pin_name_t pin_name);
 
+/**
+ * \brief Get the underlying driver's representation of the port.
+ *
+ * \param[in] pin_name Name of the pin
+ * \returns Representation of the port compatible with the underlying driver.
+ */
+uint32_t pd_map_drv_port(pin_name_t pin_name);
 #endif

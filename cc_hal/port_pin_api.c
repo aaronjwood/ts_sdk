@@ -1,10 +1,7 @@
 #include <stdint.h>
 #include "port_pin_api.h"
 
-/*
- * XXX: Chipset specific implementation, i.e. One implementation for the STM32F4
- * series, one for STM32L0 etc.
- */
+/* Chipset specific implementation. Target: STM32F4xx */
 #include <stm32f4xx_hal.h>
 
 static port_size_t port_usage[NUM_PORTS];
@@ -36,7 +33,7 @@ bool pp_is_pin_used(pin_name_t pin_name)
 	return QUERY_USAGE(port, pin);
 }
 
-static inline void enable_gpio_port_clock(port_id_t port)
+static void enable_gpio_port_clock(port_id_t port)
 {
 	switch (port) {
 	case PORT_A:
@@ -79,9 +76,9 @@ static size_t can_pin_be_mapped(pin_name_t pin_name, const pin_t *mapping)
 	return NOT_FOUND;
 }
 
-static inline uint32_t get_hal_mode(const pin_t *map_elem)
+static uint32_t get_hal_af_mode(const gpio_config_t *settings)
 {
-	switch (map_elem->settings.pull_mode) {
+	switch (settings->pull_mode) {
 	case OD_NO_PULL:
 	case OD_PULL_UP:
 	case OD_PULL_DOWN:
@@ -95,9 +92,30 @@ static inline uint32_t get_hal_mode(const pin_t *map_elem)
 	}
 }
 
-static inline uint32_t get_hal_pull(const pin_t *map_elem)
+static uint32_t get_hal_mode(const gpio_config_t *settings)
 {
-	switch (map_elem->settings.pull_mode) {
+	if (settings->dir == INPUT)
+		return GPIO_MODE_INPUT;
+	else if (settings->dir == OUTPUT)
+		switch (settings->pull_mode) {
+		case OD_NO_PULL:
+		case OD_PULL_UP:
+		case OD_PULL_DOWN:
+			return GPIO_MODE_OUTPUT_OD;
+		case PP_NO_PULL:
+		case PP_PULL_UP:
+		case PP_PULL_DOWN:
+			return GPIO_MODE_OUTPUT_PP;
+		default:
+			return NOT_FOUND;
+		}
+	else
+		return NOT_FOUND;
+}
+
+static uint32_t get_hal_pull(const gpio_config_t *settings)
+{
+	switch (settings->pull_mode) {
 	case OD_NO_PULL:
 	case PP_NO_PULL:
 		return GPIO_NOPULL;
@@ -112,9 +130,9 @@ static inline uint32_t get_hal_pull(const pin_t *map_elem)
 	}
 }
 
-static inline uint32_t get_hal_speed(const pin_t *map_elem)
+static uint32_t get_hal_speed(const gpio_config_t *settings)
 {
-	switch (map_elem->settings.speed) {
+	switch (settings->speed) {
 	case SPEED_LOW:
 		return GPIO_SPEED_FREQ_LOW;
 	case SPEED_MEDIUM:
@@ -126,35 +144,6 @@ static inline uint32_t get_hal_speed(const pin_t *map_elem)
 	default:
 		return NOT_FOUND;
 	}
-}
-
-static inline GPIO_TypeDef *get_hal_port(port_id_t port)
-{
-	switch (port) {
-	case PORT_A:
-		return GPIOA;
-	case PORT_B:
-		return GPIOB;
-	case PORT_C:
-		return GPIOC;
-	case PORT_D:
-		return GPIOD;
-	case PORT_E:
-		return GPIOE;
-	case PORT_F:
-		return GPIOF;
-	case PORT_G:
-		return GPIOG;
-	case PORT_H:
-		return GPIOH;
-	default:
-		return NULL;
-	}
-}
-
-static inline uint16_t get_hal_pin(pin_id_t pin)
-{
-	return (uint16_t)(1 << pin);
 }
 
 bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_t *mapping)
@@ -174,13 +163,38 @@ bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_t *mapping)
 
 	/* Initialize pin for peripheral */
 	GPIO_InitTypeDef gpio_pin;
+	const gpio_config_t *settings = &mapping[idx].settings;
 	enable_gpio_port_clock(port);
-	gpio_pin.Pin = get_hal_pin(pin);
-	gpio_pin.Mode = get_hal_mode(&mapping[idx]);
-	gpio_pin.Pull = get_hal_pull(&mapping[idx]);
-	gpio_pin.Speed = get_hal_speed(&mapping[idx]);
+	gpio_pin.Pin = pd_map_drv_pin(pin);
+	gpio_pin.Mode = get_hal_af_mode(settings);
+	gpio_pin.Pull = get_hal_pull(settings);
+	gpio_pin.Speed = get_hal_speed(settings);
 	gpio_pin.Alternate = mapping[idx].alt_func;
-	HAL_GPIO_Init(get_hal_port(port), &gpio_pin);
+	HAL_GPIO_Init((GPIO_TypeDef *)pd_map_drv_port(port), &gpio_pin);
+
+	MARK_AS_USED(port, pin);
+	return true;
+}
+
+bool pp_gpio_pin_init(pin_name_t pin_name, const gpio_config_t *settings)
+{
+	if (!pd_is_pin_name_valid(pin_name))
+		return false;
+
+	if (pp_is_pin_used(pin_name))
+		return false;
+
+	port_id_t port = pd_get_port(pin_name);
+	pin_id_t pin = pd_get_pin(pin_name);
+
+	/* Initialize pin as GPIO */
+	GPIO_InitTypeDef gpio_pin;
+	enable_gpio_port_clock(port);
+	gpio_pin.Pin = pd_map_drv_pin(pin);
+	gpio_pin.Mode = get_hal_mode(settings);
+	gpio_pin.Pull = get_hal_pull(settings);
+	gpio_pin.Speed = get_hal_speed(settings);
+	HAL_GPIO_Init((GPIO_TypeDef *)pd_map_drv_port(port), &gpio_pin);
 
 	MARK_AS_USED(port, pin);
 	return true;
