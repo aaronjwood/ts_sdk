@@ -1,7 +1,7 @@
 #!/bin/sh
 # Copyright(C) 2017 Verizon. All rights reserved
-TOOLS_ROOT="$PWD/../../tools/docker/"
-PROJ_ROOT=$(dirname $(dirname $PWD))
+TOOLS_ROOT="$PWD/../tools/docker/"
+PROJ_ROOT=$(dirname $PWD)
 SCRIPT=`basename "$0"`
 if ! [ -f $SCRIPT ]; then
 	echo "Script must be run from app source directory"

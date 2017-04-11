@@ -1,6 +1,5 @@
 .git
 doxygen
-module_tests
 config_files
 tools/config
 tools/openocd-configs

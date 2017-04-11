@@ -6,7 +6,7 @@ export PROJ_ROOT
 ifneq (build,$(notdir $(CURDIR)))
 # If not invoked in the build directory, change to that directory and
 # re-invoke the Makefile with SRCDIR set.
-include $(PROJ_ROOT)/build_in_subdir.mk
+include $(PROJ_ROOT)/doxygen/build_in_subdir.mk
 else
 
 .PHONY: all clean
