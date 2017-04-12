@@ -81,6 +81,7 @@ echo "Tool root: $TOOLS_ROOT"
 echo "Application to build: $APP_DIR"
 
 # Three steps build starts from here
+docker volume rm $(docker volume ls -f "dangling=true" -q)
 docker build -t stm32f429_buildenv -f $1 $PROJ_ROOT
 docker build -t ts_sdk -f $SDK_ROOT/Dockerfile $PROJ_ROOT
 docker build -t $APP_DIR -f $2 $PROJ_ROOT
