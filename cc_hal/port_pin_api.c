@@ -168,7 +168,9 @@ static uint32_t get_hal_speed(const gpio_config_t *settings)
 } \
 while(0)
 
-bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_t *mapping)
+bool pp_peripheral_pin_init(pin_name_t pin_name,
+		const pin_t *mapping,
+		periph_t *peripheral)
 {
 	if (!pd_is_pin_name_valid(pin_name))
 		return false;
@@ -205,6 +207,7 @@ bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_t *mapping)
 	HAL_GPIO_Init((GPIO_TypeDef *)pd_map_drv_port(port), &gpio_pin);
 
 	MARK_AS_USED(port, pin);
+	*peripheral = mapping[idx].peripheral;
 	return true;
 }
 

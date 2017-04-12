@@ -34,33 +34,26 @@ bool gpio_init(pin_name_t pin_name, const gpio_config_t *config);
 
 /**
  * \brief Read the value of the GPIO pin.
- *
  * \param[in] pin_name Name of the pin to be read
- *
  * \retval PIN_HIGH The pin held at logical HIGH
  * \retval PIN_LOW The pin is held at logical LOW
- *
  * \pre \ref gpio_init must be called on this pin before reading from it.
  */
 bit_value_t gpio_read(pin_name_t pin_name);
 
 /**
  * \brief Write a value to the GPIO pin.
- *
  * \param[in] pin_name Name of the pin to be written to
  * \param[in] bit Bit value that needs to be written to the GPIO
- *
  * \pre \ref gpio_init must be called on this pin before writing to it.
  */
 void gpio_write(pin_name_t pin_name, bit_value_t bit);
 
 /**
  * \brief Turn on or turn off the power to the GPIO port.
- *
  * \param[in] port Name of the port
  * \param[in] state \arg Set to \b true to turn on the power
  *                  \arg Set to \b false to turn off the power
- *
  * \pre \ref gpio_init must be called on this pin before reading from it.
  */
 void gpio_pwr(port_id_t port, bool state);

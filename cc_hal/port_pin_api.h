@@ -37,6 +37,8 @@ bool pp_is_pin_used(pin_name_t pin_name);
  *
  * \param[in] pin_name Name of the pin
  * \param[in] mapping A pointer to the mapping data structure used by the peripheral
+ * \param[out] peripheral Pointer to the handle to the peripheral that the pin
+ *                        connects to
  *
  * \retval true The pin was successfully initialized to work with the peripheral
  * \retval false Failed to initialize the pin. Possible causes are:
@@ -44,7 +46,9 @@ bool pp_is_pin_used(pin_name_t pin_name);
  * 	        \arg Pin is not connected to the peripheral
  * 	        \arg Pin name is invalid
  */
-bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_t *mapping);
+bool pp_peripheral_pin_init(pin_name_t pin_name,
+		const pin_t *mapping,
+		periph_t *peripheral);
 
 /**
  * \brief Initialize the pin to function as a GPIO.

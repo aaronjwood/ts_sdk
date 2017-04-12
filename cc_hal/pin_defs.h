@@ -61,6 +61,11 @@ typedef uint8_t pin_id_t;
 typedef uint16_t port_size_t;
 
 /**
+ * \brief Type wide enough to hold a handle to a peripheral.
+ */
+typedef uint32_t periph_t;
+
+/**
  * \brief Type that represents the pin name.
  * \details Pins are named according to the following convention: \n
  * P\<port letter\>\<pin ID\>. \n
@@ -270,7 +275,7 @@ typedef struct {
 	pin_name_t pin_name;	/**< Associated pin name from the above list */
 	gpio_config_t settings;	/**< GPIO pin configuration to go with peripheral */
 	uint8_t alt_func;	/**< Alternate function ID for the pin */
-	uint32_t peripheral;	/**< Associated peripheral, if any */
+	periph_t peripheral;	/**< Associated peripheral, if any */
 } pin_t;
 
 /**
@@ -302,16 +307,13 @@ bool pd_is_pin_name_valid(pin_name_t pin_name);
 
 /**
  * \brief Get the underlying driver's representation of the pin number.
- *
  * \param[in] pin_name Name of the pin
- *
  * \returns Representation of the pin compatible with the underlying driver.
  */
 uint32_t pd_map_drv_pin(pin_name_t pin_name);
 
 /**
  * \brief Get the underlying driver's representation of the port.
- *
  * \param[in] pin_name Name of the pin
  * \returns Representation of the port compatible with the underlying driver.
  */

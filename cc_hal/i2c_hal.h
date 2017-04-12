@@ -11,9 +11,6 @@
 #include <stdint.h>
 #include "port_pin_api.h"
 
-typedef uint32_t i2c_t;		/**< Type wide enough to hold a handle to an I2C
-				  peripheral */
-
 /**
  * \brief Initialize the I2C peripheral and associated pins.
  * \details Initializes the pins \b scl and \b sda to function as the clock and
@@ -28,7 +25,7 @@ typedef uint32_t i2c_t;		/**< Type wide enough to hold a handle to an I2C
  * 	\arg At least one of the pins is already being used.
  * 	\arg Pins do not connect to the same I2C peripheral.
  */
-i2c_t i2c_init(pin_name_t scl, pin_name_t sda);
+periph_t i2c_init(pin_name_t scl, pin_name_t sda);
 
 /**
  * \brief Read bytes from the I2C peripheral.
@@ -44,7 +41,7 @@ i2c_t i2c_init(pin_name_t scl, pin_name_t sda);
  *
  * \pre \ref i2c_init must be called to retrieve a valid handle.
  */
-void i2c_read(i2c_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf);
+void i2c_read(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf);
 
 /**
  * \brief Write bytes to the I2C peripheral.
@@ -60,7 +57,7 @@ void i2c_read(i2c_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf);
  *
  * \pre \ref i2c_init must be called to retrieve a valid handle.
  */
-void i2c_write(i2c_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf);
+void i2c_write(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf);
 
 /**
  * \brief Turn on or turn off the power to the specific I2C peripheral.
@@ -71,5 +68,5 @@ void i2c_write(i2c_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf)
  *
  * \pre \ref i2c_init must be called to retrieve a valid handle.
  */
-void i2c_pwr(i2c_t hdl, bool state);
+void i2c_pwr(periph_t hdl, bool state);
 #endif
