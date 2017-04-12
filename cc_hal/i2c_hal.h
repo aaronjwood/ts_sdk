@@ -3,7 +3,8 @@
  * \brief Hardware abstraction layer for I2C peripherals
  * \details This header defines a platform independent API to access I2C
  * peripherals on the target. All transactions of the I2C bus are assumed to be
- * blocking and the unit of transaction is an 8-bit byte.
+ * blocking and the unit of transaction is an 8-bit byte. All slave addresses
+ * are assumed to be 7-bits wide.
  */
 #ifndef I2C_HAL_H
 #define I2C_HAL_H
@@ -39,9 +40,12 @@ periph_t i2c_init(pin_name_t scl, pin_name_t sda);
  * \param[in] len Length of the data read into the buffer.
  * \param[out] buf Pointer to the buffer that stores the data read in.
  *
+ * \retval true Data was successfully read from the I2C bus
+ * \retval false Failed to read data into the buffer
+ *
  * \pre \ref i2c_init must be called to retrieve a valid handle.
  */
-void i2c_read(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf);
+bool i2c_read(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf);
 
 /**
  * \brief Write bytes to the I2C peripheral.
@@ -55,9 +59,12 @@ void i2c_read(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *bu
  * \param[in] len Length of the data contained in the write buffer.
  * \param[in] buf Pointer to the buffer that stores the data to be written.
  *
+ * \retval true Data was successfully written to the I2C bus
+ * \retval false Failed to write data onto the bus
+ *
  * \pre \ref i2c_init must be called to retrieve a valid handle.
  */
-void i2c_write(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf);
+bool i2c_write(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf);
 
 /**
  * \brief Turn on or turn off the power to the specific I2C peripheral.

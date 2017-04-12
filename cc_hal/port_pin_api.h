@@ -10,8 +10,6 @@
 #include <stdbool.h>
 #include "pin_map.h"
 
-#define NOT_FOUND	((uint32_t)0xFFFFFFFF) /**< Stands for a value not found*/
-
 /**
  * \brief Mark the pin as used.
  * \details If the pin is already marked as used, this function does nothing.
@@ -31,14 +29,25 @@ void pp_mark_pin_used(pin_name_t pin_name);
 bool pp_is_pin_used(pin_name_t pin_name);
 
 /**
+ * \brief Find the peripheral the pin is connected to.
+ * \details Use this routine to verify if two different pins are connected to
+ * the same peripheral. If they are, they can be initialized to be interfaces
+ * of that peripheral.
+ *
+ * \param[in] pin_name Name of the pin
+ * \param[in] mapping A pointer to the mapping data structure used by the peripheral
+ *
+ * \returns A handle to the peripheral this pin is connected to.
+ */
+periph_t pp_get_peripheral(pin_name_t pin_name, const pin_t *mapping);
+
+/**
  * \brief Initialize the pin to function as an interface to a peripheral.
  * \details Pin settings are derived from a mapping data structure passed to
  * this function. On success, the pin is marked as used.
  *
  * \param[in] pin_name Name of the pin
  * \param[in] mapping A pointer to the mapping data structure used by the peripheral
- * \param[out] peripheral Pointer to the handle to the peripheral that the pin
- *                        connects to
  *
  * \retval true The pin was successfully initialized to work with the peripheral
  * \retval false Failed to initialize the pin. Possible causes are:
@@ -46,9 +55,7 @@ bool pp_is_pin_used(pin_name_t pin_name);
  * 	        \arg Pin is not connected to the peripheral
  * 	        \arg Pin name is invalid
  */
-bool pp_peripheral_pin_init(pin_name_t pin_name,
-		const pin_t *mapping,
-		periph_t *peripheral);
+bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_t *mapping);
 
 /**
  * \brief Initialize the pin to function as a GPIO.

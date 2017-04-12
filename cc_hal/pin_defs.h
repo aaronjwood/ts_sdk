@@ -195,7 +195,8 @@ typedef enum pin_name {
 	PH1 = PD_GET_NAME(PORT_H, 1),
 	PH2 = PD_GET_NAME(PORT_H, 2),
 
-	NC = 0xFFFFFFFF		/**< Used to denote a pin that's not connected */
+	NC = 0xFFFFFFFF		/**< Stands for the absence of a port /
+				  pin / peripheral */
 } pin_name_t;
 
 /**

@@ -73,7 +73,7 @@ static size_t can_pin_be_mapped(pin_name_t pin_name, const pin_t *mapping)
 			return idx;
 		idx++;
 	}
-	return NOT_FOUND;
+	return NC;
 }
 
 /*
@@ -92,7 +92,7 @@ static uint32_t get_hal_af_mode(const gpio_config_t *settings)
 	case PP_PULL_DOWN:
 		return GPIO_MODE_AF_PP;
 	default:
-		return NOT_FOUND;
+		return NC;
 	}
 }
 
@@ -115,10 +115,10 @@ static uint32_t get_hal_mode(const gpio_config_t *settings)
 		case PP_PULL_DOWN:
 			return GPIO_MODE_OUTPUT_PP;
 		default:
-			return NOT_FOUND;
+			return NC;
 		}
 	else
-		return NOT_FOUND;
+		return NC;
 }
 
 /*
@@ -138,7 +138,7 @@ static uint32_t get_hal_pull(const gpio_config_t *settings)
 	case PP_PULL_DOWN:
 		return GPIO_PULLDOWN;
 	default:
-		return NOT_FOUND;
+		return NC;
 	}
 }
 
@@ -158,19 +158,29 @@ static uint32_t get_hal_speed(const gpio_config_t *settings)
 	case SPEED_VERY_HIGH:
 		return GPIO_SPEED_FREQ_VERY_HIGH;
 	default:
-		return NOT_FOUND;
+		return NC;
 	}
 }
 
+periph_t pp_get_peripheral(pin_name_t pin_name, const pin_t *mapping)
+{
+	if (!pd_is_pin_name_valid(pin_name))
+		return NC;
+
+	size_t idx = can_pin_be_mapped(pin_name, mapping);
+	if (idx == NC)
+		return NC;
+
+	return mapping[idx].peripheral;
+}
+
 #define RET_ON_NOT_FOUND(val)	do { \
-	if ((val) == NOT_FOUND) \
+	if ((val) == NC) \
 	return false; \
 } \
 while(0)
 
-bool pp_peripheral_pin_init(pin_name_t pin_name,
-		const pin_t *mapping,
-		periph_t *peripheral)
+bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_t *mapping)
 {
 	if (!pd_is_pin_name_valid(pin_name))
 		return false;
@@ -207,7 +217,6 @@ bool pp_peripheral_pin_init(pin_name_t pin_name,
 	HAL_GPIO_Init((GPIO_TypeDef *)pd_map_drv_port(port), &gpio_pin);
 
 	MARK_AS_USED(port, pin);
-	*peripheral = mapping[idx].peripheral;
 	return true;
 }
 
