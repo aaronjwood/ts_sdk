@@ -58,7 +58,7 @@ check_for_dir()
 {
 	if [ -d $1 ]; then
 		echo "Specify dockerfile name along with the relative path to application directory"
-		exit 1
+		usage
 	fi
 }
 
