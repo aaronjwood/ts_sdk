@@ -16,7 +16,8 @@ usage()
 	cat << EOF
 Usage: $SCRIPT_NAME <relative path to CHIPSET_DOCKERFILE> <relative path to APP_DOCKERFILE> [Application options]
 Example Usage:
-tools/scripts/docker_build.sh ./tools/docker/Dockerfile.thingservice ./sample_apps/Dockerfile PROTO=SMSNAS_PROTOCOL APP=sensor_examples
+tools/scripts/docker_build.sh ./tools/docker/Dockerfile.thingservice ./sample_apps/Dockerfile \
+PROTO=SMSNAS_PROTOCOL APP=sensor_examples
 
 Description:
 	Script to build various apps from sample_apps and module_tests directories based on
@@ -26,15 +27,17 @@ Description:
 	has all the necessary sdk files at /ts_sdk. In a final step it creates application
 	docker image from the image created in second step which has application directory
 	at /ts_sdk/sample_apps or /ts_sdk/module_tests and other vendor dependent libraries
-	like mbedtls at /ts_sdk/vendor
+	like mbedtls at /ts_sdk/vendor. Script and eventually docker run command creates
+	volume build/<app>/ to house all the compiled objects and binary images
 
 CHIPSET_DOCKERFILE: relative path to chipset dockerfile, currently two dockerfiles are included in this SDK
 	as below:
-		1) ts_sdk/tools/docker/Dockerfile.dockerhub -> Fetches base ubuntu image with arm toolchain
-		from dockerhub (Use this file when internal server is not available) and
-		copies chipset sdk at /ts_sdk_bldenv/ in the docker image
-		2) ts_sdk/tools/docker/Dockerfile.thingservice -> Fetches base ubuntu image with arm toolchain
-		from internal docker registry and copies chipset sdk at /ts_sdk_bldenv/ in the docker image
+	1) ts_sdk/tools/docker/Dockerfile.dockerhub -> Fetches base ubuntu image with arm toolchain
+	from dockerhub (Use this file when internal server is not available) and
+	copies chipset sdk at /ts_sdk_bldenv/ in the docker image
+	2) ts_sdk/tools/docker/Dockerfile.thingservice -> Fetches base ubuntu image with arm toolchain
+	from internal docker registry and copies chipset sdk at /ts_sdk_bldenv/ in the docker image, file
+	can be used for any one having access to internal verizon registry
 
 APP_DOCKERFILE: relative path to application dockerfile
 	This should provide makefile to compile application by linking to /ts_sdk_bldenv

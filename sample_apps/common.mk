@@ -32,7 +32,7 @@ DBG_OP_USER_FLAGS = -g -ggdb3 -O0 $(LTOFLAG)
 DBG_OP_LIB_FLAGS = -Os $(LTOFLAG)
 
 # Name of the resulting firmware image file
-FW_EXEC = firmware_$(APP)_$(PROTO).elf
+FW_EXEC = firmware_$(PROTOCOL).elf
 LDFLAGS ?= -Wl,-Map,fw.map,--cref
 
 # Header files for per-platform standard "device drivers".

@@ -33,7 +33,7 @@ vpath %.c $(PROTOCOLS_SRC_ROOT)/$(PROTOCOL_DIR):
 
 # OTT requires the mbed TLS library
 ifeq ($(PROTOCOL),OTT_PROTOCOL)
-VENDOR_INC += -I $(PROJ_ROOT)/vendor/mbedtls/include
+VENDOR_INC += -I $(PROJ_ROOT)/sdk/cloud_comm/vendor/mbedtls/include
 VENDOR_LIB_DIRS += mbedtls
 VENDOR_LIB_FLAGS += -L. -lmbedtls -lmbedx509 -lmbedcrypto
 endif

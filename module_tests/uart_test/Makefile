@@ -1,6 +1,6 @@
 # Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
-# Makefile for the uart driver for stm32f4 platform test program.
+# Makefile for the uart driver test program.
 
 APP_ROOT = $(shell dirname $$PWD)
 BUILD_MK_PATH = $(shell dirname $(APP_ROOT))/tools/config
@@ -49,7 +49,7 @@ USER_SRC = $(wildcard $(SRCDIR)/*.c)
 # Eg: DBG_LIB_SRC = stm32l0xx_hal_uart.c stm32l0xx_hal_uart_ex.c
 DBG_LIB_SRC =
 
-include $(PROJ_ROOT)/tools/config/common_stm32f4.mk
+include $(CHIPSET_BUILDENV)/stm32f4/common_stm32f4.mk
 
 # chipset device drivers, provided by common_xxxx.mk from above
 INC += $(CHIPSET_INC)
@@ -59,6 +59,5 @@ include $(APP_ROOT)/common.mk
 
 # Defines the target rules
 include $(APP_ROOT)/rules.mk
-print-%: ; @echo $* = $($*)
 
 endif

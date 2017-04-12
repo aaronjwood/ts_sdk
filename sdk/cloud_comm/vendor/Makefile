@@ -2,7 +2,7 @@
 
 .PHONY: clean mbedtls
 
-VENDOR_ROOT=$(PROJ_ROOT)/vendor
+VENDOR_ROOT=$(PROJ_ROOT)/sdk/cloud_comm/vendor
 
 mbedtls:
 	@echo "[Building mbedtls libraries.}"

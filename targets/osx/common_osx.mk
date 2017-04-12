@@ -11,7 +11,7 @@ ARCHFLAGS = -DBUILD_TARGET_OSX
 LDFLAGS = -Wl,-map,fw.map
 
 # No platform support files beyond the standard device drivers.
-PLATFORM_SRC = 
+PLATFORM_SRC =
 PLATFORM_INC =
 
 # Use native networking on this platform

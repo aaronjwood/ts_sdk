@@ -28,7 +28,7 @@ override PROTOCOL = NO_PROTOCOL
 MODEM_PROTOCOL = tcp
 CLOUD_COMM_SRC =
 SERVICES_SRC =
-VENDOR_INC += -I $(PROJ_ROOT)/vendor/mbedtls/include
+VENDOR_INC += -I $(PROJ_ROOT)/sdk/cloud_comm/vendor/mbedtls/include
 VENDOR_LIB_DIRS += mbedtls
 VENDOR_LIB_FLAGS += -L. -lmbedtls -lmbedx509 -lmbedcrypto
 
@@ -52,9 +52,9 @@ DBG_LIB_SRC =
 
 # Selecting platform according to BUILD_TARGET
 ifeq ($(BUILD_TARGET),osx)
-include $(PROJ_ROOT)/tools/config/common_osx.mk
+include $(PROJ_ROOT)/targets/osx/common_osx.mk
 else ifeq ($(BUILD_TARGET),stm32f4)
-include $(PROJ_ROOT)/tools/config/common_stm32f4.mk
+include $(CHIPSET_BUILDENV)/stm32f4/common_stm32f4.mk
 else
 $(error "Makefile must define the BUILD_TARGET variable")
 endif
@@ -67,6 +67,5 @@ include $(APP_ROOT)/common.mk
 
 # Defines the target rules
 include $(APP_ROOT)/rules.mk
-print-%: ; @echo $* = $($*)
 
 endif

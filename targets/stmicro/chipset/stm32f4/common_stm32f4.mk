@@ -6,7 +6,7 @@
 # names of the core modules needed.
 # Paths to toolchain and HAL root
 
-TOOLS_ROOT = $(CHIPSET_BUILDENV)/stm32f429zi
+TOOLS_ROOT = $(CHIPSET_BUILDENV)/stm32f4
 GCC_ROOT = $(CHIPSET_BUILDENV)/toolchain/gcc-arm-none-eabi-5_4-2016q2
 STM32_LIB_COMMON = $(TOOLS_ROOT)
 

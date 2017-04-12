@@ -52,12 +52,12 @@ $(OBJ_USER): %.o: %.c
 
 vendor_libs:
 ifdef VENDOR_LIB_DIRS
-	$(MAKE) -C $(PROJ_ROOT)/vendor $(VENDOR_LIB_DIRS)
+	$(MAKE) -C $(PROJ_ROOT)/sdk/cloud_comm/vendor $(VENDOR_LIB_DIRS)
 endif
 
 clean:
 ifdef VENDOR_LIB_DIRS
-	@$(MAKE) -C $(PROJ_ROOT)/vendor clean
+	@$(MAKE) -C $(PROJ_ROOT)/sdk/cloud_comm/vendor clean
 endif
 	rm -rf $(SRCDIR)/build
 

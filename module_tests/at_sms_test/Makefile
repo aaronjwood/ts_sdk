@@ -5,8 +5,6 @@
 APP_ROOT = $(shell dirname $$PWD)
 BUILD_MK_PATH = $(shell dirname $(APP_ROOT))/tools/config
 
-#PROJ_ROOT = $(shell dirname $(APP_ROOT))
-#CHIPSET_BUILDENV = $(shell dirname $(PROJ_ROOT))/ts_sdk_bldenv
 export PROJ_ROOT
 export APP_ROOT
 export CHIPSET_BUILDENV
@@ -51,7 +49,7 @@ USER_SRC = $(wildcard $(SRCDIR)/*.c)
 DBG_LIB_SRC =
 
 # Selecting platform according to BUILD_TARGET
-include $(PROJ_ROOT)/tools/config/common_stm32f4.mk
+include $(CHIPSET_BUILDENV)/stm32f4/common_stm32f4.mk
 
 # chipset device drivers, provided by common_xxxx.mk from above
 INC += $(CHIPSET_INC)
@@ -61,6 +59,5 @@ include $(APP_ROOT)/common.mk
 
 # Defines the target rules
 include $(APP_ROOT)/rules.mk
-print-%: ; @echo $* = $($*)
 
 endif

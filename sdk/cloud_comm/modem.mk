@@ -29,7 +29,7 @@ endif
 # Provide the network abstraction module used by the TLS library.
 ifeq ($(MODEM_PROTOCOL),tcp)
 MODEM_SRC += net_mbedtls_at.c
-VENDOR_INC += -I $(PROJ_ROOT)/vendor/mbedtls/include
+VENDOR_INC += -I $(PROJ_ROOT)/sdk/cloud_comm/vendor/mbedtls/include
 endif
 
 ifeq ($(MODEM_PROTOCOL),sms)
