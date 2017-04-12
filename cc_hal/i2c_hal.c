@@ -4,17 +4,20 @@
 /* MCU specific implementation. Target: STM32F429 */
 
 static I2C_HandleTypeDef i2c_handle1, i2c_handle2;
+static bool i2c1_used, i2c2_used;
 #define I2C_TIMEOUT_MS	2000
 
 static bool init_i2c_peripheral(I2C_TypeDef *i2c)
 {
 	I2C_HandleTypeDef *i2c_handle;
-	if (i2c == I2C1) {
+	if (i2c == I2C1 && !i2c1_used) {
 		__HAL_RCC_I2C1_CLK_ENABLE();
 		i2c_handle = &i2c_handle1;
-	} else if (i2c == I2C2) {
+		i2c1_used = true;
+	} else if (i2c == I2C2 && !i2c2_used) {
 		__HAL_RCC_I2C2_CLK_ENABLE();
 		i2c_handle = &i2c_handle2;
+		i2c2_used = true;
 	} else {
 		return false;
 	}

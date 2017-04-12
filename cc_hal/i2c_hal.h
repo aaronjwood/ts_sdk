@@ -22,7 +22,7 @@
  * \param[in] sda I2C peripheral's data pin
  *
  * \returns Handle to I2C peripheral. If \b scl and \b sda cannot be configured,
- * \b NULL is returned. Possible causes can be:
+ * \b NC is returned. Possible causes can be:
  * 	\arg At least one of the pins is already being used.
  * 	\arg Pins do not connect to the same I2C peripheral.
  */
@@ -31,7 +31,7 @@ periph_t i2c_init(pin_name_t scl, pin_name_t sda);
 /**
  * \brief Read bytes from the I2C peripheral.
  * \details This routine performs a blocking read on the I2C peripheral
- * referenced by the handle. It can read a maximum of 256 bytes of data from the
+ * referenced by the handle. It can read a maximum of 255 bytes of data from the
  * slave on the I2C bus. Each byte on this bus is 8-bits wide.
  *
  * \param[in] hdl Handle of the I2C peripheral to be read.
@@ -50,7 +50,7 @@ bool i2c_read(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *bu
 /**
  * \brief Write bytes to the I2C peripheral.
  * \details This routine performs a blocking write on the I2C peripheral
- * referenced by the handle. It can write a maximum of 256 bytes of data to the
+ * referenced by the handle. It can write a maximum of 255 bytes of data to the
  * slave on the I2C bus. Each byte on this bus is 8-bits wide.
  *
  * \param[in] hdl Handle of the I2C peripheral to be written to.
@@ -67,11 +67,11 @@ bool i2c_read(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *bu
 bool i2c_write(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf);
 
 /**
- * \brief Turn on or turn off the power to the specific I2C peripheral.
+ * \brief Turn on or turn off the power to the I2C peripheral.
  *
  * \param[in] hdl Handle of the I2C peripheral.
  * \param[in] state \arg Set to \b true to turn on the power
- *                  \arg Set to \b false to turn of the power
+ *                  \arg Set to \b false to turn off the power
  *
  * \pre \ref i2c_init must be called to retrieve a valid handle.
  */
