@@ -1,6 +1,8 @@
 #include "gpio_hal.h"
 #include <stm32f4xx_hal.h>
 
+/* Chipset specific implementation. Target: STM32F4xx */
+
 bool gpio_init(pin_name_t pin_name, const gpio_config_t *config)
 {
 	return pp_gpio_pin_init(pin_name, config);

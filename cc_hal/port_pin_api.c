@@ -9,8 +9,6 @@ static port_size_t port_usage[NUM_PORTS];
 #define MARK_AS_USED(port, pin)		(port_usage[(port)] |= (1 << (pin)))
 #define QUERY_USAGE(port, pin)		((port_usage[(port)] | (1 << (pin))) == (1 << (pin)))
 
-#define NOT_FOUND			((uint32_t)0xFFFFFFFF)
-
 void pp_mark_pin_used(pin_name_t pin_name)
 {
 	if (!pd_is_pin_name_valid(pin_name))
@@ -33,6 +31,7 @@ bool pp_is_pin_used(pin_name_t pin_name)
 	return QUERY_USAGE(port, pin);
 }
 
+/* Enable the clock for the port */
 static void enable_gpio_port_clock(port_id_t port)
 {
 	switch (port) {
@@ -65,6 +64,7 @@ static void enable_gpio_port_clock(port_id_t port)
 	}
 }
 
+/* Ensure that the pin can be mapped to the peripheral */
 static size_t can_pin_be_mapped(pin_name_t pin_name, const pin_t *mapping)
 {
 	size_t idx = 0;
@@ -76,6 +76,10 @@ static size_t can_pin_be_mapped(pin_name_t pin_name, const pin_t *mapping)
 	return NOT_FOUND;
 }
 
+/*
+ * Map the mode settings of a pin attached to a peripheral to the underlying
+ * representation used by the driver.
+ */
 static uint32_t get_hal_af_mode(const gpio_config_t *settings)
 {
 	switch (settings->pull_mode) {
@@ -92,6 +96,10 @@ static uint32_t get_hal_af_mode(const gpio_config_t *settings)
 	}
 }
 
+/*
+ * Map the mode settings of a GPIO to the underlying representation used by
+ * the driver.
+ */
 static uint32_t get_hal_mode(const gpio_config_t *settings)
 {
 	if (settings->dir == INPUT)
@@ -113,6 +121,10 @@ static uint32_t get_hal_mode(const gpio_config_t *settings)
 		return NOT_FOUND;
 }
 
+/*
+ * Map the pull settings of a GPIO to the underlying representation used by
+ * the driver.
+ */
 static uint32_t get_hal_pull(const gpio_config_t *settings)
 {
 	switch (settings->pull_mode) {
@@ -130,6 +142,10 @@ static uint32_t get_hal_pull(const gpio_config_t *settings)
 	}
 }
 
+/*
+ * Map the speed settings of the pin to the underlying representation used by
+ * the driver.
+ */
 static uint32_t get_hal_speed(const gpio_config_t *settings)
 {
 	switch (settings->speed) {
@@ -146,6 +162,12 @@ static uint32_t get_hal_speed(const gpio_config_t *settings)
 	}
 }
 
+#define RET_ON_NOT_FOUND(val)	do { \
+	if ((val) == NOT_FOUND) \
+	return false; \
+} \
+while(0)
+
 bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_t *mapping)
 {
 	if (!pd_is_pin_name_valid(pin_name))
@@ -155,8 +177,7 @@ bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_t *mapping)
 		return false;
 
 	size_t idx = can_pin_be_mapped(pin_name, mapping);
-	if (idx == NOT_FOUND)
-		return false;
+	RET_ON_NOT_FOUND(idx);
 
 	port_id_t port = pd_get_port(pin_name);
 	pin_id_t pin = pd_get_pin(pin_name);
@@ -166,10 +187,21 @@ bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_t *mapping)
 	const gpio_config_t *settings = &mapping[idx].settings;
 	enable_gpio_port_clock(port);
 	gpio_pin.Pin = pd_map_drv_pin(pin);
-	gpio_pin.Mode = get_hal_af_mode(settings);
-	gpio_pin.Pull = get_hal_pull(settings);
-	gpio_pin.Speed = get_hal_speed(settings);
+
+	uint32_t value = get_hal_af_mode(settings);
+	RET_ON_NOT_FOUND(value);
+	gpio_pin.Mode = value;
+
+	value = get_hal_pull(settings);
+	RET_ON_NOT_FOUND(value);
+	gpio_pin.Pull = value;
+
+	value = get_hal_speed(settings);
+	RET_ON_NOT_FOUND(value);
+	gpio_pin.Speed = value;
+
 	gpio_pin.Alternate = mapping[idx].alt_func;
+
 	HAL_GPIO_Init((GPIO_TypeDef *)pd_map_drv_port(port), &gpio_pin);
 
 	MARK_AS_USED(port, pin);
@@ -191,9 +223,19 @@ bool pp_gpio_pin_init(pin_name_t pin_name, const gpio_config_t *settings)
 	GPIO_InitTypeDef gpio_pin;
 	enable_gpio_port_clock(port);
 	gpio_pin.Pin = pd_map_drv_pin(pin);
-	gpio_pin.Mode = get_hal_mode(settings);
-	gpio_pin.Pull = get_hal_pull(settings);
-	gpio_pin.Speed = get_hal_speed(settings);
+
+	uint32_t value = get_hal_mode(settings);
+	RET_ON_NOT_FOUND(value);
+	gpio_pin.Mode = value;
+
+	value = get_hal_pull(settings);
+	RET_ON_NOT_FOUND(value);
+	gpio_pin.Pull = value;
+
+	value = get_hal_speed(settings);
+	RET_ON_NOT_FOUND(value);
+	gpio_pin.Speed = value;
+
 	HAL_GPIO_Init((GPIO_TypeDef *)pd_map_drv_port(port), &gpio_pin);
 
 	MARK_AS_USED(port, pin);

@@ -10,6 +10,8 @@
 #include <stdbool.h>
 #include "pin_map.h"
 
+#define NOT_FOUND	((uint32_t)0xFFFFFFFF) /**< Stands for a value not found*/
+
 /**
  * \brief Mark the pin as used.
  * \details If the pin is already marked as used, this function does nothing.

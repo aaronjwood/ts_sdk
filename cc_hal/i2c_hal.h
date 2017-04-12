@@ -11,7 +11,8 @@
 #include <stdint.h>
 #include "port_pin_api.h"
 
-typedef uint32_t i2c_t;
+typedef uint32_t i2c_t;		/**< Type wide enough to hold a handle to an I2C
+				  peripheral */
 
 /**
  * \brief Initialize the I2C peripheral and associated pins.
