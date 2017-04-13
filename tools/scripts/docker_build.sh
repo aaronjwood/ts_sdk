@@ -85,7 +85,6 @@ process_app_args()
 
 cleanup_docker_images()
 {
-	docker rmi -f `docker images -f "dangling=true" -q`
 	if [ -z "$1" ]; then
 		echo "Cleaning images: $APP_DIR, $TS_SDK_IMAGE_NAME, $CHIPSET_IMAGE_NAME"
 		docker rmi -f $APP_DIR
