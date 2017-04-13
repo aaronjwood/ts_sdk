@@ -1,3 +1,5 @@
+/* Copyright(C) 2017 Verizon. All rights reserved. */
+
 #include <stdint.h>
 #include "port_pin_api.h"
 

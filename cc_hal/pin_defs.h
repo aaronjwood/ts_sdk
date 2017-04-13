@@ -1,5 +1,6 @@
 /**
  * \file pin_defs.h
+ * \copyright Copyright (c) 2017 Verizon. All rights reserved.
  * \brief Defines pins and ports supported by the chipset.
  * \details Variant : \b STM32F4xx \n \n
  * \b Porting \b Guide: \n
@@ -263,7 +264,7 @@ typedef struct {
 				  Accepts \ref pull_mode_t. */
 	uint8_t speed : 2;	/**< Maximum Speed of the pin.
 				  Accepts \ref speed_t. */
-} gpio_config_t;
+} __attribute__((packed)) gpio_config_t;
 
 /**
  * \brief Structure that stores a single pin configuration.

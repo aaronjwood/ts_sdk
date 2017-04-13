@@ -1,5 +1,6 @@
 /**
  * \file gpio_hal.h
+ * \copyright Copyright (c) 2017 Verizon. All rights reserved.
  * \brief Hardware abstraction layer for GPIO pins
  * \details This header defines a platform independent API to read and write
  * GPIO pins. It also offers a utility routine to control the power to the GPIO

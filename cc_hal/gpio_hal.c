@@ -1,3 +1,5 @@
+/* Copyright(C) 2017 Verizon. All rights reserved. */
+
 #include "gpio_hal.h"
 #include <stm32f4xx_hal.h>
 

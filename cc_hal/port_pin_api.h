@@ -1,5 +1,6 @@
 /**
  * \file port_pin_api.h
+ * \copyright Copyright (c) 2017 Verizon. All rights reserved.
  * \brief Abstraction over the ports and pins of the MCU.
  * \details This API allows to record & query the usage of pins on the MCU and
  * initialize the pins of a peripheral.

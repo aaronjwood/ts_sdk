@@ -1,5 +1,6 @@
 /**
  * \file i2c_hal.h
+ * \copyright Copyright (c) 2017 Verizon. All rights reserved.
  * \brief Hardware abstraction layer for I2C peripherals
  * \details This header defines a platform independent API to access I2C
  * peripherals on the target. All transactions of the I2C bus are assumed to be

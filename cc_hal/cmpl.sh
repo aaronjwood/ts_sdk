@@ -15,5 +15,7 @@ arm-none-eabi-gcc --std=c99 -Wall -Wcast-align -Werror --specs=nosys.specs \
 	$DRV_SRC_ROOT/stm32f4xx_hal_i2c.c \
 	$DRV_SRC_ROOT/stm32f4xx_hal_dma.c \
 	$DRV_SRC_ROOT/stm32f4xx_hal_rcc.c \
+	$DRV_SRC_ROOT/stm32f4xx_hal_tim.c \
+	$DRV_SRC_ROOT/stm32f4xx_hal_tim_ex.c \
 	$DRV_ROOT/CMSIS/Device/ST/STM32F4xx/Source/Templates/system_stm32f4xx.c
 #gcc --std=c99 -Wall -Wcast-align -Werror main.c

@@ -1,5 +1,6 @@
 /**
  * \file pin_map.h
+ * \copyright Copyright (c) 2017 Verizon. All rights reserved.
  * \brief Define tables that map pins to peripherals
  * \details These structures contain all possible pin mappings for a given MCU &
  * board combination. Each entry is of type \ref pin_t and has all the information
