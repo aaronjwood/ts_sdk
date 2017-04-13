@@ -66,12 +66,24 @@ static void tim2_stop(void)
 	HAL_TIM_Base_Stop_IT(&tim2);
 }
 
+void TIM2_IRQHandler(void)
+{
+	HAL_TIM_IRQHandler(&tim2);
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if (!cb)
+		cb();
+}
+
 static const timer_interface_t tim2_interface = {
 	.init_period = tim2_init_period,
 	.reg_callback = tim2_reg_callback,
 	.is_running = tim2_is_running,
 	.start = tim2_start,
-	.stop = tim2_stop
+	.stop = tim2_stop,
+	.irq_handler = NULL
 };
 
 const timer_interface_t *timer_tim2_get_interface(void)

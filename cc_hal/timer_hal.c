@@ -35,3 +35,9 @@ void timer_stop(const timer_interface_t * const inst_interface)
 	CHECK_VALID_INTERFACE(inst_interface, );
 	inst_interface->stop();
 }
+
+void timer_irq_handler(const timer_interface_t * const inst_interface)
+{
+	CHECK_VALID_INTERFACE(inst_interface, );
+	inst_interface->irq_handler();
+}

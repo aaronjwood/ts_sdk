@@ -10,7 +10,7 @@
 #define TIMER_HAL_H
 
 #include <stdint.h>
-#include "port_pin_api.h"
+#include <stdbool.h>
 
 /**
  * \brief A user defined callback that is invoked whenever the programmed period
@@ -22,11 +22,14 @@ typedef void (*timercallback_t)(void);
  * \brief Interface to the timer peripheral.
  */
 typedef struct {
-	bool (*init_period)(uint32_t period);	/**< Initialize the period */
+	bool (*init_period)(uint32_t period);		/**< Initialize the period */
 	void (*reg_callback)(timercallback_t cb);	/**< Register a callback */
-	bool (*is_running)(void);	/**< Check if the timer is currently running */
-	void (*start)(void);	/**< Start the timer */
-	void (*stop)(void);	/**< Stop the timer */
+	bool (*is_running)(void);			/**< Check if the timer
+							  is currently running */
+	void (*start)(void);				/**< Start the timer */
+	void (*stop)(void);				/**< Stop the timer */
+	void (*irq_handler)(void);			/**< IRQ handler of this
+							  instance */
 } timer_interface_t;
 
 /**
@@ -71,5 +74,16 @@ void timer_start(const timer_interface_t * const inst_interface);
  * \pre \ref timer_init must be called before using this routine.
  */
 void timer_stop(const timer_interface_t * const inst_interface);
+
+/**
+ * \brief Call the IRQ handler of the timer peripheral instance.
+ * \details In most cases each peripheral has its own interrupt vector. For
+ * this scenario, the handler is invoked from within the driver. However sometimes
+ * two peripherals may share the interrupt vector. In such cases, this function
+ * can be used to explicitly call the IRQ handler from outside the driver.
+ *
+ * \param[in] inst_interface Pointer to the interface of the timer instance.
+ */
+void timer_irq_handler(const timer_interface_t * const inst_interface);
 
 #endif
