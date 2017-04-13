@@ -85,8 +85,6 @@ process_app_args()
 
 cleanup_docker_images()
 {
-	echo "List of dangling volumes in repo: `docker volume ls -f "dangling=true" -q`"
-	#echo "List of dangling images in repo: `docker images -f "dangling=true" -q`"
 	if [ -z "$1" ]; then
 		echo "Cleaning images: $APP_DIR, $TS_SDK_IMAGE_NAME, $CHIPSET_IMAGE_NAME"
 		docker rmi -f $APP_DIR
