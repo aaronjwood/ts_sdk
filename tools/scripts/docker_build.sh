@@ -1,15 +1,17 @@
 #!/bin/sh
 # Copyright(C) 2017 Verizon. All rights reserved
 PROJ_ROOT="$PWD"
-TOOLS_ROOT="$PROJ_ROOT/tools/docker/"
 SDK_ROOT="$PROJ_ROOT/sdk/cloud_comm/"
-
+BUILD_DIR="$PROJ_ROOT/build"
 BUILD_APP_ARG=""
 BUILD_APP_PROTO=""
 
 SCRIPT_NAME=`basename "$0"`
 SCRIPT="tools/scripts/$SCRIPT_NAME"
 BASE_DOCKERFILE=""
+
+CHIPSET_IMAGE_NAME="stm32f429_buildenv"
+TS_SDK_IMAGE_NAME="ts_sdk"
 
 usage()
 {
@@ -81,13 +83,35 @@ process_app_args()
 	done
 }
 
+cleanup_docker_images()
+{
+	docker rmi -f `docker images -f "dangling=true" -q`
+	if [ -z "$1" ]; then
+		echo "Cleaning images: $APP_DIR, $TS_SDK_IMAGE_NAME, $CHIPSET_IMAGE_NAME"
+		docker rmi -f $APP_DIR
+		docker rmi -f $TS_SDK_IMAGE_NAME
+		docker rmi -f $CHIPSET_IMAGE_NAME
+	else
+		echo "Cleaning image: $1"
+		docker rmi -f $1
+	fi
+}
+
+cleanup_prev_docker_builds()
+{
+	if [ -d $BUILD_DIR ]; then
+		echo "Performing clean ups before docker build"
+		rm -rf $BUILD_DIR
+	fi
+}
+
 if ! [ -f $SCRIPT ]; then
 	echo "Script must be run from the root of the repository"
 	usage
 fi
 
 if [ "$#" -eq "0" ]; then
-	echo "Specify required arguments"
+	echo "Insufficient arguments"
 	usage
 fi
 
@@ -112,11 +136,13 @@ APP_DIR=`basename $APP_DIR_PATH`
 
 echo "Project root: $PROJ_ROOT"
 echo "SDK root: $SDK_ROOT"
-echo "Tool root: $TOOLS_ROOT"
 echo "Application to build: $APP_DIR"
 
+cleanup_prev_docker_builds
+
 # Three steps build starts from here
-docker build -t stm32f429_buildenv -f $1 $PROJ_ROOT
-docker build -t ts_sdk -f $SDK_ROOT/Dockerfile $PROJ_ROOT
+docker build -t $CHIPSET_IMAGE_NAME -f $1 $PROJ_ROOT
+docker build -t $TS_SDK_IMAGE_NAME -f $SDK_ROOT/Dockerfile $PROJ_ROOT
 docker build -t $APP_DIR -f $2 $PROJ_ROOT
 docker run --rm $BUILD_APP_PROTO $BUILD_APP_ARG -v $PROJ_ROOT/build:/build $APP_DIR
+cleanup_docker_images

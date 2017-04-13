@@ -11,7 +11,11 @@ INC += -I $(PLATFORM_HAL_ROOT)/inc/hwrng
 # different compiler options.
 
 PLATFORM_HAL_SRC = dbg_$(BUILD_TARGET).c uart_$(BUILD_TARGET).c
-PLATFORM_HAL_SRC += hwrng_$(BUILD_TARGET).c platform_$(BUILD_TARGET).c
+PLATFORM_HAL_SRC += platform_$(BUILD_TARGET).c
+
+ifneq ($(PROTOCOL),SMSNAS_PROTOCOL)
+PLATFORM_HAL_SRC += hwrng_$(BUILD_TARGET).c
+endif
 
 CFLAGS_PLATFORM_HAL =
 export CFLAGS_PLATFORM_HAL
