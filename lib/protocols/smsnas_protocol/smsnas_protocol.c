@@ -529,6 +529,9 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 			invoke_send_callback(buf, sz, service_id, cb, ret);
 			RETURN_ERROR("Concatenated send failed", PROTO_ERROR);
 		}
+		/* Adjust user pointer buffer here for first segment to account
+		 * for the protocol overhead size
+		 */
 		if (cur_seq_num == 1)
 			total_sent += (send_sz - PROTO_OVERHEAD_SZ);
 		else
