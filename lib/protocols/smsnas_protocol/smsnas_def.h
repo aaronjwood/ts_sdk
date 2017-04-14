@@ -59,7 +59,7 @@
 #endif
 
 /* Defines to enable printf to track function entry points */
-#define DEBUG_FUNCTION
+/*#define DEBUG_FUNCTION*/
 #ifdef DEBUG_FUNCTION
 #define PRINTF_FUNC(...)	printf(__VA_ARGS__)
 #else

@@ -1,9 +1,11 @@
 /* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
 /*
- * Minimal OTT application program. It sends back NUM_STATUS messages to the
+ * Minimal test application program. It sends back NUM_STATUS messages to the
  * cloud. If an update message is received, it is made the new status message.
- * Each status message can be at most 10 bytes large.
+ * Each status message is at most 10 bytes large for SMSNAS_PROTCOL and
+ * OTT_PROTOCOL,  max STAT_SZ_BYTES size when CONCAT_SMS and SMSNAS_PROTOCOL are
+ * selected
  */
 #include <string.h>
 
@@ -17,28 +19,35 @@
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
 CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 
-#define CONCAT_SMS
+/* Enable this macro to test concatnated sms send */
+/*#define CONCAT_SMS*/
 
 #if defined (OTT_PROTOCOL)
 #define REMOTE_HOST	"iwk.ott.thingspace.verizon.com:443"
-static uint8_t status[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+#define STAT_SZ_BYTES	10
 #elif defined (SMSNAS_PROTOCOL)
 #define REMOTE_HOST	"+12345678912"
 #if defined (CONCAT_SMS)
-static uint8_t status[500];
+/* Approximate large size to send concatnated size */
+#define STAT_SZ_BYTES	500
+#define FIRST_SEG_SZ	130
+#define SEC_SEG_SZ	134
+#define THIRD_SEG_SZ	134
+#define FOURTH_SEG_SZ	(STAT_SZ_BYTES - (FIRST_SEG_SZ + SEC_SEG_SZ + THIRD_SEG_SZ))
 #else
-static uint8_t status[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+#define STAT_SZ_BYTES	10
 #endif
 #else
 #error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
 #endif
 
+static uint8_t status[STAT_SZ_BYTES];
 static cc_data_sz send_data_sz = sizeof(status);
 
 #define NUM_STATUSES	((uint8_t)1)
 
 /* Arbitrary long sleep time in milliseconds */
-#define LONG_SLEEP_INT_MS	30000
+#define LONG_SLEEP_INT_MS	180000
 
 /* status report interval in milliseconds */
 #define STATUS_REPORT_INT_MS	15000
@@ -51,13 +60,10 @@ static void receive_completed(cc_buffer_desc *buf)
 	const uint8_t *recvd = cc_get_recv_buffer_ptr(buf, CC_SERVICE_BASIC);
 
 	dbg_printf("\t\t\t");
-#if 0
 	dbg_printf("Received Update Message: \n");
 	for (cc_data_sz i = 0; i < sz; i++)
 		dbg_printf("\t\t\t\t[Byte %u]: 0x%x, ", i, recvd[i]);
 	dbg_printf("\n");
-#endif
-
 	/*
 	 * For this example, replace the status message with
 	 * the newly received update message.
@@ -117,10 +123,13 @@ static void set_send_buffer(bool init)
 {
 	if (init) {
 #if defined (CONCAT_SMS) && defined (SMSNAS_PROTOCOL)
-		memset(status, 1, 130);
-		memset(status + 130, 2, 134);
-		memset(status + 130 + 134, 3, 134);
-		memset(status + 130 + 134 + 134, 4, 102);
+		memset(status, 1, FIRST_SEG_SZ);
+		memset(status + 130, 2, SEC_SEG_SZ);
+		memset(status + 130 + 134, 3, THIRD_SEG_SZ);
+		memset(status + 130 + 134 + 134, 4, FOURTH_SEG_SZ);
+#else
+		for (uint16_t i = 0; i < STAT_SZ_BYTES; i++)
+			status[i] = i;
 #endif
 	}
 	uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer,
@@ -172,7 +181,7 @@ int main(int argc, char *argv[])
 	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
 	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
 	uint32_t next_report_interval = 0;	/* Interval in ms */
-	//uint32_t slept_till = 0;
+	uint32_t slept_till = 0;
 	last_st_ts = 0;
 	dbg_printf("Setting initial value of status message\n");
 	set_send_buffer(true);
@@ -189,33 +198,33 @@ int main(int argc, char *argv[])
 	dbg_printf("Sending \"restarted\" message\n");
 	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
 	while (1) {
-		//printf("Current time stamp: %"PRIu32"\n",
-		//	(uint32_t)platform_get_tick_ms() / 1000);
+		printf("Current time stamp: %"PRIu32"\n",
+			(uint32_t)platform_get_tick_ms() / 1000);
 		next_report_interval = send_status_msgs(platform_get_tick_ms());
 		next_wakeup_interval = cc_service_send_receive(
 						platform_get_tick_ms());
 		if (next_wakeup_interval == 0) {
 			wake_up_interval = LONG_SLEEP_INT_MS;
-			//dbg_printf("Protocol does not required to be called"
-			//	",sleeping for %"PRIu32" sec.\n",
-			//	wake_up_interval / 1000);
+			dbg_printf("Protocol does not required to be called"
+				",sleeping for %"PRIu32" sec.\n",
+				wake_up_interval / 1000);
 		} else {
-			//dbg_printf("Protocol requests wakeup in %"
-			//	   PRIu32" sec.\n", next_wakeup_interval / 1000);
+			dbg_printf("Protocol requests wakeup in %"
+				   PRIu32" sec.\n", next_wakeup_interval / 1000);
 			wake_up_interval = next_wakeup_interval;
 		}
 
 		if (wake_up_interval > next_report_interval) {
 			wake_up_interval = next_report_interval;
-			//dbg_printf("Reporting required in %"
-			//	   PRIu32" sec.\n", wake_up_interval / 1000);
+			dbg_printf("Reporting required in %"
+				   PRIu32" sec.\n", wake_up_interval / 1000);
 		}
 
-		//dbg_printf("Powering down for %"PRIu32" seconds\n\n",
-		//		wake_up_interval / 1000);
-		//slept_till = platform_sleep_ms(wake_up_interval);
-		//slept_till = wake_up_interval - slept_till;
-		//dbg_printf("Slept for %"PRIu32" seconds\n\n", slept_till / 1000);
+		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
+				wake_up_interval / 1000);
+		slept_till = platform_sleep_ms(wake_up_interval);
+		slept_till = wake_up_interval - slept_till;
+		dbg_printf("Slept for %"PRIu32" seconds\n\n", slept_till / 1000);
 	}
 	return 0;
 }

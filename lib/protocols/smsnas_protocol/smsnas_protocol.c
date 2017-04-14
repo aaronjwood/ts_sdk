@@ -45,9 +45,8 @@ static void reset_rcv_path(uint8_t rcv_path)
 proto_result smsnas_protocol_init(void)
 {
 	uint8_t i = 0;
-	if (!at_init()) {
+	if (!at_init())
 		RETURN_ERROR("modem init failed", PROTO_ERROR);
-	}
 	/* This will not be set until arrival of the first segement of the
 	 * concatenated sms
 	 */
@@ -218,7 +217,6 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 	}
 
 	if (msg_ptr->num_seg > 1) {
-		IN_FUNCTION_AT();
 		bool new = false;
 		rcv_path = retrieve_rcv_path(msg_ptr, &new, &s_id);
 		/* only possible when allocating new receive path */
@@ -229,7 +227,6 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 		}
 		smsnas_rcv_path *rp = &session.rcv_msg[rcv_path];
 		rcvd = rp->wr_idx + msg_ptr->len;
-		IN_FUNCTION_AT();
 		/* two step memory overflow check, one for intermediate buffer
 		 * and other for user supplied buffer
 		 */
@@ -237,7 +234,6 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 			/* let upper level nack this sms first and then
 			 * reschedule receive buffer
 			 */
-			IN_FUNCTION_AT();
 			session.rcv_valid = false;
 			goto done;
 		} else if (rcvd > rp->rcv_sz) {
@@ -250,17 +246,14 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 			goto error;
 		}
 		if (new) {
-			IN_FUNCTION_AT();
 			rp->service_id = s_id;
 			rp->cref_num = msg_ptr->ref_no;
 			memcpy(rp->buf, msg_ptr->buf, msg_ptr->len);
 			rp->conct_in_progress = true;
 		} else {
-			IN_FUNCTION_AT();
 			if (!check_validity(msg_ptr, rcv_path, false))
 				goto error;
 			memcpy(rp->buf + rp->wr_idx, msg_ptr->buf, msg_ptr->len);
-			IN_FUNCTION_AT();
 			/* check for last segment */
 			if (msg_ptr->seq_no == msg_ptr->num_seg) {
 				session.rcv_valid = false;
@@ -291,7 +284,6 @@ static void smsnas_rcv_cb(const at_msg_t *msg_ptr)
 		session.rcv_valid = false;
 		if (check_mem_overflow(msg_ptr->len, session.rcv_sz,
 			smsnas_msg->service_id)) {
-			IN_FUNCTION_AT();
 			goto done;
 		}
 		memcpy(session.rcv_buf, msg_ptr->buf, msg_ptr->len);
@@ -412,7 +404,6 @@ static proto_result write_to_modem(const uint8_t *msg, proto_pl_sz len,
 	sm_msg.num_seg = total_num;
 	sm_msg.seq_no = seq_num;
 	sm_msg.addr = session.host;
-	printf("%s:%d: size to send:%u\n", __func__, __LINE__, sm_msg.len);
 	bool ret = at_sms_send(&sm_msg);
 	while ((!ret) && (retry < MAX_RETRIES)) {
 		ret = at_sms_send(&sm_msg);
@@ -509,8 +500,6 @@ proto_result smsnas_send_msg_to_cloud(const void *buf, proto_pl_sz sz,
 	total_msgs = calculate_total_msgs(sz + PROTO_OVERHEAD_SZ);
 	if (total_msgs > 4)
 		RETURN_ERROR("Send size exceeds", PROTO_ERROR);
-	printf("%s:%d: Sending concatenated sms with total segs: %u\n",
-						__func__, __LINE__, total_msgs);
 	uint8_t *temp_buf = NULL;
 	proto_pl_sz rem_sz = sz;
 	proto_pl_sz send_sz = 0;
