@@ -22,24 +22,33 @@ typedef void (*timercallback_t)(void);
  * \brief Interface to the timer peripheral.
  */
 typedef struct {
-	bool (*init_period)(uint32_t period);		/**< Initialize the period */
-	void (*reg_callback)(timercallback_t cb);	/**< Register a callback */
-	bool (*is_running)(void);			/**< Check if the timer
-							  is currently running */
-	void (*start)(void);				/**< Start the timer */
-	void (*stop)(void);				/**< Stop the timer */
-	void (*irq_handler)(void);			/**< IRQ handler of this
-							  instance */
+	/** Initialize the period */
+	bool (*init_period)(uint32_t period);
+
+	/** Register a callback */
+	void (*reg_callback)(timercallback_t cb);
+
+	/** Check if the timer is currently running */
+	bool (*is_running)(void);
+
+	/** Start the timer */
+	void (*start)(void);
+
+	/** Stop the timer */
+	void (*stop)(void);
+
+	/** IRQ handler of this instance */
+	void (*irq_handler)(void);
 } timer_interface_t;
 
 /**
  * \brief Initialize the timer peripheral instance.
  * \details The instance is programmed with a period and a user callback is
  * registered to it. The units of the period depend on the underlying timer
- * peripheral instance. This routine must be called once before executing any of
- * the other routines of this API.
+ * peripheral instance. This routine must be called once for every instance
+ * before starting and stopping timer peripherals.
  *
- * \param[in] inst_interface Pointer to the interface of the timer instance.
+ * \param[in] inst Pointer to the interface of the timer instance.
  * \param[in] period Period of the timer.
  * \param[in] callback Pointer to the callback that will be invoked at the end of
  * every period.
@@ -47,43 +56,45 @@ typedef struct {
  * \retval true Timer instance was successfully configured.
  * \retval false Failed to initialize the timer instance.
  */
-bool timer_init(const timer_interface_t * const inst_interface,
+bool timer_init(const timer_interface_t * const inst,
 		uint32_t period,
 		timercallback_t callback);
 
 /**
  * \brief Query to check if the timer is running.
- * \param[in] inst_interface Pointer to the interface of the timer instance.
+ * \param[in] inst Pointer to the interface of the timer instance.
  * \retval true Timer is currently running.
  * \retval false Timer is currently disabled.
  */
-bool timer_is_running(const timer_interface_t * const inst_interface);
+bool timer_is_running(const timer_interface_t * const inst);
 
 /**
  * \brief Start the timer instance.
  * \details Once started, the timer will continue invoking the user defined
  * callback at the end of each period.
- * \param[in] inst_interface Pointer to the interface of the timer instance.
+ * \param[in] inst Pointer to the interface of the timer instance.
  * \pre \ref timer_init must be called before using this routine.
  */
-void timer_start(const timer_interface_t * const inst_interface);
+void timer_start(const timer_interface_t * const inst);
 
 /**
  * \brief Stop the timer instance.
- * \param[in] inst_interface Pointer to the interface of the timer instance.
+ * \param[in] inst Pointer to the interface of the timer instance.
  * \pre \ref timer_init must be called before using this routine.
  */
-void timer_stop(const timer_interface_t * const inst_interface);
+void timer_stop(const timer_interface_t * const inst);
 
 /**
  * \brief Call the IRQ handler of the timer peripheral instance.
  * \details In most cases each peripheral has its own interrupt vector. For
- * this scenario, the handler is invoked from within the driver. However sometimes
- * two peripherals may share the interrupt vector. In such cases, this function
- * can be used to explicitly call the IRQ handler from outside the driver.
+ * this scenario, the handler is invoked from within the driver implicitly and
+ * the user need not bother with this routine.
+ * However sometimes two peripherals may share the interrupt vector. In such
+ * cases, this function can be used to explicitly call the IRQ handler from
+ * outside the driver.
  *
- * \param[in] inst_interface Pointer to the interface of the timer instance.
+ * \param[in] inst Pointer to the interface of the timer instance.
  */
-void timer_irq_handler(const timer_interface_t * const inst_interface);
+void timer_irq_handler(const timer_interface_t * const inst);
 
 #endif

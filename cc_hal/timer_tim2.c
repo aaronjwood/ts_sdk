@@ -71,10 +71,17 @@ void TIM2_IRQHandler(void)
 	HAL_TIM_IRQHandler(&tim2);
 }
 
+/*
+void tim2_irq_handler(void)
+{
+	HAL_TIM_IRQHandler(&tim2);
+}
+*/
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	if (!cb)
-		cb();
+	if (!callback)
+		callback();
 }
 
 static const timer_interface_t tim2_interface = {
