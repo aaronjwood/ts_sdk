@@ -9,10 +9,10 @@ The current target hardware is a NUCLEO-F429ZI ARM development board connected
 to a u-blox TOBY-201 modem.
 
 Quick Build:
-	execute tools/scripts/docker_build.sh for usage and how to build
+	execute tools/scripts/docker_build.sh for usage and how to build and upload/burn
 	firmware images for various applications and module test units that comes
 	with this sdk.
-	Prerequisite: docker engine
+	Prerequisite: docker
 
 For more information see:
 

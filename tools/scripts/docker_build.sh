@@ -2,7 +2,9 @@
 # Copyright(C) 2017 Verizon. All rights reserved
 PROJ_ROOT="$PWD"
 SDK_ROOT="$PROJ_ROOT/sdk/cloud_comm/"
+TOOLS_ROOT="$PROJ_ROOT/tools/config/openocd-configs/"
 BUILD_DIR="$PROJ_ROOT/build"
+FIRMWARE=""
 BUILD_APP_ARG=""
 BUILD_APP_PROTO=""
 
@@ -16,10 +18,14 @@ TS_SDK_IMAGE_NAME="ts_sdk"
 usage()
 {
 	cat << EOF
-Usage: $SCRIPT_NAME <relative path to CHIPSET_DOCKERFILE> <relative path to APP_DOCKERFILE> [Application options]
+Usage: $SCRIPT_NAME <relative path to CHIPSET_DOCKERFILE> <relative path to APP_DOCKERFILE> \
+[Application options]
+Note: arguments in <> are mandatory while [] are optional, \
+optional arguments has to be specified by key=value format
+
 Example Usage:
 tools/scripts/docker_build.sh ./tools/docker/Dockerfile.thingservice ./sample_apps/Dockerfile \
-PROTO=SMSNAS_PROTOCOL APP=sensor_examples
+PROTO=SMSNAS_PROTOCOL APP=sensor_examples upload=<relative path to firmware executable>
 
 Description:
 	Script to build various apps from sample_apps and module_tests directories based on
@@ -30,7 +36,8 @@ Description:
 	docker image from the image created in second step which has application directory
 	at /ts_sdk/sample_apps or /ts_sdk/module_tests and other vendor dependent libraries
 	like mbedtls at /ts_sdk/vendor. Script and eventually docker run command creates
-	volume build/<app>/ to house all the compiled objects and binary images
+	volume build/<app>/ to house all the compiled objects and binary images. Optional
+	upload argument can be supplied to burn given firmware executable
 
 CHIPSET_DOCKERFILE: relative path to chipset dockerfile, currently two dockerfiles are included in this SDK
 	as below:
@@ -46,14 +53,18 @@ APP_DOCKERFILE: relative path to application dockerfile
 	directory for chipset related sources and header and /ts_sdk_bldenv/toolchain/
 	for gcc toolchain, it should also include cc_sdk.mk to link it to sdk sources and header
 
-Application options: Optional paramters which are provided as key=value pair and being used
-	as environment variable (-e flag) during docker run command. This parameters
-	are compile time configuration parameters for the application. Available options are as below:
+Application options: Optional paramters which are provided as key=value
+	Available options are as below:
+
 	1) APP=<application to compile>, for example APP=cc_test
 	available options are any app or test directories from sample_apps and module_tests
-	Note: This application should correspond to APP_DOCKERFILE
+	Note: This application should correspond to APP_DOCKERFILE, default is cc_test
 	2) PROTO=<Communication protocol to use>, thingspace sdk supports two options
-	OTT_PROTOCOL and SMSNAS_PROTOCOL as a value
+	OTT_PROTOCOL and SMSNAS_PROTOCOL as a value, default is SMSNAS_PROTOCOL
+	Both 1 and 2 options above are used as environment (-e flag) variable in docker run command
+	3) upload=<relative path to firmware executable>, this parameter is optional.
+	Built executable's name is in firmware_<protocol_name>.elf form, where
+	protocol_name is either OTT_PROTOCOL or SMSNAS_PROTOCOL
 
 EOF
 	exit 1
@@ -77,6 +88,7 @@ process_app_args()
 			case "$KEY" in
 				APP)	BUILD_APP_ARG="-e ${KEY}=${VALUE}";;
 				PROTO)	BUILD_APP_PROTO="-e ${KEY}=${VALUE}";;
+				upload) FIRMWARE="${VALUE}";;
 				*)
 			esac
 		fi
@@ -104,6 +116,19 @@ cleanup_prev_docker_builds()
 	fi
 }
 
+upload_firmware()
+{
+	if ! [ -f $FIRMWARE ]; then
+		echo "Provide valid firmware executable file"
+	else
+		echo "File to upload: $FIRMWARE"
+		openocd -f $TOOLS_ROOT/stm32f4/board/st_nucleo_f4.cfg \
+			-c init -c "reset halt" \
+			-c "flash write_image erase $FIRMWARE" \
+			-c reset -c shutdown
+	fi
+}
+
 if ! [ -f $SCRIPT ]; then
 	echo "Script must be run from the root of the repository"
 	usage
@@ -126,7 +151,7 @@ if [ -z "$2" ]; then
 	usage
 else
 	check_for_dir "$2"
-	process_app_args "$3" "$4"
+	process_app_args "$3" "$4" "$5"
 	echo "docker runtime env args: $BUILD_APP_PROTO $BUILD_APP_ARG"
 fi
 
@@ -144,4 +169,13 @@ docker build -t $CHIPSET_IMAGE_NAME -f $1 $PROJ_ROOT
 docker build -t $TS_SDK_IMAGE_NAME -f $SDK_ROOT/Dockerfile $PROJ_ROOT
 docker build -t $APP_DIR -f $2 $PROJ_ROOT
 docker run --rm $BUILD_APP_PROTO $BUILD_APP_ARG -v $PROJ_ROOT/build:/build $APP_DIR
+
+if [ $? -eq 0 ]; then
+	echo "Build was success"
+	if ! [ -z $FIRMWARE ]; then
+		echo "Uploading firmware..."
+		upload_firmware
+	fi
+fi
+
 cleanup_docker_images
