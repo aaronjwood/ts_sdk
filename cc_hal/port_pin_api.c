@@ -67,7 +67,7 @@ static void enable_gpio_port_clock(port_id_t port)
 }
 
 /* Ensure that the pin can be mapped to the peripheral */
-static size_t can_pin_be_mapped(pin_name_t pin_name, const pin_t *mapping)
+static size_t can_pin_be_mapped(pin_name_t pin_name, const pin_map_t *mapping)
 {
 	size_t idx = 0;
 	while (mapping[idx].pin_name != NC) {
@@ -164,7 +164,7 @@ static uint32_t get_hal_speed(const gpio_config_t *settings)
 	}
 }
 
-periph_t pp_get_peripheral(pin_name_t pin_name, const pin_t *mapping)
+periph_t pp_get_peripheral(pin_name_t pin_name, const pin_map_t *mapping)
 {
 	if (!pd_is_pin_name_valid(pin_name))
 		return NC;
@@ -182,7 +182,7 @@ periph_t pp_get_peripheral(pin_name_t pin_name, const pin_t *mapping)
 } \
 while(0)
 
-bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_t *mapping)
+bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_map_t *mapping)
 {
 	if (!pd_is_pin_name_valid(pin_name))
 		return false;

@@ -10,8 +10,8 @@
  * 	- A \ref port_size_t type that can contain all pin values of any port
  * 	- A \ref pin_id_t type that represents a pin number of a GPIO port
  * 	- A \ref pin_name_t type that represents a pin name (Eg. PA4, PC0 etc.)
- * 	- A \ref pin_t that encapsulates all information needed to configure a
- * 	pin for a given peripheral
+ * 	- A \ref pin_map_t that encapsulates all information needed to configure
+ * 	a pin for a given peripheral
  * 	- A \ref gpio_config_t that encapsulates all information needed to
  * 	configure a pin as a GPIO not attached to a peripheral
  * 	- A \ref pd_get_port routine to retrieve the \ref port_id_t from a
@@ -20,17 +20,11 @@
  * 	\ref pin_name_t
  * 	- A \ref pd_is_pin_name_valid routine to validate the \ref pin_name_t
  */
-#ifndef PIN_DEF_H
-#define PIN_DEF_H
+#ifndef PIN_DEFS_H
+#define PIN_DEFS_H
 
 #include <stdint.h>
 #include <stdbool.h>
-
-#ifndef IN_DOXYGEN
-#define ATTRIB_PACKED	__attribute__((packed))
-#else
-#define ATTRIB_PACKED
-#endif
 
 /**
  * \brief Type that represents the ports available for this chipset.
@@ -278,7 +272,7 @@ typedef struct {
 	gpio_config_t settings;	/**< GPIO pin configuration to go with peripheral */
 	uint8_t alt_func;	/**< Alternate function ID for the pin */
 	periph_t peripheral;	/**< Associated peripheral, if any */
-} pin_t;
+} pin_map_t;
 
 /**
  * \brief Marks the end of the peripheral pin map.

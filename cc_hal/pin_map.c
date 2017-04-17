@@ -22,7 +22,7 @@
 	.speed = SPEED_HIGH \
 }
 
-const pin_t uart_tx_map[] = {
+const pin_map_t uart_tx_map[] = {
 	{PA0, DEFAULT_UART_PIN_CONF, AF8, (periph_t)UART4},
 	/*{PA2, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART2},*/ /* Ethernet */
 	/*{PA9, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1},*/ /* USB */
@@ -41,7 +41,7 @@ const pin_t uart_tx_map[] = {
 	END_OF_MAP
 };
 
-const pin_t uart_rx_map[] = {
+const pin_map_t uart_rx_map[] = {
 	/*{PA1, DEFAULT_UART_PIN_CONF, AF8, (periph_t)UART4},*/ /* Ethernet */
 	{PA3, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART2},
 	/*{PA10, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1},*/ /* USB */
@@ -60,7 +60,7 @@ const pin_t uart_rx_map[] = {
 	END_OF_MAP
 };
 
-const pin_t uart_rts_map[] = {
+const pin_map_t uart_rts_map[] = {
 	/*{PA1, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART2},*/ /* Ethernet */
 	/*{PA12, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1},*/ /* USB */
 	/*{PB14, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},*/ /* LED3 */
@@ -71,7 +71,7 @@ const pin_t uart_rts_map[] = {
 	END_OF_MAP
 };
 
-const pin_t uart_cts_map[] = {
+const pin_map_t uart_cts_map[] = {
 	{PA0, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART2},
 	/*{PA11, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1},*/ /* USB */
 	{PB13, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3}, /* With JP7 open */
@@ -88,7 +88,7 @@ const pin_t uart_cts_map[] = {
 	.speed = SPEED_HIGH \
 }
 
-const pin_t i2c_sda_map[] = {
+const pin_map_t i2c_sda_map[] = {
 	/*{PB7, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C1},*/ /* LED2 */
 	{PB9, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C1},
 	{PB11, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C2},
@@ -97,7 +97,7 @@ const pin_t i2c_sda_map[] = {
 	END_OF_MAP
 };
 
-const pin_t i2c_scl_map[] = {
+const pin_map_t i2c_scl_map[] = {
 	{PA8, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C3},
 	{PB6, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C1},
 	{PB8, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C1},

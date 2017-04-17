@@ -40,7 +40,7 @@ bool pp_is_pin_used(pin_name_t pin_name);
  *
  * \returns A handle to the peripheral this pin is connected to.
  */
-periph_t pp_get_peripheral(pin_name_t pin_name, const pin_t *mapping);
+periph_t pp_get_peripheral(pin_name_t pin_name, const pin_map_t *mapping);
 
 /**
  * \brief Initialize the pin to function as an interface to a peripheral.
@@ -56,7 +56,7 @@ periph_t pp_get_peripheral(pin_name_t pin_name, const pin_t *mapping);
  * 	        \arg Pin is not connected to the peripheral
  * 	        \arg Pin name is invalid
  */
-bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_t *mapping);
+bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_map_t *mapping);
 
 /**
  * \brief Initialize the pin to function as a GPIO.
