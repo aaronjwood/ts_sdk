@@ -3,7 +3,7 @@
 /*
  * Minimal test application program. It sends back NUM_STATUS messages to the
  * cloud. If an update message is received, it is made the new status message.
- * Each status message is at most 10 bytes large for SMSNAS_PROTCOL and
+ * Each status message is at most 10 bytes large for SMSNAS_PROTOCOL and
  * OTT_PROTOCOL,  max STAT_SZ_BYTES size when CONCAT_SMS and SMSNAS_PROTOCOL are
  * selected
  */
@@ -19,7 +19,7 @@
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
 CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 
-/* Enable this macro to test concatnated sms send */
+/* Enable this macro to test concatenated sms send */
 /*#define CONCAT_SMS*/
 
 #if defined (OTT_PROTOCOL)
@@ -124,9 +124,10 @@ static void set_send_buffer(bool init)
 	if (init) {
 #if defined (CONCAT_SMS) && defined (SMSNAS_PROTOCOL)
 		memset(status, 1, FIRST_SEG_SZ);
-		memset(status + 130, 2, SEC_SEG_SZ);
-		memset(status + 130 + 134, 3, THIRD_SEG_SZ);
-		memset(status + 130 + 134 + 134, 4, FOURTH_SEG_SZ);
+		memset(status + FIRST_SEG_SZ, 2, SEC_SEG_SZ);
+		memset(status + FIRST_SEG_SZ + SEC_SEG_SZ, 3, THIRD_SEG_SZ);
+		memset(status + FIRST_SEG_SZ + SEC_SEG_SZ + THIRD_SEG_SZ, 4,
+			FOURTH_SEG_SZ);
 #else
 		for (uint16_t i = 0; i < STAT_SZ_BYTES; i++)
 			status[i] = i;
@@ -194,6 +195,8 @@ int main(int argc, char *argv[])
 	 * a restart. This call is redundant when the device hasn't been
 	 * activated, since the net effect will be to receive the initial
 	 * configuration twice.
+	 * For some protocols like SMSNAS_PROTOCOL, this function always returns
+	 * success since it is not needed.
 	 */
 	dbg_printf("Sending \"restarted\" message\n");
 	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
