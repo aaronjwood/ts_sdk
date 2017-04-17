@@ -1,9 +1,11 @@
 /* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
 /*
- * Minimal OTT application program. It sends back NUM_STATUS messages to the
+ * Minimal test application program. It sends back NUM_STATUS messages to the
  * cloud. If an update message is received, it is made the new status message.
- * Each status message can be at most 10 bytes large.
+ * Each status message is at most 10 bytes large for SMSNAS_PROTOCOL and
+ * OTT_PROTOCOL,  max STAT_SZ_BYTES size when CONCAT_SMS and SMSNAS_PROTOCOL are
+ * selected
  */
 #include <string.h>
 
@@ -17,19 +19,32 @@
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
 CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 
-static uint8_t status[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-
-static cc_data_sz send_data_sz = sizeof(status);
+/* Enable this macro to test concatenated sms send */
+/*#define CONCAT_SMS*/
 
 #if defined (OTT_PROTOCOL)
 #define REMOTE_HOST	"iwk.ott.thingspace.verizon.com:443"
+#define STAT_SZ_BYTES	10
 #elif defined (SMSNAS_PROTOCOL)
 #define REMOTE_HOST	"+12345678912"
+#if defined (CONCAT_SMS)
+/* Approximate large size to send concatnated size */
+#define STAT_SZ_BYTES	500
+#define FIRST_SEG_SZ	130
+#define SEC_SEG_SZ	134
+#define THIRD_SEG_SZ	134
+#define FOURTH_SEG_SZ	(STAT_SZ_BYTES - (FIRST_SEG_SZ + SEC_SEG_SZ + THIRD_SEG_SZ))
+#else
+#define STAT_SZ_BYTES	10
+#endif
 #else
 #error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
 #endif
 
-#define NUM_STATUSES	((uint8_t)4)
+static uint8_t status[STAT_SZ_BYTES];
+static cc_data_sz send_data_sz = sizeof(status);
+
+#define NUM_STATUSES	((uint8_t)1)
 
 /* Arbitrary long sleep time in milliseconds */
 #define LONG_SLEEP_INT_MS	180000
@@ -47,8 +62,8 @@ static void receive_completed(cc_buffer_desc *buf)
 	dbg_printf("\t\t\t");
 	dbg_printf("Received Update Message: \n");
 	for (cc_data_sz i = 0; i < sz; i++)
-		dbg_printf("\t\t\t\t[Byte %u]: 0x%x\n", i, recvd[i]);
-
+		dbg_printf("\t\t\t\t[Byte %u]: 0x%x, ", i, recvd[i]);
+	dbg_printf("\n");
 	/*
 	 * For this example, replace the status message with
 	 * the newly received update message.
@@ -104,6 +119,25 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 		dbg_printf("\t\t\tUnsupported control event: %d\n", event);
 }
 
+static void set_send_buffer(bool init)
+{
+	if (init) {
+#if defined (CONCAT_SMS) && defined (SMSNAS_PROTOCOL)
+		memset(status, 1, FIRST_SEG_SZ);
+		memset(status + FIRST_SEG_SZ, 2, SEC_SEG_SZ);
+		memset(status + FIRST_SEG_SZ + SEC_SEG_SZ, 3, THIRD_SEG_SZ);
+		memset(status + FIRST_SEG_SZ + SEC_SEG_SZ + THIRD_SEG_SZ, 4,
+			FOURTH_SEG_SZ);
+#else
+		for (uint16_t i = 0; i < STAT_SZ_BYTES; i++)
+			status[i] = i;
+#endif
+	}
+	uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer,
+						    CC_SERVICE_BASIC);
+	memcpy(send_dptr, status, send_data_sz);
+}
+
 static uint32_t send_status_msgs(uint64_t cur_ts)
 {
 	if (last_st_ts != 0) {
@@ -113,13 +147,9 @@ static uint32_t send_status_msgs(uint64_t cur_ts)
 	dbg_printf("Sending out status messages\n");
 	for (uint8_t i = 0; i < NUM_STATUSES; i++) {
 		/* Mimics reading a value from the sensor */
-		uint8_t *send_dptr =
-			cc_get_send_buffer_ptr(&send_buffer,
-					       CC_SERVICE_BASIC);
-		memcpy(send_dptr, status, send_data_sz);
-
-		dbg_printf("\tStatus (%u/%u)\n",
-				i + 1, NUM_STATUSES);
+		set_send_buffer(false);
+		dbg_printf("\tStatus (%u/%u) of bytes: %u\n",
+				i + 1, NUM_STATUSES, send_data_sz);
 		ASSERT(cc_send_svc_msg_to_cloud(&send_buffer,
 						send_data_sz,
 						CC_SERVICE_BASIC)
@@ -155,10 +185,7 @@ int main(int argc, char *argv[])
 	uint32_t slept_till = 0;
 	last_st_ts = 0;
 	dbg_printf("Setting initial value of status message\n");
-	uint8_t *send_dptr = cc_get_send_buffer_ptr(&send_buffer,
-						    CC_SERVICE_BASIC);
-	memcpy(send_dptr, status, sizeof(status));
-
+	set_send_buffer(true);
 	dbg_printf("Beginning CC API test\n\n");
 	dbg_printf("Make a receive buffer available\n");
 	ASSERT(cc_set_recv_buffer(&recv_buffer) == CC_RECV_SUCCESS);
@@ -168,10 +195,14 @@ int main(int argc, char *argv[])
 	 * a restart. This call is redundant when the device hasn't been
 	 * activated, since the net effect will be to receive the initial
 	 * configuration twice.
+	 * For some protocols like SMSNAS_PROTOCOL, this function always returns
+	 * success since it is not needed.
 	 */
 	dbg_printf("Sending \"restarted\" message\n");
 	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
 	while (1) {
+		printf("Current time stamp: %"PRIu32"\n",
+			(uint32_t)platform_get_tick_ms() / 1000);
 		next_report_interval = send_status_msgs(platform_get_tick_ms());
 		next_wakeup_interval = cc_service_send_receive(
 						platform_get_tick_ms());

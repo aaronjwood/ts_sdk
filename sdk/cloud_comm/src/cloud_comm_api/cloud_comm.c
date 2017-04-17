@@ -112,8 +112,7 @@ uint8_t *cc_get_send_buffer_ptr(cc_buffer_desc *buf, cc_service_id svc_id)
 	service_dispatch_entry *se = lookup_service(svc_id);
 	if (se == NULL)
 		return NULL;
-	return (uint8_t *)buf->buf_ptr + PROTO_OVERHEAD_SZ +
-		se->descriptor->send_offset;
+	return (uint8_t *)buf->buf_ptr + se->descriptor->send_offset;
 }
 
 const uint8_t *cc_get_recv_buffer_ptr(const cc_buffer_desc *buf,
@@ -191,15 +190,14 @@ cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
 	service_dispatch_entry *se = lookup_service(svc_id);
 	if (se == NULL)
 		return CC_SEND_FAILED;
-
 	if (se->descriptor->add_send_hdr != NULL) {
 		if (!se->descriptor->add_send_hdr(buf))
 			return CC_SEND_FAILED;
 	}
-
 	conn_out.send_in_progress = true;
 	conn_out.buf = buf;
-	PROTO_SEND_MSG_TO_CLOUD(buf->buf_ptr, sz, svc_id, cc_send_cb);
+	PROTO_SEND_MSG_TO_CLOUD(buf->buf_ptr, sz + se->descriptor->send_offset,
+				svc_id, cc_send_cb);
 
 	conn_out.send_in_progress = false;
 	return CC_SEND_SUCCESS;
