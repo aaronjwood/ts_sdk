@@ -1,0 +1,3 @@
+Currently directory contains follwing files:
+1) build_in_subdir.mk: Creates build directory in the source directory to house
+        all the object files
