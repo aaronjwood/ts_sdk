@@ -58,12 +58,13 @@ Application options: Optional paramters which are provided as key=value
 
 	1) APP=<application to compile>, for example APP=cc_test
 	available options are any app or test directories from sample_apps and module_tests
-	Note: This application should correspond to APP_DOCKERFILE
+	Note: This application should correspond to APP_DOCKERFILE, default is cc_test
 	2) PROTO=<Communication protocol to use>, thingspace sdk supports two options
-	OTT_PROTOCOL and SMSNAS_PROTOCOL as a value
+	OTT_PROTOCOL and SMSNAS_PROTOCOL as a value, default is SMSNAS_PROTOCOL
 	Both 1 and 2 options above are used as environment (-e flag) variable in docker run command
-	3) upload=<relative path to firmware executable>, this parameter is optional but it
-	has to appear in Application options section if specified
+	3) upload=<relative path to firmware executable>, this parameter is optional.
+	Built executable's name is in firmware_<protocol_name>.elf form, where
+	protocol_name is either OTT_PROTOCOL or SMSNAS_PROTOCOL
 
 EOF
 	exit 1
@@ -150,7 +151,7 @@ if [ -z "$2" ]; then
 	usage
 else
 	check_for_dir "$2"
-	process_app_args "$3" "$4"
+	process_app_args "$3" "$4" "$5"
 	echo "docker runtime env args: $BUILD_APP_PROTO $BUILD_APP_ARG"
 fi
 
