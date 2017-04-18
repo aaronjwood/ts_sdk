@@ -1,0 +1,6 @@
+.git
+build
+Documents
+config_files
+tools/openocd-configs
+tools/installed

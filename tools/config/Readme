@@ -1,0 +1,5 @@
+Currently directory contains follwing files:
+1) build_in_subdir.mk: Hook to create build directory in the source directory to house
+        all the object files
+2) openocd-configs: Directory contains configuration files to be used with openocd
+        debugger tool
