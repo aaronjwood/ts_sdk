@@ -17,7 +17,7 @@ OBJ = $(OBJ_USER) $(OBJ_CORELIB) $(OBJ_CHIPSET) $(OBJ_DBG_LIB)
 
 CFLAGS_COM = -Werror -std=c99 $(INC) -D$(PROTOCOL) -D$(MODEM)
 CFLAGS_USER = -Wall -Wcast-align $(CFLAGS_COM) $(DBG_OP_USER_FLAGS)
-CFLAGS_LIB = -Wall -Wcast-align $(CFLAGS_SDK) $(CFLAGS_PLATFORM_HAL) \
+CFLAGS_LIB = -Wall -Wcast-align $(CFLAGS_SDK) $(PLATFORM_HAL_CFLAGS) \
 	$(CFLAGS_COM) $(DBG_OP_LIB_FLAGS) -fdata-sections -ffunction-sections
 CFLAGS_CHIPSET = $(CFLAGS_COM) $(DBG_OP_LIB_FLAGS) \
 	-fdata-sections -ffunction-sections

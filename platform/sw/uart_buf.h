@@ -9,6 +9,9 @@
 #ifndef UART_BUF_H
 #define UART_BUF_H
 
+#include <stdint.h>
+#include <stdbool.h>
+
 /*
  * \brief Type that is wide enough to hold the size of UART related buffers.
  */

@@ -26,7 +26,11 @@ PROJ_ROOT = $(shell dirname $(APP_ROOT))
 CHIPSET_BUILDENV = $(shell dirname $(PROJ_ROOT))ts_sdk_bldenv
 
 BUILD_TARGET ?= stm32f4
+BUILD_MCU ?= stm32f429
+BUILD_BOARD ?= nucleo
 export BUILD_TARGET
+export BUILD_MCU
+export BUILD_BOARD
 
 PROJ_NAME ?= bmp180
 
