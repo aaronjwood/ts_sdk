@@ -2,7 +2,7 @@
  * \file pin_defs.h
  * \copyright Copyright (c) 2017 Verizon. All rights reserved.
  * \brief Defines pins and ports supported by a specific chipset.
- * \details Variant : \b STM32F4xx \n
+ * \details Variant : \b STM32F429 \n
  */
 #ifndef PIN_DEFS_H
 #define PIN_DEFS_H
