@@ -14,6 +14,16 @@
 #include "port_pin_api.h"
 
 /**
+ * \brief Defines an I2C address.
+ * \details This type stores the slave's 7-bit address along with the address of
+ * the register inside the slave.
+ */
+typedef struct {
+	uint8_t slave;	/**< 7-bit slave address */
+	uint8_t reg;	/**< 8-bit register address */
+} i2c_addr_t;
+
+/**
  * \brief Initialize the I2C peripheral and associated pins.
  * \details Initializes the pins \b scl and \b sda to function as the clock and
  * data pins, respectively, of the I2C peripheral they are connected to. This
@@ -36,8 +46,7 @@ periph_t i2c_init(pin_name_t scl, pin_name_t sda);
  * slave on the I2C bus. Each byte on this bus is 8-bits wide.
  *
  * \param[in] hdl Handle of the I2C peripheral to be read.
- * \param[in] slave 7-bit slave address on the I2C bus.
- * \param[in] reg 8-bit register address inside the slave.
+ * \param[in] addr Destination address (\ref i2c_addr_t) on the I2C bus.
  * \param[in] len Length of the data to read into the buffer.
  * \param[out] buf Pointer to the buffer that stores the data read in.
  *
@@ -46,7 +55,7 @@ periph_t i2c_init(pin_name_t scl, pin_name_t sda);
  *
  * \pre \ref i2c_init must be called to retrieve a valid handle.
  */
-bool i2c_read(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf);
+bool i2c_read(periph_t hdl, i2c_addr_t addr, uint8_t len, uint8_t *buf);
 
 /**
  * \brief Write bytes to the I2C peripheral.
@@ -55,8 +64,7 @@ bool i2c_read(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *bu
  * slave on the I2C bus. Each byte on this bus is 8-bits wide.
  *
  * \param[in] hdl Handle of the I2C peripheral to be written to.
- * \param[in] slave 7-bit slave address on the I2C bus.
- * \param[in] reg 8-bit register address inside the slave.
+ * \param[in] addr Destination address (\ref i2c_addr_t) on the I2C bus.
  * \param[in] len Length of the data contained in the write buffer.
  * \param[in] buf Pointer to the buffer that stores the data to be written.
  *
@@ -65,8 +73,7 @@ bool i2c_read(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *bu
  *
  * \pre \ref i2c_init must be called to retrieve a valid handle.
  */
-bool i2c_write(periph_t hdl, uint8_t slave, uint8_t reg,
-		uint8_t len, const uint8_t *buf);
+bool i2c_write(periph_t hdl, i2c_addr_t addr, uint8_t len, const uint8_t *buf);
 
 /**
  * \brief Turn on or turn off the power to the I2C peripheral.

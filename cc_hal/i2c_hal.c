@@ -53,7 +53,7 @@ periph_t i2c_init(pin_name_t scl, pin_name_t sda)
 	return init_i2c_peripheral((I2C_TypeDef *)p1) ? p1 : NO_PERIPH;
 }
 
-bool i2c_read(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf)
+bool i2c_read(periph_t hdl, i2c_addr_t addr, uint8_t len, uint8_t *buf)
 {
 	I2C_HandleTypeDef *i2c_handle;
 	HAL_StatusTypeDef s;
@@ -65,14 +65,13 @@ bool i2c_read(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *bu
 	else
 		return false;
 
-	s = HAL_I2C_Mem_Read(i2c_handle, slave << 1, reg, I2C_MEMADD_SIZE_8BIT,
-			buf, len, I2C_TIMEOUT_MS);
+	s = HAL_I2C_Mem_Read(i2c_handle, addr.slave << 1, addr.reg,
+			I2C_MEMADD_SIZE_8BIT, buf, len, I2C_TIMEOUT_MS);
 
 	return s == HAL_OK;
 }
 
-bool i2c_write(periph_t hdl, uint8_t slave, uint8_t reg,
-		uint8_t len, const uint8_t *buf)
+bool i2c_write(periph_t hdl, i2c_addr_t addr, uint8_t len, const uint8_t *buf)
 {
 	I2C_HandleTypeDef *i2c_handle;
 	HAL_StatusTypeDef s;
@@ -84,8 +83,8 @@ bool i2c_write(periph_t hdl, uint8_t slave, uint8_t reg,
 	else
 		return false;
 
-	s = HAL_I2C_Mem_Write(i2c_handle, slave << 1, reg, I2C_MEMADD_SIZE_8BIT,
-			(uint8_t *)buf, len, I2C_TIMEOUT_MS);
+	s = HAL_I2C_Mem_Write(i2c_handle, addr.slave << 1, addr.reg,
+			I2C_MEMADD_SIZE_8BIT, (uint8_t *)buf, len, I2C_TIMEOUT_MS);
 
 	return s == HAL_OK;
 }
