@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include "port_pin_api.h"
 
-/* Chipset specific implementation. Target: STM32F4xx */
+/* Chipset specific implementation. Target: STM32F429 */
 #include <stm32f4xx_hal.h>
 
 static uint16_t port_usage[NUM_PORTS];
