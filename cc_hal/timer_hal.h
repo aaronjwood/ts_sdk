@@ -19,7 +19,7 @@
 typedef void (*timercallback_t)(void);
 
 /**
- * \brief Interface to the timer peripheral.
+ * \brief Interface to the timer peripheral driver.
  */
 typedef struct {
 	/** Initialize the period */

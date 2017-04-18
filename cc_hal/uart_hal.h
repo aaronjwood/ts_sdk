@@ -19,35 +19,6 @@
 typedef void (*uart_rx_char_cb)(uint8_t ch);
 
 /**
- * \brief Interface for the UART driver
- */
-typedef struct {
-	/** Initialize the UART peripheral, optionally with hardware flow control enabled */
-	bool (*init)(bool hw_flow_ctrl);
-
-	/** Register a callback for the receive path */
-	void (*reg_callback)(uart_rx_char_cb cb);
-
-	/** Attempt transmitting sz bytes of data within timeout_ms milliseconds */
-	bool (*tx_bytes)(uint8_t *data, uint16_t sz, uint16_t timeout_ms);
-
-	/** IRQ handler of this instance */
-	void (*irq_handler)(void);
-} uart_interface_t;
-
-/**
- * \brief Structure containing the pins of the UART.
- * \details This structure is populated with the pins the UART peripheral should
- * connect to and then passed on to the initialization routine.
- */
-struct uart_pins {
-	pin_name_t tx;	/**< UART TX pin */
-	pin_name_t rx;	/**< UART RX pin */
-	pin_name_t rts;	/**< UART RTS pin */
-	pin_name_t cts;	/**< UART CTS pin */
-};
-
-/**
  * \brief Initialize the UART peripheral.
  * \details The UART is initialized with the following settings: \n
  * Baud rate       : \b 115200 \b bps \n
@@ -61,22 +32,25 @@ struct uart_pins {
  * 'NC'. This routine must be called once for every instance before attempting
  * to transmit data or set a receive callback.
  *
- * \param[in] inst Pointer to the interface of the UART instance.
- * \param[in] pins Structure containing the pins the peripheral is connected to.
+ * \param[in] tx Name of the pin connected to the TX line of the peripheral
+ * \param[in] rx Name of the pin connected to the RX line of the peripheral
+ * \param[in] rts Name of the pin connected to the RTS line of the peripheral
+ * \param[in] rts Name of the pin connected to the CTS line of the peripheral
  *
- * \retval true Initialization was successful.
- * \retval false Initialization failed.
+ * \returns Handle to UART peripheral. If the combination of uart_pins turns
+ * out to be invalid or pins do not connect to the same peripheral,
+ * \ref NO_PERIPH is returned.
  */
-bool uart_init(const uart_interface_t * const inst, struct uart_pins pins);
+periph_t uart_init(pin_name_t tx, pin_name_t rx, pin_name_t rts, pin_name_t cts);
 
 /**
  * \brief Set the UART receive character callback.
  * \details The callback is invoked with the received character as a parameter.
- * \param[in] inst Pointer to the interface of the UART instance.
+ * \param[in] hdl Handle of the UART peripheral to read.
  * \param[in] cb Pointer to the callback routine.
- * \pre \ref uart_init must be called before calling this routine.
+ * \pre \ref uart_init must be called to retrieve a valid handle.
  */
-void uart_set_rx_char_cb(const uart_interface_t * const inst, uart_rx_char_cb cb);
+void uart_set_rx_char_cb(periph_t hdl, uart_rx_char_cb cb);
 
 /**
  * \brief Send data over the UART.
@@ -84,7 +58,7 @@ void uart_set_rx_char_cb(const uart_interface_t * const inst, uart_rx_char_cb cb
  * hardware flow control, the call will block for at most 'timeout_ms' milli-
  * seconds.
  *
- * \param[in] inst Pointer to the interface of the UART instance.
+ * \param[in] hdl Handle of the UART peripheral to read.
  * \param[in] data Pointer to the data to be sent.
  * \param[in] size Number of bytes to send
  * \param[in] timeout_ms Total number of milliseconds to wait before giving up
@@ -94,10 +68,9 @@ void uart_set_rx_char_cb(const uart_interface_t * const inst, uart_rx_char_cb cb
  * \retval false Send aborted due to timeout or null pointer was provided for
  * the data.
  *
- * \pre \ref uart_init must be called before calling this routine.
+ * \pre \ref uart_init must be called to retrieve a valid handle.
  */
-bool uart_tx(const uart_interface_t * const inst, uint8_t *data,
-		uint16_t size, uint16_t timeout_ms);
+bool uart_tx(periph_t hdl, uint8_t *data, uint16_t size, uint16_t timeout_ms);
 
 /**
  * \brief Call the IRQ handler of the UART peripheral instance.
@@ -108,8 +81,9 @@ bool uart_tx(const uart_interface_t * const inst, uint8_t *data,
  * cases, this function can be used to explicitly call the IRQ handler from
  * outside the driver.
  *
- * \param[in] inst Pointer to the interface of the UART instance.
+ * \param[in] hdl Handle of the UART peripheral to read.
+ * \pre \ref uart_init must be called to retrieve a valid handle.
  */
-void uart_irq_handler(const uart_interface_t * const inst);
+void uart_irq_handler(periph_t hdl);
 
 #endif

@@ -17,12 +17,12 @@
 /**
  * \brief Stands for the absence of a peripheral.
  */
-#define NO_PERIPH	((periph_t)(0xFFFFFFFFu))
+#define NO_PERIPH	((periph_t)(0xFFFFFFFF))
 
 /**
  * \brief Stands for the absence of a pin.
  */
-#define NC		((uint32_t)(0xFFFFFFFFu))
+#define NC		((uint32_t)(0xFFFFFFFF))
 
 /**
  * \brief Type that represents the pin name.
@@ -83,13 +83,13 @@ typedef enum speed {
  * \brief Type that represents a GPIO configuration.
  */
 typedef struct {
-	/** Direction of the GPIO pin. Accepts \ref dir_t. */
+	/** Direction of the GPIO pin. Accepts a \ref dir_t value. */
 	uint8_t dir : 1;
 
-	/** Output type and pull configuration. Accepts \ref pull_mode_t. */
+	/** Output type and pull configuration. Accepts a \ref pull_mode_t value. */
 	uint8_t pull_mode : 3;
 
-	/** Maximum Speed of the pin. Accepts \ref speed_t. */
+	/** Maximum Speed of the pin. Accepts a \ref speed_t value. */
 	uint8_t speed : 2;
 
 } __attribute__((packed)) gpio_config_t;
