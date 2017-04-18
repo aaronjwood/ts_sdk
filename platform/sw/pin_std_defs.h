@@ -7,7 +7,7 @@
  * pin_name and the structure %pin_map.
  * The enumeration defines the pin names (refer \ref pin_name_t) available
  * on this target while the structure describes the element of a peripheral map
- * (refer \ref pin_map_t).In addition to these two elements,, a generic type
+ * (refer \ref pin_map_t). In addition to these two elements, a generic type
  * (\ref gpio_config_t) representing a GPIO configuration is provided by this
  * header.
  */

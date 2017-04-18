@@ -35,7 +35,7 @@ typedef void (*uart_rx_char_cb)(uint8_t ch);
  * \param[in] tx Name of the pin connected to the TX line of the peripheral
  * \param[in] rx Name of the pin connected to the RX line of the peripheral
  * \param[in] rts Name of the pin connected to the RTS line of the peripheral
- * \param[in] rts Name of the pin connected to the CTS line of the peripheral
+ * \param[in] cts Name of the pin connected to the CTS line of the peripheral
  *
  * \returns Handle to UART peripheral. If the combination of uart_pins turns
  * out to be invalid or pins do not connect to the same peripheral,

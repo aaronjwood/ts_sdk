@@ -1,12 +1,6 @@
 # Copyright(C) 2017 Verizon. All rights reserved.
 
-INC += -I $(PLATFORM_HAL_ROOT)/inc/dbg
-INC += -I $(PLATFORM_HAL_ROOT)/inc/uart
-INC += -I $(PLATFORM_HAL_ROOT)/inc/hwrng
-INC += -I $(PLATFORM_HAL_ROOT)/inc/gpio
-INC += -I $(PLATFORM_HAL_ROOT)/inc/i2c
-INC += -I $(PLATFORM_HAL_ROOT)/inc/sys
-INC += -I $(PLATFORM_HAL_ROOT)/inc/timer
+INC += -I $(PLATFORM_HAL_ROOT)/inc
 INC += -I $(PLATFORM_HAL_ROOT)/sw
 INC += -I $(PLATFORM_HAL_ROOT)/sw/$(BUILD_TARGET)
 INC += -I $(PLATFORM_HAL_ROOT)/sw/$(BUILD_TARGET)/$(BUILD_MCU)

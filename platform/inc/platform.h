@@ -39,7 +39,7 @@ uint64_t platform_get_tick_ms(void);
  * \brief       Provides sleep functionality. It will return on any event i.e.
  *              hardware interrupts or system events.
  *
- * \param[in] sleep    sleep time value in miliseconds
+ * \param[in] sleep_ms    sleep time value in miliseconds
  * \returns
  * 	0 if sleep was completed uninterrupted or remaining sleep time in milli
  *      seconds.

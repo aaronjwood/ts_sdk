@@ -2,7 +2,7 @@
  * \file uart_buf.h
  * \copyright Copyright (c) 2017 Verizon. All rights reserved.
  * \brief Defines the UART buffer API.
- * \details The API should implement a buffer and routines to access and manage
+ * \details This API implements a buffer and routines to access and manage
  * the buffer. It was specifically designed to be useful in talking to the AT
  * interface of a modem.
  */
@@ -33,7 +33,7 @@ typedef uint16_t buf_sz;
 #define UART_BUF_BEGIN		-1
 
 /**
- * \brief Return value that indicates the failure of the search.
+ * \brief Return value that indicates a failed search.
  */
 #define UART_BUF_NOT_FOUND	-1
 
@@ -50,11 +50,11 @@ typedef enum callback_event {
 /**
  * \brief The receive callback for the UART buffer.
  * \details This will be invoked whenever the UART's receive line is detected
- * to be idle. The detection is carried out through an idle timeout of a previously
- * configured number of characters. The receive callback will also be called
- * after a set fraction of the buffer has been filled and when the internal
- * buffer overflows. The callback takes an event parameter that records the
- * cause of the callback.
+ * to be idle after receiving some bytes. The detection is carried out through
+ * an idle timeout of a previously configured number of characters. The receive
+ * callback will also be called after a set fraction of the buffer has been
+ * filled or when the internal buffer overflows. The callback takes an event
+ * parameter that records the cause of the callback.
  */
 typedef void (*uart_rx_cb)(callback_event event);
 
@@ -125,7 +125,7 @@ int uart_buf_line_avail(const char *header, const char *trailer);
  * return value of \ref uart_buf_available.
  *
  * \param[in] buf Pointer to the buffer where the data will be read into.
- * \param[in] sz Maximum size the supplied buffer can store.
+ * \param[in] sz Maximum size the supplied buffer (buf) can store.
  *
  * \retval UART_BUF_INV_PARAM Null pointer provided for buf.
  * \retval >=0 Number of bytes actually read into the buffer.
