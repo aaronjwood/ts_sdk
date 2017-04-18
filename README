@@ -8,40 +8,79 @@ using:
 The current target hardware is a NUCLEO-F429ZI ARM development board connected
 to a u-blox TOBY-201 modem.
 
+Quick Build:
+	execute tools/scripts/docker_build.sh for usage and how to build and upload/burn
+	firmware images for various applications and module test units that comes
+	with this sdk.
+	Prerequisite: docker
+
 For more information see:
 
 	http://confluence.verizon.com/display/KSIPROD/Reference+Firmware+for+Over-The-Top+IoT+Connectivity
 
+Repository Layout:
+-------------------------------------
+Top level directories:
+-------------------------------------
+ts_sdk/		-	The top level directory of the ThingSpace SDK repository.
+ts_sdk_bldenv/	-	This directory exists in each Docker container and is the
+			top level for all the files needed to perform the build
+			for a chipset (i.e. the chipset SDK and toolchain)
+--------------------------------------
+Build environment directories:
+--------------------------------------
+ts_sdk_bldenv/toolchain(Optional) -	All files that make up the toolchain,
+					if not embedded in the chipset SDK
+ts_sdk_bldenv/<chipset-name>	  -	The chipset SDK as provided by the chipset vendor.
 
-Repository contents:
-
-	tools/scripts   - Toolchain build scripts
-	tools/installed - Directory to hold toolchain, device support files,
-                          SDK libraries, etc. that are installed from an
-                          external source.
-
-	apps/           - Sample applications built to communicate with the
-                          ThingSpace services.
-			  This directory also includes some test programs
-			  intended to test individual library components.
-
-	doxygen/        - Config files for generating documentation for the
-			  primary APIs.
-
-	lib/            - Library components used by the apps to communicate
-                          with the services (e.g. cloud communication API,
-                          protocols, modem support, hardware support etc.)
-
-	include/        - Header files that define the external interfaces
-                          to the lib components.
-
-	vendor/         - Third-party libraries needed to build lib/ or apps/
-                          components.
-	      /mbedtls  - ARM mbed TLS library.
-
-        *.mk		- Common Makefiles.  Each application has a specific
-			  Makefile that uses these common files to build
-			  the application and all necessary library files.
+---------------------------------------
+TS-SDK source repository:
+---------------------------------------
+ts_sdk/build/<app_name>	-	Created after successful build by the docker container
+				to place all the application related object files and
+				binary images which can be later used to upload firmware
+				to target platform
+ts_sdk/Documents 	-	Contains detail description of the SDK and its APIs
+ts_sdk/module_tests 	-	Contains various test programs for sdk components like uart, at etc...
+ts_sdk/sample_apps 	-	Sample applications using the TS-SDK
+ts_sdk/sample_apps/life_home/src   -	Source code for the life_home app from the MQTT SDK
+ts_sdk/sample_apps/life_home/build -	Build result directory for the life_home app.
+					All files produced by the build must go under here.
+ts_sdk/sample_apps/<others>/src	-	Source code for other sample applications.
+ts_sdk/tools		-	Any general files needed to perform the build process
+				or do work in the source repository.
+ts_sdk/tools/scripts 	-	Scripts to assist with building, configuring tools,
+				scanning source code, etc.
+ts_sdk/tools/config	-	General configuration and data files needed by tools.
+ts_sdk/tools/docker	-	Dockerfiles for creating the various chipset build
+				Docker containers
+ts_sdk/sdk		-	Source code and related files that provide the API and
+				communication path for ThingSpace SDK
+ts_sdk/sdk/<sdk_name>/src -	The source code files.
+ts_sdk/sdk/<sdk_name>/inc -	Header files shared across all of the TS SDK source
+				files (excluding those that define the user API)
+ts_sdk/sdk/<sdk_name>/api -	Header files consumed by the application in order
+				to use the SDK.
+ts_sdk/config_files       -	Any configuration files which must be available
+				when an application using the SDK is executing.
+				The build might process these into a different
+				form depending on the target
+				e.g. a firmware image with no filesystem.
+ts_sdk/sdk//<sdk_name>/vendor - Externally provided components required by the SDK
+				on one or more platforms. Each component has a source
+				code directory tree under here. Ideally we use the same
+				components across all chipsets and OSs. Some likely
+				components are shown:
+ts_sdk/sdk/<sdk_name>/vendor/<TLS library>  -	TLS library (e.g. mbedtls)
+ts_sdk/sdk/<sdk_name>/vendor/<MQTT library> -	MQTT library (e.g. mosquitto)
+ts_sdk/sdk/<sdk_name>/vendor/<json library> -	JSON library (e.g. cJSON)
+ts_sdk/platform		-	Files required to allow the SDK and it sample applications
+				to be portable across multiple chipsets, OSs, protocols, etc.
+ts_sdk/platform/drivers	-	Files implementing common hardware abstractions
+				e.g. UART access, hardware RNG, timers, etc)
+ts_sdk/platform/sw	-	Files implementing common software abstractions.
+ts_sdk/platform/inc	-	Header files defining the API created by these abstractions.
+ts_sdk/targets		-	Optional directory containing chipset sdk and other required tools
 
 Notes on configuring mbed TLS:
 -----------------------------
@@ -58,20 +97,20 @@ to produce the desired configuration in:
 
 That version of config.h is checked into the repository.
 
-The script currently has options to enable/disable certain library features, 
+The script currently has options to enable/disable certain library features,
 which allows the library to be customized for test/experimental purposes:
 
 $ ./vz_configure_mbedtls help
-Usage: 
+Usage:
     vz_configure_mbedtls [help] [debug] [no-net] [full-msgs] [no-hwrng]
 
 debug     - will enable debug messages in the library, especially for TLS
 	    errors. Makes the code much bigger but otherwise it's hard to
 	    tell why something fails.
 
-no-net    - disables the mbed TLS OS networking module. Set this when building 
+no-net    - disables the mbed TLS OS networking module. Set this when building
 	    for the "network over modem" library.
-            
+
 
 full-msgs - support full-sized TLS messages as defined in the RFC.
 	    (by default we know that the largest OTT message is much smaller).
