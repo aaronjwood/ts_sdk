@@ -41,16 +41,16 @@ periph_t i2c_init(pin_name_t scl, pin_name_t sda)
 	periph_t p1, p2;
 	p1 = pp_get_peripheral(scl, i2c_scl_map);
 	p2 = pp_get_peripheral(sda, i2c_sda_map);
-	if (p1 != p2 || p1 == NC || p2 == NC)
-		return NC;
+	if (p1 != p2 || p1 == NO_PERIPH || p2 == NO_PERIPH)
+		return NO_PERIPH;
 
 	/* Initialize the pins connected to the peripheral */
 	if (!pp_peripheral_pin_init(scl, i2c_scl_map) ||
 			!pp_peripheral_pin_init(sda, i2c_sda_map))
-		return NC;
+		return NO_PERIPH;
 
 	/* Initialize the peripheral itself */
-	return init_i2c_peripheral((I2C_TypeDef *)p1) ? p1 : NC;
+	return init_i2c_peripheral((I2C_TypeDef *)p1) ? p1 : NO_PERIPH;
 }
 
 bool i2c_read(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf)
@@ -71,7 +71,8 @@ bool i2c_read(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *bu
 	return s == HAL_OK;
 }
 
-bool i2c_write(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf)
+bool i2c_write(periph_t hdl, uint8_t slave, uint8_t reg,
+		uint8_t len, const uint8_t *buf)
 {
 	I2C_HandleTypeDef *i2c_handle;
 	HAL_StatusTypeDef s;
@@ -84,7 +85,7 @@ bool i2c_write(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *b
 		return false;
 
 	s = HAL_I2C_Mem_Write(i2c_handle, slave << 1, reg, I2C_MEMADD_SIZE_8BIT,
-			buf, len, I2C_TIMEOUT_MS);
+			(uint8_t *)buf, len, I2C_TIMEOUT_MS);
 
 	return s == HAL_OK;
 }

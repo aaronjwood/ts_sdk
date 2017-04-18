@@ -38,7 +38,8 @@ bool pp_is_pin_used(pin_name_t pin_name);
  * \param[in] pin_name Name of the pin
  * \param[in] mapping A pointer to the mapping data structure used by the peripheral
  *
- * \returns A handle to the peripheral this pin is connected to.
+ * \returns A handle to the peripheral this pin is connected to. If no such
+ * peripheral is found, \ref NO_PERIPH is returned.
  */
 periph_t pp_get_peripheral(pin_name_t pin_name, const pin_map_t *mapping);
 
@@ -74,5 +75,19 @@ bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_map_t *mapping);
  * 		\arg Pin name is invalid
  */
 bool pp_gpio_pin_init(pin_name_t pin_name, const gpio_config_t *settings);
+
+/**
+ * \brief Get the underlying driver's representation of the pin number.
+ * \param[in] pin_name Name of the pin
+ * \returns Representation of the pin compatible with the underlying driver.
+ */
+uint32_t pp_map_drv_pin(pin_name_t pin_name);
+
+/**
+ * \brief Get the underlying driver's representation of the port.
+ * \param[in] pin_name Name of the pin
+ * \returns Representation of the port compatible with the underlying driver.
+ */
+uint32_t pp_map_drv_port(pin_name_t pin_name);
 
 #endif

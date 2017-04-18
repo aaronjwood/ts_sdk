@@ -16,6 +16,8 @@
  * Target MCU   : STM32F429ZIT
  */
 
+#define END_OF_MAP	{NC, {0}, 0, 0}
+
 #define DEFAULT_UART_PIN_CONF \
 { \
 	.pull_mode = PP_PULL_UP, \

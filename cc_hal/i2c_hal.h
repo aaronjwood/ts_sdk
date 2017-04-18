@@ -23,7 +23,7 @@
  * \param[in] sda I2C peripheral's data pin
  *
  * \returns Handle to I2C peripheral. If \b scl and \b sda cannot be configured,
- * \b NC is returned. Possible causes can be:
+ * \ref NO_PERIPH is returned. Possible causes can be:
  * 	\arg At least one of the pins is already being used.
  * 	\arg Pins do not connect to the same I2C peripheral.
  */
@@ -38,7 +38,7 @@ periph_t i2c_init(pin_name_t scl, pin_name_t sda);
  * \param[in] hdl Handle of the I2C peripheral to be read.
  * \param[in] slave 7-bit slave address on the I2C bus.
  * \param[in] reg 8-bit register address inside the slave.
- * \param[in] len Length of the data read into the buffer.
+ * \param[in] len Length of the data to read into the buffer.
  * \param[out] buf Pointer to the buffer that stores the data read in.
  *
  * \retval true Data was successfully read from the I2C bus
@@ -65,7 +65,8 @@ bool i2c_read(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *bu
  *
  * \pre \ref i2c_init must be called to retrieve a valid handle.
  */
-bool i2c_write(periph_t hdl, uint8_t slave, uint8_t reg, uint8_t len, uint8_t *buf);
+bool i2c_write(periph_t hdl, uint8_t slave, uint8_t reg,
+		uint8_t len, const uint8_t *buf);
 
 /**
  * \brief Turn on or turn off the power to the I2C peripheral.

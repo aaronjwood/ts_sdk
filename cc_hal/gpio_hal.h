@@ -51,12 +51,12 @@ bit_value_t gpio_read(pin_name_t pin_name);
 void gpio_write(pin_name_t pin_name, bit_value_t bit);
 
 /**
- * \brief Turn on or turn off the power to the GPIO port.
- * \param[in] port Name of the port
+ * \brief Turn on or off the power to the GPIO port associated with the pin.
+ * \param[in] pin_name Name of the pin
  * \param[in] state \arg Set to \b true to turn on the power
  *                  \arg Set to \b false to turn off the power
  * \pre \ref gpio_init must be called on this pin before reading from it.
  */
-void gpio_pwr(port_id_t port, bool state);
+void gpio_pwr(pin_name_t pin_name, bool state);
 
 #endif

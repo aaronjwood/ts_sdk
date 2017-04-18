@@ -6,29 +6,55 @@
 /* Chipset specific implementation. Target: STM32F4xx */
 #include <stm32f4xx_hal.h>
 
-static port_size_t port_usage[NUM_PORTS];
+static uint16_t port_usage[NUM_PORTS];
 
 #define MARK_AS_USED(port, pin)		(port_usage[(port)] |= (1 << (pin)))
 #define QUERY_USAGE(port, pin)		((port_usage[(port)] | (1 << (pin))) == (1 << (pin)))
 
+static bool is_pin_name_valid(pin_name_t pin_name)
+{
+	port_id_t port = PD_GET_PORT(pin_name);
+	pin_id_t pin = PD_GET_PIN(pin_name);
+
+	switch (port) {
+	case PORT_A:
+	case PORT_B:
+	case PORT_C:
+	case PORT_D:
+	case PORT_E:
+	case PORT_F:
+	case PORT_G:
+		if (pin >= NUM_PINS_PORT_A_TO_G)
+			return false;
+		break;
+	case PORT_H:
+		if (pin >= NUM_PINS_PORT_H)
+			return false;
+		break;
+	default:
+		return false;
+	}
+	return true;
+}
+
 void pp_mark_pin_used(pin_name_t pin_name)
 {
-	if (!pd_is_pin_name_valid(pin_name))
+	if (!is_pin_name_valid(pin_name))
 		return;
 
-	port_id_t port = pd_get_port(pin_name);
-	pin_id_t pin = pd_get_pin(pin_name);
+	port_id_t port = PD_GET_PORT(pin_name);
+	pin_id_t pin = PD_GET_PIN(pin_name);
 
 	MARK_AS_USED(port, pin);
 }
 
 bool pp_is_pin_used(pin_name_t pin_name)
 {
-	if (!pd_is_pin_name_valid(pin_name))
+	if (!is_pin_name_valid(pin_name))
 		return false;
 
-	port_id_t port = pd_get_port(pin_name);
-	pin_id_t pin = pd_get_pin(pin_name);
+	port_id_t port = PD_GET_PORT(pin_name);
+	pin_id_t pin = PD_GET_PIN(pin_name);
 
 	return QUERY_USAGE(port, pin);
 }
@@ -166,7 +192,7 @@ static uint32_t get_hal_speed(const gpio_config_t *settings)
 
 periph_t pp_get_peripheral(pin_name_t pin_name, const pin_map_t *mapping)
 {
-	if (!pd_is_pin_name_valid(pin_name))
+	if (!is_pin_name_valid(pin_name))
 		return NC;
 
 	size_t idx = can_pin_be_mapped(pin_name, mapping);
@@ -184,7 +210,7 @@ while(0)
 
 bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_map_t *mapping)
 {
-	if (!pd_is_pin_name_valid(pin_name))
+	if (!is_pin_name_valid(pin_name))
 		return false;
 
 	if (pp_is_pin_used(pin_name))
@@ -193,14 +219,14 @@ bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_map_t *mapping)
 	size_t idx = can_pin_be_mapped(pin_name, mapping);
 	RET_ON_NOT_FOUND(idx);
 
-	port_id_t port = pd_get_port(pin_name);
-	pin_id_t pin = pd_get_pin(pin_name);
+	port_id_t port = PD_GET_PORT(pin_name);
+	pin_id_t pin = PD_GET_PIN(pin_name);
 
 	/* Initialize pin for peripheral */
 	GPIO_InitTypeDef gpio_pin;
 	const gpio_config_t *settings = &mapping[idx].settings;
 	enable_gpio_port_clock(port);
-	gpio_pin.Pin = pd_map_drv_pin(pin);
+	gpio_pin.Pin = pp_map_drv_pin(pin);
 
 	uint32_t value = get_hal_af_mode(settings);
 	RET_ON_NOT_FOUND(value);
@@ -216,7 +242,7 @@ bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_map_t *mapping)
 
 	gpio_pin.Alternate = mapping[idx].alt_func;
 
-	HAL_GPIO_Init((GPIO_TypeDef *)pd_map_drv_port(port), &gpio_pin);
+	HAL_GPIO_Init((GPIO_TypeDef *)pp_map_drv_port(port), &gpio_pin);
 
 	MARK_AS_USED(port, pin);
 	return true;
@@ -224,19 +250,19 @@ bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_map_t *mapping)
 
 bool pp_gpio_pin_init(pin_name_t pin_name, const gpio_config_t *settings)
 {
-	if (!pd_is_pin_name_valid(pin_name))
+	if (!is_pin_name_valid(pin_name))
 		return false;
 
 	if (pp_is_pin_used(pin_name))
 		return false;
 
-	port_id_t port = pd_get_port(pin_name);
-	pin_id_t pin = pd_get_pin(pin_name);
+	port_id_t port = PD_GET_PORT(pin_name);
+	pin_id_t pin = PD_GET_PIN(pin_name);
 
 	/* Initialize pin as GPIO */
 	GPIO_InitTypeDef gpio_pin;
 	enable_gpio_port_clock(port);
-	gpio_pin.Pin = pd_map_drv_pin(pin);
+	gpio_pin.Pin = pp_map_drv_pin(pin);
 
 	uint32_t value = get_hal_mode(settings);
 	RET_ON_NOT_FOUND(value);
@@ -250,8 +276,47 @@ bool pp_gpio_pin_init(pin_name_t pin_name, const gpio_config_t *settings)
 	RET_ON_NOT_FOUND(value);
 	gpio_pin.Speed = value;
 
-	HAL_GPIO_Init((GPIO_TypeDef *)pd_map_drv_port(port), &gpio_pin);
+	HAL_GPIO_Init((GPIO_TypeDef *)pp_map_drv_port(port), &gpio_pin);
 
 	MARK_AS_USED(port, pin);
 	return true;
+}
+
+uint32_t pp_map_drv_port(pin_name_t pin_name)
+{
+	if (!is_pin_name_valid(pin_name))
+		return (uint32_t)NULL;
+
+	port_id_t port = PD_GET_PORT(pin_name);
+
+	switch (port) {
+	case PORT_A:
+		return (uint32_t)GPIOA;
+	case PORT_B:
+		return (uint32_t)GPIOB;
+	case PORT_C:
+		return (uint32_t)GPIOC;
+	case PORT_D:
+		return (uint32_t)GPIOD;
+	case PORT_E:
+		return (uint32_t)GPIOE;
+	case PORT_F:
+		return (uint32_t)GPIOF;
+	case PORT_G:
+		return (uint32_t)GPIOG;
+	case PORT_H:
+		return (uint32_t)GPIOH;
+	default:
+		return (uint32_t)NULL;
+	}
+}
+
+uint32_t pp_map_drv_pin(pin_name_t pin_name)
+{
+	if (!is_pin_name_valid(pin_name))
+		return NC;
+
+	pin_id_t pin = PD_GET_PIN(pin_name);
+
+	return (uint16_t)(1 << pin);
 }
