@@ -4,7 +4,7 @@
  * \brief Hardware abstraction layer for UART
  * \details This header defines a platform independent API to read and write over
  * the UART port. All sending operations are blocking while data is received
- * byte-by-byte via a receive interrupt.
+ * byte-by-byte via a receive callback.
  */
 #ifndef UART_HAL_H
 #define UART_HAL_H
@@ -46,7 +46,7 @@ periph_t uart_init(pin_name_t tx, pin_name_t rx, pin_name_t rts, pin_name_t cts)
 /**
  * \brief Set the UART receive character callback.
  * \details The callback is invoked with the received character as a parameter.
- * \param[in] hdl Handle of the UART peripheral to read.
+ * \param[in] hdl Handle of the UART peripheral.
  * \param[in] cb Pointer to the callback routine.
  * \pre \ref uart_init must be called to retrieve a valid handle.
  */
@@ -55,10 +55,10 @@ void uart_set_rx_char_cb(periph_t hdl, uart_rx_char_cb cb);
 /**
  * \brief Send data over the UART.
  * \details This is a blocking send. In case the receiver blocks the flow via
- * hardware flow control, the call will block for at most 'timeout_ms' milli-
- * seconds.
+ * hardware flow control, the call will block for at most 'timeout_ms'
+ * milliseconds.
  *
- * \param[in] hdl Handle of the UART peripheral to read.
+ * \param[in] hdl Handle of the UART peripheral to write.
  * \param[in] data Pointer to the data to be sent.
  * \param[in] size Number of bytes to send
  * \param[in] timeout_ms Total number of milliseconds to wait before giving up
@@ -81,7 +81,7 @@ bool uart_tx(periph_t hdl, uint8_t *data, uint16_t size, uint16_t timeout_ms);
  * cases, this function can be used to explicitly call the IRQ handler from
  * outside the driver.
  *
- * \param[in] hdl Handle of the UART peripheral to read.
+ * \param[in] hdl Handle of the UART peripheral.
  * \pre \ref uart_init must be called to retrieve a valid handle.
  */
 void uart_irq_handler(periph_t hdl);
