@@ -7,7 +7,7 @@
  * Based loosly on the mbed TLS ssl_client1.c example.
  */
 #ifndef BUILD_TARGET_OSX
-#include "platform.h"
+#include "sys.h"
 #else
 #include <stdlib.h>
 #endif

@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "dbg.h"
-#include "platform.h"
+#include "sys.h"
 #include "service_ids.h"
 #include "ott_protocol.h"
 #include "ott_def.h"

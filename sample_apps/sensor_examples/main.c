@@ -7,7 +7,7 @@
  * Data from each sensor is sent in a separate message to the cloud.
  */
 
-#include "platform.h"
+#include "sys.h"
 #include "cloud_comm.h"
 #include "cc_basic_service.h"
 #include "cc_control_service.h"

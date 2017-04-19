@@ -8,7 +8,7 @@
 #include <string.h>
 #include "dbg.h"
 #include "at_sms.h"
-#include "platform.h"
+#include "sys.h"
 
 #define WAIT_TIME_SEC	((uint8_t)30)
 #define MAX_ACK_TRIES	((uint8_t)5)

@@ -18,7 +18,7 @@
 #include <stdint.h>
 #include "at_tcp.h"
 #include "mbedtls/net.h"
-#include "platform.h"
+#include "sys.h"
 
 #if defined(OTT_EXPLICIT_NETWORK_TIME) && defined(OTT_TIME_PROFILE)
 

@@ -5,7 +5,7 @@
 #include "at_sms.h"
 #include "at_core.h"
 #include "at_toby201_sms_command.h"
-#include "platform.h"
+#include "sys.h"
 
 #define MAX_TRIES_MODEM_CONFIG	3		/* Retries at configuring modem */
 #define NET_REG_TIMEOUT_SEC	180000		/* Network registration timeout */

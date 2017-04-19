@@ -2,7 +2,7 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "platform.h"
+#include "sys.h"
 #include "cloud_comm_def.h"
 #include "cloud_protocol_intfc.h"
 #include "service_common.h"

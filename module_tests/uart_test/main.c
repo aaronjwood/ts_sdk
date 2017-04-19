@@ -2,7 +2,7 @@
 
 #include "dbg.h"
 #include "uart.h"
-#include "platform.h"
+#include "sys.h"
 
 #define SEND_TIMEOUT_MS		2000
 #define IDLE_CHARS		5

@@ -4,7 +4,7 @@
 #include "dbg.h"
 #include "uart.h"
 #include "at_tcp.h"
-#include "platform.h"
+#include "sys.h"
 
 const char *host = "httpbin.org";
 const char *port = "80";

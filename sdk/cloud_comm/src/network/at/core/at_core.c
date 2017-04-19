@@ -2,7 +2,7 @@
 
 #include <string.h>
 #include <stdio.h>
-#include "platform.h"
+#include "sys.h"
 #include "at_core.h"
 
 #ifdef MODEM_TOBY201

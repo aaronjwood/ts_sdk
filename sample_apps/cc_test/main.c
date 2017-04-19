@@ -9,7 +9,7 @@
  */
 #include <string.h>
 
-#include "platform.h"
+#include "sys.h"
 #include "cloud_comm.h"
 #include "cc_basic_service.h"
 #include "cc_control_service.h"

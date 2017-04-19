@@ -12,7 +12,7 @@
 #include <stdbool.h>
 
 #include "sensor_interface.h"
-#include "platform.h"
+#include "sys.h"
 
 /* Exit On Error (EOE) macro */
 #define EOE(func) \

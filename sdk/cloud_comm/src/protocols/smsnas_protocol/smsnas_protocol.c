@@ -3,7 +3,7 @@
 #include <string.h>
 #include "smsnas_protocol.h"
 #include "smsnas_def.h"
-#include "platform.h"
+#include "sys.h"
 #include "dbg.h"
 
 #define RETURN_ERROR(string, ret) \

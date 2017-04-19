@@ -1,6 +1,6 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
-#include "platform.h"
+#include "sys.h"
 #include "dbg.h"
 
 int main(int argc, char *argv[])
