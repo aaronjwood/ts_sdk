@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 	int ret;
 
 #ifndef BUILD_TARGET_OSX
-	platform_init();
+	sys_init();
 #endif
 
 	dbg_module_init();

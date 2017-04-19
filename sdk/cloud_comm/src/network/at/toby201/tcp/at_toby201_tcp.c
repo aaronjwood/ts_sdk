@@ -320,17 +320,17 @@ static at_ret_code __at_modem_conf()
         }
 
         result = AT_FAILURE;
-        uint32_t start = platform_get_tick_ms();
+        uint32_t start = sys_get_tick_ms();
         uint32_t end;
         while (result != AT_SUCCESS) {
-                end = platform_get_tick_ms();
+                end = sys_get_tick_ms();
                 DEBUG_V0("%s: Rechecking network registration\n", __func__);
                 if ((end - start) > NET_REG_CHECK_DELAY) {
                         DEBUG_V0("%s: timed out\n", __func__);
                         break;
                 }
                 result = __at_check_network_registration();
-                platform_delay(CHECK_MODEM_DELAY);
+                sys_delay(CHECK_MODEM_DELAY);
         }
 
         /* Now modem has registered with home network, it is safe to say network
@@ -393,11 +393,11 @@ static void __at_reset_dl_state(void)
 
 static at_ret_code __at_esc_dl_mode(void)
 {
-        platform_delay(DL_ESC_TIME_MS);
+        sys_delay(DL_ESC_TIME_MS);
         at_command_desc *desc = &tcp_comm[ESCAPE_DL_MODE];
         at_ret_code result = at_core_wcmd(desc, true);
         if (AT_COMM_DELAY_MS < DL_ESC_TIME_MS)
-                platform_delay(DL_ESC_TIME_MS - DL_ESC_TIME_MS);
+                sys_delay(DL_ESC_TIME_MS - DL_ESC_TIME_MS);
 
         if (result != AT_SUCCESS)
                 DEBUG_V0("%s:%d: unable to exit dl mode\n", __func__, __LINE__);
@@ -680,7 +680,7 @@ static int __at_process_rcv_dl_partial(size_t len)
                 DEBUG_V0("%s:%d: Waiting for more bytes if any\n",
                         __func__, __LINE__);
 
-                platform_delay(DL_PARTIAL_WAIT);
+                sys_delay(DL_PARTIAL_WAIT);
 
                 r = __at_test_dl_partial_state();
                 if (r != DL_PARTIAL_SUC)

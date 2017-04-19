@@ -155,7 +155,7 @@ proto_result ott_protocol_init(void)
 #endif
 
 #ifdef PROTO_HEAP_PROFILE
-	mbedtls_platform_set_calloc_free(ott_calloc, free);
+	mbedtls_sys_set_calloc_free(ott_calloc, free);
 #endif
 	/* Initialize TLS structures */
 	mbedtls_net_init(&server_fd);
@@ -300,14 +300,14 @@ static proto_result write_tls(const uint8_t *buf, uint16_t len)
 	/* Attempt to write 'len' bytes of 'buf' over the TCP/TLS stream. */
 	int ret = mbedtls_ssl_write(&ssl, (const unsigned char *)buf,
 				(size_t)len);
-	uint32_t start = platform_get_tick_ms();
+	uint32_t start = sys_get_tick_ms();
 	while (ret <= 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
 				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 			mbedtls_ssl_session_reset(&ssl);
 			return PROTO_ERROR;
 		}
-		if (platform_get_tick_ms() - start > TIMEOUT_MS) {
+		if (sys_get_tick_ms() - start > TIMEOUT_MS) {
 			mbedtls_ssl_session_reset(&ssl);
 			return PROTO_TIMEOUT;
 		}
@@ -546,7 +546,7 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 {
 	PROTO_TIME_PROFILE_BEGIN();
 
-	uint32_t start = platform_get_tick_ms();
+	uint32_t start = sys_get_tick_ms();
 	uint32_t end = start;
 	bool no_nack = true;
 	uint32_t rcvd = 0;
@@ -556,7 +556,7 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 		if (s == PROTO_INV_PARAM || s == PROTO_ERROR)
 			return false;
 		if (s == PROTO_NO_MSG) {
-			end = platform_get_tick_ms();
+			end = sys_get_tick_ms();
 			continue;
 		}
 		if (s == PROTO_OK) {
@@ -611,7 +611,7 @@ static proto_result ott_initiate_connection(const char *host, const char *port)
 
 	/* Perform TLS handshake */
 	ret = mbedtls_ssl_handshake(&ssl);
-	uint32_t start = platform_get_tick_ms();
+	uint32_t start = sys_get_tick_ms();
 	while (ret != 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
 				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
@@ -620,7 +620,7 @@ static proto_result ott_initiate_connection(const char *host, const char *port)
 			mbedtls_net_free(&server_fd);
 			return PROTO_ERROR;
 		}
-		if (platform_get_tick_ms() - start > TIMEOUT_MS) {
+		if (sys_get_tick_ms() - start > TIMEOUT_MS) {
 			mbedtls_ssl_session_reset(&ssl);
 			mbedtls_ssl_free(&ssl);
 			mbedtls_net_free(&server_fd);

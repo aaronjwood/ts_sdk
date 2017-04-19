@@ -161,7 +161,7 @@ static uint32_t send_status_msgs(uint64_t cur_ts)
 
 int main(int argc, char *argv[])
 {
-	platform_init();
+	sys_init();
 	dbg_module_init();
 	dbg_printf("Begin:\n");
 
@@ -202,10 +202,10 @@ int main(int argc, char *argv[])
 	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
 	while (1) {
 		printf("Current time stamp: %"PRIu32"\n",
-			(uint32_t)platform_get_tick_ms() / 1000);
-		next_report_interval = send_status_msgs(platform_get_tick_ms());
+			(uint32_t)sys_get_tick_ms() / 1000);
+		next_report_interval = send_status_msgs(sys_get_tick_ms());
 		next_wakeup_interval = cc_service_send_receive(
-						platform_get_tick_ms());
+						sys_get_tick_ms());
 		if (next_wakeup_interval == 0) {
 			wake_up_interval = LONG_SLEEP_INT_MS;
 			dbg_printf("Protocol does not required to be called"
@@ -225,7 +225,7 @@ int main(int argc, char *argv[])
 
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
-		slept_till = platform_sleep_ms(wake_up_interval);
+		slept_till = sys_sleep_ms(wake_up_interval);
 		slept_till = wake_up_interval - slept_till;
 		dbg_printf("Slept for %"PRIu32" seconds\n\n", slept_till / 1000);
 	}

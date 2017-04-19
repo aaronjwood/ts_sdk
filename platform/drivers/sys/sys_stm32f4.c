@@ -128,7 +128,7 @@ static bool timer_module_init(void)
 	timer.Instance = TIM5;
 	timer.Init.Prescaler = 45000;
 	timer.Init.CounterMode = TIM_COUNTERMODE_UP;
-	/* It will not start until first call to platform_sleep function */
+	/* It will not start until first call to sys_sleep function */
 	timer.Init.Period = 0;
 	timer.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	if (HAL_TIM_Base_Init(&timer) != HAL_OK)
@@ -142,7 +142,7 @@ static bool timer_module_init(void)
 	return true;
 }
 
-void platform_init()
+void sys_init(void)
 {
 	HAL_Init();
 	SystemClock_Config();
@@ -153,12 +153,12 @@ void platform_init()
 	accu_tick = 0;
 }
 
-void platform_delay(uint32_t delay_ms)
+void sys_delay(uint32_t delay_ms)
 {
         HAL_Delay(delay_ms);
 }
 
-uint64_t platform_get_tick_ms(void)
+uint64_t sys_get_tick_ms(void)
 {
 	uint32_t cur_ts = HAL_GetTick();
 	uint32_t diff_ms = 0;
@@ -200,7 +200,7 @@ static uint32_t handle_wakeup_event(uint32_t sleep)
 	return slept_till;
 }
 
-uint32_t platform_sleep_ms(uint32_t sleep)
+uint32_t sys_sleep_ms(uint32_t sleep)
 {
 	if (sleep == 0)
 		return 0;
@@ -268,9 +268,9 @@ void UsageFault_Handler(void)
 		;
 }
 
-void platform_reset_modem(uint16_t pulse_width_ms)
+void sys_reset_modem(uint16_t pulse_width_ms)
 {
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET);
-	platform_delay(pulse_width_ms);
+	sys_delay(pulse_width_ms);
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
 }

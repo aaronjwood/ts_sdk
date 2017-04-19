@@ -22,7 +22,7 @@ static int tcp_connect()
 		s_id = at_tcp_connect(host, port);
 		if (s_id >= 0)
 			break;
-		platform_delay(DELAY_MS);
+		sys_delay(DELAY_MS);
 		count++;
 	}
 	if (s_id < 0) {
@@ -47,7 +47,7 @@ static void tcp_send(int s_id, uint8_t *send_buf, size_t len)
 				count++;
 				res = 0;
 			}
-			platform_delay(DELAY_MS);
+			sys_delay(DELAY_MS);
 		} else {
 			sent_data += res;
 			if (sent_data == len)
@@ -73,7 +73,7 @@ static void tcp_rcv(int s_id)
 	while (count < NUM_RETRIES) {
 		bytes = at_tcp_recv(s_id, read_buf, RECV_BUFFER);
 		if (bytes <= 0) {
-			platform_delay(DELAY_MS);
+			sys_delay(DELAY_MS);
 			count++;
 			continue;
 		}
@@ -84,7 +84,7 @@ static void tcp_rcv(int s_id)
 
 int main(int argc, char *argv[])
 {
-	platform_init();
+	sys_init();
 
 	dbg_module_init();
 	dbg_printf("Begin:\n");

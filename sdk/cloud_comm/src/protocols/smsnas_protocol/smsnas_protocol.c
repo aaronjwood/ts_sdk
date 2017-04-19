@@ -165,7 +165,7 @@ static void update_ack_rcv_path(const at_msg_t *msg_ptr, uint8_t rcv_path)
 {
 	session.rcv_msg[rcv_path].cur_seq = msg_ptr->seq_no;
 	session.rcv_msg[rcv_path].wr_idx += msg_ptr->len;
-	session.rcv_msg[rcv_path].next_seq_timeout = platform_get_tick_ms() +
+	session.rcv_msg[rcv_path].next_seq_timeout = sys_get_tick_ms() +
 							CONC_NEXT_SEG_TIMEOUT_MS;
 	smsnas_send_ack();
 }

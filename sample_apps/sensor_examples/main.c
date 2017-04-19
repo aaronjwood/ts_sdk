@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
 	uint32_t next_report_interval = 0;	/* Interval in ms */
 	uint32_t slept_till = 0;
 
-	platform_init();
+	sys_init();
 	dbg_module_init();
 	dbg_printf("Begin:\n");
 
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
 	send_all_calibration_data();
 	while (1) {
 		next_report_interval = read_and_send_all_sensor_data(
-							platform_get_tick_ms());
+							sys_get_tick_ms());
 		if (resend_calibration) {
 			resend_calibration = false;
 			dbg_printf("\tResending calibration data\n");
@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
 		}
 
 		next_wakeup_interval = cc_service_send_receive(
-							platform_get_tick_ms());
+							sys_get_tick_ms());
 		if (next_wakeup_interval == 0) {
 			wake_up_interval = LONG_SLEEP_INT_MS;
 			dbg_printf("Protocol does not required to be called"
@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
 		ASSERT(si_sleep());
-		slept_till = platform_sleep_ms(wake_up_interval);
+		slept_till = sys_sleep_ms(wake_up_interval);
 		slept_till = wake_up_interval - slept_till;
 		dbg_printf("Slept for %"PRIu32" seconds\n\n", slept_till / 1000);
 		ASSERT(si_wakeup());

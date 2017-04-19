@@ -5,14 +5,14 @@
 
 int main(int argc, char *argv[])
 {
-	platform_init();
+	sys_init();
 
 	dbg_module_init();
 
 	while(1) {
 		dbg_printf("This is an example of a moderately long sentence"
 				"ending in a newline.\n");
-		platform_delay(1000);
+		sys_delay(1000);
 	}
 	return 0;
 }
