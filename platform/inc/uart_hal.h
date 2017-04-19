@@ -29,28 +29,35 @@ struct uart_pins {
 };
 
 /**
+ * \brief Type defining the UART configuration.
+ * \details Acceptable values for the following fields are hardware / implementation
+ * dependent.
+ */
+typedef struct {
+	uint32_t baud;		/**< Baud rate in bits per second */
+	uint8_t data_width;	/**< Width (in bits) of the unit of data */
+	uint8_t parity_bits;	/**< Number of parity bits */
+	uint8_t stop_bits;	/**< Number of stop bits */
+	uint32_t priority;	/**< Interrupt priority of the UART's IRQ Handler */
+} uart_config;
+
+/**
  * \brief Initialize the UART peripheral.
- * \details The UART is initialized with the following settings: \n
- * Baud rate       : \b 115200 \b bps \n
- * Data width      : \b 8 \b bits \n
- * Parity bits     : \b None \n
- * Stop bits       : \b 1 \n
- * HW flow control : \b Configurable \n
- *
+ * \details The UART is configured according to the \ref uart_config structure
+ * passed to this routine. \n
  * If either uart_pins.rts or uart_pins.cts is assigned the value 'NC', HW flow
  * control is disabled. Also, only one of uart_pins.tx or uart_pins.rx can be
  * 'NC'. This routine must be called once for every instance before attempting
  * to transmit data or set a receive callback.
  *
  * \param[in] pins Structure that contains names of the pins to use for the UART.
- * \param[in] priority Interrupt priority of this UART instance. The underlying
- * representation of the priority is determined by the implementation.
+ * \param[in] config Defines the configuration of the UART peripheral.
  *
- * \returns Handle to UART peripheral. If the combination of uart_pins turns
- * out to be invalid or pins do not connect to the same peripheral,
- * \ref NO_PERIPH is returned.
+ * \returns Handle to UART peripheral. \ref NO_PERIPH is returned if the
+ * combination of uart_pins turns out to be invalid, pins do not connect to the
+ * same peripheral or configuration parameters are invalid.
  */
-periph_t uart_init(struct uart_pins pins, uint32_t priority);
+periph_t uart_init(struct uart_pins pins, uart_config config);
 
 /**
  * \brief Set the UART receive character callback.
