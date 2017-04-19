@@ -12,7 +12,7 @@ INC += -I $(PLATFORM_HAL_ROOT)/sw/$(BUILD_TARGET)/$(BUILD_MCU)/$(BUILD_BOARD)
 # different compiler options.
 
 PLATFORM_HAL_SRC = dbg_$(BUILD_TARGET).c uart_$(BUILD_TARGET).c
-PLATFORM_HAL_SRC += platform_$(BUILD_TARGET).c gpio_$(BUILD_TARGET).c
+PLATFORM_HAL_SRC += sys_$(BUILD_TARGET).c gpio_$(BUILD_TARGET).c
 PLATFORM_HAL_SRC += i2c_$(BUILD_TARGET).c timer_$(BUILD_TARGET).c
 PLATFORM_HAL_SRC += uart_buf.c pin_map.c port_pin_api.c
 
