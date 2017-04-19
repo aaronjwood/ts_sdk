@@ -19,6 +19,16 @@
 typedef void (*uart_rx_char_cb)(uint8_t ch);
 
 /**
+ * \brief Structure that defines the pins to use for the UART peripheral.
+ */
+struct uart_pins {
+	pin_name_t tx;	/**< UART transmit pin */
+	pin_name_t rx;	/**< UART receive pin */
+	pin_name_t rts;	/**< UART RTS pin */
+	pin_name_t cts;	/**< UART CTS pin */
+};
+
+/**
  * \brief Initialize the UART peripheral.
  * \details The UART is initialized with the following settings: \n
  * Baud rate       : \b 115200 \b bps \n
@@ -32,16 +42,15 @@ typedef void (*uart_rx_char_cb)(uint8_t ch);
  * 'NC'. This routine must be called once for every instance before attempting
  * to transmit data or set a receive callback.
  *
- * \param[in] tx Name of the pin connected to the TX line of the peripheral
- * \param[in] rx Name of the pin connected to the RX line of the peripheral
- * \param[in] rts Name of the pin connected to the RTS line of the peripheral
- * \param[in] cts Name of the pin connected to the CTS line of the peripheral
+ * \param[in] pins Structure that contains names of the pins to use for the UART.
+ * \param[in] priority Interrupt priority of this UART instance. The underlying
+ * representation of the priority is determined by the implementation.
  *
  * \returns Handle to UART peripheral. If the combination of uart_pins turns
  * out to be invalid or pins do not connect to the same peripheral,
  * \ref NO_PERIPH is returned.
  */
-periph_t uart_init(pin_name_t tx, pin_name_t rx, pin_name_t rts, pin_name_t cts);
+periph_t uart_init(struct uart_pins pins, uint32_t priority);
 
 /**
  * \brief Set the UART receive character callback.

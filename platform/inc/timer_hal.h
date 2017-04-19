@@ -5,6 +5,9 @@
  * \details The underlying timer peripheral fires at a programmed period causing
  * the user callback to be invoked. It can be started and stopped independently
  * of other timers on the target and can be queried to check if it is running.
+ * It is recommended that timer instances not be shared between modules. For
+ * example, if the timer instance TIM2 is being used by the SDK internally, it
+ * should not be reused in the user application.
  */
 #ifndef TIMER_HAL_H
 #define TIMER_HAL_H
@@ -24,6 +27,9 @@ typedef void (*timercallback_t)(void);
 typedef struct {
 	/** Initialize the period */
 	bool (*init_period)(uint32_t period);
+
+	/** Set the interrupt priority */
+	void (*set_priority)(uint32_t priority);
 
 	/** Register a callback */
 	void (*reg_callback)(timercallback_t cb);
@@ -45,11 +51,15 @@ typedef struct {
  * \brief Initialize the timer peripheral instance.
  * \details The instance is programmed with a period and a user callback is
  * registered to it. The units of the period depend on the underlying timer
- * peripheral instance. This routine must be called once for every instance
- * before starting and stopping timer peripherals.
+ * peripheral instance. Once initialized, the timer will enter the stopped state
+ * until it is explicitly started with \ref timer_start. This routine must be
+ * called once for every instance before starting and stopping timer peripherals.
  *
  * \param[in] inst Pointer to the interface of the timer instance.
  * \param[in] period Period of the timer.
+ * \param[in] priority Interrupt priority of this timer instance. The underlying
+ * representation of the priority is determined by the implementation of the timer
+ * instance.
  * \param[in] callback Pointer to the callback that will be invoked at the end of
  * every period.
  *
@@ -58,6 +68,7 @@ typedef struct {
  */
 bool timer_init(const timer_interface_t * const inst,
 		uint32_t period,
+		uint32_t priority,
 		timercallback_t callback);
 
 /**
