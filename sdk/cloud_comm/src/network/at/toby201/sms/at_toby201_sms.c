@@ -5,7 +5,7 @@
 #include "at_sms.h"
 #include "at_core.h"
 #include "at_toby201_sms_command.h"
-#include "platform.h"
+#include "sys.h"
 
 #define MAX_TRIES_MODEM_CONFIG	3		/* Retries at configuring modem */
 #define NET_REG_TIMEOUT_SEC	180000		/* Network registration timeout */
@@ -155,15 +155,15 @@ static at_ret_code config_modem_for_sms(void)
 	}
 
 	/* Check network registration */
-	uint32_t start = platform_get_tick_ms();
+	uint32_t start = sys_get_tick_ms();
 	uint32_t end = start;
 	do {
 		DEBUG_V0("%s: Rechecking network registration\n", __func__);
 		res = check_network_registration();
 		if (res == AT_SUCCESS)
 			break;
-		platform_delay(CHECK_MODEM_DELAY);
-		end = platform_get_tick_ms();
+		sys_delay(CHECK_MODEM_DELAY);
+		end = sys_get_tick_ms();
 	} while(end - start < NET_REG_TIMEOUT_SEC);
 
 	if (end - start >= NET_REG_TIMEOUT_SEC) {

@@ -2,7 +2,7 @@
 
 #include <string.h>
 #include <stdio.h>
-#include "platform.h"
+#include "sys.h"
 #include "at_core.h"
 
 #ifdef MODEM_TOBY201
@@ -225,10 +225,10 @@ static at_ret_code __at_wait_for_rsp(uint32_t *timeout)
 {
 	state.waiting_resp = true;
 	at_ret_code result = AT_SUCCESS;
-	uint32_t start = platform_get_tick_ms();
+	uint32_t start = sys_get_tick_ms();
 	uint32_t end = start;
 	while (!process_rsp) {
-		end = platform_get_tick_ms();
+		end = sys_get_tick_ms();
 		if ((end - start) > *timeout) {
 			result = AT_RSP_TIMEOUT;
 			DEBUG_V1("%s: RSP_TIMEOUT: out of %lu, waited %lu\n",
@@ -417,7 +417,7 @@ at_ret_code at_core_wcmd(const at_command_desc *desc, bool read_line)
 			if (result == AT_WRONG_RSP) {
 				DEBUG_V0("%s: wrong response for command:%s\n",
 						__func__, comm);
-				platform_delay(RSP_BUF_DELAY);
+				sys_delay(RSP_BUF_DELAY);
 				__at_dump_buffer(NULL, 0);
 				break;
 			}
@@ -478,7 +478,7 @@ done:
 	state.waiting_resp = false;
 
 	/* Recommeded to wait at least 20ms before proceeding */
-	platform_delay(AT_COMM_DELAY_MS);
+	sys_delay(AT_COMM_DELAY_MS);
 
 	/* check to see if we have urcs while command was executing
 	 * if result was wrong response, chances are that we are out of sync
@@ -590,7 +590,7 @@ static at_ret_code __at_modem_reset_comm(void)
 	} else {
 		result = AT_FAILURE;
 		DEBUG_V0("%s: wrong resp\n", __func__);
-		platform_delay(RSP_BUF_DELAY);
+		sys_delay(RSP_BUF_DELAY);
 		__at_dump_buffer(NULL, 0);
 		goto done;
 	}
@@ -607,7 +607,7 @@ static at_ret_code __at_modem_reset_comm(void)
 done:
 	state.waiting_resp = false;
 	state.proc_rsp = false;
-	platform_delay(AT_COMM_DELAY_MS);
+	sys_delay(AT_COMM_DELAY_MS);
 	/* check to see if we have urcs while command was executing
 	*/
 	DEBUG_V1("%s: Processing URCS outside call back\n", __func__);
@@ -620,25 +620,25 @@ at_ret_code at_core_modem_reset(void)
 	at_ret_code result = __at_modem_reset_comm();
 	if (result != AT_SUCCESS) {
 		DEBUG_V0("%s: Trying hardware reset\n", __func__);
-		platform_reset_modem(RESET_PULSE_WIDTH_MS);
+		sys_reset_modem(RESET_PULSE_WIDTH_MS);
 	}
 
 	/* sending at command right after reset command succeeds which is not
 	 * desirable, wait here for few seconds before we send at command to
 	 * poll for modem
 	 */
-	platform_delay(3000);
-	uint32_t start = platform_get_tick_ms();
+	sys_delay(3000);
+	uint32_t start = sys_get_tick_ms();
 	uint32_t end;
 	result = AT_FAILURE;
 	while (result != AT_SUCCESS) {
-		end = platform_get_tick_ms();
+		end = sys_get_tick_ms();
 		if ((end - start) > MODEM_RESET_DELAY) {
 			DEBUG_V0("%s: timed out\n", __func__);
 			return result;
 		}
 		result =  at_core_wcmd(&modem_core[MODEM_OK], false);
-		platform_delay(CHECK_MODEM_DELAY);
+		sys_delay(CHECK_MODEM_DELAY);
 	}
 
 	/* Switch off TX echo */

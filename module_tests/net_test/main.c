@@ -4,7 +4,7 @@
 #include "dbg.h"
 #include "uart.h"
 #include "mbedtls/net.h"
-#include "platform.h"
+#include "sys.h"
 
 const char *host = "httpbin.org";
 const char *port = "80";
@@ -23,7 +23,7 @@ static void net_connect(mbedtls_net_context *ctx)
 			MBEDTLS_NET_PROTO_TCP);
 		if (res >= 0)
 			break;
-		platform_delay(DELAY_MS);
+		sys_delay(DELAY_MS);
 		count++;
 	}
 	if (res != 0) {
@@ -49,7 +49,7 @@ static void net_send(mbedtls_net_context *ctx, uint8_t *send_buf, size_t len)
 				count++;
 				res = 0;
 			}
-			platform_delay(DELAY_MS);
+			sys_delay(DELAY_MS);
 		} else {
 			sent_data += res;
 			if (sent_data == len)
@@ -76,7 +76,7 @@ static void net_rcv(mbedtls_net_context *ctx)
 		bytes = mbedtls_net_recv(ctx, read_buf, RECV_BUFFER);
 		if (bytes == MBEDTLS_ERR_SSL_WANT_READ) {
 			count++;
-			platform_delay(DELAY_MS);
+			sys_delay(DELAY_MS);
 			continue;
 		} else if ((bytes == 0) ||
 			(bytes == MBEDTLS_ERR_NET_CONN_RESET)) {
@@ -97,7 +97,7 @@ static void net_rcv(mbedtls_net_context *ctx)
 
 int main(int argc, char *argv[])
 {
-	platform_init();
+	sys_init();
 
 	dbg_module_init();
 	dbg_printf("Initializing mbedtls, it may take few seconds\n");

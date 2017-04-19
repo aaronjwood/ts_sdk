@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #include "sensor_interface.h"
-#include "platform.h"
+#include "sys.h"
 
 /* Exit On Error (EOE) macro */
 #define EOE(func) \
@@ -112,10 +112,10 @@ bool si_read_data(uint8_t idx, uint16_t max_sz, array_t *data)
 		return false;
 	data->sz = PRES_SZ + TEMP_SZ;
 	EOE(i2c_sw(MEASURE_CTL, &temp_cmd, 1));
-	platform_delay(5);
+	sys_delay(5);
 	EOE(i2c_sr(OUT_MSB, data->bytes, TEMP_SZ));
 	EOE(i2c_sw(MEASURE_CTL, &pres_cmd, 1));
-	platform_delay(5);
+	sys_delay(5);
 	EOE(i2c_sr(OUT_MSB, data->bytes + TEMP_SZ, PRES_SZ));
 	return true;
 }

@@ -2,7 +2,7 @@
 
 #include "dbg.h"
 #include "uart.h"
-#include "platform.h"
+#include "sys.h"
 
 #define SEND_TIMEOUT_MS		2000
 #define IDLE_CHARS		5
@@ -38,7 +38,7 @@ static void rx_cb(callback_event event)
 
 int main(int argc, char *argv[])
 {
-	platform_init();
+	sys_init();
 
 	dbg_module_init();
 	ASSERT(uart_module_init(UART_EN_HW_CTRL, IDLE_CHARS) == true);
@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
 
 	uint8_t echo_off[] = "ATE0\r";	/* ATE0 turns off echo in DCE for DTE commands */
 	ASSERT(uart_tx(echo_off, sizeof(echo_off), SEND_TIMEOUT_MS) == true);
-	platform_delay(2000);		/* Wait for modem to process */
+	sys_delay(2000);		/* Wait for modem to process */
 
 	/* Get rid of all responses that aren't surrounded by the header and
 	 * trailer.
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 		if (received_response) {
 			/* Received a response. Wait and resend AT&V. */
 			received_response = false;
-			platform_delay(2000);
+			sys_delay(2000);
 			ASSERT(uart_tx(msg, sizeof(msg), SEND_TIMEOUT_MS) == true);
 		}
 	}

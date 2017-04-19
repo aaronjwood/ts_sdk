@@ -12,7 +12,7 @@
 #include <stdbool.h>
 
 #include "sensor_interface.h"
-#include "platform.h"
+#include "sys.h"
 
 /* Exit On Error (EOE) macro */
 #define EOE(func) \
@@ -203,13 +203,13 @@ static bool read_until_matched_byte(uint8_t dev, uint8_t reg,
 		uint8_t mask, uint8_t expected)
 {
 	uint8_t value;
-	uint32_t start = platform_get_tick_ms();
+	uint32_t start = sys_get_tick_ms();
 	uint32_t end = start;
 	do {
 		EOE(i2c_sr(dev, reg, &value, 1));
 		if ((value & mask) == expected)
 			return true;
-		end = platform_get_tick_ms();
+		end = sys_get_tick_ms();
 	} while(end - start < READ_MATCH_TIMEOUT);
 	return false;
 }

@@ -7,7 +7,7 @@
  * Based loosly on the mbed TLS ssl_client1.c example.
  */
 #ifndef BUILD_TARGET_OSX
-#include "platform.h"
+#include "sys.h"
 #else
 #include <stdlib.h>
 #endif
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 	int ret;
 
 #ifndef BUILD_TARGET_OSX
-	platform_init();
+	sys_init();
 #endif
 
 	dbg_module_init();

@@ -75,22 +75,22 @@ typedef void (*proto_callback)(const void *buf, uint32_t sz,
 extern uint32_t network_time_ms;
 
 #define PROTO_TIME_PROFILE_BEGIN() do { \
-	proto_begin = platform_get_tick_ms(); \
+	proto_begin = sys_get_tick_ms(); \
 	network_time_ms = 0; \
 } while(0)
 
 #define PROTO_TIME_PROFILE_END(label) do { \
-	dbg_printf("["label":%u]", platform_get_tick_ms() - proto_begin); \
+	dbg_printf("["label":%u]", sys_get_tick_ms() - proto_begin); \
 	dbg_printf(" [NETW:%u]\n", network_time_ms); \
 } while(0)
 
 #else
 
 #define PROTO_TIME_PROFILE_BEGIN() \
-	proto_begin = platform_get_tick_ms()
+	proto_begin = sys_get_tick_ms()
 
 #define PROTO_TIME_PROFILE_END(label) \
-	dbg_printf("["label":%u]\n", platform_get_tick_ms() - proto_begin)
+	dbg_printf("["label":%u]\n", sys_get_tick_ms() - proto_begin)
 
 #endif	/* PROTO_EXPLICIT_NETWORK_TIME */
 

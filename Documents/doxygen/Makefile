@@ -9,10 +9,15 @@ ifneq (build,$(notdir $(CURDIR)))
 include $(PROJ_ROOT)/tools/config/build_in_subdir.mk
 else
 
-.PHONY: all clean
+.PHONY: all clean sdk-docs hal-docs
 
-all:
-	(cd $(PROJ_ROOT); doxygen $(PROJ_ROOT)/Documents/doxygen/Doxyfile)
+all: sdk-docs hal-docs
+
+sdk-docs:
+	(cd $(PROJ_ROOT); doxygen $(PROJ_ROOT)/Documents/doxygen/Doxyfile.sdk)
+
+hal-docs:
+	(cd $(PROJ_ROOT); doxygen $(PROJ_ROOT)/Documents/doxygen/Doxyfile.hal)
 
 clean:
 	rm -rf $(PROJ_ROOT)/Documents/doxygen/build

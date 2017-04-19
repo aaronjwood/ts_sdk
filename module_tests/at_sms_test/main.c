@@ -8,7 +8,7 @@
 #include <string.h>
 #include "dbg.h"
 #include "at_sms.h"
-#include "platform.h"
+#include "sys.h"
 
 #define WAIT_TIME_SEC	((uint8_t)30)
 #define MAX_ACK_TRIES	((uint8_t)5)
@@ -34,7 +34,7 @@ static void rcv_cb(const at_msg_t *sms_seg)
 /* Wait for 'ms' milliseconds, ACKing any messages received */
 static void wait_ms(uint32_t ms)
 {
-	uint32_t start = platform_get_tick_ms();
+	uint32_t start = sys_get_tick_ms();
 	uint32_t end = start;
 	uint8_t num_tries = 0;
 	do {
@@ -49,13 +49,13 @@ static void wait_ms(uint32_t ms)
 					ack_pending = true;
 			}
 		}
-		end = platform_get_tick_ms();
+		end = sys_get_tick_ms();
 	} while(end - start <= ms);
 }
 
 int main(int argc, char *argv[])
 {
-	platform_init();
+	sys_init();
 	dbg_module_init();
 	dbg_printf("Begin:\n");
 	dbg_printf("Initializing modem\n");
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 			goto done;
 		}
 
-		platform_delay(2500);
+		sys_delay(2500);
 
 		/* Send multi part SMS to destination */
 		dbg_printf("Sending a multi-part message (%s)\n", num);

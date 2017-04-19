@@ -10,18 +10,18 @@
 
 static mach_timebase_info_data_t time_base;
 
-void platform_init()
+void sys_init(void)
 {
 	/* Get the time base for mach_absolute_time() */
 	mach_timebase_info(&time_base);
 }
 
-void platform_delay(uint32_t delay_ms)
+void sys_delay(uint32_t delay_ms)
 {
 	usleep(delay_ms * MS_US_MULT);
 }
 
-uint32_t platform_get_tick_ms(void)
+uint32_t sys_get_tick_ms(void)
 {
 	/*
 	 * XXX: On POSIX compatible systems, use:
@@ -35,7 +35,7 @@ uint32_t platform_get_tick_ms(void)
 	return (time_ns / MS_NS_MULT);
 }
 
-void platform_reset_modem(void)
+void sys_reset_modem(void)
 {
 	/* Stub */
 }

@@ -18,7 +18,7 @@
 #include <stdint.h>
 #include "at_tcp.h"
 #include "mbedtls/net.h"
-#include "platform.h"
+#include "sys.h"
 
 #if defined(OTT_EXPLICIT_NETWORK_TIME) && defined(OTT_TIME_PROFILE)
 
@@ -26,10 +26,10 @@ uint32_t network_time_ms;
 static uint32_t net_begin;
 
 #define NET_TIME_PROFILE_BEGIN() \
-	net_begin = platform_get_tick_ms()
+	net_begin = sys_get_tick_ms()
 
 #define NET_TIME_PROFILE_END() \
-	network_time_ms += (platform_get_tick_ms() - net_begin)
+	network_time_ms += (sys_get_tick_ms() - net_begin)
 
 #else
 
@@ -161,10 +161,10 @@ int mbedtls_net_recv_timeout(void *ctx, unsigned char *buf,
         if (fd < 0)
                 return MBEDTLS_ERR_NET_INVALID_CONTEXT;
         ret = at_read_available(fd);
-        uint32_t start = platform_get_tick_ms();
+        uint32_t start = sys_get_tick_ms();
         bool timeout_flag = false;
         while (ret <= 0) {
-                if ((platform_get_tick_ms() - start) > timeout) {
+                if ((sys_get_tick_ms() - start) > timeout) {
                         timeout_flag = true;
                         break;
                 } else
