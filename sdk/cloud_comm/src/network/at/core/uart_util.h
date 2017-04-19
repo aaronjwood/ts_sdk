@@ -1,5 +1,5 @@
 /**
- * \file uart_buf.h
+ * \file uart_util.h
  * \copyright Copyright (c) 2017 Verizon. All rights reserved.
  * \brief Defines the UART buffer API.
  * \details This API implements a buffer and routines to access and manage
@@ -68,23 +68,23 @@ typedef void (*uart_rx_cb)(callback_event event);
  * \retval true Buffer was successfully initialized.
  * \retval false Failed to initialize buffer.
  */
-bool uart_buf_init(uint8_t idle_timeout);
+bool uart_util_init(uint8_t idle_timeout);
 
 /**
  * \brief Set the receive callback.
  * \details When the UART receive line is detected to be idle, the registered
  * callback routine is invoked.
  * \param[in] cb Pointer to the receive callback
- * \pre \ref uart_buf_init must have been called once.
+ * \pre \ref uart_util_init must have been called once.
  */
-void uart_buf_reg_callback(uart_rx_cb cb);
+void uart_util_reg_callback(uart_rx_cb cb);
 
 /**
  * \brief Return the number of unread bytes present in the buffer.
  * \returns Number of unread bytes in the buffer.
- * \pre \ref uart_buf_init must have been called once.
+ * \pre \ref uart_util_init must have been called once.
  */
-buf_sz uart_buf_available(void);
+buf_sz uart_util_available(void);
 
 /**
  * \brief Scan the buffer to find the pattern / substring.
@@ -97,9 +97,9 @@ buf_sz uart_buf_available(void);
  * in the buffer.
  * \retval UART_BUF_INV_PARAM Invalid parameters were passed to this routine.
  * \retval >=0 Start index of the matched pattern within the buffer.
- * \pre \ref uart_buf_init must have been called once.
+ * \pre \ref uart_util_init must have been called once.
  */
-int uart_buf_find_pattern(int start_idx, const uint8_t *pattern, buf_sz nlen);
+int uart_util_find_pattern(int start_idx, const uint8_t *pattern, buf_sz nlen);
 
 /**
  * \brief Search for a complete line in the buffer.
@@ -115,30 +115,30 @@ int uart_buf_find_pattern(int start_idx, const uint8_t *pattern, buf_sz nlen);
  * \retval UART_INV_PARAM Trailer is empty
  * \retval >0 Number of bytes the line comprises of including the bytes in the
  * header and the trailer.
- * \pre \ref uart_buf_init must have been called once.
+ * \pre \ref uart_util_init must have been called once.
  */
-int uart_buf_line_avail(const char *header, const char *trailer);
+int uart_util_line_avail(const char *header, const char *trailer);
 
 /**
  * \brief Retrieve a set of bytes from the buffer.
  * \details The maximum number of bytes that can be retrieved is given by the
- * return value of \ref uart_buf_available.
+ * return value of \ref uart_util_available.
  *
  * \param[in] buf Pointer to the buffer where the data will be read into.
  * \param[in] sz Maximum size the supplied buffer (buf) can store.
  *
  * \retval UART_BUF_INV_PARAM Null pointer provided for buf.
  * \retval >=0 Number of bytes actually read into the buffer.
- * \pre \ref uart_buf_init must have been called once.
+ * \pre \ref uart_util_init must have been called once.
  */
-int uart_buf_read(uint8_t *buf, buf_sz sz);
+int uart_util_read(uint8_t *buf, buf_sz sz);
 
 /**
  * \brief Flush the buffer.
  * \details This resets the read and write heads of the buffer, effectively
  * clearing it.
- * \pre \ref uart_buf_init must have been called once.
+ * \pre \ref uart_util_init must have been called once.
  */
-void uart_buf_flush(void);
+void uart_util_flush(void);
 
 #endif
