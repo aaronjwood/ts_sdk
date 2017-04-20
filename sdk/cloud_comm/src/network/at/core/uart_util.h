@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "uart_hal.h"
+
 /*
  * \brief Type that is wide enough to hold the size of UART related buffers.
  */
@@ -63,12 +65,14 @@ typedef void (*uart_rx_cb)(callback_event event);
  * \details This routine will initialize the underlying receive buffer and set
  * a timeout to detect the idle state of the UART receive line. The initialization
  * routine must be called once before calling other routines in this module.
+ * \param[in] hdl The buffer management routines will attach themselves to the
+ * UART whose handle is provided here.
  * \param[in] idle_timeout Number of blank characters after which the UART is
  * deemed to be in an idle state.
  * \retval true Buffer was successfully initialized.
  * \retval false Failed to initialize buffer.
  */
-bool uart_util_init(uint8_t idle_timeout);
+bool uart_util_init(periph_t hdl, uint8_t idle_timeout);
 
 /**
  * \brief Set the receive callback.
