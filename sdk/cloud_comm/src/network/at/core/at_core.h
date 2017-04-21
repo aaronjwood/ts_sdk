@@ -12,7 +12,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "uart.h"
+#include "uart_util.h"
 
 typedef enum at_return_codes {
         AT_SUCCESS = 0,

@@ -2,10 +2,11 @@
 
 #include "uart_util.h"
 #include "timer_hal.h"
+#include "string.h"
 
 static uart_rx_cb recv_callback;
-static periph_t uart_peripheral;
-static timer_interface_t *timer;
+static periph_t uart;
+//static timer_interface_t *timer;
 
 #define INVOKE_CALLBACK(ev)	do { \
 	if (recv_callback) \
@@ -14,7 +15,7 @@ static timer_interface_t *timer;
 
 /* The internal buffer that will hold incoming data. */
 static volatile struct {
-	uint8_t buffer[UART_RX_BUFFER_SIZE];
+	uint8_t buffer[UART_BUF_SIZE];
 	buf_sz ridx;
 	buf_sz widx;
 	buf_sz num_unread;
@@ -33,7 +34,7 @@ bool uart_util_init(periph_t hdl, uint8_t idle_timeout)
 	if (idle_timeout == 0 || hdl == NO_PERIPH)
 		return false;
 	timeout_chars = idle_timeout;
-	uart_peripheral = hdl;
+	uart = hdl;
 	/* TODO: Initialize 'timer' */
 	return true;
 }
@@ -46,15 +47,6 @@ void uart_util_reg_callback(uart_rx_cb cb)
 buf_sz uart_util_available(void)
 {
 	return rx.num_unread;
-}
-
-int uart_util_find_pattern(int start_idx, const uint8_t *pattern, buf_sz nlen)
-{
-	if ((start_idx >= UART_RX_BUFFER_SIZE) || (!pattern) || (nlen == 0))
-		return UART_BUF_INV_PARAM;
-	if (start_idx == UART_BUF_BEGIN1)
-		start_idx = rx.ridx;
-	return find_substr_in_ring_buffer(start_idx, pattern, nlen);
 }
 
 /*
@@ -91,16 +83,25 @@ static int find_substr_in_ring_buffer(buf_sz idx_start, const uint8_t *substr,
 		}
 		if (first_char_seen && idx == nlen)	/* Substring found */
 			return found_idx;
-		if (bidx == UART_RX_BUFFER_SIZE)	/* Index wrapping */
+		if (bidx == UART_BUF_SIZE)	/* Index wrapping */
 			bidx = 0;
 	} while(bidx != rx.widx);			/* Scan until write index */
 	return -1;					/* No substring found */
 }
 
+int uart_util_find_pattern(int start_idx, const uint8_t *pattern, buf_sz nlen)
+{
+	if ((start_idx >= UART_BUF_SIZE) || (!pattern) || (nlen == 0))
+		return UART_BUF_INV_PARAM;
+	if (start_idx == UART_BUF_BEGIN)
+		start_idx = rx.ridx;
+	return find_substr_in_ring_buffer(start_idx, pattern, nlen);
+}
+
 int uart_util_line_avail(const char *header, const char *trailer)
 {
 	if (!trailer)
-		return UART_INV_PARAM;
+		return UART_BUF_INV_PARAM;
 
 	if (rx.num_unread == 0)
 		return 0;
@@ -131,7 +132,7 @@ int uart_util_line_avail(const char *header, const char *trailer)
 	if (tidx == -1)			/* Trailer not found. */
 		return 0;
 
-	len = ((tidx >= hidx) ? (tidx - hidx) : (tidx + UART_RX_BUFFER_SIZE - hidx));
+	len = ((tidx >= hidx) ? (tidx - hidx) : (tidx + UART_BUF_SIZE - hidx));
 	/* If there is a line, signified by (len != 0), adjust the length to
 	 * include the trailer.
 	 */
@@ -149,26 +150,26 @@ int uart_util_read(uint8_t *buf, buf_sz sz)
 		return 0;
 
 	if (!buf)
-		return UART_INV_PARAM;
+		return UART_BUF_INV_PARAM;
 
 	/*
 	 * Copy bytes into the supplied buffer and perform the necessary
 	 * book-keeping.
 	 */
-	uart_toggle_irq(false);
+	uart_toggle_irq(uart, false);
 	buf_sz num_unread = rx.num_unread;
-	uart_toggle_irq(true);
+	uart_toggle_irq(uart, true);
 
 	buf_sz n_bytes = (sz > num_unread) ? num_unread : sz;
 	buf_sz i = 0;
 	while ((n_bytes - i) > 0) {
 		buf[i++] = rx.buffer[rx.ridx];
-		rx.ridx = (rx.ridx + 1) % UART_RX_BUFFER_SIZE;
+		rx.ridx = (rx.ridx + 1) % UART_BUF_SIZE;
 	}
 
-	uart_toggle_irq(false);
+	uart_toggle_irq(uart, false);
 	rx.num_unread -= n_bytes;
-	uart_toggle_irq(true);
+	uart_toggle_irq(uart, true);
 
 	return n_bytes;
 }

@@ -67,7 +67,7 @@ typedef struct {
  * combination of uart_pins turns out to be invalid, pins do not connect to the
  * same peripheral or configuration parameters are invalid.
  */
-periph_t uart_init(struct uart_pins pins, uart_config config);
+periph_t uart_init(const struct uart_pins *pins, const uart_config *config);
 
 /**
  * \brief Set the UART receive character callback.
@@ -121,6 +121,6 @@ void uart_irq_handler(periph_t hdl);
  * \param[in] state Boolean value that determines if the UART's interrupt should
  * be disabled. Set to 'true' to enable the IRQ, 'false' to disable it.
  */
-void uart_toggle_irq(bool state);
+void uart_toggle_irq(periph_t hdl, bool state);
 
 #endif
