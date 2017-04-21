@@ -22,29 +22,35 @@
 typedef void (*timercallback_t)(void);
 
 /**
- * \brief Interface to the timer peripheral driver.
+ * \brief Interface to the timer peripheral driver and its supported functions.
  */
 typedef struct {
-	/** Initialize the period */
-	bool (*init_period)(uint32_t period);
+	/** Initialize the period, set interrupt priority, sets base frequency
+	 *  and private timer data for the given timer instance
+	 */
+	bool (*init_period)(uint32_t period, uint32_t priority,
+		uint32_t base_freq, void *data);
 
-	/** Set the interrupt priority */
-	void (*set_priority)(uint32_t priority);
+	/** Register a callback and timer private data */
+	void (*reg_callback)(timercallback_t cb, void *data);
 
-	/** Register a callback */
-	void (*reg_callback)(timercallback_t cb);
-
-	/** Check if the timer is currently running */
-	bool (*is_running)(void);
+	/** Check if the timer is currently running with timer private data */
+	bool (*is_running)(void *data);
 
 	/** Start the timer */
-	void (*start)(void);
+	void (*start)(void *data);
 
 	/** Stop the timer */
-	void (*stop)(void);
+	void (*stop)(void *data);
+
+	/** Sets new timer period to expire */
+	void (*set_period)(uint32_t period, void *data);
 
 	/** IRQ handler of this instance */
-	void (*irq_handler)(void);
+	void (*irq_handler)(void *data);
+
+	/** Timer private data */
+	void *data;
 } timer_interface_t;
 
 /**
@@ -60,6 +66,7 @@ typedef struct {
  * \param[in] priority Interrupt priority of this timer instance. The underlying
  * representation of the priority is determined by the implementation of the timer
  * instance.
+ * \param[in] base frequency in HZ of the timer.
  * \param[in] callback Pointer to the callback that will be invoked at the end of
  * every period.
  *
@@ -69,6 +76,7 @@ typedef struct {
 bool timer_init(const timer_interface_t * const inst,
 		uint32_t period,
 		uint32_t priority,
+		uint32_t base_freq,
 		timercallback_t callback);
 
 /**

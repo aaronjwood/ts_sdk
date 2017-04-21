@@ -1,2 +1,156 @@
 /* Copyright(C) 2017 Verizon. All rights reserved. */
+
+#include <stdlib.h>
+#include <stm32f4xx_hal.h>
+#include "timer_stm32f4.h"
 #include "timer_hal.h"
+
+typedef struct timer_private {
+        TIM_HandleTypeDef *timer_handle;
+        timercallback_t cb;
+        timer_id_t id;
+} timer_private_t;
+
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
+
+#define TYPECAST_TO_TIM(x) timer_private_t *tm = (timer_private_t *)((x))
+#define CHECK_RET_AND_TYPECAST(x, y) \
+        if ((x) == NULL) \
+                return (y); \
+        TYPECAST_TO_TIM(x)
+
+#define CHECK_AND_TYPECAST(x) \
+        if ((x) == NULL) \
+                return; \
+        TYPECAST_TO_TIM(x)
+
+
+static TIM_HandleTypeDef tim2;
+static TIM_HandleTypeDef tim5;
+
+static bool tim5_init_period(uint32_t period, uint32_t priority,
+                                uint32_t base_freq, void *data)
+{
+        return true;
+}
+
+static bool tim2_init_period(uint32_t period, uint32_t priority,
+                                uint32_t base_freq, void *data)
+{
+        CHECK_RET_AND_TYPECAST(data, false);
+	__HAL_RCC_TIM2_CLK_ENABLE();
+	tm->timer_handle->Instance = TIM2;
+	tm->timer_handle->Init.Prescaler = SystemCoreClock / 2 / base_freq;
+	tm->timer_handle->Init.CounterMode = TIM_COUNTERMODE_UP;
+	tm->timer_handle->Init.Period = period;
+	tm->timer_handle->Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+	if (HAL_TIM_Base_Init(tm->timer_handle) != HAL_OK)
+		return false;
+
+	/* Enable the TIM2 interrupt. */
+	HAL_NVIC_SetPriority(TIM2_IRQn, priority, 0);
+	HAL_NVIC_EnableIRQ(TIM2_IRQn);
+	return true;
+}
+
+static void tim_reg_callback(timercallback_t cb, void *data)
+{
+        CHECK_AND_TYPECAST(data);
+	tm->cb = cb;
+}
+
+static bool tim_is_running(void *data)
+{
+        CHECK_RET_AND_TYPECAST(data, false);
+        if (tm->timer_handle->Instance == NULL)
+                return false;
+        return ((tm->timer_handle->Instance)->CR1) & TIM_CR1_CEN;
+}
+
+static void tim_start(void *data)
+{
+        CHECK_AND_TYPECAST(data);
+	HAL_TIM_Base_Start_IT(tm->timer_handle);
+}
+
+static void tim_stop(void *data)
+{
+        CHECK_AND_TYPECAST(data);
+	HAL_TIM_Base_Stop_IT(tm->timer_handle);
+}
+
+static void tim_set_period(uint32_t period, void *data)
+{
+
+}
+
+
+#define TIMER_2_PRIVATE         0
+#define TIMER_5_PRIVATE         1
+
+static timer_private_t timers[] = {
+        [TIMER_2_PRIVATE] = {
+                .timer_handle = &tim2,
+                .cb = NULL,
+                .id = TIMER2,
+        },
+        [TIMER_5_PRIVATE] = {
+                .timer_handle = &tim5,
+                .cb = NULL,
+                .id = TIMER5
+        }
+};
+
+void TIM2_IRQHandler(void)
+{
+	HAL_TIM_IRQHandler(timers[TIMER_2_PRIVATE].timer_handle);
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+        for(uint8_t i = 0; i < ARRAY_SIZE(timers); i++) {
+                if ((timers[i].timer_handle == htim) && timers[i].cb) {
+        		timers[i].cb();
+                        break;
+                }
+        }
+
+}
+
+static const timer_interface_t timer_interface[] = {
+        [TIMER_2_PRIVATE] = {
+        	.init_period = tim2_init_period,
+                .reg_callback = tim_reg_callback,
+        	.is_running = tim_is_running,
+        	.start = tim_start,
+        	.stop = tim_stop,
+                .set_period = tim_set_period,
+        	.irq_handler = NULL,
+                .data = &timers[TIMER_2_PRIVATE]
+        },
+        [TIMER_5_PRIVATE] = {
+                .init_period = tim5_init_period,
+        	.reg_callback = tim_reg_callback,
+        	.is_running = tim_is_running,
+        	.start = tim_start,
+        	.stop = tim_stop,
+                .set_period = tim_set_period,
+        	.irq_handler = NULL,
+                .data = &timers[TIMER_5_PRIVATE]
+        }
+};
+
+const timer_interface_t *timer_get_interface(timer_id_t tim)
+{
+        if (tim < TIMER1 || tim >= MAX_TIMERS)
+                return NULL;
+        for(uint8_t i = 0; i < ARRAY_SIZE(timer_interface); i++) {
+                if (timer_interface[i].data != NULL) {
+                        timer_private_t *tm = (timer_private_t *)
+                                                (timer_interface[i].data);
+                        if (tm->id == tim)
+                                return &timer_interface[i];
+                }
+        }
+	return NULL;
+}

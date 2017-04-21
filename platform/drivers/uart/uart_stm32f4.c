@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stm32f4xx_hal.h>
 #include "uart.h"
+#include "timer_hal.h"
+#include "timer_stm32f4.h"
 
 #define BAUD_RATE		115200
 #define CALLBACK_TRIGGER_MARK	((buf_sz)(UART_RX_BUFFER_SIZE * ALMOST_FULL_FRAC))
@@ -37,7 +39,7 @@ static volatile bool byte_recvd;	/* Set if a byte was received in the last
 					 */
 
 static UART_HandleTypeDef comm_uart;
-static TIM_HandleTypeDef idle_timer;
+static const timer_interface_t *idle_timer;
 
 void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 {
@@ -62,40 +64,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 	HAL_NVIC_EnableIRQ(USART2_IRQn);
 }
 
-static bool tim_module_init(void)
-{
-	/*
-	 * Initialize the timer (TIM2) to have a period equal to the time it
-	 * takes to receive a character at the current baud rate.
-	 * TIM2's clock source is connected to APB1. According to the TRM,
-	 * this source needs to be multiplied by 2 if the APB1 prescaler is not
-	 * 1 (it's 4 in our case). Therefore effectively, the clock source for
-	 * TIM2 is:
-	 * APB1 x 2 = SystemCoreClock / 4 * 2 = SystemCoreClock / 2 = 90 MHz.
-	 * The base frequency of the timer's clock is chosen as 1 MHz (time
-	 * period of 1 microsecond).
-	 * Therefore, prescaler = 90 MHz / 1 MHz - 1 = 89.
-	 * The clock is set to restart every 70us (value of 'Period' member)
-	 * which is how much time it takes to receive a character on a 115200 bps
-	 * UART.
-	 */
-	__HAL_RCC_TIM2_CLK_ENABLE();
-	idle_timer.Instance = TIM2;
-	idle_timer.Init.Prescaler = SystemCoreClock / 2 / TIM_BASE_FREQ_HZ - 1;
-	idle_timer.Init.CounterMode = TIM_COUNTERMODE_UP;
-	idle_timer.Init.Period = TIMEOUT_BYTE_US - 1;
-	idle_timer.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-	if (HAL_TIM_Base_Init(&idle_timer) != HAL_OK)
-		return false;
-
-	/* Enable the TIM2 interrupt. */
-	HAL_NVIC_SetPriority(TIM2_IRQn, TIM_IRQ_PRIORITY, 0);
-	HAL_NVIC_EnableIRQ(TIM2_IRQn);
-
-	return true;
-}
-
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+static void tm_callback(void)
 {
 	/*
 	 * If a byte was not received in the last timeout period, increment the
@@ -117,9 +86,33 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	 */
 	if ((num_idle_chars >= timeout_chars) ||
 			(rx.num_unread == CALLBACK_TRIGGER_MARK)) {
-		HAL_TIM_Base_Stop_IT(&idle_timer);
+		timer_stop(idle_timer);
 		INVOKE_CALLBACK(UART_EVENT_RECVD_BYTES);
 	}
+}
+
+static bool tim_module_init(void)
+{
+	/*
+	 * Initialize the timer (TIM2) to have a period equal to the time it
+	 * takes to receive a character at the current baud rate.
+	 * TIM2's clock source is connected to APB1. According to the TRM,
+	 * this source needs to be multiplied by 2 if the APB1 prescaler is not
+	 * 1 (it's 4 in our case). Therefore effectively, the clock source for
+	 * TIM2 is:
+	 * APB1 x 2 = SystemCoreClock / 4 * 2 = SystemCoreClock / 2 = 90 MHz.
+	 * The base frequency of the timer's clock is chosen as 1 MHz (time
+	 * period of 1 microsecond).
+	 * Therefore, prescaler = 90 MHz / 1 MHz - 1 = 89.
+	 * The clock is set to restart every 70us (value of 'Period' member)
+	 * which is how much time it takes to receive a character on a 115200 bps
+	 * UART.
+	 */
+	idle_timer = timer_get_interface(TIMER2);
+	if (!idle_timer)
+		return false;
+	return timer_init(idle_timer, TIMEOUT_BYTE_US - 1, TIM_IRQ_PRIORITY,
+			TIM_BASE_FREQ_HZ - 1, tm_callback);
 }
 
 bool uart_module_init(bool flow_ctrl, uint8_t t)
@@ -214,9 +207,9 @@ void USART2_IRQHandler(void)
 	byte_recvd = true;
 
 	/* If the timer isn't running, this is the first byte of the response. */
-	if (!(idle_timer.Instance->CR1 & TIM_CR1_CEN)) {
+	if (!timer_is_running(idle_timer)) {
 		num_idle_chars = 0;
-		HAL_TIM_Base_Start_IT(&idle_timer);
+		timer_start(idle_timer);
 	}
 
 	/* Buffer characters as long as the size of the buffer isn't exceeded. */
@@ -346,9 +339,4 @@ void uart_set_rx_callback(uart_rx_cb cb)
 buf_sz uart_rx_available(void)
 {
 	return rx.num_unread;
-}
-
-void TIM2_IRQHandler(void)
-{
-	HAL_TIM_IRQHandler(&idle_timer);
 }
