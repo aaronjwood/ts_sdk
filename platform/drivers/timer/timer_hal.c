@@ -35,6 +35,19 @@ void timer_start(const timer_interface_t *const inst_interface)
 	inst_interface->start(inst_interface->data);
 }
 
+uint32_t timer_get_time(const timer_interface_t *const inst_interface)
+{
+	CHECK_RET_VALID_INTERFACE(inst_interface, 0);
+	return inst_interface->get_time(inst_interface->data);
+}
+
+void timer_set_time(uint32_t period,
+		const timer_interface_t *const inst_interface)
+{
+	CHECK_VALID_INTERFACE(inst_interface);
+	inst_interface->set_time(period, inst_interface->data);
+}
+
 void timer_stop(const timer_interface_t *const inst_interface)
 {
 	CHECK_VALID_INTERFACE(inst_interface);

@@ -31,7 +31,21 @@ static TIM_HandleTypeDef tim5;
 static bool tim5_init_period(uint32_t period, uint32_t priority,
                                 uint32_t base_freq, void *data)
 {
+         CHECK_RET_AND_TYPECAST(data, false);
+        __HAL_RCC_TIM5_CLK_ENABLE();
+        tm->timer_handle->Instance = TIM5;
+        tm->timer_handle->Init.Prescaler = SystemCoreClock / 2 / base_freq;
+        tm->timer_handle->Init.CounterMode = TIM_COUNTERMODE_UP;
+        /* It will not start until first call to sys_sleep function */
+        tm->timer_handle->Init.Period = 0;
+        tm->timer_handle->Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+        if (HAL_TIM_Base_Init(tm->timer_handle) != HAL_OK)
+        	return false;
+        /* Enable the TIM5 interrupt. */
+        HAL_NVIC_SetPriority(TIM5_IRQn, priority, 0);
+        HAL_NVIC_EnableIRQ(TIM5_IRQn);
         return true;
+
 }
 
 static bool tim2_init_period(uint32_t period, uint32_t priority,
@@ -73,15 +87,23 @@ static void tim_start(void *data)
 	HAL_TIM_Base_Start_IT(tm->timer_handle);
 }
 
+static uint32_t tim5_get_time(void *data)
+{
+        CHECK_RET_AND_TYPECAST(data, 0);
+        return __HAL_TIM_GET_COUNTER(tm->timer_handle) / 2;
+}
+
 static void tim_stop(void *data)
 {
         CHECK_AND_TYPECAST(data);
 	HAL_TIM_Base_Stop_IT(tm->timer_handle);
 }
 
-static void tim_set_period(uint32_t period, void *data)
+static void tim_set_time(uint32_t period, void *data)
 {
-
+        CHECK_AND_TYPECAST(data);
+        __HAL_TIM_SET_AUTORELOAD(tm->timer_handle, period);
+        __HAL_TIM_SET_COUNTER(tm->timer_handle, 0);
 }
 
 
@@ -106,6 +128,11 @@ void TIM2_IRQHandler(void)
 	HAL_TIM_IRQHandler(timers[TIMER_2_PRIVATE].timer_handle);
 }
 
+void TIM5_IRQHandler(void)
+{
+	HAL_TIM_IRQHandler(timers[TIMER_5_PRIVATE].timer_handle);
+}
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
         for(uint8_t i = 0; i < ARRAY_SIZE(timers); i++) {
@@ -114,7 +141,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
                         break;
                 }
         }
-
 }
 
 static const timer_interface_t timer_interface[] = {
@@ -123,8 +149,9 @@ static const timer_interface_t timer_interface[] = {
                 .reg_callback = tim_reg_callback,
         	.is_running = tim_is_running,
         	.start = tim_start,
+                .get_time = NULL,
         	.stop = tim_stop,
-                .set_period = tim_set_period,
+                .set_time = tim_set_time,
         	.irq_handler = NULL,
                 .data = &timers[TIMER_2_PRIVATE]
         },
@@ -133,8 +160,9 @@ static const timer_interface_t timer_interface[] = {
         	.reg_callback = tim_reg_callback,
         	.is_running = tim_is_running,
         	.start = tim_start,
+                .get_time = tim5_get_time,
         	.stop = tim_stop,
-                .set_period = tim_set_period,
+                .set_time = tim_set_time,
         	.irq_handler = NULL,
                 .data = &timers[TIMER_5_PRIVATE]
         }

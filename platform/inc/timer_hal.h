@@ -40,11 +40,14 @@ typedef struct {
 	/** Start the timer */
 	void (*start)(void *data);
 
+	/** Get elapsed time */
+	uint32_t (*get_time)(void *data);
+
 	/** Stop the timer */
 	void (*stop)(void *data);
 
 	/** Sets new timer period to expire */
-	void (*set_period)(uint32_t period, void *data);
+	void (*set_time)(uint32_t period, void *data);
 
 	/** IRQ handler of this instance */
 	void (*irq_handler)(void *data);
@@ -95,6 +98,23 @@ bool timer_is_running(const timer_interface_t * const inst);
  * \pre \ref timer_init must be called before using this routine.
  */
 void timer_start(const timer_interface_t * const inst);
+
+/**
+ * \brief Get the elapsed time for given timer instance.
+ * \param[in] inst Pointer to the interface of the timer instance.
+ * \retval Elapsed time, time unit depends on the timer instance implementation.
+ * \retval 0 for other cases.
+ * \pre \ref timer_init must be called before using this routine.
+ */
+uint32_t timer_get_time(const timer_interface_t * const inst);
+
+/**
+ * \brief Set the expiration time period for given timer instance.
+ * \param[in] expiration time period, time unit is timer instance defined
+ * \param[in] inst Pointer to the interface of the timer instance.
+ * \pre \ref timer_init must be called before using this routine.
+ */
+void timer_set_time(uint32_t period, const timer_interface_t * const inst);
 
 /**
  * \brief Stop the timer instance.

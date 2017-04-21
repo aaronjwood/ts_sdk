@@ -2,14 +2,17 @@
 
 #include <stm32f4xx_hal.h>
 #include <dbg.h>
+#include "timer_hal.h"
+#include "timer_stm32f4.h"
 
 /* Timer related definations */
-static TIM_HandleTypeDef timer;
+static const timer_interface_t *sleep_timer;
 static volatile bool timer_expired;
 static uint32_t rem_sleep;
 /* total time in milliseconds CPU spent in sleep */
 static uint64_t total_sleep_time;
 #define TIM5_IRQ_PRIORITY	7	/* TIM5 priority is lower than TIM2 */
+#define TIM5_BASE_FREQ_HZ	2000
 /* Maximum timeout period it can be programmed for in miliseconds */
 #define MAX_TIMER_RES_MS	(uint32_t)2147483648
 /* End of timer defination */
@@ -114,32 +117,30 @@ static void init_reset_gpio(void)
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
 }
 
+static void tim5_cb(void)
+{
+	timer_expired = true;
+}
+
 /* Set up timer module 5 (TIM5) to facilitate sleep functionality */
-static bool timer_module_init(void)
+static bool tim5_module_init(void)
 {
 	/* Timer 5's prescaler is fed by APB clock which is 90MHz, setting
 	 * precaler to highest divider possible to make generate counter clock
-	 * 90MHz / 45000 = 2KHz = 0.5mS
+	 * 90MHz / 45000 = base_frequency = 2KHz = 0.5mS
 	 * Minumum resolution = 0.5mS
 	 * Maximum resolution = 0.5mS * Auto Reload register (Period) value
 	 */
 
-	__HAL_RCC_TIM5_CLK_ENABLE();
-	timer.Instance = TIM5;
-	timer.Init.Prescaler = 45000;
-	timer.Init.CounterMode = TIM_COUNTERMODE_UP;
-	/* It will not start until first call to sys_sleep function */
-	timer.Init.Period = 0;
-	timer.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-	if (HAL_TIM_Base_Init(&timer) != HAL_OK)
-		return false;
-	/* Enable the TIM5 interrupt. */
-	HAL_NVIC_SetPriority(TIM5_IRQn, TIM5_IRQ_PRIORITY, 0);
-	HAL_NVIC_EnableIRQ(TIM5_IRQn);
 	timer_expired = false;
 	rem_sleep = 0;
 	total_sleep_time = 0;
-	return true;
+	sleep_timer = timer_get_interface(TIMER5);
+
+	if (!sleep_timer)
+		return false;
+	return timer_init(sleep_timer, 0, TIM5_IRQ_PRIORITY,
+				TIM5_BASE_FREQ_HZ, tim5_cb);
 }
 
 void sys_init(void)
@@ -147,7 +148,8 @@ void sys_init(void)
 	HAL_Init();
 	SystemClock_Config();
 	init_reset_gpio();
-	if (!timer_module_init())
+
+	if (!tim5_module_init())
 		dbg_printf("Timer module init failed\n");
 	base_tick = 0;
 	accu_tick = 0;
@@ -179,17 +181,16 @@ static uint32_t set_timer(uint32_t sleep)
 		sleep = MAX_TIMER_RES_MS;
 	} else
 		rem_sleep = 0;
-	__HAL_TIM_SET_AUTORELOAD(&timer, sleep * 2);
-	__HAL_TIM_SET_COUNTER(&timer, 0);
-	HAL_TIM_Base_Start_IT(&timer);
+	timer_set_time(sleep * 2, sleep_timer);
+	timer_start(sleep_timer);
 	return sleep;
 }
 
 /* Returns remaining time left if sleep was interrupted */
 static uint32_t handle_wakeup_event(uint32_t sleep)
 {
-	uint32_t slept_till = __HAL_TIM_GET_COUNTER(&timer) / 2;
-	HAL_TIM_Base_Stop_IT(&timer);
+	uint32_t slept_till = timer_get_time(sleep_timer);
+	timer_stop(sleep_timer);
 	/* means it woke up from some other source */
 	if (!timer_expired)
 		rem_sleep = 0;
@@ -220,17 +221,6 @@ uint32_t sys_sleep_ms(uint32_t sleep)
 	/* Resume systick interrupt */
 	HAL_ResumeTick();
 	return sleep;
-}
-
-void TIM5_IRQHandler(void)
-{
-	/* TIM Update event */
-	if(__HAL_TIM_GET_FLAG(&timer, TIM_FLAG_UPDATE) != RESET) {
-		if(__HAL_TIM_GET_IT_SOURCE(&timer, TIM_IT_UPDATE) != RESET) {
-			__HAL_TIM_CLEAR_IT(&timer, TIM_IT_UPDATE);
-			timer_expired = true;
-		}
-	}
 }
 
 /* Increments the SysTick value. */

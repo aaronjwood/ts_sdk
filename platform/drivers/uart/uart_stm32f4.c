@@ -64,7 +64,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 	HAL_NVIC_EnableIRQ(USART2_IRQn);
 }
 
-static void tm_callback(void)
+static void tm2_cb(void)
 {
 	/*
 	 * If a byte was not received in the last timeout period, increment the
@@ -91,7 +91,7 @@ static void tm_callback(void)
 	}
 }
 
-static bool tim_module_init(void)
+static bool tim2_module_init(void)
 {
 	/*
 	 * Initialize the timer (TIM2) to have a period equal to the time it
@@ -112,7 +112,7 @@ static bool tim_module_init(void)
 	if (!idle_timer)
 		return false;
 	return timer_init(idle_timer, TIMEOUT_BYTE_US - 1, TIM_IRQ_PRIORITY,
-			TIM_BASE_FREQ_HZ - 1, tm_callback);
+			TIM_BASE_FREQ_HZ - 1, tm2_cb);
 }
 
 bool uart_module_init(bool flow_ctrl, uint8_t t)
@@ -151,7 +151,7 @@ bool uart_module_init(bool flow_ctrl, uint8_t t)
 	timeout_chars = t;
 
 	/* Initialize the idle timer. */
-	if (tim_module_init() == false)
+	if (tim2_module_init() == false)
 		return false;
 
 	return true;
