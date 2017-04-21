@@ -2,6 +2,7 @@
 
 #include <stm32f4xx_hal.h>
 #include "uart_hal.h"
+#include "ts_sdk_config.h"
 
 #define MAX_IRQ_PRIORITY	15
 #define CHECK_HANDLE(hdl, retval)	do { \
@@ -89,16 +90,84 @@ static bool validate_config(const uart_config *config)
 	return true;
 }
 
-static bool init_uart_peripheral(periph_t hdl,
-		const uart_config *config,
-		bool hw_flow_ctrl)
+static void enable_clock(const USART_TypeDef *inst)
+{
+	if (inst == USART1)
+		__HAL_RCC_USART1_CLK_ENABLE();
+	else if(inst == USART2)
+		__HAL_RCC_USART2_CLK_ENABLE();
+	else if(inst == USART3)
+		__HAL_RCC_USART3_CLK_ENABLE();
+	else if(inst == UART4)
+		__HAL_RCC_UART4_CLK_ENABLE();
+	else if(inst == UART5)
+		__HAL_RCC_UART5_CLK_ENABLE();
+	else if(inst == USART6)
+		__HAL_RCC_USART6_CLK_ENABLE();
+	else if(inst == UART7)
+		__HAL_RCC_UART7_CLK_ENABLE();
+	else if(inst == UART8)
+		__HAL_RCC_UART8_CLK_ENABLE();
+}
+
+static bool init_uart_peripheral(periph_t hdl, const uart_config *config,
+		bool hw_flow_ctrl, pin_name_t tx, pin_name_t rx)
 {
 	/* Peripheral currently under use */
 	if (uart_usage[convert_hdl_to_id(hdl)])
 		return false;
 
-	//USART_TypeDef *uart_instance = (USART_TypeDef *)hdl;
+	enum uart_id uid = convert_hdl_to_id(hdl);
 
+	USART_TypeDef *uart_instance = (USART_TypeDef *)hdl;
+	enable_clock(uart_instance);
+
+	uart_stm32_handle[uid].Instance = uart_instance;
+	uart_stm32_handle[uid].Init.BaudRate = config->baud;
+
+	uart_stm32_handle[uid].Init.WordLength =
+		(config->data_width == 8) ? UART_WORDLENGTH_8B
+		: (config->data_width == 9) ? UART_WORDLENGTH_9B
+		: UART_WORDLENGTH_8B;
+
+	uart_stm32_handle[uid].Init.StopBits =
+		(config->stop_bits == 1) ? UART_STOPBITS_1
+		: (config->stop_bits == 2) ? UART_STOPBITS_2
+		: UART_STOPBITS_1;
+
+	uart_stm32_handle[uid].Init.Parity =
+		(config->parity == NONE) ? UART_PARITY_NONE
+		: (config->parity == ODD) ? UART_PARITY_ODD
+		: (config->parity == EVEN) ? UART_PARITY_EVEN
+		: UART_PARITY_NONE;
+
+	uart_stm32_handle[uid].Init.Mode =
+		(tx != NC && rx != NC) ? UART_MODE_TX_RX
+		: (tx == NC && rx != NC) ? UART_MODE_RX
+		: (rx == NC && tx != NC) ? UART_MODE_TX
+		: UART_MODE_TX_RX;
+
+	uart_stm32_handle[uid].Init.HwFlowCtl =
+		hw_flow_ctrl ? UART_HWCONTROL_RTS_CTS : UART_HWCONTROL_NONE;
+
+	/*
+	 * Choose oversampling by 16 to increase tolerance of the receiver to
+	 * noise on an asynchronous line.
+	 */
+	uart_stm32_handle[uid].Init.OverSampling = UART_OVERSAMPLING_16;
+	if (HAL_UART_Init(&uart_stm32_handle[uid]) != HAL_OK)
+		return false;
+
+	/* Enable Error Interrupts: (Frame error, noise error, overrun error) */
+	SET_BIT(uart_instance->CR3, USART_CR3_EIE);
+
+	/* Enable the UART Parity Error and Data Register not empty Interrupts */
+	SET_BIT(uart_instance->CR1, USART_CR1_PEIE | USART_CR1_RXNEIE);
+
+	if (rx != NC) {
+		HAL_NVIC_SetPriority(irq_vector[uid], MODEM_UART_IRQ_PRIORITY, 0);
+		HAL_NVIC_EnableIRQ(irq_vector[uid]);
+	}
 	uart_usage[convert_hdl_to_id(hdl)] = true;
 	return true;
 }
@@ -133,12 +202,13 @@ periph_t uart_init(const struct uart_pins *pins, const uart_config *config)
 		return NO_PERIPH;
 
 	/* Initialize the peripheral itself */
-	return init_uart_peripheral(p1, config, hw_fl_ctrl) ? p1 : NO_PERIPH;
+	return init_uart_peripheral(p1, config, hw_fl_ctrl, pins->tx, pins->rx) ?
+		p1 : NO_PERIPH;
 }
 
 void uart_toggle_irq(periph_t hdl, bool state)
 {
-	CHECK_HANDLE(hdl, /* No return */);
+	CHECK_HANDLE(hdl, /* No return value */);
 	if (state)
 		HAL_NVIC_EnableIRQ(irq_vector[convert_hdl_to_id(hdl)]);
 	else
@@ -147,12 +217,13 @@ void uart_toggle_irq(periph_t hdl, bool state)
 
 void uart_set_rx_char_cb(periph_t hdl, uart_rx_char_cb cb)
 {
-	CHECK_HANDLE(hdl, /* No return */);
+	CHECK_HANDLE(hdl, /* No return value */);
 	rx_char_cb[convert_hdl_to_id(hdl)] = cb;
 }
 
 void uart_irq_handler(periph_t hdl)
 {
+	CHECK_HANDLE(hdl, /* No return value */);
 	uint32_t uart_sr_reg = ((USART_TypeDef *)hdl)->SR;
 	uint32_t err_flags = uart_sr_reg & (uint32_t)(USART_SR_PE | USART_SR_FE
 			| USART_SR_ORE | USART_SR_NE);

@@ -33,9 +33,16 @@ bool uart_util_init(periph_t hdl, uint8_t idle_timeout)
 {
 	if (idle_timeout == 0 || hdl == NO_PERIPH)
 		return false;
+
+	/* Reset internal buffer's read and write heads. */
+	rx.ridx = 0;
+	rx.widx = 0;
+	rx.num_unread = 0;
+
 	timeout_chars = idle_timeout;
 	uart = hdl;
 	/* TODO: Initialize 'timer' */
+
 	return true;
 }
 

@@ -46,7 +46,7 @@ typedef struct {
 	uint32_t baud;		/**< Baud rate in bits per second */
 	uint8_t data_width;	/**< Width (in bits) of the unit of data */
 	parity_t parity;	/**< Type of parity */
-	uint8_t stop_bits;	/**< Number of stop bits */
+	uint8_t stop_bits;	/**< Number of stop bits : Either '1' or '2' */
 	uint32_t priority;	/**< Interrupt priority of the UART's IRQ Handler */
 } uart_config;
 
@@ -58,7 +58,7 @@ typedef struct {
  * control is disabled. Also, only one of uart_pins.tx or uart_pins.rx can be
  * 'NC'. This routine must be called once for every instance before attempting
  * to transmit data or set a receive callback. \n
- * On initialization, IRQs are enabled by default.
+ * On initialization, IRQs are enabled by default unless uart_pins.rx is 'NC'.
  *
  * \param[in] pins Structure that contains names of the pins to use for the UART.
  * \param[in] config Defines the configuration of the UART peripheral.

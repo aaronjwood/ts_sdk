@@ -11,8 +11,18 @@
 #define MODEM_UART_PARITY	NONE
 #define MODEM_UART_STOP_BITS	1
 
+/* Pin and peripheral configuration for the debug UART */
+#define DEBUG_UART_TX_PIN	PC10
+#define DEBUG_UART_RX_PIN	NC
+#define DEBUG_UART_RTS_PIN	NC
+#define DEBUG_UART_CTS_PIN	NC
+#define DEBUG_UART_BAUD_RATE	115200
+#define DEBUG_UART_DATA_WIDTH	8
+#define DEBUG_UART_PARITY	NONE
+#define DEBUG_UART_STOP_BITS	1
+
 /* UART and timer IRQ priorities - UART must have higher priority than timer */
 #define MODEM_UART_IRQ_PRIORITY	5
-#define TIMER_IRQ_PRIORITY
+#define TIMER_IRQ_PRIORITY	6
 
 #endif
