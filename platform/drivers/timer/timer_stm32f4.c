@@ -71,25 +71,25 @@ static bool tim2_init_period(uint32_t period, uint32_t priority,
                                 uint32_t base_freq, void *data)
 {
         CHECK_RET_AND_TYPECAST(data, false);
-	__HAL_RCC_TIM2_CLK_ENABLE();
-	tm->timer_handle->Instance = TIM2;
-	tm->timer_handle->Init.Prescaler = SystemCoreClock / 2 / base_freq;
-	tm->timer_handle->Init.CounterMode = TIM_COUNTERMODE_UP;
-	tm->timer_handle->Init.Period = period;
-	tm->timer_handle->Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-	if (HAL_TIM_Base_Init(tm->timer_handle) != HAL_OK)
-		RETURN_ERROR("timer 2 init failed", false);
+        __HAL_RCC_TIM2_CLK_ENABLE();
+        tm->timer_handle->Instance = TIM2;
+        tm->timer_handle->Init.Prescaler = SystemCoreClock / 2 / base_freq;
+        tm->timer_handle->Init.CounterMode = TIM_COUNTERMODE_UP;
+        tm->timer_handle->Init.Period = period;
+        tm->timer_handle->Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+        if (HAL_TIM_Base_Init(tm->timer_handle) != HAL_OK)
+        	RETURN_ERROR("timer 2 init failed", false);
 
-	/* Enable the TIM2 interrupt. */
-	HAL_NVIC_SetPriority(TIM2_IRQn, priority, 0);
-	HAL_NVIC_EnableIRQ(TIM2_IRQn);
-	return true;
+        /* Enable the TIM2 interrupt. */
+        HAL_NVIC_SetPriority(TIM2_IRQn, priority, 0);
+        HAL_NVIC_EnableIRQ(TIM2_IRQn);
+        return true;
 }
 
 static void tim_reg_callback(timercallback_t cb, void *data)
 {
         CHECK_AND_TYPECAST(data);
-	tm->cb = cb;
+        tm->cb = cb;
 }
 
 static bool tim_is_running(void *data)
@@ -103,7 +103,7 @@ static bool tim_is_running(void *data)
 static void tim_start(void *data)
 {
         CHECK_AND_TYPECAST(data);
-	HAL_TIM_Base_Start_IT(tm->timer_handle);
+        HAL_TIM_Base_Start_IT(tm->timer_handle);
 }
 
 static uint32_t tim5_get_time(void *data)
@@ -115,7 +115,7 @@ static uint32_t tim5_get_time(void *data)
 static void tim_stop(void *data)
 {
         CHECK_AND_TYPECAST(data);
-	HAL_TIM_Base_Stop_IT(tm->timer_handle);
+        HAL_TIM_Base_Stop_IT(tm->timer_handle);
 }
 
 static void tim_set_time(uint32_t period, void *data)
@@ -144,12 +144,12 @@ static timer_private_t timers[] = {
 
 void TIM2_IRQHandler(void)
 {
-	HAL_TIM_IRQHandler(timers[TIMER_2_PRIVATE].timer_handle);
+        HAL_TIM_IRQHandler(timers[TIMER_2_PRIVATE].timer_handle);
 }
 
 void TIM5_IRQHandler(void)
 {
-	HAL_TIM_IRQHandler(timers[TIMER_5_PRIVATE].timer_handle);
+        HAL_TIM_IRQHandler(timers[TIMER_5_PRIVATE].timer_handle);
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -164,25 +164,25 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 static const timer_interface_t timer_interface[] = {
         [TIMER_2_PRIVATE] = {
-        	.init_period = tim2_init_period,
+                .init_period = tim2_init_period,
                 .reg_callback = tim_reg_callback,
-        	.is_running = tim_is_running,
-        	.start = tim_start,
+                .is_running = tim_is_running,
+                .start = tim_start,
                 .get_time = NULL,
-        	.stop = tim_stop,
+                .stop = tim_stop,
                 .set_time = tim_set_time,
-        	.irq_handler = NULL,
+                .irq_handler = NULL,
                 .data = &timers[TIMER_2_PRIVATE]
         },
         [TIMER_5_PRIVATE] = {
                 .init_period = tim5_init_period,
-        	.reg_callback = tim_reg_callback,
-        	.is_running = tim_is_running,
-        	.start = tim_start,
+                .reg_callback = tim_reg_callback,
+                .is_running = tim_is_running,
+                .start = tim_start,
                 .get_time = tim5_get_time,
-        	.stop = tim_stop,
+                .stop = tim_stop,
                 .set_time = tim_set_time,
-        	.irq_handler = NULL,
+                .irq_handler = NULL,
                 .data = &timers[TIMER_5_PRIVATE]
         }
 };
@@ -194,10 +194,10 @@ const timer_interface_t *timer_get_interface(timer_id_t tim)
         for(uint8_t i = 0; i < ARRAY_SIZE(timer_interface); i++) {
                 if (timer_interface[i].data != NULL) {
                         timer_private_t *tm = (timer_private_t *)
-                                                (timer_interface[i].data);
+                                (timer_interface[i].data);
                         if (tm->id == tim)
                                 return &timer_interface[i];
                 }
         }
-	return NULL;
+        return NULL;
 }
