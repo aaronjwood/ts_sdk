@@ -47,8 +47,8 @@ typedef struct timer_private {
 static TIM_HandleTypeDef tim2;
 static TIM_HandleTypeDef tim5;
 
-static bool tim5_init_period(uint32_t period, uint32_t priority,
-                                uint32_t base_freq, void *data)
+static bool tim5_init(uint32_t period, uint32_t priority, uint32_t base_freq,
+                        void *data)
 {
          CHECK_RET_AND_TYPECAST(data, false);
         __HAL_RCC_TIM5_CLK_ENABLE();
@@ -67,8 +67,8 @@ static bool tim5_init_period(uint32_t period, uint32_t priority,
 
 }
 
-static bool tim2_init_period(uint32_t period, uint32_t priority,
-                                uint32_t base_freq, void *data)
+static bool tim2_init(uint32_t period, uint32_t priority, uint32_t base_freq,
+                        void *data)
 {
         CHECK_RET_AND_TYPECAST(data, false);
         __HAL_RCC_TIM2_CLK_ENABLE();
@@ -164,7 +164,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 static const timer_interface_t timer_interface[] = {
         [TIMER_2_PRIVATE] = {
-                .init_period = tim2_init_period,
+                .init_timer = tim2_init,
                 .reg_callback = tim_reg_callback,
                 .is_running = tim_is_running,
                 .start = tim_start,
@@ -175,7 +175,7 @@ static const timer_interface_t timer_interface[] = {
                 .data = &timers[TIMER_2_PRIVATE]
         },
         [TIMER_5_PRIVATE] = {
-                .init_period = tim5_init_period,
+                .init_timer = tim5_init,
                 .reg_callback = tim_reg_callback,
                 .is_running = tim_is_running,
                 .start = tim_start,

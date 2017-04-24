@@ -181,7 +181,7 @@ static uint32_t set_timer(uint32_t sleep)
 		sleep = MAX_TIMER_RES_MS;
 	} else
 		rem_sleep = 0;
-	timer_set_time(sleep * 2, sleep_timer);
+	timer_set_time(sleep_timer, sleep * 2);
 	timer_start(sleep_timer);
 	return sleep;
 }

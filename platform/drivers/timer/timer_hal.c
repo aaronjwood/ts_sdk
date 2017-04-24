@@ -16,7 +16,7 @@ bool timer_init(const timer_interface_t *const inst_interface,
 		timercallback_t callback)
 {
 	CHECK_RET_VALID_INTERFACE(inst_interface, false);
-	if (!inst_interface->init_period(period, priority, base_freq,
+	if (!inst_interface->init_timer(period, priority, base_freq,
 		inst_interface->data))
 		return false;
 	inst_interface->reg_callback(callback, inst_interface->data);
@@ -41,8 +41,8 @@ uint32_t timer_get_time(const timer_interface_t *const inst_interface)
 	return inst_interface->get_time(inst_interface->data);
 }
 
-void timer_set_time(uint32_t period,
-		const timer_interface_t *const inst_interface)
+void timer_set_time(const timer_interface_t *const inst_interface,
+		uint32_t period)
 {
 	CHECK_VALID_INTERFACE(inst_interface);
 	inst_interface->set_time(period, inst_interface->data);

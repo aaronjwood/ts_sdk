@@ -28,7 +28,7 @@ typedef struct {
 	/** Initialize the period, set interrupt priority, sets base frequency
 	 *  and private timer data for the given timer instance
 	 */
-	bool (*init_period)(uint32_t period, uint32_t priority,
+	bool (*init_timer)(uint32_t period, uint32_t priority,
 		uint32_t base_freq, void *data);
 
 	/** Register a callback and timer private data */
@@ -103,18 +103,18 @@ void timer_start(const timer_interface_t * const inst);
  * \brief Get the elapsed time for given timer instance.
  * \param[in] inst Pointer to the interface of the timer instance.
  * \retval Elapsed time, time unit depends on the timer instance implementation.
- * \retval 0 for other cases.
+ * \retval 0 for other cases, for example, timer is disabled etc...
  * \pre \ref timer_init must be called before using this routine.
  */
 uint32_t timer_get_time(const timer_interface_t * const inst);
 
 /**
  * \brief Set the expiration time period for given timer instance.
- * \param[in] expiration time period, time unit is timer instance defined
  * \param[in] inst Pointer to the interface of the timer instance.
+ * \param[in] expiration time period, time unit is timer instance defined.
  * \pre \ref timer_init must be called before using this routine.
  */
-void timer_set_time(uint32_t period, const timer_interface_t * const inst);
+void timer_set_time(const timer_interface_t * const inst, uint32_t period);
 
 /**
  * \brief Stop the timer instance.
