@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stm32f4xx_hal.h>
 #include "uart.h"
+#include "timer_hal.h"
+#include "timer_interface.h"
 
 #define BAUD_RATE		115200
 #define CALLBACK_TRIGGER_MARK	((buf_sz)(UART_RX_BUFFER_SIZE * ALMOST_FULL_FRAC))
@@ -37,7 +39,7 @@ static volatile bool byte_recvd;	/* Set if a byte was received in the last
 					 */
 
 static UART_HandleTypeDef comm_uart;
-static TIM_HandleTypeDef idle_timer;
+static const timer_interface_t *idle_timer;
 
 void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 {
@@ -62,7 +64,33 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 	HAL_NVIC_EnableIRQ(USART2_IRQn);
 }
 
-static bool tim_module_init(void)
+static void tm2_cb(void)
+{
+	/*
+	 * If a byte was not received in the last timeout period, increment the
+	 * number of idle characters seen so far. Otherwise, reset the number of
+	 * idle characters.
+	 */
+	if (byte_recvd) {
+		byte_recvd = false;
+		num_idle_chars = 0;
+	} else
+		num_idle_chars++;
+
+	/*
+	 * Invoke the callback with the receive event in two situations:
+	 * 	> When the RX line is detected to be idle after a response has
+	 * 	  begun arriving.
+	 * 	> When a certain percentage of bytes have been received.
+	 */
+	if ((num_idle_chars >= timeout_chars) ||
+			(rx.num_unread == CALLBACK_TRIGGER_MARK)) {
+		timer_stop(idle_timer);
+		INVOKE_CALLBACK(UART_EVENT_RECVD_BYTES);
+	}
+}
+
+static bool tim2_module_init(void)
 {
 	/*
 	 * Initialize the timer (TIM2) to have a period equal to the time it
@@ -79,47 +107,11 @@ static bool tim_module_init(void)
 	 * which is how much time it takes to receive a character on a 115200 bps
 	 * UART.
 	 */
-	__HAL_RCC_TIM2_CLK_ENABLE();
-	idle_timer.Instance = TIM2;
-	idle_timer.Init.Prescaler = SystemCoreClock / 2 / TIM_BASE_FREQ_HZ - 1;
-	idle_timer.Init.CounterMode = TIM_COUNTERMODE_UP;
-	idle_timer.Init.Period = TIMEOUT_BYTE_US - 1;
-	idle_timer.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-	if (HAL_TIM_Base_Init(&idle_timer) != HAL_OK)
+	idle_timer = timer_get_interface(TIMER2);
+	if (!idle_timer)
 		return false;
-
-	/* Enable the TIM2 interrupt. */
-	HAL_NVIC_SetPriority(TIM2_IRQn, TIM_IRQ_PRIORITY, 0);
-	HAL_NVIC_EnableIRQ(TIM2_IRQn);
-
-	return true;
-}
-
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-	/*
-	 * If a byte was not received in the last timeout period, increment the
-	 * number of idle characters seen so far. Otherwise, reset the number of
-	 * idle characters.
-	 */
-	if (byte_recvd) {
-		byte_recvd = false;
-		num_idle_chars = 0;
-	} else {
-		num_idle_chars++;
-	}
-
-	/*
-	 * Invoke the callback with the receive event in two situations:
-	 * 	> When the RX line is detected to be idle after a response has
-	 * 	  begun arriving.
-	 * 	> When a certain percentage of bytes have been received.
-	 */
-	if ((num_idle_chars >= timeout_chars) ||
-			(rx.num_unread == CALLBACK_TRIGGER_MARK)) {
-		HAL_TIM_Base_Stop_IT(&idle_timer);
-		INVOKE_CALLBACK(UART_EVENT_RECVD_BYTES);
-	}
+	return timer_init(idle_timer, TIMEOUT_BYTE_US - 1, TIM_IRQ_PRIORITY,
+			TIM_BASE_FREQ_HZ - 1, tm2_cb);
 }
 
 bool uart_module_init(bool flow_ctrl, uint8_t t)
@@ -158,7 +150,7 @@ bool uart_module_init(bool flow_ctrl, uint8_t t)
 	timeout_chars = t;
 
 	/* Initialize the idle timer. */
-	if (tim_module_init() == false)
+	if (tim2_module_init() == false)
 		return false;
 
 	return true;
@@ -214,9 +206,9 @@ void USART2_IRQHandler(void)
 	byte_recvd = true;
 
 	/* If the timer isn't running, this is the first byte of the response. */
-	if (!(idle_timer.Instance->CR1 & TIM_CR1_CEN)) {
+	if (!timer_is_running(idle_timer)) {
 		num_idle_chars = 0;
-		HAL_TIM_Base_Start_IT(&idle_timer);
+		timer_start(idle_timer);
 	}
 
 	/* Buffer characters as long as the size of the buffer isn't exceeded. */
@@ -346,9 +338,4 @@ void uart_set_rx_callback(uart_rx_cb cb)
 buf_sz uart_rx_available(void)
 {
 	return rx.num_unread;
-}
-
-void TIM2_IRQHandler(void)
-{
-	HAL_TIM_IRQHandler(&idle_timer);
 }

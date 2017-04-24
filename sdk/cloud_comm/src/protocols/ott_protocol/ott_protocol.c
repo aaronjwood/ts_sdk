@@ -780,12 +780,11 @@ static proto_result fake_sending_service_msg(const void* buf, uint32_t sz,
 {
 	if (svc_id != CC_SERVICE_CONTROL)
 		return PROTO_INV_PARAM;
-		
-	if (sz > 0 && *((uint8_t *)(buf) + PROTO_OVERHEAD_SZ + 1) ==
-	    CTRL_MSG_REQUEST_RESEND_INIT) {
+
+	if (sz > 0 && *((uint8_t *)(buf) + 1) == CTRL_MSG_REQUEST_RESEND_INIT) {
 		session.send_svc_id = CC_SERVICE_CONTROL;
 		return ott_resend_init_config(cb);
-	} else 
+	} else
 		return PROTO_INV_PARAM;
 }
 
