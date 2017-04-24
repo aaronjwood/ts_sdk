@@ -74,9 +74,8 @@ static void tm2_cb(void)
 	if (byte_recvd) {
 		byte_recvd = false;
 		num_idle_chars = 0;
-	} else {
+	} else
 		num_idle_chars++;
-	}
 
 	/*
 	 * Invoke the callback with the receive event in two situations:

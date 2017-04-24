@@ -13,15 +13,34 @@ typedef struct timer_private {
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 
+/* Defines to enable printing of all the errors */
+/*#define DEBUG_ERROR*/
+#ifdef DEBUG_ERROR
+#define PRINTF_ERR(...)	printf(__VA_ARGS__)
+#else
+#define PRINTF_ERR(...)
+#endif
+
+#define RETURN_ERROR(string, ret) \
+	do { \
+		PRINTF_ERR("%s:%d:" #string, __func__, __LINE__); \
+		PRINTF_ERR("\n"); \
+		return (ret); \
+	} while (0)
+
 #define TYPECAST_TO_TIM(x) timer_private_t *tm = (timer_private_t *)((x))
 #define CHECK_RET_AND_TYPECAST(x, y) \
-        if ((x) == NULL) \
+        if ((x) == NULL) { \
+                PRINTF_ERR("%s at line %d\n", __func__, __LINE__); \
                 return (y); \
+        } \
         TYPECAST_TO_TIM(x)
 
 #define CHECK_AND_TYPECAST(x) \
-        if ((x) == NULL) \
+        if ((x) == NULL) { \
+                PRINTF_ERR("%s at line %d\n", __func__, __LINE__); \
                 return; \
+        } \
         TYPECAST_TO_TIM(x)
 
 
@@ -40,7 +59,7 @@ static bool tim5_init_period(uint32_t period, uint32_t priority,
         tm->timer_handle->Init.Period = 0;
         tm->timer_handle->Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
         if (HAL_TIM_Base_Init(tm->timer_handle) != HAL_OK)
-        	return false;
+                RETURN_ERROR("timer 5 init failed", false);
         /* Enable the TIM5 interrupt. */
         HAL_NVIC_SetPriority(TIM5_IRQn, priority, 0);
         HAL_NVIC_EnableIRQ(TIM5_IRQn);
@@ -59,7 +78,7 @@ static bool tim2_init_period(uint32_t period, uint32_t priority,
 	tm->timer_handle->Init.Period = period;
 	tm->timer_handle->Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	if (HAL_TIM_Base_Init(tm->timer_handle) != HAL_OK)
-		return false;
+		RETURN_ERROR("timer 2 init failed", false);
 
 	/* Enable the TIM2 interrupt. */
 	HAL_NVIC_SetPriority(TIM2_IRQn, priority, 0);
@@ -77,7 +96,7 @@ static bool tim_is_running(void *data)
 {
         CHECK_RET_AND_TYPECAST(data, false);
         if (tm->timer_handle->Instance == NULL)
-                return false;
+                RETURN_ERROR("timer instance empty", false);
         return ((tm->timer_handle->Instance)->CR1) & TIM_CR1_CEN;
 }
 

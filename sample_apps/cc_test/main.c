@@ -201,8 +201,6 @@ int main(int argc, char *argv[])
 	dbg_printf("Sending \"restarted\" message\n");
 	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
 	while (1) {
-		printf("Current time stamp: %"PRIu32"\n",
-			(uint32_t)sys_get_tick_ms() / 1000);
 		next_report_interval = send_status_msgs(sys_get_tick_ms());
 		next_wakeup_interval = cc_service_send_receive(
 						sys_get_tick_ms());
