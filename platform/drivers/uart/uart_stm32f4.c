@@ -4,65 +4,76 @@
 #include "uart_hal.h"
 #include "ts_sdk_config.h"
 
-#define MAX_IRQ_PRIORITY	15
+#define MAX_IRQ_PRIORITY		15
 #define CHECK_HANDLE(hdl, retval)	do { \
 	if ((hdl) == NO_PERIPH) \
 		return retval; \
 } while(0)
 
-enum uart_id {
-	U1,
-	U2,
-	U3,
-	U4,
-	U5,
-	U6,
-	U7,
-	U8,
-	NUM_UART,
-	UI		/* Invalid UART ID */
-};
+#define _CAT(a, ...)	a ## __VA_ARGS__
+#define CAT(a, ...)	_CAT(a, __VA_ARGS__)
 
-static const IRQn_Type irq_vector[NUM_UART] = {
-	USART1_IRQn,
-	USART2_IRQn,
-	USART3_IRQn,
-	UART4_IRQn,
-	UART5_IRQn,
-	USART6_IRQn,
-	UART7_IRQn,
-	UART8_IRQn
+/*
+ * Table mapping UARTs / USARTs peripherals to their IDs. The format of the table
+ * is: ID, corresponding UART / USART peripheral, optional parameters for the
+ * operation to be performed on the table.
+ */
+#define UART_TABLE(X, ...) \
+	X(U1, USART1, ##__VA_ARGS__) \
+	X(U2, USART2, ##__VA_ARGS__) \
+	X(U3, USART3, ##__VA_ARGS__) \
+	X(U4, UART4, ##__VA_ARGS__) \
+	X(U5, UART5, ##__VA_ARGS__) \
+	X(U6, USART6, ##__VA_ARGS__) \
+	X(U7, UART7, ##__VA_ARGS__) \
+	X(U8, UART8, ##__VA_ARGS__)
+
+/*
+ * Define operations on the table above. These are used to generate repetitive
+ * blocks / boilerplate code.
+ */
+#define GET_IDS(a, b)		a,
+#define GET_IRQ_VECS(a, b)		b##_IRQn,
+
+#define DEF_IRQ_HANDLERS(a, b, c)	\
+	void b##_IRQHandler(void) { c((periph_t) b); }
+
+#define CONV_HDL_TO_ID(a, b, c)	\
+	if ((USART_TypeDef *)c == b) return a;
+
+#define ENABLE_CLOCKS(a, b, c) \
+	if (c == b) { CAT(__HAL_RCC_, b##_CLK_ENABLE()); return; }
+
+enum uart_id {
+	UART_TABLE(GET_IDS)
+	NUM_UART,
+	UI			/* Invalid ID - Unlikely */
 };
 
 static uart_rx_char_cb rx_char_cb[NUM_UART];
 static UART_HandleTypeDef uart_stm32_handle[NUM_UART];
 static bool uart_usage[NUM_UART];
 
+UART_TABLE(DEF_IRQ_HANDLERS, uart_irq_handler);
+
+static const IRQn_Type irq_vector[] = {
+	UART_TABLE(GET_IRQ_VECS)
+};
+
 static enum uart_id convert_hdl_to_id(periph_t hdl)
 {
-	if ((USART_TypeDef *)hdl == USART1)
-		return U1;
-	else if((USART_TypeDef *)hdl == USART2)
-		return U2;
-	else if((USART_TypeDef *)hdl == USART3)
-		return U3;
-	else if((USART_TypeDef *)hdl == UART4)
-		return U4;
-	else if((USART_TypeDef *)hdl == UART5)
-		return U5;
-	else if((USART_TypeDef *)hdl == USART6)
-		return U6;
-	else if((USART_TypeDef *)hdl == UART7)
-		return U7;
-	else if((USART_TypeDef *)hdl == UART8)
-		return U8;
-	else
-		return UI;
+	UART_TABLE(CONV_HDL_TO_ID, hdl);
+	return UI;
+}
+
+static void enable_clock(const USART_TypeDef *inst)
+{
+	UART_TABLE(ENABLE_CLOCKS, inst);
 }
 
 static bool validate_config(const uart_config *config)
 {
-	if (!config)
+	if (config == NULL)
 		return false;
 
 	/* XXX: For now, limit the baud rate to these speeds */
@@ -90,34 +101,14 @@ static bool validate_config(const uart_config *config)
 	return true;
 }
 
-static void enable_clock(const USART_TypeDef *inst)
-{
-	if (inst == USART1)
-		__HAL_RCC_USART1_CLK_ENABLE();
-	else if(inst == USART2)
-		__HAL_RCC_USART2_CLK_ENABLE();
-	else if(inst == USART3)
-		__HAL_RCC_USART3_CLK_ENABLE();
-	else if(inst == UART4)
-		__HAL_RCC_UART4_CLK_ENABLE();
-	else if(inst == UART5)
-		__HAL_RCC_UART5_CLK_ENABLE();
-	else if(inst == USART6)
-		__HAL_RCC_USART6_CLK_ENABLE();
-	else if(inst == UART7)
-		__HAL_RCC_UART7_CLK_ENABLE();
-	else if(inst == UART8)
-		__HAL_RCC_UART8_CLK_ENABLE();
-}
-
 static bool init_uart_peripheral(periph_t hdl, const uart_config *config,
 		bool hw_flow_ctrl, pin_name_t tx, pin_name_t rx)
 {
-	/* Peripheral currently under use */
-	if (uart_usage[convert_hdl_to_id(hdl)])
-		return false;
-
 	enum uart_id uid = convert_hdl_to_id(hdl);
+
+	/* Peripheral currently under use */
+	if (uart_usage[uid])
+		return false;
 
 	USART_TypeDef *uart_instance = (USART_TypeDef *)hdl;
 	enable_clock(uart_instance);
@@ -168,13 +159,13 @@ static bool init_uart_peripheral(periph_t hdl, const uart_config *config,
 		HAL_NVIC_SetPriority(irq_vector[uid], MODEM_UART_IRQ_PRIORITY, 0);
 		HAL_NVIC_EnableIRQ(irq_vector[uid]);
 	}
-	uart_usage[convert_hdl_to_id(hdl)] = true;
+	uart_usage[uid] = true;
 	return true;
 }
 
 periph_t uart_init(const struct uart_pins *pins, const uart_config *config)
 {
-	if (!validate_config(config))
+	if (!validate_config(config) || pins == NULL)
 		return NO_PERIPH;
 
 	/* Make sure at least one of RX / TX is specified */
@@ -224,20 +215,22 @@ void uart_set_rx_char_cb(periph_t hdl, uart_rx_char_cb cb)
 void uart_irq_handler(periph_t hdl)
 {
 	CHECK_HANDLE(hdl, /* No return value */);
-	uint32_t uart_sr_reg = ((USART_TypeDef *)hdl)->SR;
+	USART_TypeDef *uart_instance = (USART_TypeDef *)hdl;
+	uint32_t uart_sr_reg = uart_instance->SR;
 	uint32_t err_flags = uart_sr_reg & (uint32_t)(USART_SR_PE | USART_SR_FE
 			| USART_SR_ORE | USART_SR_NE);
 
 	/* If any errors, clear it by reading the RX data register. */
 	if (err_flags) {
-		volatile uint8_t data = ((USART_TypeDef *)hdl)->DR;
+		volatile uint8_t data = uart_instance->DR;
 		UNUSED(data);
 		return;
 	}
 
 	enum uart_id uid = convert_hdl_to_id(hdl);
+	uint8_t data = uart_instance->DR;
 	if (!rx_char_cb[uid])
-		rx_char_cb[uid](((USART_TypeDef *)hdl)->DR);
+		rx_char_cb[uid](data);
 }
 
 bool uart_tx(periph_t hdl, uint8_t *data, uint16_t size, uint16_t timeout_ms)
