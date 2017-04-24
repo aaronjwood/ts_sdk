@@ -3,7 +3,7 @@
 #include <stm32f4xx_hal.h>
 #include <dbg.h>
 #include "timer_hal.h"
-#include "timer_stm32f4.h"
+#include "timer_stm32f429.h"
 
 /* Timer related definations */
 static const timer_interface_t *sleep_timer;

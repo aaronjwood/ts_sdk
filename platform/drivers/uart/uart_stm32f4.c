@@ -4,7 +4,7 @@
 #include <stm32f4xx_hal.h>
 #include "uart.h"
 #include "timer_hal.h"
-#include "timer_stm32f4.h"
+#include "timer_stm32f429.h"
 
 #define BAUD_RATE		115200
 #define CALLBACK_TRIGGER_MARK	((buf_sz)(UART_RX_BUFFER_SIZE * ALMOST_FULL_FRAC))

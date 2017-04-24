@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 #include <stm32f4xx_hal.h>
-#include "timer_stm32f4.h"
+#include "timer_stm32f429.h"
 #include "timer_hal.h"
 
 typedef struct timer_private {
