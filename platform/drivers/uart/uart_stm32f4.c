@@ -56,7 +56,7 @@ static bool uart_usage[NUM_UART];
 
 UART_TABLE(DEF_IRQ_HANDLERS, uart_irq_handler);
 
-static const IRQn_Type irq_vector[] = {
+static const IRQn_Type irq_vec[] = {
 	UART_TABLE(GET_IRQ_VECS)
 };
 
@@ -101,7 +101,7 @@ static bool validate_config(const uart_config *config)
 	return true;
 }
 
-static bool init_uart_peripheral(periph_t hdl, const uart_config *config,
+static bool init_peripheral(periph_t hdl, const uart_config *config,
 		bool hw_flow_ctrl, pin_name_t tx, pin_name_t rx)
 {
 	enum uart_id uid = convert_hdl_to_id(hdl);
@@ -156,12 +156,53 @@ static bool init_uart_peripheral(periph_t hdl, const uart_config *config,
 	SET_BIT(uart_instance->CR1, USART_CR1_PEIE | USART_CR1_RXNEIE);
 
 	if (rx != NC) {
-		HAL_NVIC_SetPriority(irq_vector[uid], MODEM_UART_IRQ_PRIORITY, 0);
-		HAL_NVIC_EnableIRQ(irq_vector[uid]);
+		HAL_NVIC_SetPriority(irq_vec[uid], MODEM_UART_IRQ_PRIORITY, 0);
+		HAL_NVIC_EnableIRQ(irq_vec[uid]);
 	}
 	uart_usage[uid] = true;
 	return true;
 }
+
+/*
+ * Make sure all pins connect to the same peripheral. Some pins of the UART
+ * are optional so they are expected to connect to NO_PERIPH.
+ */
+static periph_t find_common_periph(const struct uart_pins *pins)
+{
+	const periph_t p[] = {
+		pp_get_peripheral(pins->tx, uart_tx_map),
+		pp_get_peripheral(pins->rx, uart_rx_map),
+		pp_get_peripheral(pins->rts, uart_rts_map),
+		pp_get_peripheral(pins->cts, uart_cts_map)
+	};
+
+	const bool used[] = {
+		pins->tx != NC,
+		pins->rx != NC,
+		pins->rts != NC,
+		pins->cts != NC
+	};
+
+	periph_t p_common = NO_PERIPH;
+	for (uint8_t i = 0; i < 4; i++) {
+		if (!used[i])
+			continue;
+		if (p[i] == NO_PERIPH)
+			return NO_PERIPH;
+		if (p_common == NO_PERIPH)
+			p_common = p[i];
+		if (p[i] != p_common)
+			return NO_PERIPH;
+	}
+
+	return p_common;
+}
+
+#define PIN_INIT_RET_ON_ERROR(x)	do {\
+	if (pins->x != NC) \
+		if (!pp_peripheral_pin_init(pins->x, uart_##x##_map)) \
+			return NO_PERIPH; \
+} while(0)
 
 periph_t uart_init(const struct uart_pins *pins, const uart_config *config)
 {
@@ -175,35 +216,29 @@ periph_t uart_init(const struct uart_pins *pins, const uart_config *config)
 	/* Determine if hardware flow control should be enabled */
 	bool hw_fl_ctrl = pins->rts != NC && pins->cts != NC;
 
-	/* Make sure all pins connect to the same peripheral */
-	periph_t p1, p2, p3, p4;
-	p1 = pp_get_peripheral(pins->tx, uart_tx_map);
-	p2 = pp_get_peripheral(pins->rx, uart_rx_map);
-	p3 = pp_get_peripheral(pins->rts, uart_rts_map);
-	p4 = pp_get_peripheral(pins->cts, uart_cts_map);
-
-	if (p1 != p2 || p2 != p3 || p3 != p4 || p1 == NO_PERIPH)
+	/* Find a common peripheral among the pins */
+	periph_t periph = find_common_periph(pins);
+	if (periph == NO_PERIPH)
 		return NO_PERIPH;
 
 	/* Initialize the pins connected to the peripheral */
-	if (!pp_peripheral_pin_init(pins->tx, uart_tx_map) ||
-			!pp_peripheral_pin_init(pins->rx, uart_rx_map) ||
-			!pp_peripheral_pin_init(pins->rts, uart_rts_map) ||
-			!pp_peripheral_pin_init(pins->cts, uart_cts_map))
-		return NO_PERIPH;
+	PIN_INIT_RET_ON_ERROR(tx);
+	PIN_INIT_RET_ON_ERROR(rx);
+	PIN_INIT_RET_ON_ERROR(rts);
+	PIN_INIT_RET_ON_ERROR(cts);
 
 	/* Initialize the peripheral itself */
-	return init_uart_peripheral(p1, config, hw_fl_ctrl, pins->tx, pins->rx) ?
-		p1 : NO_PERIPH;
+	return init_peripheral(periph, config, hw_fl_ctrl, pins->tx, pins->rx) ?
+		periph : NO_PERIPH;
 }
 
 void uart_toggle_irq(periph_t hdl, bool state)
 {
 	CHECK_HANDLE(hdl, /* No return value */);
 	if (state)
-		HAL_NVIC_EnableIRQ(irq_vector[convert_hdl_to_id(hdl)]);
+		HAL_NVIC_EnableIRQ(irq_vec[convert_hdl_to_id(hdl)]);
 	else
-		HAL_NVIC_DisableIRQ(irq_vector[convert_hdl_to_id(hdl)]);
+		HAL_NVIC_DisableIRQ(irq_vec[convert_hdl_to_id(hdl)]);
 }
 
 void uart_set_rx_char_cb(periph_t hdl, uart_rx_char_cb cb)
