@@ -683,7 +683,7 @@ $prg_name is a script to manage ThingSpace accounts & OTT devices.
 Copyright (C) 2016 Verizon. All rights reserved.
 NOTE: Any output the user should note down will be colored green.
 If an optional parameter (enclosed in square brackets) is not provided, it will
-be read from the conf file : $cfg
+be read from the conf file : .tscreds_smsnas or .tscreds_ott based on protocol selected
 Begin by creating an account and at least one device. Information about only one
 account and one device can be stored in the configuration file at a time.
 
@@ -693,23 +693,29 @@ $prg_name <smsnas or ott> account <e-mail> <password>
 	to access the ThingSpace APIs. A new application token will be automatically
 	created for this account. E-mail verification is turned off.
 
-$prg_name <smsnas or ott> dev <device-name> [qr-code] [user-access-token] [app-cl-token]
+$prg_name ott dev <device-name> [qr-code] [user-access-token] [app-cl-token]
 	Create an OTT device with the given name and register it to the
 	ThingSpace user account. If a QR code is provided, this already
 	provisioned OTT device will be registered with ThingSpace. There is no
-	way to retrieve the OTT device secret and device ID later on so please
-	take note of them.
+	way to retrieve the OTT device secret and device ID later on so
+	take note of them. If tokens are not specified, it will be read from .tscreds_ott
+	config file
 
+$prg_name smsnas dev <device-name> <qr-code> <imei> <imsi> [user-access-token] [app-cl-token]
+	Create an smsnas device with the given name, qrcode, imei and imsi and register
+	it to the ThingSpace user account. Optionally user access and client token
+	can be provided, if not specified, it will be read from .tscreds_smsnas file
 
 Query APIs:
-$prg_name lsdev [user-access-token]
-	List ThingSpace devices associated with the ThingSpace user account.
+$prg_name <smsnas or ott> lsdev [user-access-token]
+	List ThingSpace devices associated with the ThingSpace user account. If
+	token is not specified, it will be read from .tscreds_<xxx> file
 
-$prg_name chktok <token>
+$prg_name <smsnas or ott> chktok <token>
 	Check the validity of the token. The token can either be an application
 	(client) token or a user access token.
 
-$prg_name chkupd <num-to-read> [ts-device-id] [user-access-token]
+$prg_name <smsnas or ott> chkupd <num-to-read> [ts-device-id] [user-access-token]
 	Check the states of the last <num-to-read> update messages sent to the
 	device. These can take the values:
 	pending - Device is yet to read the update message
@@ -718,36 +724,36 @@ $prg_name chkupd <num-to-read> [ts-device-id] [user-access-token]
 
 
 Read and write APIs:
-$prg_name rdstat <num-to-read> [ts-device-id] [user-access-token]
+$prg_name <smsnas or ott> rdstat <num-to-read> [ts-device-id] [user-access-token]
 	Read at most the last <num-to-read> status message sent by the device.
 
-$prg_name wrupd <plain-hex-data> [ts-device-id] [user-access-token]
+$prg_name <smsnas or ott> wrupd <plain-hex-data> [ts-device-id] [user-access-token]
 	Write an update message to the device. The data must be in plain
 	hex. Eg. 19acdc89fe
 
-$prg_name wrpi <value> [ts-device-id] [user-access-token]
+$prg_name ott wrpi <value> [ts-device-id] [user-access-token]
 	Send a new polling interval to the device.
 
-$prg_name wrsi <value> [ts-device-id] [user-access-token]
+$prg_name <smsnas or ott> wrsi <value> [ts-device-id] [user-access-token]
 	Send a new sleep interval to the device.
 
 
 Revocation APIs:
-$prg_name rapptoken <application-access-token>
+$prg_name <smsnas or ott> rapptoken <application-access-token>
 	Revoke ThingSpace application (client) access token.
 
-$prg_name raccount <user-access-token>
+$prg_name <smsnas or ott> raccount <user-access-token>
 	Remove the ThingSpace account associated with this user access token.
 	Accounts cannot be removed if there are devices associated with it.
 
-$prg_name rmdev <user-access-token> <device-id>
+$prg_name <smsnas or ott> rmdev <user-access-token> <device-id>
 	Remove the device associated with this ThingSpace user account and
 	device ID.
 
 
 Utility functions:
-$prg_name reset_prof
-	Reset the local profile (./.tscred). Populate this file
+$prg_name <smsnas or ott> reset_prof
+	Reset the local profile (./.tscred_<xxx>). Populate this file
 	with values of application (client) access token, user access
 	token and device ID. If a parameter related to one of these is
 	enclosed in '[' and ']' and is omitted from the command line,
