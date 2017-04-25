@@ -6,7 +6,6 @@
 
 static uart_rx_cb recv_callback;
 static periph_t uart;
-//static timer_interface_t *timer;
 
 #define INVOKE_CALLBACK(ev)	do { \
 	if (recv_callback) \
@@ -29,6 +28,23 @@ static volatile bool byte_recvd;	/* Set if a byte was received in the last
 					 * TIMEOUT_BYTE_US microseconds.
 					 */
 
+static void rx_char_cb(uint8_t data)
+{
+	byte_recvd = true;
+
+	/* XXX: Timer start code here */
+
+	/* Buffer characters as long as the size of the buffer isn't exceeded. */
+	if (rx.num_unread < UART_BUF_SIZE) {
+		rx.buffer[rx.widx] = data;
+		rx.widx = (rx.widx + 1) % UART_BUF_SIZE;
+		rx.num_unread++;
+		//__DSB();
+	} else {
+		INVOKE_CALLBACK(UART_EVENT_RX_OVERFLOW);
+	}
+}
+
 bool uart_util_init(periph_t hdl, uint8_t idle_timeout)
 {
 	if (idle_timeout == 0 || hdl == NO_PERIPH)
@@ -41,6 +57,8 @@ bool uart_util_init(periph_t hdl, uint8_t idle_timeout)
 
 	timeout_chars = idle_timeout;
 	uart = hdl;
+
+	uart_set_rx_char_cb(uart, rx_char_cb);
 	/* TODO: Initialize 'timer' */
 
 	return true;
