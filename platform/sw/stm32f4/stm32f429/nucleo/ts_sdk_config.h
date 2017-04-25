@@ -23,6 +23,10 @@
 
 /* UART and timer IRQ priorities - UART must have higher priority than timer */
 #define MODEM_UART_IRQ_PRIORITY	5
-#define TIMER_IRQ_PRIORITY	6
+#define IDL_TIM_IRQ_PRIORITY	6
+
+/* Various timer IDs */
+#define MODEM_UART_IDLE_TIMER	TIMER2
+#define SLEEP_TIMER		TIMER5
 
 #endif

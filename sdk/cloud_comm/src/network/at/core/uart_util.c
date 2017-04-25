@@ -1,8 +1,20 @@
 /* Copyright(C) 2017 Verizon. All rights reserved. */
 
+#include <stm32f4xx_hal.h>
+#include <string.h>
 #include "uart_util.h"
 #include "timer_hal.h"
-#include "string.h"
+#include "timer_interface.h"
+#include "ts_sdk_config.h"
+
+#define CALLBACK_TRIGGER_MARK	((buf_sz)(UART_BUF_SIZE * ALMOST_FULL_FRAC))
+#define ALMOST_FULL_FRAC	0.6	/* Call the receive callback once this
+					 * fraction of the buffer is full.
+					 */
+#define CEIL(x, y)		(((x) + (y) - 1) / (y))
+#define MICRO_SEC_MUL		1000000
+#define TIM_BASE_FREQ_HZ	1000000
+#define TIMEOUT_BYTE_US		CEIL((8 * MICRO_SEC_MUL), MODEM_UART_BAUD_RATE)
 
 static uart_rx_cb recv_callback;
 static periph_t uart;
@@ -23,6 +35,7 @@ static volatile struct {
 /* Store the idle timeout in number of characters. */
 static uint16_t timeout_chars;
 
+static const timer_interface_t *idle_timer;
 static volatile uint16_t num_idle_chars;
 static volatile bool byte_recvd;	/* Set if a byte was received in the last
 					 * TIMEOUT_BYTE_US microseconds.
@@ -32,17 +45,71 @@ static void rx_char_cb(uint8_t data)
 {
 	byte_recvd = true;
 
-	/* XXX: Timer start code here */
+	/* If the timer isn't running, this is the first byte of the response. */
+	if (!timer_is_running(idle_timer)) {
+		num_idle_chars = 0;
+		timer_start(idle_timer);
+	}
 
 	/* Buffer characters as long as the size of the buffer isn't exceeded. */
 	if (rx.num_unread < UART_BUF_SIZE) {
 		rx.buffer[rx.widx] = data;
 		rx.widx = (rx.widx + 1) % UART_BUF_SIZE;
 		rx.num_unread++;
-		//__DSB();
+		__DSB();
 	} else {
 		INVOKE_CALLBACK(UART_EVENT_RX_OVERFLOW);
 	}
+}
+
+static void idle_timer_callback(void)
+{
+	/*
+	 * If a byte was not received in the last timeout period, increment the
+	 * number of idle characters seen so far. Otherwise, reset the number of
+	 * idle characters.
+	 */
+	if (byte_recvd) {
+		byte_recvd = false;
+		num_idle_chars = 0;
+	} else
+		num_idle_chars++;
+
+	/*
+	 * Invoke the callback with the receive event in two situations:
+	 * 	> When the RX line is detected to be idle after a response has
+	 * 	  begun arriving.
+	 * 	> When a certain percentage of bytes have been received.
+	 */
+	if ((num_idle_chars >= timeout_chars) ||
+			(rx.num_unread == CALLBACK_TRIGGER_MARK)) {
+		timer_stop(idle_timer);
+		INVOKE_CALLBACK(UART_EVENT_RECVD_BYTES);
+	}
+}
+
+static bool idle_timer_init(void)
+{
+	/*
+	 * Initialize the timer (TIM2) to have a period equal to the time it
+	 * takes to receive a character at the current baud rate.
+	 * TIM2's clock source is connected to APB1. According to the TRM,
+	 * this source needs to be multiplied by 2 if the APB1 prescaler is not
+	 * 1 (it's 4 in our case). Therefore effectively, the clock source for
+	 * TIM2 is:
+	 * APB1 x 2 = SystemCoreClock / 4 * 2 = SystemCoreClock / 2 = 90 MHz.
+	 * The base frequency of the timer's clock is chosen as 1 MHz (time
+	 * period of 1 microsecond).
+	 * Therefore, prescaler = 90 MHz / 1 MHz - 1 = 89.
+	 * The clock is set to restart every 70us (value of 'Period' member)
+	 * which is how much time it takes to receive a character on a 115200 bps
+	 * UART.
+	 */
+	idle_timer = timer_get_interface(MODEM_UART_IDLE_TIMER);
+	if (!idle_timer)
+		return false;
+	return timer_init(idle_timer, TIMEOUT_BYTE_US - 1, IDL_TIM_IRQ_PRIORITY,
+			TIM_BASE_FREQ_HZ - 1, idle_timer_callback);
 }
 
 bool uart_util_init(periph_t hdl, uint8_t idle_timeout)
@@ -59,7 +126,9 @@ bool uart_util_init(periph_t hdl, uint8_t idle_timeout)
 	uart = hdl;
 
 	uart_set_rx_char_cb(uart, rx_char_cb);
-	/* TODO: Initialize 'timer' */
+
+	if (idle_timer_init() == false)
+		return false;
 
 	return true;
 }

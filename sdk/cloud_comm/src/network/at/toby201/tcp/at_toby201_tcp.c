@@ -25,7 +25,7 @@ typedef struct _at_intr_buf {
          * dl disconnect string sequence is detected, total capacity of this
          * buffer can not exceed beyond UART_RX_BUFFER_SIZE - disconnect string
          */
-        uint8_t buf[UART_RX_BUFFER_SIZE];
+        uint8_t buf[UART_BUF_SIZE];
         buf_sz ridx;
         buf_sz buf_unread;
 } at_intr_buf;

@@ -4,6 +4,7 @@
 #include <dbg.h>
 #include "timer_hal.h"
 #include "timer_interface.h"
+#include "ts_sdk_config.h"
 
 /* Timer related definations */
 static const timer_interface_t *sleep_timer;
@@ -135,7 +136,7 @@ static bool tim5_module_init(void)
 	timer_expired = false;
 	rem_sleep = 0;
 	total_sleep_time = 0;
-	sleep_timer = timer_get_interface(TIMER5);
+	sleep_timer = timer_get_interface(SLEEP_TIMER);
 
 	if (!sleep_timer)
 		return false;
