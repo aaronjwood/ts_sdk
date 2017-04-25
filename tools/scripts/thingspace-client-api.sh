@@ -76,7 +76,6 @@ function init_smsnas()
 	MODEL_ID=$MODEL_ID_SMS
 	DEV_KIND=$DEV_KIND_SMS
 	PROV_ID=$PROV_ID_SMS
-	print_config
 }
 
 function init_ott()
@@ -87,7 +86,6 @@ function init_ott()
 	MODEL_ID=$MODEL_ID_OTT
 	DEV_KIND=$DEV_KIND_OTT
 	PROV_ID=$PROV_ID_OTT
-	print_config
 }
 
 function read_config()
@@ -213,7 +211,7 @@ function register_ts_device()
 	# INPUTS:
 	# $1 = User Access Token
 	# $2 = Device Name
-	# $3 = QR Code from OTT device creation
+	# $3 = QR Code from device creation
 	#
 	# RETURNS:
 	# ThingSpace Device ID
@@ -232,8 +230,6 @@ function register_ts_device()
 	exit_on_error "Failed to register OTT device with ThingSpace" "$REGVAL" "$?"
 	local TSDEVID=$(echo "$REGVAL" | python -c "import json, sys; print json.load(sys.stdin)['id']")
 	echo "ThingSpace device ID : $(tput setaf $IC)$TSDEVID$(tput sgr 0)"
-	echo "This device should be ready to use now"
-
 	echo "Writing device to config file ("$cfg")"
 	write_config "$user_token" "$app_cl_token" "$TSDEVID"
 
@@ -259,7 +255,7 @@ function create_ott_device()
 	local UATOKEN="${3:-$user_token}"
 	local APPTOKEN="${4:-$app_cl_token}"
 
-	echo "Creating OTT device"
+	echo "Creating $protocol device"
 	exit_on_error "No device name provided" "$DEVNAME" "0"
 	exit_on_error "No application (client) access token provided" "$APPTOKEN" "0"
 	exit_on_error "No user access token provided" "$UATOKEN" "0"
@@ -291,8 +287,6 @@ function create_ott_device()
 
 	# Register the device with ThingSpace
 	register_ts_device "$UATOKEN" "$DEVNAME" "$QRCODE"
-
-	exit 0
 }
 
 function create_sms_device()
@@ -302,17 +296,15 @@ function create_sms_device()
 	# $2 = QR Code
 	# $3 = imei
 	# $4 = imsi
-	#
+	# $5 = user token
+	# $6 = application client token
 
 	local DEVNAME="$1"
 	local QRCODE="$2"
 	local UATOKEN="${5:-$user_token}"
 	local APPTOKEN="${6:-$app_cl_token}"
 
-	if [ -z "$QRCODE" ]; then
-		exit_on_error "QR code not provided"
-	fi
-	echo "Creating SMSNAS device for qrcode: $2, imei:$3, imsi:$4"
+	echo "Creating $protocol device for qrcode: $2, imei:$3, imsi:$4"
 	exit_on_error "No device name provided" "$DEVNAME" "0"
 	exit_on_error "No application (client) access token provided" "$APPTOKEN" "0"
 	exit_on_error "No user access token provided" "$UATOKEN" "0"
@@ -328,17 +320,19 @@ function create_sms_device()
 	# Register the device with ThingSpace
 	register_ts_device "$UATOKEN" "$DEVNAME" "$QRCODE"
 
-	exit 0
 }
 
 function create_device()
 {
-	local DEVNAME="$1"
-	local QRCODE="$2"
-	local UATOKEN="$user_token"
-	local APPTOKEN="$app_cl_token"
 	if [ $protocol == "smsnas" ]; then
-
+		if [ -z "$2" ]; then
+			exit_on_error "QR code not provided for smsnas device" "0"
+		fi
+		create_sms_device "$1" "$2" "$3" "$4"
+	elif [ $protocol == "ott" ]; then
+		create_ott_device "$1" "$2" "$3" "$4"
+	else
+		exit_on_error "Invalid protocol, $prg_name help for the usage" "0"
 	fi
 }
 
@@ -424,7 +418,7 @@ function check_updates()
 	exit 0
 }
 
-function read_ott_status()
+function read_status()
 {
 	# INPUTS:
 	# $1 = Number of status values to read (latest status first)
@@ -438,7 +432,7 @@ function read_ott_status()
 	local TSDEVID=${2:-$ts_dev}
 	local UATOKEN=${3:-$user_token}
 
-	echo "Reading OTT status data"
+	echo "Reading device status data"
 	exit_on_error "Not sure how many status values to read" "$NUMSTAT" "0"
 	exit_on_error "No user access token provided" "$UATOKEN" "0"
 	exit_on_error "No ThingSpace device ID provided" "$TSDEVID" "0"
@@ -464,7 +458,7 @@ function read_ott_status()
 	exit 0
 }
 
-function write_ott_update()
+function write_update()
 {
 	# INPUTS:
 	# $1 = Raw hexadecimal bytes (eg. 19acdc89fe)
@@ -538,7 +532,7 @@ function write_ott_polling_interval()
 	exit 0
 }
 
-function write_ott_sleep_interval()
+function write_sleep_interval()
 {
 	# INPUTS:
 	# $1 = Positive integer
@@ -671,15 +665,15 @@ function remove_device()
 
 function print_usage_small()
 {
-	echo "$prg_name is a script to manage ThingSpace accounts & OTT devices."
-	echo "Copyright (C) 2016 Verizon. All rights reserved."
+	echo "$prg_name is a script to manage ThingSpace accounts & SMSNAS/OTT devices."
+	echo "Copyright (C) 2016, 2017 Verizon. All rights reserved."
 	echo "NOTE: Any output the user should note down will be colored green."
 }
 
 function print_usage()
 {
 	less << EOF
-$prg_name is a script to manage ThingSpace accounts & OTT devices.
+$prg_name is a script to manage ThingSpace accounts & SMSNAS/OTT devices.
 Copyright (C) 2016 Verizon. All rights reserved.
 NOTE: Any output the user should note down will be colored green.
 If an optional parameter (enclosed in square brackets) is not provided, it will
@@ -765,18 +759,13 @@ EOF
 if [ -z "$1" ]; then
 	echo "Specify smsnas or ott as first argument, $prg_name help for the detail usage"
 	exit 1
-else
-	if [ "$1" == "smsnas" ]; then
-		init_smsnas
-	else
-		if [ "$1" == "ott" ]; then
-			init_ott
-		else
-			echo "Specify smsnas or ott as first argument, $prg_name help for the detail usage"
-			exit 1
-		fi
-
-	fi
+elif [ "$1" == "smsnas" ]; then
+	init_smsnas
+elif [ "$1" == "ott" ]; then
+	init_ott
+elif [ "$1" == "help" ]; then
+	print_usage
+	exit 0
 fi
 
 if [ -f "$cfg" ]; then
@@ -793,7 +782,7 @@ case "$2" in
 		create_user_account "$3" "$4"
 		;;
 	dev)
-		create_device "$3" "$4" "$5" "$6"
+		create_device "$3" "$4" "$5" "$6" "$7" "$8"
 		;;
 	tsdev)
 		register_ts_device "$3" "$4" "$5"
@@ -808,16 +797,21 @@ case "$2" in
 		check_updates "$3"
 		;;
 	rdstat)
-		read_ott_status "$3" "$4" "$5"
+		read_status "$3" "$4" "$5"
 		;;
 	wrupd)
-		write_ott_update "$3" "$4" "$5"
+		write_update "$3" "$4" "$5"
 		;;
 	wrpi)
-		write_ott_polling_interval "$3" "$4" "$5"
+		if [ $protocol == "ott" ]; then
+			write_ott_polling_interval "$3" "$4" "$5"
+		else
+			echo "polling interval is only supported for ott protocol"
+			exit 1
+		fi
 		;;
 	wrsi)
-		write_ott_sleep_interval "$3" "$4" "$5"
+		write_sleep_interval "$3" "$4" "$5"
 		;;
 	rapptoken)
 		revoke_application_token "$3"
@@ -827,9 +821,6 @@ case "$2" in
 		;;
 	rmdev)
 		remove_device "$3" "$4"
-		;;
-	help)
-		print_usage
 		;;
 	*)
 		print_usage_small
