@@ -9,7 +9,7 @@
 static uint16_t port_usage[NUM_PORTS];
 
 #define MARK_AS_USED(port, pin)		(port_usage[(port)] |= (1 << (pin)))
-#define QUERY_USAGE(port, pin)		((port_usage[(port)] | (1 << (pin))) == (1 << (pin)))
+#define QUERY_USAGE(port, pin)		((port_usage[(port)] & (1 << (pin))) == (1 << (pin)))
 
 static bool is_pin_name_valid(pin_name_t pin_name)
 {
@@ -205,8 +205,7 @@ periph_t pp_get_peripheral(pin_name_t pin_name, const pin_map_t *mapping)
 #define RET_ON_NOT_FOUND(val)	do { \
 	if ((val) == NC) \
 	return false; \
-} \
-while(0)
+} while(0)
 
 bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_map_t *mapping)
 {
@@ -242,7 +241,7 @@ bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_map_t *mapping)
 
 	gpio_pin.Alternate = mapping[idx].alt_func;
 
-	HAL_GPIO_Init((GPIO_TypeDef *)pp_map_drv_port(port), &gpio_pin);
+	HAL_GPIO_Init((GPIO_TypeDef *)pp_map_drv_port(pin_name), &gpio_pin);
 
 	MARK_AS_USED(port, pin);
 	return true;
@@ -276,7 +275,7 @@ bool pp_gpio_pin_init(pin_name_t pin_name, const gpio_config_t *settings)
 	RET_ON_NOT_FOUND(value);
 	gpio_pin.Speed = value;
 
-	HAL_GPIO_Init((GPIO_TypeDef *)pp_map_drv_port(port), &gpio_pin);
+	HAL_GPIO_Init((GPIO_TypeDef *)pp_map_drv_port(pin_name), &gpio_pin);
 
 	MARK_AS_USED(port, pin);
 	return true;
