@@ -25,8 +25,7 @@
 #define MODEM_UART_IRQ_PRIORITY	5
 #define IDL_TIM_IRQ_PRIORITY	6
 
-/* Various timer IDs */
+/* Timer IDs */
 #define MODEM_UART_IDLE_TIMER	TIMER2
-#define SLEEP_TIMER		TIMER5
 
 #endif

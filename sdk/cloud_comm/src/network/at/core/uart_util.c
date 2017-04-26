@@ -250,9 +250,9 @@ int uart_util_read(uint8_t *buf, buf_sz sz)
 	 * Copy bytes into the supplied buffer and perform the necessary
 	 * book-keeping.
 	 */
-	uart_toggle_irq(uart, false);
+	uart_irq_off(uart);
 	buf_sz num_unread = rx.num_unread;
-	uart_toggle_irq(uart, true);
+	uart_irq_on(uart);
 
 	buf_sz n_bytes = (sz > num_unread) ? num_unread : sz;
 	buf_sz i = 0;
@@ -261,9 +261,9 @@ int uart_util_read(uint8_t *buf, buf_sz sz)
 		rx.ridx = (rx.ridx + 1) % UART_BUF_SIZE;
 	}
 
-	uart_toggle_irq(uart, false);
+	uart_irq_off(uart);
 	rx.num_unread -= n_bytes;
-	uart_toggle_irq(uart, true);
+	uart_irq_on(uart);
 
 	return n_bytes;
 }

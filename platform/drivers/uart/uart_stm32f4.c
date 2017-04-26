@@ -234,13 +234,16 @@ periph_t uart_init(const struct uart_pins *pins, const uart_config *config)
 		periph : NO_PERIPH;
 }
 
-void uart_toggle_irq(periph_t hdl, bool state)
+void uart_irq_on(periph_t hdl)
 {
 	CHECK_HANDLE(hdl, /* No return value */);
-	if (state)
-		HAL_NVIC_EnableIRQ(irq_vec[convert_hdl_to_id(hdl)]);
-	else
-		HAL_NVIC_DisableIRQ(irq_vec[convert_hdl_to_id(hdl)]);
+	HAL_NVIC_EnableIRQ(irq_vec[convert_hdl_to_id(hdl)]);
+}
+
+void uart_irq_off(periph_t hdl)
+{
+	CHECK_HANDLE(hdl, /* No return value */);
+	HAL_NVIC_DisableIRQ(irq_vec[convert_hdl_to_id(hdl)]);
 }
 
 void uart_set_rx_char_cb(periph_t hdl, uart_rx_char_cb cb)
@@ -270,7 +273,6 @@ void uart_irq_handler(periph_t hdl)
 		return;
 	}
 
-	enum uart_id uid = convert_hdl_to_id(hdl);
 	uint8_t data = uart_instance->DR;
 	rx_char_cb[uid](data);
 }

@@ -113,14 +113,21 @@ bool uart_tx(periph_t hdl, uint8_t *data, uint16_t size, uint16_t timeout_ms);
 void uart_irq_handler(periph_t hdl);
 
 /**
- * \brief Enable / disable the UART interrupt.
- * \details Call this function to enable or disable the interrupt service
- * handler of a specific UART instance.
+ * \brief Enable the UART interrupt.
+ * \details Call this function to enable the interrupt service handler of a
+ * specific UART instance.
  *
  * \param[in] hdl Handle to the UART instance
- * \param[in] state Boolean value that determines if the UART's interrupt should
- * be disabled. Set to 'true' to enable the IRQ, 'false' to disable it.
  */
-void uart_toggle_irq(periph_t hdl, bool state);
+void uart_irq_on(periph_t hdl);
+
+/**
+ * \brief Disable the UART interrupt.
+ * \details Call this function to disable the interrupt service handler of a
+ * specific UART instance.
+ *
+ * \param[in] hdl Handle to the UART instance.
+ */
+void uart_irq_off(periph_t hdl);
 
 #endif
