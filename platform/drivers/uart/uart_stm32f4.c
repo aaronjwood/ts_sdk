@@ -15,34 +15,33 @@
 
 /*
  * Table mapping UARTs / USARTs peripherals to their IDs. The format of the table
- * is: ID, corresponding UART / USART peripheral, optional parameters for the
- * operation to be performed on the table.
+ * is: ID, followed by the corresponding UART / USART peripheral.
  */
-#define UART_TABLE(X, ...) \
-	X(U1, USART1, ##__VA_ARGS__) \
-	X(U2, USART2, ##__VA_ARGS__) \
-	X(U3, USART3, ##__VA_ARGS__) \
-	X(U4, UART4, ##__VA_ARGS__) \
-	X(U5, UART5, ##__VA_ARGS__) \
-	X(U6, USART6, ##__VA_ARGS__) \
-	X(U7, UART7, ##__VA_ARGS__) \
-	X(U8, UART8, ##__VA_ARGS__)
+#define UART_TABLE(X) \
+	X(U1, USART1) \
+	X(U2, USART2) \
+	X(U3, USART3) \
+	X(U4, UART4) \
+	X(U5, UART5) \
+	X(U6, USART6) \
+	X(U7, UART7) \
+	X(U8, UART8)
 
 /*
  * Define operations on the table above. These are used to generate repetitive
  * blocks / boilerplate code.
  */
-#define GET_IDS(a, b)		a,
+#define GET_IDS(a, b)			a,
 #define GET_IRQ_VECS(a, b)		b##_IRQn,
 
-#define DEF_IRQ_HANDLERS(a, b, c)	\
-	void b##_IRQHandler(void) { c((periph_t) b); }
+#define DEF_IRQ_HANDLERS(a, b)	\
+	void b##_IRQHandler(void) { uart_irq_handler((periph_t) b); }
 
-#define CONV_HDL_TO_ID(a, b, c)	\
-	if ((USART_TypeDef *)c == b) return a;
+#define CONV_HDL_TO_ID(a, b)	\
+	if ((USART_TypeDef *)hdl == b) return a;
 
-#define ENABLE_CLOCKS(a, b, c) \
-	if (c == b) { CAT(__HAL_RCC_, b##_CLK_ENABLE()); return; }
+#define ENABLE_CLOCKS(a, b) \
+	if (inst == b) { CAT(__HAL_RCC_, b##_CLK_ENABLE()); return; }
 
 enum uart_id {
 	UART_TABLE(GET_IDS)
@@ -54,7 +53,11 @@ static uart_rx_char_cb rx_char_cb[NUM_UART];
 static UART_HandleTypeDef uart_stm32_handle[NUM_UART];
 static bool uart_usage[NUM_UART];
 
-UART_TABLE(DEF_IRQ_HANDLERS, uart_irq_handler);
+/*
+ * Defines UART IRQ Handlers that call uart_irq_handler with the appropriate
+ * peripheral as the parameter.
+ */
+UART_TABLE(DEF_IRQ_HANDLERS);
 
 static const IRQn_Type irq_vec[] = {
 	UART_TABLE(GET_IRQ_VECS)
@@ -62,13 +65,13 @@ static const IRQn_Type irq_vec[] = {
 
 static enum uart_id convert_hdl_to_id(periph_t hdl)
 {
-	UART_TABLE(CONV_HDL_TO_ID, hdl);
+	UART_TABLE(CONV_HDL_TO_ID);
 	return UI;
 }
 
 static void enable_clock(const USART_TypeDef *inst)
 {
-	UART_TABLE(ENABLE_CLOCKS, inst);
+	UART_TABLE(ENABLE_CLOCKS);
 }
 
 static bool validate_config(const uart_config *config)
@@ -76,7 +79,6 @@ static bool validate_config(const uart_config *config)
 	if (config == NULL)
 		return false;
 
-	/* XXX: For now, limit the baud rate to these speeds */
 	if (config->baud != 9600 &&
 			config->baud != 19200 &&
 			config->baud != 38400 &&
@@ -244,12 +246,18 @@ void uart_toggle_irq(periph_t hdl, bool state)
 void uart_set_rx_char_cb(periph_t hdl, uart_rx_char_cb cb)
 {
 	CHECK_HANDLE(hdl, /* No return value */);
-	rx_char_cb[convert_hdl_to_id(hdl)] = cb;
+	if (cb != NULL)
+		rx_char_cb[convert_hdl_to_id(hdl)] = cb;
 }
 
 void uart_irq_handler(periph_t hdl)
 {
 	CHECK_HANDLE(hdl, /* No return value */);
+	enum uart_id uid = convert_hdl_to_id(hdl);
+
+	if (!rx_char_cb[uid])
+		return;
+
 	USART_TypeDef *uart_instance = (USART_TypeDef *)hdl;
 	uint32_t uart_sr_reg = uart_instance->SR;
 	uint32_t err_flags = uart_sr_reg & (uint32_t)(USART_SR_PE | USART_SR_FE
@@ -264,8 +272,7 @@ void uart_irq_handler(periph_t hdl)
 
 	enum uart_id uid = convert_hdl_to_id(hdl);
 	uint8_t data = uart_instance->DR;
-	if (rx_char_cb[uid])
-		rx_char_cb[uid](data);
+	rx_char_cb[uid](data);
 }
 
 bool uart_tx(periph_t hdl, uint8_t *data, uint16_t size, uint16_t timeout_ms)
