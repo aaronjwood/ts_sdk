@@ -4,7 +4,7 @@
 #include "sys.h"
 #include "uart_hal.h"
 #include "uart_util.h"
-#include "ts_sdk_config.h"
+#include "ts_sdk_board_config.h"
 
 #define SEND_TIMEOUT_MS		2000
 #define IDLE_CHARS		5

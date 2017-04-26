@@ -1,5 +1,12 @@
-#ifndef TS_SDK_CONFIG_H
-#define TS_SDK_CONFIG_H
+/**
+ * \file Configures the board specific pin and peripheral mappings that relate
+ * to the SDK.
+ * \copyright Copyright (c) 2017 Verizon. All rights reserved.
+ * \details This file sets which UART pins to use to communicate with the modem,
+ * IRQ priorities and any other peripherals needed by the SDK.
+ */
+#ifndef TS_SDK_BOARD_CONFIG_H
+#define TS_SDK_BOARD_CONFIG_H
 
 /* Pin and peripheral configuration for UART connecting modem and MCU */
 #define MODEM_UART_TX_PIN	PD5
@@ -11,21 +18,11 @@
 #define MODEM_UART_PARITY	NONE
 #define MODEM_UART_STOP_BITS	1
 
-/* Pin and peripheral configuration for the debug UART */
-#define DEBUG_UART_TX_PIN	PC10
-#define DEBUG_UART_RX_PIN	NC
-#define DEBUG_UART_RTS_PIN	NC
-#define DEBUG_UART_CTS_PIN	NC
-#define DEBUG_UART_BAUD_RATE	115200
-#define DEBUG_UART_DATA_WIDTH	8
-#define DEBUG_UART_PARITY	NONE
-#define DEBUG_UART_STOP_BITS	1
-
 /* UART and timer IRQ priorities - UART must have higher priority than timer */
 #define MODEM_UART_IRQ_PRIORITY	5
 #define IDL_TIM_IRQ_PRIORITY	6
 
-/* Timer IDs */
+/* Timer ID */
 #define MODEM_UART_IDLE_TIMER	TIMER2
 
 #endif

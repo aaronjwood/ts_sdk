@@ -2,7 +2,7 @@
 
 #include <stm32f4xx_hal.h>
 #include "uart_hal.h"
-#include "ts_sdk_config.h"
+#include "ts_sdk_board_config.h"
 
 #define MAX_IRQ_PRIORITY		15
 #define CHECK_HANDLE(hdl, retval)	do { \

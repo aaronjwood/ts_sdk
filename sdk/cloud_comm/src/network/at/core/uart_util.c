@@ -5,7 +5,7 @@
 #include "uart_util.h"
 #include "timer_hal.h"
 #include "timer_interface.h"
-#include "ts_sdk_config.h"
+#include "ts_sdk_board_config.h"
 
 #define CALLBACK_TRIGGER_MARK	((buf_sz)(UART_BUF_SIZE * ALMOST_FULL_FRAC))
 #define ALMOST_FULL_FRAC	0.6	/* Call the receive callback once this

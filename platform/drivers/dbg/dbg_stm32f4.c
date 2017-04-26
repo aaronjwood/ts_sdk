@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 #include "uart_hal.h"
-#include "ts_sdk_config.h"
+#include "board_config.h"
 #include "dbg.h"
 
 #define DBG_UART_TIMEOUT_MS	2000
