@@ -9,4 +9,5 @@ cscope.out
 build/
 *.swp
 tools/installed/
-vendor/mbedtls/apidoc
+sdk/cloud_comm/vendor/mbedtls/doxygen/apidoc
+.gdbinit

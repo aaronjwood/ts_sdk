@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "sys.h"
 #include "at_core.h"
+#include "ts_sdk_config.h"
 
 #ifdef MODEM_TOBY201
 #define MODEM_RESET_DELAY		25000 /* In milli seconds */
@@ -183,6 +184,9 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
         }
 };
 
+/* Handle to the UART peripheral connecting the modem and the MCU */
+static periph_t uart;
+
 static void __at_dump_wrng_rsp(char *rsp_buf, buf_sz read_bytes, const char *rsp)
 {
 #ifdef DEBUG_WRONG_RSP
@@ -277,12 +281,12 @@ static at_ret_code __at_wait_for_bytes(buf_sz *rcv_bytes,
 		__at_wait_for_rsp(timeout);
 		state.waiting_resp = true;
 		/* New total bytes available to read */
-		*rcv_bytes = uart_rx_available();
+		*rcv_bytes = uart_util_available();
 
 	}
 	state.waiting_resp = true;
 	if (*timeout == 0) {
-		*rcv_bytes = uart_rx_available();
+		*rcv_bytes = uart_util_available();
 		if (*rcv_bytes < target_bytes)
 			return AT_FAILURE;
 	}
@@ -294,13 +298,13 @@ static at_ret_code __at_wait_for_bytes(buf_sz *rcv_bytes,
 static at_ret_code __at_uart_waited_read(char *buf, buf_sz wanted,
                                         uint32_t *timeout)
 {
-        buf_sz rcvd = uart_rx_available();
+        buf_sz rcvd = uart_util_available();
         if (__at_wait_for_bytes(&rcvd, wanted, timeout) != AT_SUCCESS) {
                 DEBUG_V0("%s: bytes not present\n", __func__);
                 return AT_FAILURE;
         }
 
-        if (uart_read((uint8_t *)buf, wanted) < wanted) {
+        if (uart_util_read((uint8_t *)buf, wanted) < wanted) {
                 DEBUG_V0("%s: Unlikely read error\n", __func__);
                 return AT_FAILURE;
         }
@@ -309,21 +313,21 @@ static at_ret_code __at_uart_waited_read(char *buf, buf_sz wanted,
 
 bool at_core_write(uint8_t *buf, uint16_t len)
 {
-	return uart_tx(buf, len, AT_UART_TX_WAIT_MS);
+	return uart_tx(uart, buf, len, AT_UART_TX_WAIT_MS);
 }
 
 void at_core_clear_rx(void)
 {
-	uart_flush_rx_buffer();
+	uart_util_flush();
 }
 
 static void __at_dump_buffer(const char *buf, buf_sz len)
 {
         if (!buf) {
-                buf_sz bytes = uart_rx_available();
+                buf_sz bytes = uart_util_available();
                 if (bytes > 0) {
                         uint8_t temp_buf[bytes];
-                        uart_read(temp_buf, bytes);
+                        uart_util_read(temp_buf, bytes);
                         for (uint8_t i = 0; i < bytes; i++)
                                 DEBUG_V0("0x%x, ", temp_buf[i]);
                 }
@@ -369,7 +373,7 @@ at_ret_code at_core_wcmd(const at_command_desc *desc, bool read_line)
 		if (!desc->rsp_desc[i].rsp)
 			continue;
 		if (read_line) {
-			read_bytes = uart_line_avail(rsp_header, rsp_trailer);
+			read_bytes = uart_util_line_avail(rsp_header, rsp_trailer);
 			/*
 			 * wait till we get whole line or time runs out
 			 */
@@ -384,7 +388,7 @@ at_ret_code at_core_wcmd(const at_command_desc *desc, bool read_line)
 					__at_dump_buffer(NULL, 0);
 					goto done;
 				}
-				read_bytes = uart_line_avail(rsp_header,
+				read_bytes = uart_util_line_avail(rsp_header,
 						rsp_trailer);
 			}
 			wanted = 0;
@@ -421,7 +425,7 @@ at_ret_code at_core_wcmd(const at_command_desc *desc, bool read_line)
 				__at_dump_buffer(NULL, 0);
 				break;
 			}
-			buf_sz rb = uart_rx_available();
+			buf_sz rb = uart_util_available();
 			result = __at_wait_for_bytes(&rb, wanted,
 					&timeout);
 			state.waiting_resp = false;
@@ -444,7 +448,7 @@ at_ret_code at_core_wcmd(const at_command_desc *desc, bool read_line)
 			}
 		}
 
-		int rd_b = uart_read((uint8_t *)rsp_buf + tmp_want,
+		int rd_b = uart_util_read((uint8_t *)rsp_buf + tmp_want,
 				read_bytes - tmp_want);
 		if (rd_b == (read_bytes - tmp_want)) {
 			if (strncmp(rsp_buf, desc->rsp_desc[i].rsp,
@@ -521,12 +525,12 @@ void at_core_process_urc(bool mode)
 	if (mode)
 		state.proc_urc = true;
 	while (1) {
-		uint16_t read_bytes = uart_line_avail(rsp_header, rsp_trailer);
+		uint16_t read_bytes = uart_util_line_avail(rsp_header, rsp_trailer);
 		if (read_bytes == 0)
 			break;
 		char urc[read_bytes + 1];
 		urc[read_bytes] = 0x0;
-		if (uart_read((uint8_t *)urc, read_bytes) < 0) {
+		if (uart_util_read((uint8_t *)urc, read_bytes) < 0) {
 			DEBUG_V0("%s: read err (Unlikely)\n", __func__);
 			continue;
 		}
@@ -701,9 +705,26 @@ bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb)
 	CHECK_NULL(urc_cb, false);
 	urc_callback = urc_cb;
 
-	bool res = uart_module_init(UART_EN_HW_CTRL, IDLE_CHARS);
+	const struct uart_pins pins = {
+		.tx = MODEM_UART_TX_PIN,
+		.rx = MODEM_UART_RX_PIN,
+		.rts = MODEM_UART_RTS_PIN,
+		.cts = MODEM_UART_CTS_PIN
+	};
+	const uart_config config = {
+		.baud = MODEM_UART_BAUD_RATE,
+		.data_width = MODEM_UART_DATA_WIDTH,
+		.parity = MODEM_UART_PARITY,
+		.stop_bits = MODEM_UART_STOP_BITS,
+		.priority = MODEM_UART_IRQ_PRIORITY
+	};
+	uart = uart_init(&pins, &config);
+	if (uart == NO_PERIPH)
+		return false;
+	bool res = uart_util_init(uart, IDLE_CHARS);
 	CHECK_SUCCESS(res, true, false);
-	uart_set_rx_callback(at_core_uart_rx_callback);
+
+	uart_util_reg_callback(at_core_uart_rx_callback);
 	process_rsp = false;
 	at_core_clear_rx();
 	return true;
@@ -711,17 +732,17 @@ bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb)
 
 int at_core_find_pattern(int start_idx, const uint8_t *pattern, buf_sz nlen)
 {
-	return uart_find_pattern(start_idx, pattern, nlen);
+	return uart_util_find_pattern(start_idx, pattern, nlen);
 }
 
 buf_sz at_core_rx_available(void)
 {
-	return uart_rx_available();
+	return uart_util_available();
 }
 
 int at_core_read(uint8_t *buf, buf_sz sz)
 {
-	return uart_read(buf, sz);
+	return uart_util_read(buf, sz);
 }
 
 bool at_core_query_netw_reg(void)

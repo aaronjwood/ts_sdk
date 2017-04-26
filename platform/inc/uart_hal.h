@@ -29,6 +29,15 @@ struct uart_pins {
 };
 
 /**
+ * \brief Type of parity required on the UART peripheral.
+ */
+typedef enum {
+	NONE,	/**< No parity bit will be computed */
+	ODD,	/**< Odd parity bit will be computed */
+	EVEN	/**< Even parity bit will be computed */
+} parity_t;
+
+/**
  * \brief Type defining the UART configuration.
  * \details Acceptable values for the following fields are hardware / implementation
  * dependent.
@@ -36,8 +45,8 @@ struct uart_pins {
 typedef struct {
 	uint32_t baud;		/**< Baud rate in bits per second */
 	uint8_t data_width;	/**< Width (in bits) of the unit of data */
-	uint8_t parity_bits;	/**< Number of parity bits */
-	uint8_t stop_bits;	/**< Number of stop bits */
+	parity_t parity;	/**< Type of parity */
+	uint8_t stop_bits;	/**< Number of stop bits : Either '1' or '2' */
 	uint32_t priority;	/**< Interrupt priority of the UART's IRQ Handler */
 } uart_config;
 
@@ -48,7 +57,8 @@ typedef struct {
  * If either uart_pins.rts or uart_pins.cts is assigned the value 'NC', HW flow
  * control is disabled. Also, only one of uart_pins.tx or uart_pins.rx can be
  * 'NC'. This routine must be called once for every instance before attempting
- * to transmit data or set a receive callback.
+ * to transmit data or set a receive callback. \n
+ * On initialization, IRQs are enabled by default unless uart_pins.rx is 'NC'.
  *
  * \param[in] pins Structure that contains names of the pins to use for the UART.
  * \param[in] config Defines the configuration of the UART peripheral.
@@ -57,7 +67,7 @@ typedef struct {
  * combination of uart_pins turns out to be invalid, pins do not connect to the
  * same peripheral or configuration parameters are invalid.
  */
-periph_t uart_init(struct uart_pins pins, uart_config config);
+periph_t uart_init(const struct uart_pins *pins, const uart_config *config);
 
 /**
  * \brief Set the UART receive character callback.
@@ -101,5 +111,23 @@ bool uart_tx(periph_t hdl, uint8_t *data, uint16_t size, uint16_t timeout_ms);
  * \pre \ref uart_init must be called to retrieve a valid handle.
  */
 void uart_irq_handler(periph_t hdl);
+
+/**
+ * \brief Enable the UART interrupt.
+ * \details Call this function to enable the interrupt service handler of a
+ * specific UART instance.
+ *
+ * \param[in] hdl Handle to the UART instance
+ */
+void uart_irq_on(periph_t hdl);
+
+/**
+ * \brief Disable the UART interrupt.
+ * \details Call this function to disable the interrupt service handler of a
+ * specific UART instance.
+ *
+ * \param[in] hdl Handle to the UART instance.
+ */
+void uart_irq_off(periph_t hdl);
 
 #endif
