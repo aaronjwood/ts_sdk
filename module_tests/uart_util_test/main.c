@@ -1,14 +1,17 @@
-/* Copyright(C) 2016 Verizon. All rights reserved. */
+/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
 #include "dbg.h"
-#include "uart.h"
 #include "sys.h"
+#include "uart_hal.h"
+#include "uart_util.h"
+#include "ts_sdk_board_config.h"
 
 #define SEND_TIMEOUT_MS		2000
 #define IDLE_CHARS		5
 #define MAX_RESP_SZ		600
 static volatile bool received_response;
 static uint8_t response[MAX_RESP_SZ];
+static periph_t uart;
 
 /* UART receive callback. */
 static void rx_cb(callback_event event)
@@ -22,17 +25,17 @@ static void rx_cb(callback_event event)
 		received_response = true;
 		char header[] = "\r\n";
 		char trailer[] = "\r\n";
-		int sz = uart_line_avail(header, trailer);
+		int sz = uart_util_line_avail(header, trailer);
 		sz = (sz > MAX_RESP_SZ) ? MAX_RESP_SZ : sz;
 		if (sz == 0 || sz == -1)
 			return;
-		sz = uart_read(response, sz);
-		ASSERT(sz != UART_INV_PARAM);
+		sz = uart_util_read(response, sz);
+		ASSERT(sz != UART_BUF_INV_PARAM);
 		response[sz] = 0x00;
 		dbg_printf("Res:\n%s\n", response);
 	} else if (event == UART_EVENT_RX_OVERFLOW) {
 		dbg_printf("Buffer overflow!\n");
-		uart_flush_rx_buffer();
+		uart_util_flush();
 	}
 }
 
@@ -41,8 +44,24 @@ int main(int argc, char *argv[])
 	sys_init();
 
 	dbg_module_init();
-	ASSERT(uart_module_init(UART_EN_HW_CTRL, IDLE_CHARS) == true);
-	uart_set_rx_callback(rx_cb);
+	const struct uart_pins pins = {
+		.tx = MODEM_UART_TX_PIN,
+		.rx = MODEM_UART_RX_PIN,
+		.rts = MODEM_UART_RTS_PIN,
+		.cts = MODEM_UART_CTS_PIN
+	};
+
+	const uart_config config = {
+		.baud = MODEM_UART_BAUD_RATE,
+		.data_width = MODEM_UART_DATA_WIDTH,
+		.parity = MODEM_UART_PARITY,
+		.stop_bits = MODEM_UART_STOP_BITS,
+		.priority = MODEM_UART_IRQ_PRIORITY
+	};
+	uart = uart_init(&pins, &config);
+	ASSERT(uart != NO_PERIPH);
+	ASSERT(uart_util_init(uart, IDLE_CHARS) == true);
+	uart_util_reg_callback(rx_cb);
 
 	/*
 	 * Note: It is assumed the modem has booted and is ready to receive
@@ -52,25 +71,29 @@ int main(int argc, char *argv[])
 	 */
 	dbg_printf("Begin:\n");
 
-	uint8_t echo_off[] = "ATE0\r";	/* ATE0 turns off echo in DCE for DTE commands */
-	ASSERT(uart_tx(echo_off, sizeof(echo_off), SEND_TIMEOUT_MS) == true);
+	/* ATE0 turns off echo in DCE for DTE commands */
+	uint8_t echo_off[] = "ATE0\r";
+	ASSERT(uart_tx(uart, echo_off, sizeof(echo_off), SEND_TIMEOUT_MS)
+			== true);
 	sys_delay(2000);		/* Wait for modem to process */
 
 	/* Get rid of all responses that aren't surrounded by the header and
 	 * trailer.
 	 */
-	uart_flush_rx_buffer();
+	uart_util_flush();
 
 	/* Main test begins. */
-	uint8_t msg[] = "AT+CPIN?\r";	/* AT+CPIN? Checks if SIM card is ready. */
-	ASSERT(uart_tx(msg, sizeof(msg), SEND_TIMEOUT_MS) == true);
+	/* AT+CPIN? Checks if SIM card is ready. */
+	uint8_t msg[] = "AT+CPIN?\r";
+	ASSERT(uart_tx(uart, msg, sizeof(msg), SEND_TIMEOUT_MS) == true);
 
 	while (1) {
 		if (received_response) {
 			/* Received a response. Wait and resend AT&V. */
 			received_response = false;
 			sys_delay(2000);
-			ASSERT(uart_tx(msg, sizeof(msg), SEND_TIMEOUT_MS) == true);
+			ASSERT(uart_tx(uart, msg, sizeof(msg), SEND_TIMEOUT_MS)
+					== true);
 		}
 	}
 	return 0;

@@ -47,6 +47,10 @@ INC += -I $(SRCDIR)/include
 # User application sources
 USER_SRC = $(wildcard $(SRCDIR)/*.c)
 
+# Module specific header and source
+INC += -I $(PROJ_ROOT)/sdk/cloud_comm/src/network/at/core
+USER_SRC += $(PROJ_ROOT)/sdk/cloud_comm/src/network/at/core/uart_util.c
+
 # Library sources are built without debug info and optimized for size.
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
 # debug flag enabled

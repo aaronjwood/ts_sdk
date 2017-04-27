@@ -4,6 +4,7 @@
 #include <dbg.h>
 #include "timer_hal.h"
 #include "timer_interface.h"
+#include "board_config.h"
 
 /* Timer related definations */
 static const timer_interface_t *sleep_timer;
@@ -11,7 +12,6 @@ static volatile bool timer_expired;
 static uint32_t rem_sleep;
 /* total time in milliseconds CPU spent in sleep */
 static uint64_t total_sleep_time;
-#define TIM5_IRQ_PRIORITY	7	/* TIM5 priority is lower than TIM2 */
 #define TIM5_BASE_FREQ_HZ	2000
 /* Maximum timeout period it can be programmed for in miliseconds */
 #define MAX_TIMER_RES_MS	(uint32_t)2147483648
@@ -135,11 +135,11 @@ static bool tim5_module_init(void)
 	timer_expired = false;
 	rem_sleep = 0;
 	total_sleep_time = 0;
-	sleep_timer = timer_get_interface(TIMER5);
+	sleep_timer = timer_get_interface(SLEEP_TIMER);
 
 	if (!sleep_timer)
 		return false;
-	return timer_init(sleep_timer, 0, TIM5_IRQ_PRIORITY,
+	return timer_init(sleep_timer, 0, SLP_TIM_IRQ_PRIORITY,
 				TIM5_BASE_FREQ_HZ, tim5_cb);
 }
 
