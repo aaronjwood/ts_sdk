@@ -326,7 +326,8 @@ function create_device()
 {
 	if [ $protocol == "smsnas" ]; then
 		if [ -z "$2" ]; then
-			exit_on_error "QR code not provided for smsnas device" "0"
+			echo "QR code not provided for smsnas device"
+			exit 1
 		fi
 		create_sms_device "$1" "$2" "$3" "$4"
 	elif [ $protocol == "ott" ]; then
@@ -761,11 +762,16 @@ if [ -z "$1" ]; then
 	exit 1
 elif [ "$1" == "smsnas" ]; then
 	init_smsnas
+	print_config
 elif [ "$1" == "ott" ]; then
 	init_ott
 elif [ "$1" == "help" ]; then
 	print_usage
 	exit 0
+else
+	echo "Specify smsnas or ott as first argument"
+	print_usage_small
+	exit 1
 fi
 
 if [ -f "$cfg" ]; then
@@ -806,7 +812,7 @@ case "$2" in
 		if [ $protocol == "ott" ]; then
 			write_ott_polling_interval "$3" "$4" "$5"
 		else
-			echo "polling interval is only supported for ott protocol"
+			echo "polling interval is only supported in ott protocol"
 			exit 1
 		fi
 		;;
