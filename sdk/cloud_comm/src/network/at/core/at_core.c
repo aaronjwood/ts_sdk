@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include "sys.h"
 #include "at_core.h"
-#include "ts_sdk_config.h"
+#include "ts_sdk_board_config.h"
 
 #ifdef MODEM_TOBY201
 #define MODEM_RESET_DELAY		25000 /* In milli seconds */
