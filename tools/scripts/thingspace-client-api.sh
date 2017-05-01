@@ -767,6 +767,7 @@ elif [ "$1" == "help" ]; then
 else
 	echo "Specify smsnas or ott as first argument"
 	print_usage_small
+	echo "Type in '$prg_name help' for more information."
 	exit 1
 fi
 
