@@ -176,6 +176,10 @@ if [ $? -eq 0 ]; then
 		echo "Uploading firmware..."
 		upload_firmware
 	fi
+else
+	echo "Build failed"
+	cleanup_docker_images
+	exit 1
 fi
 
 cleanup_docker_images
