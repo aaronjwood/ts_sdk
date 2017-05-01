@@ -309,7 +309,7 @@ function create_sms_device()
 	exit_on_error "No application (client) access token provided" "$APPTOKEN" "0"
 	exit_on_error "No user access token provided" "$UATOKEN" "0"
 
-	# Provision a singular OTT device in the device inventory
+	# Provision a singular SMSNAS device in the device inventory
 	local PROVVAL=$(curl -s -k -X POST \
 		-H "Authorization: Bearer $APPTOKEN" \
 		-H "Content-Type: application/json" \
@@ -427,7 +427,7 @@ function read_status()
 	# $3 = User Access Token
 	#
 	# RETURNS:
-	# Last 'n' OTT Status data
+	# Last 'n' Status data
 
 	local NUMSTAT=$1
 	local TSDEVID=${2:-$ts_dev}
