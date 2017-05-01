@@ -1,7 +1,7 @@
 Thingspace SDK README
 ----------------------
 
-Copyright (C) 2016, 2017 Verizon. All rights reserved.
+Copyright (C) 2017 Verizon. All rights reserved.
 
 Table of contents:
 -------------------
@@ -10,20 +10,18 @@ Table of contents:
 	2.1 Supported targets
 	2.2 Supported transports and protocols
 3. Repository layout
-4. Building the SDK
-	4.1 Prerequisites
-	4.2 Protocol specific configurations
-		4.2.1 OTT protocol
-			4.2.1.1 Configuring mbedTLS
-			4.2.1.2 Configuring device credentials
-		4.2.2 SMSNAS protocol
-	4.3 Building the SDK with the user application
-	4.4 Building a static library
-5. Adding a new user application
-6. Generating documentation
-7. Porting guide
-	7.1 Porting across boards
-	7.2 Porting across MCU
+4. Thingspace account and device management
+5. Building the SDK
+	5.1 Protocol specific configurations
+		5.1.1 OTT protocol
+		5.1.2 SMSNAS protocol
+	5.2 Building the SDK with the user application
+	5.3 Building a static library
+6. Adding a new user application
+7. Generating documentation
+8. Porting guide
+	8.1 Porting across boards
+	8.2 Porting across MCU
 
 
 1. Overview
@@ -176,5 +174,120 @@ ts_sdk/targets				Optional directory containing chipset
 					sdk and other required tools
 
 
-4. Building the SDK
+4. Thingspace account and device management
+--------------------------------------------
+The repository contains a script (thingspace-client-api.sh) to help the user
+create and manage their account and create and control devices registered to
+Thingspace. The script is located under ts_sdk/tools/scripts.
+
+Usually the first step is to create an account followed by registering a device.
+Depending on the protocol being used, a set of device credentials will be
+retrieved from the cloud when registering the device. Refer to Section 5.1.1 to
+see how device credentials are used to configure the firmware.
+
+The script can also be used to delete accounts, remove devices, send update
+messages to the device, query status messages the device sends back to
+Thingspace services etc. For a detailed description on using the script refer
+the script's help:
+thingspace-client-api.sh help
+
+
+5. Building the SDK
 --------------------
+By default, the TS SDK and accompanying examples are built using the ARM
+embedded GCC toolchain. Details of this toolchain are as follows:
+	o Version: gcc-arm-none-eabi-5_4-2016q2
+	o Link to binaries: https://launchpad.net/gcc-arm-embedded/+download
+
+To make the build process easier, a docker container with the toolchain is
+provided via Dockerhub. The actual build command is issued via scripts. For
+information on how to invoke the scripts, please refer to Section 4.2.
+
+
+5.1 Protocol specific configurations
+-------------------------------------
+Before the building the firmware, certain aspects of the protocol being used
+will need to be configured. The following sections briefly describe the
+configuration steps for all protocol/transport combinations supported.
+
+
+5.1.1 OTT protocol
+-------------------
+The OTT protocol has two configuration components.
+
+Configuring mbedTLS
+--------------------
+There is a script added to vendor/mbedtls: vz_configure_mbedtls
+It is intended to capture the changes needed to customize mbed TLS to the
+minimum set of features that will allow the sample applications to communicate
+with the Verizon cloud services.
+
+The script will edit:
+	vendor/mbedtls/include/mbedtls/config.h.original
+
+to produce the desired configuration in:
+	vendor/mbedtls/include/mbedtls/config.h
+
+That version of config.h is checked into the repository.
+
+The script currently has options to enable/disable certain library features,
+which allows the library to be customized for test/experimental purposes:
+
+$ ./vz_configure_mbedtls help
+Usage:
+    vz_configure_mbedtls [help] [debug] [no-net] [full-msgs] [no-hwrng]
+
+debug     - will enable debug messages in the library, especially for TLS
+	    errors. Makes the code much bigger but otherwise it's hard to
+	    tell why something fails.
+
+no-net    - disables the mbed TLS OS networking module. Set this when building
+	    for the "network over modem" library.
+
+
+full-msgs - support full-sized TLS messages as defined in the RFC.
+	    (by default we know that the largest OTT message is much smaller).
+
+no-hwrng -  Disable using the device hardware random number generator.
+            Set this to use the Linux/OSX /dev/random sources instead.
+
+heap-prof - Use a custom allocator to record maximum heap used.
+
+To build the mbedtls_test program to run on OSX (i.e. by setting
+BUILD_TARGET = osx in mbedtls_test/Makefile), you need to configure the library
+as:
+
+	./vz_configure_mbedtls full-msgs no-hwrng
+
+
+Configuring device credentials
+-------------------------------
+After creating an account using thingspace-client-api.sh script (See Section 4),
+register an OTT device. This will retrieve a device ID and device secret. These
+two are collectively termed device credentials and are used to authenticate the
+device when it tries to communicate with Thingspace. Before building the SDK and
+accompanying examples, the user must use the 'C compatible' forms of the device
+credentials to populate the corresponding entries of:
+ts_sdk/sdk/cloud_comm/inc/dev_creds/dev_creds.h
+
+
+5.1.2 SMSNAS protocol
+----------------------
+The SMSNAS protocol does not need to be configured before building the SDK.
+
+
+5.2 Building the SDK with the user application
+-----------------------------------------------
+
+
+5.3 Building the SDK into a static library
+-------------------------------------------
+This build target is a work in progress. The purpose of this build target is to
+allow the application to use the TS SDK without imposing restrictions on the
+user's source tree and build process.
+
+When fully implemented, the user will be able to build the SDK for a specific
+protocol, transport, modem and target MCU & board into a static library. The
+generated binary blob can then be moved to the user application source tree.
+The static library is linked to the application in the final steps of the user's
+build process.
