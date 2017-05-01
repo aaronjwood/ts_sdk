@@ -16,7 +16,7 @@ Table of contents:
 		5.1.1 OTT protocol
 		5.1.2 SMSNAS protocol
 	5.2 Building the SDK with the user application
-	5.3 Building a static library
+	5.3 Building the SDK into a static library
 6. Adding a new user application
 7. Generating documentation
 8. Porting guide
