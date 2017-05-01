@@ -1,6 +1,6 @@
 #!/bin/bash
-# Copyright (C) 2017 Verizon.  All rights reserved.
-# Script to create and manage ThingSpace accounts and OTT devices.
+# Copyright (C) 2016, 2017 Verizon.  All rights reserved.
+# Script to create and manage ThingSpace accounts for SMSNAS and OTT devices.
 
 prg_name=$(basename "$0")
 
@@ -675,7 +675,7 @@ function print_usage()
 {
 	less << EOF
 $prg_name is a script to manage ThingSpace accounts & SMSNAS/OTT devices.
-Copyright (C) 2016 Verizon. All rights reserved.
+Copyright (C) 2016, 2017 Verizon. All rights reserved.
 NOTE: Any output the user should note down will be colored green.
 If an optional parameter (enclosed in square brackets) is not provided, it will
 be read from the conf file : .tscreds_smsnas or .tscreds_ott based on protocol selected
