@@ -757,12 +757,8 @@ EOF
 	exit 0
 }
 
-if [ -z "$1" ]; then
-	echo "Specify smsnas or ott as first argument, $prg_name help for the detail usage"
-	exit 1
-elif [ "$1" == "smsnas" ]; then
+if [ "$1" == "smsnas" ]; then
 	init_smsnas
-	print_config
 elif [ "$1" == "ott" ]; then
 	init_ott
 elif [ "$1" == "help" ]; then
