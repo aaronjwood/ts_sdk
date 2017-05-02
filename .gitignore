@@ -2,7 +2,7 @@
 *.o
 *.so
 *.a
-.tscreds
+.tscreds*
 cscope.out
 .DS_Store
 .build/
