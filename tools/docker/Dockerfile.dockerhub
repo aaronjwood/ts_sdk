@@ -1,3 +1,6 @@
 FROM vzlabs/ubuntu:ubuntu_1604_gcc-arm-none-eabi-5_4-2016q2-20160622-linux
 RUN mkdir -p ts_sdk_bldenv
 COPY targets/stmicro/chipset /ts_sdk_bldenv/
+CMD cd /ts_sdk_bldenv/stm32f4 && make clean && make all \
+        && mkdir -p /build/stm32f4 \
+        && cp ./build/libchipset.a /build/stm32f4
