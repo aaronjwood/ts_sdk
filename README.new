@@ -19,9 +19,6 @@ Table of contents:
 	5.3 Building the SDK into a static library
 6. Creating a new user application
 7. Generating documentation
-8. Porting guide
-	8.1 Porting across boards
-	8.2 Porting across MCU
 
 
 1. Overview
@@ -44,19 +41,19 @@ TOBY-L201.
 2.1 Supported targets
 ----------------------
 The following targets are supported by the SDK:
-o MCU: STM32F429ZI
-  Family: ARM Cortex M4
-  Boards: NUCLEO-F429ZI ARM development board
+	o MCU: STM32F429ZI
+	  Family: ARM Cortex M4
+	  Boards: NUCLEO-F429ZI ARM development board
 
 
 2.2 Supported transports and protocols
 ---------------------------------------
-The following data transports and protocols are supported by the SDK
-o Data transport: TCP/IP
-  Protocols: Over-the-top (OTT)
+The following data transports and protocols are supported by the SDK:
+	o Data transport: TCP/IP
+	  Protocols: Over-the-top (OTT)
 
-o Data transport: SMS over NAS
-  Protocols: SMSNAS
+	o Data transport: SMS over NAS
+	  Protocols: SMSNAS
 
 
 3. Repository layout
@@ -106,6 +103,10 @@ ts_sdk/sample_apps/cc_test/build	Build result directory for the cc_test
 					build must go under here.
 
 ts_sdk/sample_apps/<others>/src		Source code for other sample applications.
+
+ts_sdk/user_apps/<app_name>/src		Source code for user app 'app_name'
+
+ts_sdk/user_apps/<app_name>/inc		Header files for user app 'app_name'
 
 ts_sdk/tools				Any general files needed to perform the
 					build process or do work in the source
@@ -282,11 +283,11 @@ No additional configuration is needed to build the TS SDK for the SMSNAS protoco
 For user applications that are small / have a simple build process, the SDK can
 be built with the application source. The actual build takes place inside a
 Docker container started by the build script (docker_build.sh) located at:
-ts_sdk/tools/scripts/
+ts_sdk/tools/scripts/. It can be invoked from the repository root.
 
 The script takes in two Dockerfiles as parameters, one describing the build
 environment (ts_sdk/tools/docker/Dockerfile.dockerhub) and the second one for
-the project's source and build flags (Eg. ts_sdk/sample_apps/Dockerfile).
+the project's source and build flags (Eg. ts_sdk/user_apps/Dockerfile).
 Additionally, it is possible to configure the protocol the SDK should be built
 for. For more information about the usage of the script, execute it without any
 parameters.
@@ -310,7 +311,39 @@ build process.
 
 6. Creating a new user application
 -----------------------------------
+All user applications that are built with the SDK should reside in
+ts_sdk/user_apps. They are expected to roughly have the following directory
+layout:
 
+user_apps/
+|
++- Dockerfile
++- common.mk
++- rules.mk
++- <app_name>/
+  |
+  +- Makefile
+  +- inc/<header files>
+  +- src/<source files>
+
+To create a new application, simply copy the template provided in
+ts_sdk/user_apps/basic_template to the application's directory (<app_name> in
+the above layout).
+
+The Makefile can be modified to specify the board (BUILD_BOARD), MCU (BUILD_MCU)
+and chipset family (BUILD_TARGET). It can also be used to specify the protocol
+to be used (PROTOCOL) and in the future, to specify the modem. Acceptable values
+for the above parameters are as follows:
+	o BUILD_BOARD  : nucleo
+	o BUILD_TARGET : stm32f4
+	o BUILD_MCU    : stm32f429
+	o PROTOCOL     : OTT_PROTOCOL, SMSNAS_PROTOCOL
+
+For an example on using the SDK, refer to: ts_sdk/sample_apps/cc_test
+Use the following command to build the user application (assuming current
+location is repository root):
+./tools/scripts/docker_build.sh ./tools/docker/Dockerfile.dockerhub \
+./user_apps/Dockerfile PROTO=OTT_PROTOCOL APP=<app_name>
 
 
 7. Generating documentation
@@ -330,18 +363,3 @@ make hal-docs		Generate documentation for the HAL
 make clean		Remove all generated documentation
 
 All documentation is generated in ts_sdk/Documents/doxygen/build
-
-
-8. Porting Guide
------------------
-
-
-
-8.1 Porting across boards
---------------------------
-
-
-
-8.2 Porting across MCU
------------------------
-
