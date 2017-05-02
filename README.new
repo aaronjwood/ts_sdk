@@ -17,7 +17,7 @@ Table of contents:
 		5.1.2 SMSNAS protocol
 	5.2 Building the SDK with the user application
 	5.3 Building the SDK into a static library
-6. Adding a new user application
+6. Creating a new user application
 7. Generating documentation
 8. Porting guide
 	8.1 Porting across boards
@@ -27,17 +27,17 @@ Table of contents:
 1. Overview
 ------------
 This repository contains the reference implementation of the Thingspace SDK (TS
-SDK) along with examples that use the SDK. The Thingspace SDK provides a set of
-API routines that enable an IoT device (defined here as a microcontroller (MCU)
-connected to an LTE modem) to communicate with the Thingspace IoT services.
+SDK) along with examples that use it. The TS SDK provides a set of API routines
+that enable an IoT device (defined here as a microcontroller (MCU) connected to
+an LTE modem) to communicate with the Thingspace IoT services.
 
 
 2. SDK capabilities
 --------------------
-The SDK was designed to be agnostic of the target platform, the data transport
-and the protocol to be used over the transport. These are configurable when
-building the SDK. The SDK communicates with the modem via a serial connection
-between the MCU and the modem. So far the only modem supported is the UBLOX
+The SDK API was designed to be agnostic of the target platform, the data
+transport and the protocol to be used over the transport. These are configurable
+during the build step. The modem and the MCU communicate with each other through
+a serial connection between them. So far the only modem supported is the UBLOX
 TOBY-L201.
 
 
@@ -86,7 +86,7 @@ ts_sdk_bldenv/<chipset-name>		The chipset SDK as provided by the
 TS-SDK source repository:
 ---------------------------------------
 ts_sdk/build/<app_name>			Created after successful build by the
-					docker container to place all the
+					Docker container to place all the
 					application related object files and
 					binary images which can be later used to
 					upload firmware to target platform.
@@ -97,7 +97,7 @@ ts_sdk/Documents 			Contains detailed description of the SDK
 ts_sdk/module_tests 			Contains various test programs for SDK
 					components such as UART, AT layer etc.
 
-ts_sdk/sample_apps 			Sample applications using the TS-SDK
+ts_sdk/sample_apps 			Sample applications using the TS SDK
 
 ts_sdk/sample_apps/cc_test/src		Source code for the cc_test app
 
@@ -181,9 +181,10 @@ create and manage their account and create and control devices registered to
 Thingspace. The script is located under ts_sdk/tools/scripts.
 
 Usually the first step is to create an account followed by registering a device.
-Depending on the protocol being used, a set of device credentials will be
-retrieved from the cloud when registering the device. Refer to Section 5.1.1 to
-see how device credentials are used to configure the firmware.
+Account creation is a one time step. Depending on the protocol being used, a set
+of device credentials may be retrieved from the cloud when creating the device.
+Refer to Section 5.1.1 to see how device credentials are used to configure the
+firmware.
 
 The script can also be used to delete accounts, remove devices, send update
 messages to the device, query status messages the device sends back to
@@ -199,16 +200,16 @@ embedded GCC toolchain. Details of this toolchain are as follows:
 	o Version: gcc-arm-none-eabi-5_4-2016q2
 	o Link to binaries: https://launchpad.net/gcc-arm-embedded/+download
 
-To make the build process easier, a docker container with the toolchain is
+To make the build process easier, a Docker container with the toolchain is
 provided via Dockerhub. The actual build command is issued via scripts. For
-information on how to invoke the scripts, please refer to Section 4.2.
+information on how to invoke the scripts, please refer to Section 5.2.
 
 
 5.1 Protocol specific configurations
 -------------------------------------
 Before the building the firmware, certain aspects of the protocol being used
 will need to be configured. The following sections briefly describe the
-configuration steps for all protocol/transport combinations supported.
+configuration steps for all supported protocol/transport combinations.
 
 
 5.1.1 OTT protocol
@@ -262,22 +263,36 @@ as:
 
 Configuring device credentials
 -------------------------------
-After creating an account using thingspace-client-api.sh script (See Section 4),
-register an OTT device. This will retrieve a device ID and device secret. These
+After creating an account using thingspace-client-api.sh script (see Section 4),
+create an OTT device. This will retrieve a device ID and device secret. These
 two are collectively termed device credentials and are used to authenticate the
 device when it tries to communicate with Thingspace. Before building the SDK and
 accompanying examples, the user must use the 'C compatible' forms of the device
-credentials to populate the corresponding entries of:
+credentials to populate the corresponding entries in:
 ts_sdk/sdk/cloud_comm/inc/dev_creds/dev_creds.h
 
 
 5.1.2 SMSNAS protocol
 ----------------------
-The SMSNAS protocol does not need to be configured before building the SDK.
+No additional configuration is needed to build the TS SDK for the SMSNAS protocol.
 
 
 5.2 Building the SDK with the user application
 -----------------------------------------------
+For user applications that are small / have a simple build process, the SDK can
+be built with the application source. The actual build takes place inside a
+Docker container started by the build script (docker_build.sh) located at:
+ts_sdk/tools/scripts/
+
+The script takes in two Dockerfiles as parameters, one describing the build
+environment (ts_sdk/tools/docker/Dockerfile.dockerhub) and the second one for
+the project's source and build flags (Eg. ts_sdk/sample_apps/Dockerfile).
+Additionally, it is possible to configure the protocol the SDK should be built
+for. For more information about the usage of the script, execute it without any
+parameters.
+
+Refer to Section 6 for the steps to create an application that can be built with
+this approach.
 
 
 5.3 Building the SDK into a static library
@@ -291,3 +306,42 @@ protocol, transport, modem and target MCU & board into a static library. The
 generated binary blob can then be moved to the user application source tree.
 The static library is linked to the application in the final steps of the user's
 build process.
+
+
+6. Creating a new user application
+-----------------------------------
+
+
+
+7. Generating documentation
+----------------------------
+TS SDK relies on Doxygen to generate documentation from its source files. There
+are two sets of documentations that can be generated: for the SDK itself and for
+the hardware abstraction layer (HAL) used to keep it platform agnostic.
+
+A Makefile located in ts_sdk/Documents/doxygen/ simplifies the generation
+process. Following are the commands supported by it:
+
+Command			Description
+--------------		-----------------------------------------------
+make all		Generate documentation for both the SDK and HAL
+make sdk-docs		Generate documentation for the SDK
+make hal-docs		Generate documentation for the HAL
+make clean		Remove all generated documentation
+
+All documentation is generated in ts_sdk/Documents/doxygen/build
+
+
+8. Porting Guide
+-----------------
+
+
+
+8.1 Porting across boards
+--------------------------
+
+
+
+8.2 Porting across MCU
+-----------------------
+
