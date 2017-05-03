@@ -28,7 +28,7 @@ all build: $(FW_EXEC)
 
 $(FW_EXEC): $(OBJ) vendor_libs
 	$(CC) $(LDFLAGS) $(CHIPSET_LDFLAGS) $(NOSYSLIB) $(INC) -Os $(LTOFLAG) \
-		$(ARCHFLAGS) $(LDSCRIPT) $(OBJ) /build/stm32f4/libchipset.a \
+		$(ARCHFLAGS) $(LDSCRIPT) $(OBJ) /build/stm32f4/libstm32f429.a \
 		$(VENDOR_LIB_FLAGS) -o $(FW_EXEC)
 
 $(OBJ_CORELIB): %.o: %.c

@@ -1,3 +1,8 @@
 FROM thingservice.verizon.com:5000/dpatel/ubuntu:arm_toolchain
 RUN mkdir -p ts_sdk_bldenv
 COPY targets/stmicro/chipset /ts_sdk_bldenv/
+ENV BUILD_MCU=stm32f429
+CMD cd /ts_sdk_bldenv/stm32f4 && make clean && make all \
+        && mkdir -p /build/stm32f4 \
+        && cp ./build/lib$BUILD_MCU.a /build/stm32f4/ \
+        && (find . -name '*.h' -print | tar --create --files-from -) | (cd /build/stm32f4/ && tar xvfp -)
