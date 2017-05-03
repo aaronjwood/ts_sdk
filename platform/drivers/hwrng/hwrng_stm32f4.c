@@ -1,7 +1,7 @@
 /* Copyright(C) 2016 Verizon. All rights reserved. */
 
 #include <stm32f4xx_hal.h>
-#include "hwrng.h"
+#include "hwrng_hal.h"
 
 static RNG_HandleTypeDef hwrng_handle;
 

@@ -16,7 +16,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "hwrng.h"
+#include "hwrng_hal.h"
 
 static bool generator_ready;
 
