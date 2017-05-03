@@ -94,19 +94,17 @@ ts_sdk/Documents 			Contains detailed description of the SDK
 ts_sdk/module_tests 			Contains various test programs for SDK
 					components such as UART, AT layer etc.
 
-ts_sdk/sample_apps 			Sample applications using the TS SDK
+ts_sdk/apps				Applications using the TS SDK
 
-ts_sdk/sample_apps/cc_test/src		Source code for the cc_test app
+ts_sdk/apps/cc_test/src			Source code for the cc_test app
 
-ts_sdk/sample_apps/cc_test/build	Build result directory for the cc_test
+ts_sdk/apps/cc_test/build		Build result directory for the cc_test
 					application. All files produced by the
 					build must go under here.
 
-ts_sdk/sample_apps/<others>/src		Source code for other sample applications.
+ts_sdk/apps/<others>/src		Source code for other applications.
 
-ts_sdk/user_apps/<app_name>/src		Source code for user app 'app_name'
-
-ts_sdk/user_apps/<app_name>/inc		Header files for user app 'app_name'
+ts_sdk/apps/<others>/inc		Header files for other applications.
 
 ts_sdk/tools				Any general files needed to perform the
 					build process or do work in the source
@@ -287,7 +285,7 @@ ts_sdk/tools/scripts/. It can be invoked from the repository root.
 
 The script takes in two Dockerfiles as parameters, one describing the build
 environment (ts_sdk/tools/docker/Dockerfile.dockerhub) and the second one for
-the project's source and build flags (Eg. ts_sdk/user_apps/Dockerfile).
+the project's source and build flags (Eg. ts_sdk/apps/Dockerfile).
 Additionally, it is possible to configure the protocol the SDK should be built
 for. For more information about the usage of the script, execute it without any
 parameters.
@@ -311,11 +309,10 @@ build process.
 
 6. Creating a new user application
 -----------------------------------
-All user applications that are built with the SDK should reside in
-ts_sdk/user_apps. They are expected to roughly have the following directory
-layout:
+All user applications that are built with the SDK should reside in ts_sdk/apps.
+They are expected to roughly have the following directory layout:
 
-user_apps/
+apps/
 |
 +- Dockerfile
 +- common.mk
@@ -327,8 +324,8 @@ user_apps/
   +- src/<source files>
 
 To create a new application, simply copy the template provided in
-ts_sdk/user_apps/basic_template to the application's directory (<app_name> in
-the above layout).
+ts_sdk/apps/basic_template to the application's directory (<app_name> in the
+above layout).
 
 The Makefile can be modified to specify the board (BUILD_BOARD), MCU (BUILD_MCU)
 and chipset family (BUILD_TARGET). It can also be used to specify the protocol
@@ -339,11 +336,11 @@ for the above parameters are as follows:
 	o BUILD_MCU    : stm32f429
 	o PROTOCOL     : OTT_PROTOCOL, SMSNAS_PROTOCOL
 
-For an example on using the SDK, refer to: ts_sdk/sample_apps/cc_test
+For an example on using the SDK, refer to: ts_sdk/apps/cc_test
 Use the following command to build the user application (assuming current
 location is repository root):
 ./tools/scripts/docker_build.sh ./tools/docker/Dockerfile.dockerhub \
-./user_apps/Dockerfile PROTO=OTT_PROTOCOL APP=<app_name>
+./apps/Dockerfile PROTO=OTT_PROTOCOL APP=<app_name>
 
 
 7. Generating documentation
