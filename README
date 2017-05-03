@@ -7,16 +7,16 @@ Table of contents:
 -------------------
 1. Overview
 2. SDK capabilties
-	2.1 Supported targets
-	2.2 Supported transports and protocols
+        2.1 Supported targets
+        2.2 Supported transports and protocols
 3. Repository layout
 4. Thingspace account and device management
 5. Building the SDK
-	5.1 Protocol specific configurations
-		5.1.1 OTT protocol
-		5.1.2 SMSNAS protocol
-	5.2 Building the SDK with the user application
-	5.3 Building the SDK into a static library
+        5.1 Protocol specific configurations
+                5.1.1 OTT protocol
+                5.1.2 SMSNAS protocol
+        5.2 Building the SDK with the user application
+        5.3 Building the SDK into a static library
 6. Creating a new user application
 7. Generating documentation
 
@@ -41,19 +41,19 @@ TOBY-L201.
 2.1 Supported targets
 ----------------------
 The following targets are supported by the SDK:
-	o MCU: STM32F429ZI
-	  Family: ARM Cortex M4
-	  Boards: NUCLEO-F429ZI ARM development board
+        o MCU: STM32F429ZI
+          Family: ARM Cortex M4
+          Boards: NUCLEO-F429ZI ARM development board
 
 
 2.2 Supported transports and protocols
 ---------------------------------------
 The following data transports and protocols are supported by the SDK:
-	o Data transport: TCP/IP
-	  Protocols: Over-the-top (OTT)
+        o Data transport: TCP/IP
+          Protocols: Over-the-top (OTT)
 
-	o Data transport: SMS over NAS
-	  Protocols: SMSNAS
+        o Data transport: SMS over NAS
+          Protocols: SMSNAS
 
 
 3. Repository layout
@@ -61,116 +61,116 @@ The following data transports and protocols are supported by the SDK:
 ---------------------------------------
 Top level directories:
 ---------------------------------------
-ts_sdk/					The top level directory of the
-					ThingSpace SDK repository.
+ts_sdk/                                 The top level directory of the
+                                        ThingSpace SDK repository.
 
-ts_sdk_bldenv/				This directory exists in each Docker
-					container and is the top level for all
-					the files needed to perform the build
-					for a chipset (i.e. the chipset SDK and
-					toolchain)
+ts_sdk_bldenv/                          This directory exists in each Docker
+                                        container and is the top level for all
+                                        the files needed to perform the build
+                                        for a chipset (i.e. the chipset SDK and
+                                        toolchain)
 
 ---------------------------------------
 Build environment directories:
 ---------------------------------------
-ts_sdk_bldenv/toolchain (Optional) 	All files that make up the toolchain,
-					if not embedded in the chipset SDK.
+ts_sdk_bldenv/toolchain (Optional)      All files that make up the toolchain,
+                                        if not embedded in the chipset SDK.
 
-ts_sdk_bldenv/<chipset-name>		The chipset SDK as provided by the
-					chipset vendor.
+ts_sdk_bldenv/<chipset-name>            The chipset SDK as provided by the
+                                        chipset vendor.
 
 ---------------------------------------
 TS-SDK source repository:
 ---------------------------------------
-ts_sdk/build/<app_name>			Created after successful build by the
-					Docker container to place all the
-					application related object files and
-					binary images which can be later used to
-					upload firmware to target platform.
+ts_sdk/build/<app_name>                 Created after successful build by the
+                                        Docker container to place all the
+                                        application related object files and
+                                        binary images which can be later used to
+                                        upload firmware to target platform.
 
-ts_sdk/Documents 			Contains detailed description of the SDK
-					and its platform APIs.
+ts_sdk/Documents                        Contains detailed description of the SDK
+                                        and its platform APIs.
 
-ts_sdk/module_tests 			Contains various test programs for SDK
-					components such as UART, AT layer etc.
+ts_sdk/module_tests                     Contains various test programs for SDK
+                                        components such as UART, AT layer etc.
 
-ts_sdk/apps				Applications using the TS SDK
+ts_sdk/apps                             Applications using the TS SDK
 
-ts_sdk/apps/cc_test/src			Source code for the cc_test app
+ts_sdk/apps/cc_test/src                 Source code for the cc_test app
 
-ts_sdk/apps/cc_test/build		Build result directory for the cc_test
-					application. All files produced by the
-					build must go under here.
+ts_sdk/apps/cc_test/build               Build result directory for the cc_test
+                                        application. All files produced by the
+                                        build must go under here.
 
-ts_sdk/apps/<others>/src		Source code for other applications.
+ts_sdk/apps/<others>/src                Source code for other applications.
 
-ts_sdk/apps/<others>/inc		Header files for other applications.
+ts_sdk/apps/<others>/inc                Header files for other applications.
 
-ts_sdk/tools				Any general files needed to perform the
-					build process or do work in the source
-					repository.
+ts_sdk/tools                            Any general files needed to perform the
+                                        build process or do work in the source
+                                        repository.
 
-ts_sdk/tools/scripts 			Scripts to assist with building,
-					configuring tools, scanning source code,
-					etc.
+ts_sdk/tools/scripts                    Scripts to assist with building,
+                                        configuring tools, scanning source code,
+                                        etc.
 
-ts_sdk/tools/config			General configuration and data files
-					needed by tools.
+ts_sdk/tools/config                     General configuration and data files
+                                        needed by tools.
 
-ts_sdk/tools/docker			Dockerfiles for creating the various
-					chipset build Docker containers.
+ts_sdk/tools/docker                     Dockerfiles for creating the various
+                                        chipset build Docker containers.
 
-ts_sdk/sdk				Source code and related files that
-					provide the API and communication path
-					for ThingSpace SDK.
+ts_sdk/sdk                              Source code and related files that
+                                        provide the API and communication path
+                                        for ThingSpace SDK.
 
-ts_sdk/sdk/<sdk_name>/src 		SDK source code files.
+ts_sdk/sdk/<sdk_name>/src               SDK source code files.
 
-ts_sdk/sdk/<sdk_name>/inc 		Header files shared across all of the
-					TS SDK source files (excluding those
-					that define the user API)
+ts_sdk/sdk/<sdk_name>/inc               Header files shared across all of the
+                                        TS SDK source files (excluding those
+                                        that define the user API)
 
-ts_sdk/sdk/<sdk_name>/api 		Header files consumed by the application
-					in order to use the SDK.
+ts_sdk/sdk/<sdk_name>/api               Header files consumed by the application
+                                        in order to use the SDK.
 
-ts_sdk/config_files       		Any configuration files which must be
-					available when an application using the
-					SDK is executing. The build might
-					process these into a different form
-					depending on the target e.g. a firmware
-					image with no filesystem.
+ts_sdk/config_files                     Any configuration files which must be
+                                        available when an application using the
+                                        SDK is executing. The build might
+                                        process these into a different form
+                                        depending on the target e.g. a firmware
+                                        image with no filesystem.
 
-ts_sdk/sdk/<sdk_name>/vendor		Externally provided components required
-					by the SDK on one or more platforms.
-					Each component has a source code
-					directory tree under here. Ideally we
-					use the same components across all
-					chipsets and OSs. Some likely components
-					are shown below.
+ts_sdk/sdk/<sdk_name>/vendor            Externally provided components required
+                                        by the SDK on one or more platforms.
+                                        Each component has a source code
+                                        directory tree under here. Ideally we
+                                        use the same components across all
+                                        chipsets and OSs. Some likely components
+                                        are shown below.
 
-ts_sdk/sdk/<sdk_name>/vendor/<TLS library>  	TLS library (e.g. mbedtls)
+ts_sdk/sdk/<sdk_name>/vendor/<TLS library>      TLS library (e.g. mbedtls)
 
-ts_sdk/sdk/<sdk_name>/vendor/<MQTT library> 	MQTT library (e.g. mosquitto)
+ts_sdk/sdk/<sdk_name>/vendor/<MQTT library>     MQTT library (e.g. mosquitto)
 
-ts_sdk/sdk/<sdk_name>/vendor/<json library> 	JSON library (e.g. cJSON)
+ts_sdk/sdk/<sdk_name>/vendor/<json library>     JSON library (e.g. cJSON)
 
-ts_sdk/platform				Files required to allow the SDK and it
-					sample applications to be portable
-					across multiple chipsets, OSs,
-					protocols, etc.
+ts_sdk/platform                         Files required to allow the SDK and it
+                                        sample applications to be portable
+                                        across multiple chipsets, OSs,
+                                        protocols, etc.
 
-ts_sdk/platform/drivers			Files implementing common hardware
-					abstractions e.g. UART access, hardware
-					RNG, timers, etc.
+ts_sdk/platform/drivers                 Files implementing common hardware
+                                        abstractions e.g. UART access, hardware
+                                        RNG, timers, etc.
 
-ts_sdk/platform/sw			Files implementing common software
-					abstractions.
+ts_sdk/platform/sw                      Files implementing common software
+                                        abstractions.
 
-ts_sdk/platform/inc			Header files defining the API created by
-					these abstractions.
+ts_sdk/platform/inc                     Header files defining the API created by
+                                        these abstractions.
 
-ts_sdk/targets				Optional directory containing chipset
-					sdk and other required tools
+ts_sdk/targets                          Optional directory containing chipset
+                                        sdk and other required tools
 
 
 4. Thingspace account and device management
@@ -196,8 +196,8 @@ thingspace-client-api.sh help
 --------------------
 By default, the TS SDK and accompanying examples are built using the ARM
 embedded GCC toolchain. Details of this toolchain are as follows:
-	o Version: gcc-arm-none-eabi-5_4-2016q2
-	o Link to binaries: https://launchpad.net/gcc-arm-embedded/+download
+        o Version: gcc-arm-none-eabi-5_4-2016q2
+        o Link to binaries: https://launchpad.net/gcc-arm-embedded/+download
 
 To make the build process easier, a Docker container with the toolchain is
 provided via Dockerhub. The actual build command is issued via scripts. For
@@ -223,10 +223,10 @@ minimum set of features that will allow the sample applications to communicate
 with the Verizon cloud services.
 
 The script will edit:
-	vendor/mbedtls/include/mbedtls/config.h.original
+        vendor/mbedtls/include/mbedtls/config.h.original
 
 to produce the desired configuration in:
-	vendor/mbedtls/include/mbedtls/config.h
+        vendor/mbedtls/include/mbedtls/config.h
 
 That version of config.h is checked into the repository.
 
@@ -238,15 +238,15 @@ Usage:
     vz_configure_mbedtls [help] [debug] [no-net] [full-msgs] [no-hwrng]
 
 debug     - will enable debug messages in the library, especially for TLS
-	    errors. Makes the code much bigger but otherwise it's hard to
-	    tell why something fails.
+            errors. Makes the code much bigger but otherwise it's hard to
+            tell why something fails.
 
 no-net    - disables the mbed TLS OS networking module. Set this when building
-	    for the "network over modem" library.
+            for the "network over modem" library.
 
 
 full-msgs - support full-sized TLS messages as defined in the RFC.
-	    (by default we know that the largest OTT message is much smaller).
+            (by default we know that the largest OTT message is much smaller).
 
 no-hwrng -  Disable using the device hardware random number generator.
             Set this to use the Linux/OSX /dev/random sources instead.
@@ -257,7 +257,7 @@ To build the mbedtls_test program to run on OSX (i.e. by setting
 BUILD_TARGET = osx in mbedtls_test/Makefile), you need to configure the library
 as:
 
-	./vz_configure_mbedtls full-msgs no-hwrng
+        ./vz_configure_mbedtls full-msgs no-hwrng
 
 
 Configuring device credentials
@@ -331,10 +331,10 @@ The Makefile can be modified to specify the board (BUILD_BOARD), MCU (BUILD_MCU)
 and chipset family (BUILD_TARGET). It can also be used to specify the protocol
 to be used (PROTOCOL) and in the future, to specify the modem. Acceptable values
 for the above parameters are as follows:
-	o BUILD_BOARD  : nucleo
-	o BUILD_TARGET : stm32f4
-	o BUILD_MCU    : stm32f429
-	o PROTOCOL     : OTT_PROTOCOL, SMSNAS_PROTOCOL
+        o BUILD_BOARD  : nucleo
+        o BUILD_TARGET : stm32f4
+        o BUILD_MCU    : stm32f429
+        o PROTOCOL     : OTT_PROTOCOL, SMSNAS_PROTOCOL
 
 For an example on using the SDK, refer to: ts_sdk/apps/cc_test
 Use the following command to build the user application (assuming current
@@ -352,11 +352,11 @@ the hardware abstraction layer (HAL) used to keep it platform agnostic.
 A Makefile located in ts_sdk/Documents/doxygen/ simplifies the generation
 process. Following are the commands supported by it:
 
-Command			Description
---------------		-----------------------------------------------
-make all		Generate documentation for both the SDK and HAL
-make sdk-docs		Generate documentation for the SDK
-make hal-docs		Generate documentation for the HAL
-make clean		Remove all generated documentation
+Command                 Description
+--------------          -----------------------------------------------
+make all                Generate documentation for both the SDK and HAL
+make sdk-docs           Generate documentation for the SDK
+make hal-docs           Generate documentation for the HAL
+make clean              Remove all generated documentation
 
 All documentation is generated in ts_sdk/Documents/doxygen/build

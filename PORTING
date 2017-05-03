@@ -94,9 +94,9 @@ ts_sdk/platform/drivers/<component name>/
 
 Target specific implementations of layer 2 HAL components lie within the
 following directories:
-	1 ts_sdk/platform/sw/<chipset family>
-	2 ts_sdk/platform/sw/<chipset family>/<mcu>
-	3 ts_sdk/platform/sw/<chipset family>/<mcu>/<board>
+	o ts_sdk/platform/sw/<chipset family>
+	o ts_sdk/platform/sw/<chipset family>/<mcu>
+	o ts_sdk/platform/sw/<chipset family>/<mcu>/<board>
 The first directory houses all implementations common across the chipset family,
 the second contains MCU specific implementations, and the third contains board
 specific implementations.
