@@ -17,12 +17,17 @@ Table of contents:
 The HAL separates the SDK from the specifics of the platform. To make the SDK
 work on other platforms, it must be ported to the target platform. The HAL
 consists of three layers:
-	1 A chipset HAL that is usually provided for a chipset family by the
-	  manufacturer (Eg. STM32F4 HAL etc.)
-	2 A port and pin abstraction layer that generalizes the way ports and
-	  pins are accessed across MCUs by layers above it.
-	3 Peripheral driver APIs that create an abstraction over how different
-	  peripherals are accessed across MCUs.
+
+Layer No.       Description
+----------      ----------------------------------------------------------------
+    1           A chipset HAL that is usually provided for a chipset family by
+                the manufacturer (Eg. STM32F4 HAL etc.)
+
+    2           A port and pin abstraction layer that generalizes the way ports
+                and pins are accessed across MCUs by layers above it.
+
+    3           Peripheral driver APIs that create an abstraction over how
+                different peripherals are accessed across MCUs.
 
 User applications are expected to use the API in layer 3. In addition to the
 above layers, there are configuration files that are used to remap which
@@ -30,13 +35,13 @@ peripherals and pins are used by the SDK.
 
 Porting efforts can be divided into multiple categories based on what subset of
 the above layers is being changed:
-	o When porting across boards built around an already supported MCU, only
-	  the configuration files need to be changed.
-	o When porting across MCUs belonging to the same chipset family, usually
-	  layer 1 remains the same while layers 2 and 3 need to be reimplemented.
-	o When porting across MCUs belonging to different chipset families or if
-	  they are from different manufacturers, layer 1 will need to be
-	  switched out and layers 2 and 3 will need to be reimplemented.
+        o When porting across boards built around an already supported MCU, only
+          the configuration files need to be changed.
+        o When porting across MCUs belonging to the same chipset family, usually
+          layer 1 remains the same while layers 2 and 3 need to be reimplemented.
+        o When porting across MCUs belonging to different chipset families or if
+          they are from different manufacturers, layer 1 will need to be
+          switched out and layers 2 and 3 will need to be reimplemented.
 
 Chipset HALs reside in ts_sdk/targets/<manufacturer>/chipset/<chipset name>/
 
@@ -94,9 +99,9 @@ ts_sdk/platform/drivers/<component name>/
 
 Target specific implementations of layer 2 HAL components lie within the
 following directories:
-	o ts_sdk/platform/sw/<chipset family>
-	o ts_sdk/platform/sw/<chipset family>/<mcu>
-	o ts_sdk/platform/sw/<chipset family>/<mcu>/<board>
+        o ts_sdk/platform/sw/<chipset family>
+        o ts_sdk/platform/sw/<chipset family>/<mcu>
+        o ts_sdk/platform/sw/<chipset family>/<mcu>/<board>
 The first directory houses all implementations common across the chipset family,
 the second contains MCU specific implementations, and the third contains board
 specific implementations.
@@ -121,9 +126,9 @@ have a higher IRQ priority than the idle timer IRQ.
 -----------------------------------------------------
 The process of porting the SDK within the same chipset family consists of two
 steps:
-	o Porting layer 2 by accounting for the change in the names of the pins,
-	  pin map entries and how ports and pins are initialized.
-	o Porting layer 3 to account for changes in the chipset HAL.
+        o Porting layer 2 by accounting for the change in the names of the pins,
+          pin map entries and how ports and pins are initialized.
+        o Porting layer 3 to account for changes in the chipset HAL.
 
 Depending on how the manufacturer structures the chipset HAL, the second step
 above may or may not be needed. For example, the STM32F4 HAL targets the entire
