@@ -248,7 +248,7 @@ no-net    - disables the mbed TLS OS networking module. Set this when building
 full-msgs - support full-sized TLS messages as defined in the RFC.
             (by default we know that the largest OTT message is much smaller).
 
-no-hwrng -  Disable using the device hardware random number generator.
+no-hwrng  - Disable using the device hardware random number generator.
             Set this to use the Linux/OSX /dev/random sources instead.
 
 heap-prof - Use a custom allocator to record maximum heap used.
