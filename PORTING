@@ -13,14 +13,14 @@ Table of contents:
 6. Porting the SDK across MCU (different chipset families)
 
 1. Overview
----------
+------------
 The HAL separates the SDK from the specifics of the platform. To make the SDK
-work on other platforms, the HAL must be ported to the target platform. The HAL
+work on other platforms, it must be ported to the target platform. The HAL
 consists of three layers:
 	1 A chipset HAL that is usually provided for a chipset family by the
 	  manufacturer (Eg. STM32F4 HAL etc.)
 	2 A port and pin abstraction layer that generalizes the way ports and
-	  pins are accessed across MCUs by layers above this.
+	  pins are accessed across MCUs by layers above it.
 	3 Peripheral driver APIs that create an abstraction over how different
 	  peripherals are accessed across MCUs.
 
@@ -71,17 +71,17 @@ Eg. PA4 for representing the 4th pin of Port A. It is recommended that this
 convention be followed across all targets.
 
 The second type that must be implemented is 'struct pin_map' (typedef'ed as
-pin_map_t in the specification). This structure defines a member of the pin maps
+pin_map_t in the specification). This structure defines a member of the pin map
 list in pin_map.h. An instance of this structure type completely specifies how a
 pin must be configured when attached to a given peripheral. Therefore, this
 structure must at least have members of type 'pin_name_t', 'periph_t' and
-'gpio_config_t' to store the which peripheral a given pin connects to and the
-pin's settings when connected to that peripheral.
+'gpio_config_t' to store which peripheral a given pin connects to and the pin's
+settings when connected to that peripheral.
 
 Each map defined in pin_map.h aggregates all possible pin mappings that perform
-a particular function for the peripheral. For example, uart_tx_map maps all pins
-that can act as the TX pin of a UART peripheral. Note that for a given board,
-some of the pins may be hardwired to perform another function or be not
+a particular function for the peripheral. For example, 'uart_tx_map' maps all
+pins that can act as the TX pin of a UART peripheral. Note that for a given
+board, some of the pins may be hardwired to perform another function or be not
 connected at all. In such situations it is recommended to comment out the entry
 for those pins so that they cannot be erroneously initialized by the HAL.
 
@@ -142,5 +142,5 @@ This porting strategy is relevant when building support for an entirely new MCU.
 It consists of implementing layer 2, i.e. establishing pin name encodings, pin
 maps, implementing the API routines needed to initialize the ports and pins and
 implementing the layer 3 drivers. Both layers 2 and 3 rely on the chipset HAL
-provided by the manufacturer and will need to be configured for the given
-target.
+provided by the manufacturer. So the chipset HAL will need to be configured for
+the given target.

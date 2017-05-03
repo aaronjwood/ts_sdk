@@ -187,7 +187,7 @@ firmware.
 
 The script can also be used to delete accounts, remove devices, send update
 messages to the device, query status messages the device sends back to
-Thingspace services etc. For a detailed description on using the script refer
+Thingspace services etc. For a detailed description on using the script refer to
 the script's help:
 thingspace-client-api.sh help
 
@@ -206,9 +206,9 @@ information on how to invoke the scripts, please refer to Section 5.2.
 
 5.1 Protocol specific configurations
 -------------------------------------
-Before the building the firmware, certain aspects of the protocol being used
-will need to be configured. The following sections briefly describe the
-configuration steps for all supported protocol/transport combinations.
+Before building the firmware, certain aspects of the protocol being used will
+need to be configured. The following sections briefly describe the configuration
+steps for all supported protocol/transport combinations.
 
 
 5.1.1 OTT protocol
@@ -309,8 +309,8 @@ build process.
 
 6. Creating a new user application
 -----------------------------------
-All user applications that are built with the SDK should reside in ts_sdk/apps.
-They are expected to roughly have the following directory layout:
+All user applications that are built along with the SDK should reside in
+ts_sdk/apps. They are expected to roughly have the following directory layout:
 
 apps/
 |
