@@ -6,6 +6,7 @@
 
 # Makefile for the device side application API test program.
 APP_ROOT = $(shell dirname $$PWD)
+export APP_ROOT
 
 ifneq (build,$(notdir $(CURDIR)))
 # If not invoked in the build directory, change to that directory and
@@ -39,9 +40,6 @@ DBG_LIB_SRC =
 
 # Common and per-platform Makefile variables
 include $(APP_ROOT)/common.mk
-
-# Defines the target rules
-include $(APP_ROOT)/rules.mk
 print-%: ; @echo $* = $($*)
 
 endif

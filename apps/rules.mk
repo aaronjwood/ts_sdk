@@ -28,7 +28,7 @@ all build: $(FW_EXEC)
 
 $(FW_EXEC): $(OBJ) vendor_libs
 	$(CC) $(LDFLAGS) $(CHIPSET_LDFLAGS) $(NOSYSLIB) $(INC) -Os $(LTOFLAG) \
-		$(ARCHFLAGS) $(LDSCRIPT) $(OBJ) /build/stm32f4/libstm32f429.a \
+		$(ARCHFLAGS) $(LDSCRIPT) $(OBJ) $(CHIPSET_BUILDENV)/lib$(CHIPSET_MCU).a \
 		$(VENDOR_LIB_FLAGS) -o $(FW_EXEC)
 
 $(OBJ_CORELIB): %.o: %.c
@@ -57,9 +57,3 @@ dump: $(FW_EXEC)
 bin: $(FW_EXEC)
 	$(OBJCOPY) -O binary $(FW_EXEC) fw.bin
 	$(OBJCOPY) -O ihex $(FW_EXEC) fw.hex
-
-upload: $(FW_EXEC)
-	openocd -f $(TOOLS_ROOT)/openocdcfg-stm32f4/board/st_nucleo_f4.cfg \
-		-c init -c "reset halt" \
-		-c "flash write_image erase $(FW_EXEC)" \
-		-c reset -c shutdown
