@@ -26,16 +26,8 @@ export PLATFORM_HAL_SRC
 PLATFORM_HAL_CFLAGS =
 export PLATFORM_HAL_CFLAGS
 
-# Search paths for device driver sources
-vpath %.c $(PLATFORM_HAL_ROOT)/drivers/dbg: \
-	$(PLATFORM_HAL_ROOT)/drivers/uart: \
-	$(PLATFORM_HAL_ROOT)/drivers/hwrng: \
-	$(PLATFORM_HAL_ROOT)/drivers/gpio: \
-	$(PLATFORM_HAL_ROOT)/drivers/i2c: \
-	$(PLATFORM_HAL_ROOT)/drivers/sys: \
-	$(PLATFORM_HAL_ROOT)/drivers/timer: \
-	$(PLATFORM_HAL_ROOT)/drivers/timer/$(BUILD_TARGET)/$(BUILD_MCU): \
-	$(PLATFORM_HAL_ROOT)/sw: \
-	$(PLATFORM_HAL_ROOT)/sw/$(BUILD_TARGET): \
-	$(PLATFORM_HAL_ROOT)/sw/$(BUILD_TARGET)/$(BUILD_MCU): \
-	$(PLATFORM_HAL_ROOT)/sw/$(BUILD_TARGET)/$(BUILD_MCU)/$(BUILD_BOARD):
+driver_paths = $(patsubst %,%:,$(sort $(dir $(shell find $(PLATFORM_HAL_ROOT)/drivers/ -name "*.c"))))
+sw_paths = $(patsubst %,%:,$(sort $(dir $(shell find $(PLATFORM_HAL_ROOT)/sw/ -name "*.c"))))
+
+# Search paths for device driver and port pin API sources
+vpath %.c $(driver_paths) $(sw_paths)
