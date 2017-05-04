@@ -28,6 +28,25 @@ SDK) along with examples that use it. The TS SDK provides a set of API routines
 that enable an IoT device (defined here as a microcontroller (MCU) connected to
 an LTE modem) to communicate with the Thingspace IoT services.
 
+The following diagram summarizes how the TS SDK fits into the structure of a
+regular user application:
+
+                          +--------------------+
+                          |  User Application  |
+                          |    & conf file     |
+                          |         +----------+
+                          |         | TS SDK & |
+                          |         | conf file|
+                          +---------+----------+
+                          |        HAL         |
+                          +--------------------+
+                          |   Microcontroller  |
+                          +--------------------+
+
+Note that while the user application and the SDK are shown to rely on the same
+HAL in the above diagram, that need not necessarily be true. The application is
+free to implement its own drivers.
+
 
 2. SDK capabilities
 --------------------

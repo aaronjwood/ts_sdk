@@ -33,6 +33,33 @@ User applications are expected to use the API in layer 3. In addition to the
 above layers, there are configuration files that are used to remap which
 peripherals and pins are used by the SDK.
 
+The diagram below summarizes the structure of the platform HAL, the SDK and the
+user application:
+
+                          +--------------------+
+                          |  User Application  |
+                          |    & conf file     |
+                          |         +----------+
+                          |         | TS SDK & |
+                          |         | conf file|
+                          +---------+----------+
+                          | Peripheral drivers |
+                          |      Layer 3       |
+                          +--------------------+
+                          |    Port Pin API    |
+                          |      Layer 2       |
+                          +--------------------+
+                          |    Chipset HAL     |
+                          |      Layer 1       |
+                          +--------------------+
+                          |   Microcontroller  |
+                          |      Hardware      |
+                          +--------------------+
+
+Note that while the user application and the SDK are shown to rely on the same
+HAL in the above diagram, that need not necessarily be true. The application is
+free to implement its own drivers.
+
 Porting efforts can be divided into multiple categories based on what subset of
 the above layers is being changed:
         o When porting across boards built around an already supported MCU, only
@@ -43,7 +70,7 @@ the above layers is being changed:
           they are from different manufacturers, layer 1 will need to be
           switched out and layers 2 and 3 will need to be reimplemented.
 
-Chipset HALs reside in ts_sdk/targets/<manufacturer>/chipset/<chipset name>/
+Chipset HALs/SDKs reside in ts_sdk/targets directory.
 
 
 2. HAL Interface
@@ -113,10 +140,9 @@ Porting the SDK from one board to another board built around the same MCU is
 fairly easy. Board configurations are stored in:
 ts_sdk/platfrom/sw/<chipset family>/<mcu>/<board>
 
-The configuration is split between two files: ts_sdk_board_config.h and
-board_config.h, and are used for associating pins to peripherals and configuring
-peripherals. The first file deals with SDK specific settings whereas the second
-file deals with non-SDK specific settings.
+The file ts_sdk_board_config.h is used to describe the SDK's peripheral
+dependencies whereas the file board_config.h defines the application's
+peripheral dependencies.
 
 Regardless of the board, the serial conenction between the MCU and modem must
 have a higher IRQ priority than the idle timer IRQ.
