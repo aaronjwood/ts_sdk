@@ -1,9 +1,7 @@
 #!/bin/sh
 # Copyright(C) 2017 Verizon. All rights reserved
-PROJ_ROOT="$PWD"
-SDK_ROOT="$PROJ_ROOT/sdk/cloud_comm/"
 TOOLS_ROOT="$PROJ_ROOT/tools/config/openocd-configs/"
-BUILD_DIR="$PROJ_ROOT/build"
+MOUNT_DIR=$BUILD_DIR
 FIRMWARE=""
 BUILD_APP_ARG=""
 BUILD_APP_PROTO=""
@@ -59,9 +57,11 @@ Application options: Optional paramters which are provided as key=value
 	1) APP=<application to compile>, for example APP=cc_test
 	available options are any app or test directories from sample_apps and module_tests
 	Note: This application should correspond to APP_DOCKERFILE, default is cc_test
+
 	2) PROTO=<Communication protocol to use>, thingspace sdk supports two options
 	OTT_PROTOCOL and SMSNAS_PROTOCOL as a value, default is SMSNAS_PROTOCOL
 	Both 1 and 2 options above are used as environment (-e flag) variable in docker run command
+
 	3) upload=<relative path to firmware executable>, this parameter is optional.
 	Built executable's name is in firmware_<protocol_name>.elf form, where
 	protocol_name is either OTT_PROTOCOL or SMSNAS_PROTOCOL
@@ -103,8 +103,11 @@ cleanup_docker_images()
 		docker rmi -f $TS_SDK_IMAGE_NAME
 		docker rmi -f $CHIPSET_IMAGE_NAME
 	else
-		echo "Cleaning image: $1"
-		docker rmi -f $1
+		for image in "$@"
+		do
+			echo "Cleaning image: $image"
+			docker rmi -f $image
+		done
 	fi
 }
 
@@ -128,6 +131,20 @@ upload_firmware()
 			-c reset -c shutdown
 	fi
 }
+
+check_build()
+{
+	if ! [ $? -eq 0 ]; then
+		echo "Build failed"
+		cleanup_docker_images "$@"
+		exit 1
+	fi
+}
+
+if [ -z $PROJ_ROOT ]; then
+	echo "Run \"source config_build_env.sh\" first to set up build environment"
+	exit 1
+fi
 
 if ! [ -f $SCRIPT ]; then
 	echo "Script must be run from the root of the repository"
@@ -164,22 +181,14 @@ echo "Application to build: $APP_DIR"
 
 cleanup_prev_docker_builds
 
-# Three steps build starts from here
+# Build chipset sdk
 docker build -t $CHIPSET_IMAGE_NAME -f $1 $PROJ_ROOT
+docker run --rm -v $MOUNT_DIR:/build $CHIPSET_IMAGE_NAME
+check_build $CHIPSET_IMAGE_NAME
+
 docker build -t $TS_SDK_IMAGE_NAME -f $SDK_ROOT/Dockerfile $PROJ_ROOT
 docker build -t $APP_DIR -f $2 $PROJ_ROOT
-docker run --rm $BUILD_APP_PROTO $BUILD_APP_ARG -v $PROJ_ROOT/build:/build $APP_DIR
+docker run --rm $BUILD_APP_PROTO $BUILD_APP_ARG -v $MOUNT_DIR:/build $APP_DIR
+check_build $APP_DIR $TS_SDK_IMAGE_NAME $CHIPSET_IMAGE_NAME
 
-if [ $? -eq 0 ]; then
-	echo "Build was success"
-	if ! [ -z $FIRMWARE ]; then
-		echo "Uploading firmware..."
-		upload_firmware
-	fi
-else
-	echo "Build failed"
-	cleanup_docker_images
-	exit 1
-fi
-
-cleanup_docker_images
+cleanup_docker_images $APP_DIR $TS_SDK_IMAGE_NAME $CHIPSET_IMAGE_NAME

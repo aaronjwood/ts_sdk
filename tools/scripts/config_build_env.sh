@@ -6,10 +6,12 @@ SCRIPT="tools/scripts/$SCRIPT_NAME"
 ENVFILE=".env_list"
 SDK="cloud_comm"
 PROJ_ROOT="$PWD"
+BUILD_DIR=$PROJ_ROOT/build
 
 export PROJ_ROOT=$PROJ_ROOT
 export PLATFORM_HAL_ROOT=$PROJ_ROOT/platform
 export SDK_ROOT=$PROJ_ROOT/sdk/$SDK
+export BUILD_DIR=$BUILD_DIR
 
 # make build utility makefile fragement to help gather all the object codes into
 # application/build directory
@@ -69,6 +71,9 @@ Usage:  source $SCRIPT_NAME [Script Options] [Build Options]
 
 	PROTOCOL: Cloud data transport protocol, default is OTT_PROTOCOL. Valid
 	values are OTT_PROTOCOL and SMSNAS_PROTOCOL
+
+	BUILD_DIR: Build directory where docker build and application output build
+	artifacts. Default path is $BUILD_DIR
 EOF
 	return 0
 }
@@ -85,6 +90,7 @@ process_app_args()
 			DEV_BOARD)	DEV_BOARD="$value";;
 			MODEM_TARGET)	MODEM_TARGET="$value";;
 			PROTOCOL)	PROTOCOL="$value";;
+			BUILD_DIR)	BUILD_DIR="$value";;
 			*)		usage;;
 		esac
 	done
@@ -132,6 +138,7 @@ cat > $ENVFILE << EOF
 PROJ_ROOT=$PROJ_ROOT
 PLATFORM_HAL_ROOT=$PLATFORM_HAL_ROOT
 SDK_ROOT=$SDK_ROOT
+BUILD_DIR=$BUILD_DIR
 BUILD_MK_PATH=$BUILD_MK_PATH
 CHIPSET_FAMILY=$CHIPSET_FAMILY
 CHIPSET_MCU=$CHIPSET_MCU
