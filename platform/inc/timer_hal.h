@@ -69,7 +69,7 @@ typedef struct {
  * \param[in] priority Interrupt priority of this timer instance. The underlying
  * representation of the priority is determined by the implementation of the timer
  * instance.
- * \param[in] base frequency in HZ of the timer.
+ * \param[in] base_freq Frequency in HZ of the timer.
  * \param[in] callback Pointer to the callback that will be invoked at the end of
  * every period.
  *
@@ -111,7 +111,7 @@ uint32_t timer_get_time(const timer_interface_t * const inst);
 /**
  * \brief Set the expiration time period for given timer instance.
  * \param[in] inst Pointer to the interface of the timer instance.
- * \param[in] expiration time period, time unit is timer instance defined.
+ * \param[in] period Expiration time period. Time unit is timer instance defined.
  * \pre \ref timer_init must be called before using this routine.
  */
 void timer_set_time(const timer_interface_t * const inst, uint32_t period);
