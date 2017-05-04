@@ -39,7 +39,7 @@ typedef enum timer_id {
 /**
  * \brief Retrieve the interface of timer which later can be used for performing
  * various timer hal APIs.
- * \param[in] timer id
+ * \param[in] tim Timer ID
  * \returns Pointer to timer tim's interface or NULL if fails or timer instance
  * is not implemented.
  */

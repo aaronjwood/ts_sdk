@@ -1,6 +1,6 @@
 FROM ts_sdk
 RUN mkdir -p build
-COPY sample_apps /ts_sdk/sample_apps
+COPY apps /ts_sdk/apps
 COPY tools/config /ts_sdk/tools/config
 COPY tools/scripts/config_build_env.sh /ts_sdk/tools/scripts/
 RUN chmod a+x /ts_sdk/tools/scripts/config_build_env.sh
