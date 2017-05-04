@@ -1,6 +1,6 @@
 # Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
-# Makefile for the device side application API test program.
+# Makefile for to generate static library for the chipset sdk
 BUILD_MK_PATH = $(CURDIR)
 
 export CHIPSET_ROOT
@@ -14,13 +14,6 @@ else
 
 CHIPSET_ROOT = $(shell dirname $(SRCDIR))
 CHIPSET_BUILDENV = $(shell dirname $(CHIPSET_ROOT))ts_sdk_bldenv
-
-BUILD_TARGET ?= stm32f4
-BUILD_MCU ?= stm32f429
-BUILD_BOARD ?= nucleo
-export BUILD_TARGET
-export BUILD_MCU
-export BUILD_BOARD
 
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG
@@ -40,5 +33,5 @@ INC += $(CHIPSET_INC)
 
 # Defines the target rules
 include $(SRCDIR)/rules.mk
-print-%: ; @echo $* = $($*)
+
 endif

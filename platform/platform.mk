@@ -1,10 +1,10 @@
 # Copyright(C) 2017 Verizon. All rights reserved.
 
-INC += -I $(PLATFORM_HAL_ROOT)/inc
-INC += -I $(PLATFORM_HAL_ROOT)/sw
-INC += -I $(PLATFORM_HAL_ROOT)/sw/$(BUILD_TARGET)
-INC += -I $(PLATFORM_HAL_ROOT)/sw/$(BUILD_TARGET)/$(BUILD_MCU)
-INC += -I $(PLATFORM_HAL_ROOT)/sw/$(BUILD_TARGET)/$(BUILD_MCU)/$(BUILD_BOARD)
+PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/inc
+PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw
+PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(BUILD_TARGET)
+PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(BUILD_TARGET)/$(BUILD_MCU)
+PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(BUILD_TARGET)/$(BUILD_MCU)/$(BUILD_BOARD)
 
 # List of core library components to be included in the build process
 # This includes the standard per-platform device drivers but not any
@@ -22,6 +22,7 @@ PLATFORM_HAL_SRC += hwrng_$(BUILD_TARGET).c
 endif
 
 export PLATFORM_HAL_SRC
+export PLATFORM_INC
 
 PLATFORM_HAL_CFLAGS =
 export PLATFORM_HAL_CFLAGS

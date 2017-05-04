@@ -1,9 +1,11 @@
 FROM ts_sdk
-ENV APP=cc_test
-ENV PROTO=SMSNAS_PROTOCOL
 RUN mkdir -p build
 COPY sample_apps /ts_sdk/sample_apps
 COPY tools/config /ts_sdk/tools/config
-CMD cd /ts_sdk/sample_apps/$APP && make PROTOCOL=$PROTO build \
+COPY tools/scripts/config_build_env.sh /ts_sdk/tools/scripts/
+RUN chmod a+x /ts_sdk/tools/scripts/config_build_env.sh
+CMD cd /ts_sdk && . tools/scripts/config_build_env.sh CHIPSET_FAMILY=$CHIPSET_FAMILY \
+    CHIPSET_MCU=$CHIPSET_MCU DEV_BOARD=$DEV_BOARD MODEM_TARGET=$MODEM_TARGET PROTOCOL=$PROTOCOL \
+    && cd /ts_sdk/sample_apps/$APP && make build \
     && mkdir -p /build/$APP \
     && cp -r ./build/* /build/$APP

@@ -1,16 +1,19 @@
 #!/bin/sh
 # Copyright(C) 2017 Verizon. All rights reserved
-TOOLS_ROOT="$PROJ_ROOT/tools/config/openocd-configs/"
-MOUNT_DIR=$BUILD_DIR
-FIRMWARE=""
+
+MOUNT_DIR="$PROJ_ROOT/build"
+# default mount point for the chipset build environment to output build artifacts
+CHIPSET_BUILD_MOUNT="$MOUNT_DIR"
+
+# default mount point for the application build environment to output build artifacts
+APP_BUILD_MOUNT="$MOUNT_DIR"
+
 BUILD_APP_ARG=""
-BUILD_APP_PROTO=""
 
 SCRIPT_NAME=`basename "$0"`
 SCRIPT="tools/scripts/$SCRIPT_NAME"
-BASE_DOCKERFILE=""
 
-CHIPSET_IMAGE_NAME="stm32f429_buildenv"
+CHIPSET_IMAGE_NAME="${CHIPSET_MCU}_buildenv"
 TS_SDK_IMAGE_NAME="ts_sdk"
 
 usage()
@@ -23,7 +26,7 @@ optional arguments has to be specified by key=value format
 
 Example Usage:
 tools/scripts/docker_build.sh ./tools/docker/Dockerfile.thingservice ./sample_apps/Dockerfile \
-PROTO=SMSNAS_PROTOCOL APP=sensor_examples upload=<relative path to firmware executable>
+APP=sensor_examples
 
 Description:
 	Script to build various apps from sample_apps and module_tests directories based on
@@ -34,8 +37,7 @@ Description:
 	docker image from the image created in second step which has application directory
 	at /ts_sdk/sample_apps or /ts_sdk/module_tests and other vendor dependent libraries
 	like mbedtls at /ts_sdk/vendor. Script and eventually docker run command creates
-	volume build/<app>/ to house all the compiled objects and binary images. Optional
-	upload argument can be supplied to burn given firmware executable
+	volume build/<app>/ to house all the compiled objects and binary images.
 
 CHIPSET_DOCKERFILE: relative path to chipset dockerfile, currently two dockerfiles are included in this SDK
 	as below:
@@ -62,12 +64,41 @@ Application options: Optional paramters which are provided as key=value
 	OTT_PROTOCOL and SMSNAS_PROTOCOL as a value, default is SMSNAS_PROTOCOL
 	Both 1 and 2 options above are used as environment (-e flag) variable in docker run command
 
-	3) upload=<relative path to firmware executable>, this parameter is optional.
-	Built executable's name is in firmware_<protocol_name>.elf form, where
-	protocol_name is either OTT_PROTOCOL or SMSNAS_PROTOCOL
-
 EOF
 	exit 1
+}
+
+check_config()
+{
+	local flag="false"
+	if [ -z $CHIPSET_FAMILY ]; then
+		flag="true"
+	fi
+	if [ -z $CHIPSET_MCU ]; then
+		flag="true"
+	fi
+	if [ -z $DEV_BOARD ]; then
+		flag="true"
+	fi
+	if [ -z $MODEM_TARGET ]; then
+		flag="true"
+	fi
+	if [ -z $PROTOCOL ]; then
+		flag="true"
+	fi
+	if [ -z $PROJ_ROOT ]; then
+		flag="true"
+	fi
+
+	if [ -z $SDK_ROOT ]; then
+		flag="true"
+	fi
+
+	if [ $flag == "true" ]; then
+		echo "Run source tools/scripts/config_build_env.sh help to setup environment"
+		exit 1
+	fi
+
 }
 
 check_for_dir()
@@ -88,7 +119,6 @@ process_app_args()
 			case "$KEY" in
 				APP)	BUILD_APP_ARG="-e ${KEY}=${VALUE}";;
 				PROTO)	BUILD_APP_PROTO="-e ${KEY}=${VALUE}";;
-				upload) FIRMWARE="${VALUE}";;
 				*)
 			esac
 		fi
@@ -97,38 +127,18 @@ process_app_args()
 
 cleanup_docker_images()
 {
-	if [ -z "$1" ]; then
-		echo "Cleaning images: $APP_DIR, $TS_SDK_IMAGE_NAME, $CHIPSET_IMAGE_NAME"
-		docker rmi -f $APP_DIR
-		docker rmi -f $TS_SDK_IMAGE_NAME
-		docker rmi -f $CHIPSET_IMAGE_NAME
-	else
-		for image in "$@"
-		do
-			echo "Cleaning image: $image"
-			docker rmi -f $image
-		done
-	fi
+	for image in "$@"
+	do
+		echo "Cleaning image: $image"
+		docker rmi -f $image
+	done
 }
 
 cleanup_prev_docker_builds()
 {
-	if [ -d $BUILD_DIR ]; then
+	if [ -d $MOUNT_DIR ]; then
 		echo "Performing clean ups before docker build"
-		rm -rf $BUILD_DIR
-	fi
-}
-
-upload_firmware()
-{
-	if ! [ -f $FIRMWARE ]; then
-		echo "Provide valid firmware executable file"
-	else
-		echo "File to upload: $FIRMWARE"
-		openocd -f $TOOLS_ROOT/stm32f4/board/st_nucleo_f4.cfg \
-			-c init -c "reset halt" \
-			-c "flash write_image erase $FIRMWARE" \
-			-c reset -c shutdown
+		rm -rf $MOUNT_DIR
 	fi
 }
 
@@ -141,15 +151,73 @@ check_build()
 	fi
 }
 
-if [ -z $PROJ_ROOT ]; then
-	echo "Run \"source config_build_env.sh\" first to set up build environment"
-	exit 1
-fi
-
 if ! [ -f $SCRIPT ]; then
 	echo "Script must be run from the root of the repository"
 	usage
 fi
+
+check_config
+
+build_chipset_library()
+{
+	docker build -t $CHIPSET_IMAGE_NAME -f $1 $PROJ_ROOT
+	docker run --rm -e BUILD_MCU=$CHIPSET_MCU -v $CHIPSET_BUILD_MOUNT:/build $CHIPSET_IMAGE_NAME
+	check_build $CHIPSET_IMAGE_NAME
+	cleanup_docker_images $CHIPSET_IMAGE_NAME
+	echo "Chipset build success, generated static library lib$CHIPSET_MCU.a \
+	at $MOUNT_DIR/$CHIPSET_FAMILY along with headers"
+	exit 0
+
+}
+
+build_app()
+{
+	APP_DOCKER="$1"
+	shift
+	APP_MAKE_ENV=""
+
+	APP_NAME=""
+	CHIPSET_BUILDENV=""
+
+	for ARGUMENT in "$@"
+	do
+		KEY=$(echo $ARGUMENT | cut -f1 -d=)
+		VALUE=$(echo $ARGUMENT | cut -f2 -d=)
+		if ! [ -z "$VALUE" ]; then
+			case "$KEY" in
+				app_dir) BUILD_APP_ARG="-e APP=$VALUE"
+					  APP_NAME=$VALUE
+					  ;;
+				chipset_env) CHIPSET_BUILDENV="-e CHIPSET_BUILDENV=$VALUE "
+						;;
+				*) APP_MAKE_ENV+="-e $KEY=$VALUE "
+			esac
+		fi
+	done
+
+	if [ -z $APP_NAME ]; then
+		echo "Provide app_name paramter to app to compile"
+		usage
+	fi
+	if [ -z $CHIPSET_BUILDENV ]; then
+		echo "Provide chipset build environment where application can find \
+		necessary header and library files"
+		usage
+	fi
+	echo "Project root: $PROJ_ROOT"
+	echo "SDK root: $SDK_ROOT"
+	echo "Application directory to build: $APP_NAME"
+	echo "Application specific build options: $APP_MAKE_ENV"
+	exit 0
+	docker build -t $TS_SDK_IMAGE_NAME -f $SDK_ROOT/Dockerfile $PROJ_ROOT
+	docker build -t $APP_NAME -f $APP_DOCKER $PROJ_ROOT
+	docker run --rm $BUILD_APP_ARG $APP_MAKE_ENV -e PROTOCOL=$PROTOCOL \
+		-e CHIPSET_FAMILY=$CHIPSET_FAMILY -e CHIPSET_MCU=$CHIPSET_MCU \
+		-e DEV_BOARD=$DEV_BOARD -e MODEM_TARGET=$MODEM_TARGET \
+		-v $MOUNT_DIR:/build $APP_NAME
+	check_build $APP_NAME $TS_SDK_IMAGE_NAME
+	cleanup_docker_images $APP_NAME $TS_SDK_IMAGE_NAME
+}
 
 if [ "$#" -eq "0" ]; then
 	echo "Insufficient arguments"
@@ -157,10 +225,27 @@ if [ "$#" -eq "0" ]; then
 fi
 
 if [ -z "$1" ]; then
-	echo "Specify relative path including dockerfile name for the chipset base image to use"
+	usage
+elif [ $1 == "chipset" ]; then
+	if [ -z "$2" ]; then
+		echo "Specify relative path including dockerfile name.."
+		usage
+	fi
+	shift
+	check_for_dir "$1"
+	build_chipset_library "$@"
+elif [ $1 == "app" ]; then
+	if [ -z "$2" ]; then
+		echo "Specify relative path including dockerfile name.."
+		usage
+	fi
+	shift
+	check_for_dir "$1"
+	build_app "$@"
+elif [ $1 == "install_sdk" ]; then
 	usage
 else
-	check_for_dir "$1"
+	usage
 fi
 
 if [ -z "$2" ]; then
@@ -171,24 +256,3 @@ else
 	process_app_args "$3" "$4" "$5"
 	echo "docker runtime env args: $BUILD_APP_PROTO $BUILD_APP_ARG"
 fi
-
-APP_DIR_PATH=`dirname $2`
-APP_DIR=`basename $APP_DIR_PATH`
-
-echo "Project root: $PROJ_ROOT"
-echo "SDK root: $SDK_ROOT"
-echo "Application to build: $APP_DIR"
-
-cleanup_prev_docker_builds
-
-# Build chipset sdk
-docker build -t $CHIPSET_IMAGE_NAME -f $1 $PROJ_ROOT
-docker run --rm -v $MOUNT_DIR:/build $CHIPSET_IMAGE_NAME
-check_build $CHIPSET_IMAGE_NAME
-
-docker build -t $TS_SDK_IMAGE_NAME -f $SDK_ROOT/Dockerfile $PROJ_ROOT
-docker build -t $APP_DIR -f $2 $PROJ_ROOT
-docker run --rm $BUILD_APP_PROTO $BUILD_APP_ARG -v $MOUNT_DIR:/build $APP_DIR
-check_build $APP_DIR $TS_SDK_IMAGE_NAME $CHIPSET_IMAGE_NAME
-
-cleanup_docker_images $APP_DIR $TS_SDK_IMAGE_NAME $CHIPSET_IMAGE_NAME

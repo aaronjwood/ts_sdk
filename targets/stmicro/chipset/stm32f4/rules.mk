@@ -19,9 +19,9 @@ CFLAGS_DBG_LIB = -Wall -Wcast-align $(CFLAGS_COM) $(DBG_OP_USER_FLAGS) \
 #==================================RULES=======================================#
 .PHONY: all build_chipset clean
 
-all build_chipset: $(OBJ) libstm32f429.a
+all build_chipset: $(OBJ) lib$(BUILD_MCU).a
 
-libstm32f429.a:
+lib$(BUILD_MCU).a:
 	$(AR) rc $@ $(OBJ)
 	$(RANLIB) $@
 

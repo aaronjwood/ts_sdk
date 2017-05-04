@@ -2,13 +2,9 @@
 
 # Get platform-specific settings
 # This must also define variables needed to locate the toolchain.
-
-PLATFORM_HAL_ROOT = $(PROJ_ROOT)/platform
-SDK_ROOT = $(PROJ_ROOT)/sdk/cloud_comm
-
-export PLATFORM_HAL_ROOT
-export SDK_ROOT
-
+CHIPSET_FAMILY ?= stm32f4
+CHIPSET_MCU ?= stm32f429
+DEV_BOARD ?= nucleo
 # Defines which modem to use. Currently only the ublox toby201 is supported.
 MODEM_TARGET ?= toby201
 
@@ -39,7 +35,10 @@ LDFLAGS ?= -Wl,-Map,fw.map,--cref
 export INC
 
 include $(SDK_ROOT)/cc_sdk.mk
+INC += SDK_INC
+
 include $(PLATFORM_HAL_ROOT)/platform.mk
+INC += PLATFORM_INC
 
 # SDK_SRC is provided by cc_sdk.mk
 CORELIB_SRC += $(SDK_SRC)
