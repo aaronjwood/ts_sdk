@@ -24,6 +24,7 @@ Usage: 1) $SCRIPT_NAME chipset <docker file relative path including file>
 <relative path including file to app dockerfile> app_dir=<app directory name> chipset_env=<relative path> \
 [Optional application options in key=value pair]
        3) $SCRIPT_NAME install_sdk <absolute destination path>
+       Installs only sdk components
 
 Note: Optional application options will be provided as a environment variable to docker container
 while building application. Also, argument provided for chipset_env will be exported
