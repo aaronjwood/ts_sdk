@@ -122,7 +122,9 @@ for those pins so that they cannot be erroneously initialized by the HAL.
 ---------------------------
 The HAL is contained within ts_sdk/platform. The per target implementation of
 each layer 3 HAL component lies within:
-ts_sdk/platform/drivers/<component name>/
+ts_sdk/platform/drivers/<component name>/<chipset family>/<mcu>
+If a driver is common to all members of the chipset family, the <mcu> level will
+not exist.
 
 Target specific implementations of layer 2 HAL components lie within the
 following directories:
@@ -132,6 +134,10 @@ following directories:
 The first directory houses all implementations common across the chipset family,
 the second contains MCU specific implementations, and the third contains board
 specific implementations.
+
+Note that the names of the directories representing <chipset family>, <mcu> and
+<board> are also the expected values of BUILD_TARGET, BUILD_MCU and BUILD_BOARD,
+respectively, as referenced in the SDK README.
 
 
 4. Porting the SDK across boards
