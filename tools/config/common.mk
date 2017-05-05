@@ -7,8 +7,9 @@ DEV_BOARD ?= nucleo
 MODEM_TARGET ?= toby201
 
 # Defines which cloud protocol to use. Valid options are:
-#  OTT_PROTOCOL
-#  SMSNAS_PROTOCOL
+# OTT_PROTOCOL
+# SMSNAS_PROTOCOL
+# NO_PROTOCOL
 # Override on the command line with: make PROTOCOL=<option>
 PROTOCOL ?= OTT_PROTOCOL
 
@@ -29,7 +30,7 @@ DBG_OP_LIB_FLAGS = -Os $(LTOFLAG)
 FW_EXEC = firmware_$(PROTOCOL)_$(DEV_BOARD).elf
 LDFLAGS ?= -Wl,-Map,fw.map,--cref
 
-#Include application header include
+# Include application header include
 INC += $(APP_INC)
 
 include $(SDK_ROOT)/cc_sdk.mk
@@ -40,6 +41,7 @@ INC += $(PLATFORM_INC)
 
 # SDK_SRC is provided by cc_sdk.mk
 CORELIB_SRC += $(SDK_SRC)
+
 # PLATFORM_HAL_SRC is provided by platform.mk
 CORELIB_SRC += $(PLATFORM_HAL_SRC)
 
@@ -50,6 +52,7 @@ else
 $(error "Makefile must define the CHIPSET_FAMILY variable")
 endif
 
+# Header files provided by the chipset build environment
 INC += $(CHIPSET_INC)
 export INC
 

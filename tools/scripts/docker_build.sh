@@ -19,47 +19,35 @@ TS_SDK_IMAGE_NAME="ts_sdk"
 usage()
 {
 	cat << EOF
-Usage: $SCRIPT_NAME <relative path to CHIPSET_DOCKERFILE> <relative path to APP_DOCKERFILE> \
-[Application options]
-Note: arguments in <> are mandatory while [] are optional, \
-optional arguments has to be specified by key=value format
+Usage: 1) $SCRIPT_NAME chipset <docker file relative path including file>
+       2) $SCRIPT_NAME app <relative path including file to sdk dockerfile> \
+<relative path including file to app dockerfile> app_dir=<app directory name> chipset_env=<relative path> \
+[Optional application options in key=value pair]
+
+Note: Optional application options will be provided as a environment variable to docker container
+while building application. Also, argument provided for chipset_env will be exported
+to docker container as a environmental variable.
 
 Example Usage:
-tools/scripts/docker_build.sh ./tools/docker/Dockerfile.thingservice ./sample_apps/Dockerfile \
-APP=sensor_examples
+
+To buid chipset sdk:
+tools/scripts/docker_build.sh chipset tools/docker/Dockerfile.stm32f4_dockerhub
+
+To buid Application:
+tools/scripts/docker_build.sh app tools/docker/Dockerfile.sdk_dockerhub \
+tools/docker/Dockerfile.apps app_dir=sensor_examples chipset_env=/build/stm32f4 PROJ_NAME=bmp180
+
+Note: First build chipset sdk before building any applications
 
 Description:
 	Script to build various apps from apps and module_tests directories based on
-	application dockerfile provided, script first creates chipset docker image which
-	copies all the necessary chipset specific SDK at /ts_sdk_bldenv in container. It
-	then creates docker image using image created in first step for the thing space SDK, image
-	has all the necessary sdk files at /ts_sdk. In a final step it creates application
-	docker image from the image created in second step which has application directory
-	at /ts_sdk/apps or /ts_sdk/module_tests and other vendor dependent libraries
-	like mbedtls at /ts_sdk/vendor. Script and eventually docker run command creates
-	volume build/<app>/ to house all the compiled objects and binary images.
-
-CHIPSET_DOCKERFILE: relative path to chipset dockerfile, currently two dockerfiles are included in this SDK
-	as below:
-	1) ts_sdk/tools/docker/Dockerfile.dockerhub -> Fetches base ubuntu image with arm toolchain
-	from dockerhub (Use this file when internal server is not available) and
-	copies chipset sdk at /ts_sdk_bldenv/ in the docker image
-	2) ts_sdk/tools/docker/Dockerfile.thingservice -> Fetches base ubuntu image with arm toolchain
-	from internal docker registry and copies chipset sdk at /ts_sdk_bldenv/ in the docker image, file
-	can be used for any one having access to internal verizon registry
-
-APP_DOCKERFILE: relative path to application dockerfile
-	This should provide makefile to compile application by linking to /ts_sdk_bldenv
-	directory for chipset related sources and header and /ts_sdk_bldenv/toolchain/
-	for gcc toolchain, it should also include cc_sdk.mk to link it to sdk sources and header
-
-Application options: Optional paramters which are provided as key=value
-	Available options are as below:
-
-	1) APP=<application to compile>, for example APP=cc_test
-	available options are any app or test directories from apps and module_tests
-	Note: This application should correspond to APP_DOCKERFILE, default is cc_test
-
+	application dockerfile provided. It also support of building stm32f4 chipset
+	Script can be modified to append any other chipset. Chipset build artifacts
+	can be found under ./build/$CHIPSET_FAMILY where application depends to
+	get necessary headers and library. Currently, all the docker container
+	uses ubuntu 16.04 base images with arm toolchian preinstalled at /ts_sdk_bldenv/toolchain
+	and mounts ./build directory to output build results.
+	Provided dockerfiles can be found at ./tools/docker/
 EOF
 	exit 1
 }
