@@ -7,7 +7,7 @@
 CORELIB_SRC := $(filter-out $(DBG_LIB_SRC), $(CORELIB_SRC))
 
 # Create lists of object files to be generated from the sources
-OBJ_USER = $(addsuffix .o, $(basename $(notdir $(USER_SRC))))
+OBJ_USER = $(addsuffix .o, $(basename $(notdir $(APP_SRC))))
 OBJ_CORELIB = $(addsuffix .o, $(basename $(CORELIB_SRC)))
 OBJ_DBG_LIB = $(addsuffix .o, $(basename $(DBG_LIB_SRC)))
 

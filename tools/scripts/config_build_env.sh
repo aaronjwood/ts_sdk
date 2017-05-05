@@ -1,9 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright(C) 2017 Verizon. All rights reserved
 
 SCRIPT_NAME="config_build_env.sh"
 SCRIPT="tools/scripts/$SCRIPT_NAME"
-ENVFILE=".env_list"
 SDK="cloud_comm"
 PROJ_ROOT="$PWD"
 
@@ -16,61 +15,74 @@ export SDK_APP_ROOT=$PROJ_ROOT/apps
 # application/build directory
 export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 
-# chipset and development board related defaults
-CHIPSET_FAMILY="stm32f4"
-CHIPSET_MCU="stm32f429"
-DEV_BOARD="nucleo"
+# Example stmicro stm32f4 chipset and development board related parameters
+#CHIPSET_FAMILY="stm32f4"
+#CHIPSET_MCU="stm32f429"
+#DEV_BOARD="nucleo"
 
 # Defines which modem to use. Currently only the ublox toby201 is supported.
-MODEM_TARGET="toby201"
+#MODEM_TARGET="toby201"
 
 # Defines which cloud protocol to use. Valid options are:
 # OTT_PROTOCOL
 # SMSNAS_PROTOCOL
-PROTOCOL="OTT_PROTOCOL"
+# NO_PROTOCOL
+#PROTOCOL="OTT_PROTOCOL"
 
 usage()
 {
 	cat << EOF
 Description:
 	Script to prepare environment for various application build process using
-	this sdk. Generated environment variables will be written in $ENVFILE
-	file as key value pair and also exported so that make and docker can use
-	them in the build process. Script exports PROJ_ROOT, SDK_ROOT, SDK_APP_ROOT
-	and PLATFORM_HAL_ROOT as a default, where PROJ_ROOT is root of the repository,
+	this sdk. Generated environment variables will exported so that make and
+	docker can use them in the build process. Script exports PROJ_ROOT,
+	SDK_ROOT, SDK_APP_ROOT, PLATFORM_HAL_ROOT and MK_HELPER_PATH as a default,
+	where PROJ_ROOT is root of the repository,
 	SDK_ROOT is the root of the SDK, SDK_APP_ROOT is the apps directory
-	and PLATFORM_HAL_ROOT is the platform layer root. Beside
-	that it also exports $MK_HELPER_PATH for a build utility related includes
+	PLATFORM_HAL_ROOT is the platform layer root,
+	MK_HELPER_PATH is path to tools/config to find various makefile helpers.
 
-Usage:  source $SCRIPT_NAME [Script Options] [Build Options]
-        [] - optional and depends on the application build specific environment.
-        Specify as a key=value pair.
+	Note: This script needs to be sourced both in host and docker container before
+	executing any build related scripts. In the docker build process, sourcing
+	scripts sets Above mentioned various repository paths which helps makefile
+	to find different sources.
 
-	Script Options: Script specific options, this does not affect build
-	environment.
+Example Usage:
+. $SCRIPT_NAME chipset_family=<value> mcu=<> dev_board=<> modem=<> protocol=<>
+
+Short Cut Settings: This sets sdk default for chipset family, mcu, board and modem
+except transport protocol
+
+. $SCRIPT_NAME sdk_defaults protocol=<>
+
+Usage:  . $SCRIPT_NAME Options
+	Options are speficied using key=value pair
+
+	Script Options: Script specific options
 
 	print-env:
                 Prints currently configured build environment
 	clear-env:
-		Clears previously exported environment, deletes $ENVFILE as well
+		Clears previously exported environment
 	help:
 		Displays script usage
 
-	Build Options: List of build options, all the options mentioned here has
-	default value set for stm32f429 MCU based nucleo board, ublox toby201
-	LTE modem and OTT as a transport protocol. All the options must be
-	specified as a key=value pair, for exaple, CHIPSET_MCU=stm32f429.
+	Build Options: List of build options, all the options must be
+	specified as a key=value pair, for exaple, mcu=stm32f429.
 
-	CHIPSET_FAMILY: Chipset family, default is stm32f4
+	chipset_family: Chipset family
 
-	CHIPSET_MCU: Micro controller, dafault value is stm32f429
+	mcu: Micro controller
 
-	DEV_BOARD: Name of the development board, default is nucleo
+	dev_board: Name of the development board
 
-	MODEM_TARGET: LTE modem target, default is toby201
+	modem: LTE modem target, only toby201 value supported
 
-	PROTOCOL: Cloud data transport protocol, default is OTT_PROTOCOL. Valid
-	values are OTT_PROTOCOL and SMSNAS_PROTOCOL
+	protocol: Cloud data transport protocol. Valid values are OTT_PROTOCOL,
+	SMSNAS_PROTOCOL and NO_PROTOCOL
+
+	Note: All the options must be present, there are no default values
+
 EOF
 	return 0
 }
@@ -82,11 +94,11 @@ process_app_args()
 		key=$(echo $ARGUMENT | cut -f1 -d=)
 		value=$(echo $ARGUMENT | cut -f2 -d=)
 		case "$key" in
-			CHIPSET_FAMILY)	CHIPSET_FAMILY="$value";;
-			CHIPSET_MCU)	CHIPSET_MCU="$value";;
-			DEV_BOARD)	DEV_BOARD="$value";;
-			MODEM_TARGET)	MODEM_TARGET="$value";;
-			PROTOCOL)	PROTOCOL="$value";;
+			chipset_family)	CHIPSET_FAMILY="$value";;
+			mcu)		CHIPSET_MCU="$value";;
+			dev_board)	DEV_BOARD="$value";;
+			modem)		MODEM_TARGET="$value";;
+			protocol)	PROTOCOL="$value";;
 			*)		usage;;
 		esac
 	done
@@ -94,10 +106,6 @@ process_app_args()
 
 clear_env()
 {
-	if [ -f "$ENVFILE" ]; then
-	        echo "Clearing current build environment"
-	        rm -rf $ENVFILE
-	fi
 	unset CHIPSET_FAMILY
 	unset CHIPSET_MCU
 	unset DEV_BOARD
@@ -111,6 +119,30 @@ clear_env()
 
 }
 
+print_env()
+{
+	echo "Chipset family = $CHIPSET_FAMILY"
+	echo "Chipset MCU = $CHIPSET_MCU"
+	echo "Dev board/kit = $DEV_BOARD"
+	echo "Modem target = $MODEM_TARGET"
+	echo "Cloud transport protocol = $PROTOCOL"
+}
+
+exp_sdk_dafaults()
+{
+	export CHIPSET_FAMILY="stm32f4"
+	export CHIPSET_MCU="stm32f429"
+	export DEV_BOARD="nucleo"
+	export MODEM_TARGET="toby201"
+	if ! [ -z "$1" ]; then
+		key=$(echo $1 | cut -f1 -d=)
+		value=$(echo $1 | cut -f2 -d=)
+		if [ $key == "protocol" ]; then
+			export PROTOCOL="$value"
+		fi
+	fi
+}
+
 if ! [ -f "$SCRIPT" ]; then
 	echo "Script must be run from the root of the repository"
 	return 1
@@ -118,31 +150,21 @@ fi
 
 if ! [ -z "$1" ]; then
 	if [ "$1" == "print-env" ]; then
-		cat $ENVFILE
+		print_env
 		return 0
 	elif [ "$1" == "clear-env" ]; then
 		clear_env
 		return 0
 	elif [ "$1" == "help" ]; then
 		usage
+	elif [ "$1" == "sdk_defaults" ]; then
+		shift
+		exp_sdk_dafaults "$@"
+		return 0
 	else
 		process_app_args "$@"
 	fi
 fi
-
-# write in .env_list file
-cat > $ENVFILE << EOF
-PROJ_ROOT=$PROJ_ROOT
-PLATFORM_HAL_ROOT=$PLATFORM_HAL_ROOT
-SDK_ROOT=$SDK_ROOT
-SDK_APP_ROOT=$SDK_APP_ROOT
-MK_HELPER_PATH=$MK_HELPER_PATH
-CHIPSET_FAMILY=$CHIPSET_FAMILY
-CHIPSET_MCU=$CHIPSET_MCU
-DEV_BOARD=$DEV_BOARD
-MODEM_TARGET=$MODEM_TARGET
-PROTOCOL=$PROTOCOL
-EOF
 
 export CHIPSET_FAMILY=$CHIPSET_FAMILY
 export CHIPSET_MCU=$CHIPSET_MCU

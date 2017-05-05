@@ -21,11 +21,10 @@ vpath %.c $(SRCDIR)/$(PROJ_NAME): \
 
 # User application includes
 APP_INC = -I $(SRCDIR)/include
-export APP_INC
 
 # User application sources
-USER_SRC = $(wildcard $(SRCDIR)/*.c)
-USER_SRC += $(wildcard $(SRCDIR)/$(PROJ_NAME)/*_$(CHIPSET_FAMILY).c)
+APP_SRC = $(wildcard $(SRCDIR)/*.c)
+APP_SRC += $(wildcard $(SRCDIR)/$(PROJ_NAME)/*_$(CHIPSET_FAMILY).c)
 
 # Sources are built without debug info and optimized for size.
 # Use DBG_LIB_SRC to compile a subset of the sources with the

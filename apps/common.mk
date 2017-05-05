@@ -53,5 +53,7 @@ $(error "Makefile must define the CHIPSET_FAMILY variable")
 endif
 
 INC += $(CHIPSET_INC)
+export INC
+
 # Defines the target rules
 include $(SDK_APP_ROOT)/rules.mk

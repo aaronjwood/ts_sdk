@@ -60,10 +60,6 @@ Application options: Optional paramters which are provided as key=value
 	available options are any app or test directories from apps and module_tests
 	Note: This application should correspond to APP_DOCKERFILE, default is cc_test
 
-	2) PROTO=<Communication protocol to use>, thingspace sdk supports two options
-	OTT_PROTOCOL and SMSNAS_PROTOCOL as a value, default is SMSNAS_PROTOCOL
-	Both 1 and 2 options above are used as environment (-e flag) variable in docker run command
-
 EOF
 	exit 1
 }
@@ -202,7 +198,7 @@ build_app()
 
 	docker build -t $TS_SDK_IMAGE_NAME -f $SDK_ROOT/Dockerfile $PROJ_ROOT
 	docker build -t $APP_NAME -f $APP_DOCKER $PROJ_ROOT
-	docker run --rm $BUILD_APP_ARG $APP_MAKE_ENV -e PROTOCOL=$PROTOCOL \
+	docker run $BUILD_APP_ARG $APP_MAKE_ENV -e PROTOCOL=$PROTOCOL \
 		-e CHIPSET_FAMILY=$CHIPSET_FAMILY -e CHIPSET_MCU=$CHIPSET_MCU \
 		-e DEV_BOARD=$DEV_BOARD -e MODEM_TARGET=$MODEM_TARGET $CHIPSET_BUILDENV \
 		-v $MOUNT_DIR:/build $APP_NAME
