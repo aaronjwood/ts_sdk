@@ -17,7 +17,7 @@ vpath %.c $(SRCDIR)/src:
 APP_INC = -I $(SRCDIR)/inc
 
 # User application sources
-USER_SRC = $(wildcard $(SRCDIR)/src/*.c)
+APP_SRC = $(wildcard $(SRCDIR)/src/*.c)
 
 # Library sources are built without debug info and optimized for size.
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
