@@ -203,7 +203,7 @@ install_sdk()
 		echo "Provide absolute path to install sdk"
 		usage
 	fi
-	cp $SDK_ROOT $1
+	cp -r -p $SDK_ROOT $1
 	if ! [ $? -eq 0 ]; then
 		echo "Installing sdk failed..."
 		exit 1
