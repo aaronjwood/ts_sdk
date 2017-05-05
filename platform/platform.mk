@@ -29,7 +29,7 @@ export PLATFORM_HAL_CFLAGS
 FIND_PARAM = -maxdepth 1 -name "*.c"
 
 # Path for driver sources
-DRV_ROOT = $(PLATFORM_HAL_ROOT)/drivers/**
+DRV_ROOT = $(PLATFORM_HAL_ROOT)/drivers/*
 DRV_COM = $(shell find $(DRV_ROOT) $(FIND_PARAM))
 DRV_CS = $(shell find $(DRV_ROOT)/$(BUILD_TARGET) $(FIND_PARAM))
 DRV_MCU = $(shell find $(DRV_ROOT)/$(BUILD_TARGET)/$(BUILD_MCU) $(FIND_PARAM))
