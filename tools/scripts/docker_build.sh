@@ -23,6 +23,7 @@ Usage: 1) $SCRIPT_NAME chipset <docker file relative path including file>
        2) $SCRIPT_NAME app <relative path including file to sdk dockerfile> \
 <relative path including file to app dockerfile> app_dir=<app directory name> chipset_env=<relative path> \
 [Optional application options in key=value pair]
+       3) $SCRIPT_NAME install_sdk <absolute destination path>
 
 Note: Optional application options will be provided as a environment variable to docker container
 while building application. Also, argument provided for chipset_env will be exported
@@ -36,6 +37,7 @@ tools/scripts/docker_build.sh chipset tools/docker/Dockerfile.stm32f4_dockerhub
 To buid Application:
 tools/scripts/docker_build.sh app tools/docker/Dockerfile.sdk_dockerhub \
 tools/docker/Dockerfile.apps app_dir=sensor_examples chipset_env=/build/stm32f4 PROJ_NAME=bmp180
+Where PROJ_NAME is application specific option which is optional.
 
 Note: First build chipset sdk before building any applications
 
@@ -48,6 +50,10 @@ Description:
 	uses ubuntu 16.04 base images with arm toolchian preinstalled at /ts_sdk_bldenv/toolchain
 	and mounts ./build directory to output build results.
 	Provided dockerfiles can be found at ./tools/docker/
+
+	Script also installs sdk only components to destination, however this
+	will require destination environment to provide hardware abstraction layer
+	APIs used by this SDK. Usage 3 demonstrates this option.
 EOF
 	exit 1
 }
