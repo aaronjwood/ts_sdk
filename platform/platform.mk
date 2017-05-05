@@ -34,14 +34,14 @@ FIND_PARAM = -maxdepth 1 -name "*.c"
 # Path for driver sources
 DRV_ROOT = $(PLATFORM_HAL_ROOT)/drivers/*
 DRV_COM = $(shell find $(DRV_ROOT) $(FIND_PARAM))
-DRV_CS = $(shell find $(DRV_ROOT)/$(BUILD_TARGET) $(FIND_PARAM))
-DRV_MCU = $(shell find $(DRV_ROOT)/$(BUILD_TARGET)/$(BUILD_MCU) $(FIND_PARAM))
+DRV_CS = $(shell find $(DRV_ROOT)/$(CHIPSET_FAMILY) $(FIND_PARAM))
+DRV_MCU = $(shell find $(DRV_ROOT)/$(CHIPSET_FAMILY)/$(CHIPSET_MCU) $(FIND_PARAM))
 DRV_PATH = $(patsubst %,%:,$(sort $(dir $(DRV_COM) $(DRV_CS) $(DRV_MCU))))
 
 # Path for software abstraction sources
 SW_ROOT = $(PLATFORM_HAL_ROOT)/sw
-SW_MCU = $(shell find $(SW_ROOT)/$(BUILD_TARGET)/$(BUILD_MCU) $(FIND_PARAM))
-SW_BOARD = $(shell find $(SW_ROOT)/$(BUILD_TARGET)/$(BUILD_MCU)/$(BUILD_BOARD) $(FIND_PARAM))
+SW_MCU = $(shell find $(SW_ROOT)/$(CHIPSET_FAMILY)/$(CHIPSET_MCU) $(FIND_PARAM))
+SW_BOARD = $(shell find $(SW_ROOT)/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/$(DEV_BOARD) $(FIND_PARAM))
 SW_PATH = $(patsubst %,%:,$(sort $(dir $(SW_MCU) $(SW_BOARD))))
 
 # Search paths for device drivers and port pin API sources

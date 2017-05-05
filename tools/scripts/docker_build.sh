@@ -102,10 +102,10 @@ check_config()
 
 }
 
-check_for_dir()
+check_for_file()
 {
-	if [ -d $1 ]; then
-		echo "Specify dockerfile name along with the relative path to application directory"
+	if ! [ -f $1 ]; then
+		echo "Specify dockerfile name along with the relative path"
 		usage
 	fi
 }
@@ -157,7 +157,9 @@ build_chipset_library()
 
 build_app()
 {
-	APP_DOCKER="$1"
+	APP_DOCKER="$2"
+	SDK_DOCKER="$1"
+	shift
 	shift
 	APP_MAKE_ENV=""
 
@@ -196,7 +198,7 @@ build_app()
 	echo "Application directory to build: $APP_NAME"
 	echo "Application specific build options: $APP_MAKE_ENV"
 
-	docker build -t $TS_SDK_IMAGE_NAME -f $SDK_ROOT/Dockerfile $PROJ_ROOT
+	docker build -t $TS_SDK_IMAGE_NAME -f $SDK_ROOT/$SDK_DOCKER $PROJ_ROOT
 	docker build -t $APP_NAME -f $APP_DOCKER $PROJ_ROOT
 	docker run $BUILD_APP_ARG $APP_MAKE_ENV -e PROTOCOL=$PROTOCOL \
 		-e CHIPSET_FAMILY=$CHIPSET_FAMILY -e CHIPSET_MCU=$CHIPSET_MCU \
@@ -233,7 +235,7 @@ elif [ $1 == "chipset" ]; then
 		usage
 	fi
 	shift
-	check_for_dir "$1"
+	check_for_file "$1"
 	build_chipset_library "$@"
 elif [ $1 == "app" ]; then
 	if [ -z "$2" ]; then
@@ -241,7 +243,8 @@ elif [ $1 == "app" ]; then
 		usage
 	fi
 	shift
-	check_for_dir "$1"
+	check_for_file "$SDK_ROOT/$1"
+	check_for_file "$2"
 	build_app "$@"
 elif [ $1 == "install_sdk" ]; then
 	shift
