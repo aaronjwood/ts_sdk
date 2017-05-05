@@ -26,5 +26,5 @@ APP_SRC = $(wildcard $(SRCDIR)/*.c)
 DBG_LIB_SRC =
 
 # Common and per-platform Makefile variables
-include $(SDK_APP_ROOT)/common.mk
+include $(MK_HELPER_PATH)/common.mk
 endif

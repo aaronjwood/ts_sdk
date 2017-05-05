@@ -1,7 +1,5 @@
 # Copyright(C) 2016,2017 Verizon. All rights reserved.
 
-# Get platform-specific settings
-# This must also define variables needed to locate the toolchain.
 CHIPSET_FAMILY ?= stm32f4
 CHIPSET_MCU ?= stm32f429
 DEV_BOARD ?= nucleo
@@ -47,7 +45,7 @@ CORELIB_SRC += $(PLATFORM_HAL_SRC)
 
 # Selecting platform according to CHIPSET_FAMILY
 ifeq ($(CHIPSET_FAMILY),stm32f4)
-include $(SDK_APP_ROOT)/stm32f4_buildenv.mk
+include $(MK_HELPER_PATH)/stm32f4_buildenv.mk
 else
 $(error "Makefile must define the CHIPSET_FAMILY variable")
 endif
@@ -56,4 +54,4 @@ INC += $(CHIPSET_INC)
 export INC
 
 # Defines the target rules
-include $(SDK_APP_ROOT)/rules.mk
+include $(MK_HELPER_PATH)/rules.mk

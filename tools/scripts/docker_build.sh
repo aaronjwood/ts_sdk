@@ -198,7 +198,7 @@ build_app()
 	echo "Application directory to build: $APP_NAME"
 	echo "Application specific build options: $APP_MAKE_ENV"
 
-	docker build -t $TS_SDK_IMAGE_NAME -f $SDK_ROOT/$SDK_DOCKER $PROJ_ROOT
+	docker build -t $TS_SDK_IMAGE_NAME -f $SDK_DOCKER $PROJ_ROOT
 	docker build -t $APP_NAME -f $APP_DOCKER $PROJ_ROOT
 	docker run $BUILD_APP_ARG $APP_MAKE_ENV -e PROTOCOL=$PROTOCOL \
 		-e CHIPSET_FAMILY=$CHIPSET_FAMILY -e CHIPSET_MCU=$CHIPSET_MCU \
@@ -243,7 +243,7 @@ elif [ $1 == "app" ]; then
 		usage
 	fi
 	shift
-	check_for_file "$SDK_ROOT/$1"
+	check_for_file "$1"
 	check_for_file "$2"
 	build_app "$@"
 elif [ $1 == "install_sdk" ]; then

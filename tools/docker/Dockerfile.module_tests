@@ -1,0 +1,12 @@
+FROM ts_sdk
+RUN mkdir -p build
+COPY module_tests /ts_sdk/module_tests
+COPY tools/config /ts_sdk/tools/config
+COPY tools/scripts/config_build_env.sh /ts_sdk/tools/scripts/
+RUN chmod a+x /ts_sdk/tools/scripts/config_build_env.sh
+CMD cd /ts_sdk && \
+    . tools/scripts/config_build_env.sh \
+    && cd /ts_sdk/module_tests/$APP \
+    && make build \
+    && mkdir -p /build/$APP \
+    && cp -r ./build/* /build/$APP

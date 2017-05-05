@@ -2,7 +2,6 @@
 
 #include <string.h>
 #include "dbg.h"
-#include "uart.h"
 #include "mbedtls/net.h"
 #include "sys.h"
 
