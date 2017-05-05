@@ -157,8 +157,8 @@ build_chipset_library()
 
 build_app()
 {
-	APP_DOCKER="$2"
 	SDK_DOCKER="$1"
+	APP_DOCKER="$2"
 	shift
 	shift
 	APP_MAKE_ENV=""
