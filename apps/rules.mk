@@ -21,7 +21,7 @@ CFLAGS_DBG_LIB = -Wall -Wcast-align $(CFLAGS_COM) $(DBG_OP_USER_FLAGS) \
 	-fdata-sections -ffunction-sections
 
 #==================================RULES=======================================#
-.PHONY: all build vendor_libs dump bin clean upload
+.PHONY: all build vendor_libs dump bin clean
 
 all build: $(FW_EXEC)
 	$(SIZE) $(FW_EXEC)

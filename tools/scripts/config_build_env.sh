@@ -10,10 +10,11 @@ PROJ_ROOT="$PWD"
 export PROJ_ROOT=$PROJ_ROOT
 export PLATFORM_HAL_ROOT=$PROJ_ROOT/platform
 export SDK_ROOT=$PROJ_ROOT/sdk/$SDK
+export SDK_APP_ROOT=$PROJ_ROOT/apps
 
 # make build utility makefile fragement to help gather all the object codes into
 # application/build directory
-export BUILD_MK_PATH=$PROJ_ROOT/tools/config
+export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 
 # chipset and development board related defaults
 CHIPSET_FAMILY="stm32f4"
@@ -35,10 +36,11 @@ Description:
 	Script to prepare environment for various application build process using
 	this sdk. Generated environment variables will be written in $ENVFILE
 	file as key value pair and also exported so that make and docker can use
-	them in the build process. Script exports PROJ_ROOT, SDK_ROOT and PLATFORM_HAL_ROOT
-	as a default, where PROJ_ROOT is root of the repository, SDK_ROOT is the
-	root of the SDK and PLATFORM_HAL_ROOT is the platform layer root. Beside
-	that it also exports $BUILD_MK_PATH for a build utility related includes
+	them in the build process. Script exports PROJ_ROOT, SDK_ROOT, SDK_APP_ROOT
+	and PLATFORM_HAL_ROOT as a default, where PROJ_ROOT is root of the repository,
+	SDK_ROOT is the root of the SDK, SDK_APP_ROOT is the apps directory
+	and PLATFORM_HAL_ROOT is the platform layer root. Beside
+	that it also exports $MK_HELPER_PATH for a build utility related includes
 
 Usage:  source $SCRIPT_NAME [Script Options] [Build Options]
         [] - optional and depends on the application build specific environment.
@@ -104,7 +106,8 @@ clear_env()
 	unset PROJ_ROOT
 	unset PLATFORM_HAL_ROOT
 	unset SDK_ROOT
-	unset BUILD_MK_PATH
+	unset MK_HELPER_PATH
+	unset SDK_APP_ROOT
 
 }
 
@@ -132,7 +135,8 @@ cat > $ENVFILE << EOF
 PROJ_ROOT=$PROJ_ROOT
 PLATFORM_HAL_ROOT=$PLATFORM_HAL_ROOT
 SDK_ROOT=$SDK_ROOT
-BUILD_MK_PATH=$BUILD_MK_PATH
+SDK_APP_ROOT=$SDK_APP_ROOT
+MK_HELPER_PATH=$MK_HELPER_PATH
 CHIPSET_FAMILY=$CHIPSET_FAMILY
 CHIPSET_MCU=$CHIPSET_MCU
 DEV_BOARD=$DEV_BOARD

@@ -71,26 +71,31 @@ EOF
 check_config()
 {
 	local flag="false"
-	if [ -z $CHIPSET_FAMILY ]; then
+
+	if [ -z "$CHIPSET_FAMILY" ]; then
 		flag="true"
 	fi
-	if [ -z $CHIPSET_MCU ]; then
+	if [ -z "$CHIPSET_MCU" ]; then
 		flag="true"
 	fi
-	if [ -z $DEV_BOARD ]; then
+	if [ -z "$DEV_BOARD" ]; then
 		flag="true"
 	fi
-	if [ -z $MODEM_TARGET ]; then
+	if [ -z "$MODEM_TARGET" ]; then
 		flag="true"
 	fi
-	if [ -z $PROTOCOL ]; then
+	if [ -z "$PROTOCOL" ]; then
 		flag="true"
 	fi
-	if [ -z $PROJ_ROOT ]; then
+	if [ -z "$PROJ_ROOT" ]; then
 		flag="true"
 	fi
 
-	if [ -z $SDK_ROOT ]; then
+	if [ -z "$SDK_ROOT" ]; then
+		flag="true"
+	fi
+
+	if [ -z "$SDK_APP_ROOT" ]; then
 		flag="true"
 	fi
 
@@ -107,22 +112,6 @@ check_for_dir()
 		echo "Specify dockerfile name along with the relative path to application directory"
 		usage
 	fi
-}
-
-process_app_args()
-{
-	for ARGUMENT in "$@"
-	do
-		KEY=$(echo $ARGUMENT | cut -f1 -d=)
-		VALUE=$(echo $ARGUMENT | cut -f2 -d=)
-		if ! [ -z "$VALUE" ]; then
-			case "$KEY" in
-				APP)	BUILD_APP_ARG="-e ${KEY}=${VALUE}";;
-				PROTO)	BUILD_APP_PROTO="-e ${KEY}=${VALUE}";;
-				*)
-			esac
-		fi
-	done
 }
 
 cleanup_docker_images()
@@ -191,32 +180,48 @@ build_app()
 				chipset_env) CHIPSET_BUILDENV="-e CHIPSET_BUILDENV=$VALUE "
 						;;
 				*) APP_MAKE_ENV+="-e $KEY=$VALUE "
+				;;
 			esac
 		fi
 	done
 
-	if [ -z $APP_NAME ]; then
-		echo "Provide app_name paramter to app to compile"
+	if [ -z "$APP_NAME" ]; then
+		echo "Provide app_dir parameter"
 		usage
 	fi
-	if [ -z $CHIPSET_BUILDENV ]; then
-		echo "Provide chipset build environment where application can find \
-		necessary header and library files"
+
+	if [ -z "$CHIPSET_BUILDENV" ]; then
+		echo "Provide chipset_env parameter"
 		usage
 	fi
+
 	echo "Project root: $PROJ_ROOT"
 	echo "SDK root: $SDK_ROOT"
 	echo "Application directory to build: $APP_NAME"
 	echo "Application specific build options: $APP_MAKE_ENV"
-	exit 0
+
 	docker build -t $TS_SDK_IMAGE_NAME -f $SDK_ROOT/Dockerfile $PROJ_ROOT
 	docker build -t $APP_NAME -f $APP_DOCKER $PROJ_ROOT
 	docker run --rm $BUILD_APP_ARG $APP_MAKE_ENV -e PROTOCOL=$PROTOCOL \
 		-e CHIPSET_FAMILY=$CHIPSET_FAMILY -e CHIPSET_MCU=$CHIPSET_MCU \
-		-e DEV_BOARD=$DEV_BOARD -e MODEM_TARGET=$MODEM_TARGET \
+		-e DEV_BOARD=$DEV_BOARD -e MODEM_TARGET=$MODEM_TARGET $CHIPSET_BUILDENV \
 		-v $MOUNT_DIR:/build $APP_NAME
 	check_build $APP_NAME $TS_SDK_IMAGE_NAME
 	cleanup_docker_images $APP_NAME $TS_SDK_IMAGE_NAME
+	exit 0
+}
+
+install_sdk()
+{
+	if [ -z "$1" ]; then
+		echo "Provide absolute path to install sdk"
+		usage
+	fi
+	cp $SDK_ROOT $1
+	if ! [ $? -eq 0 ]; then
+		echo "Installing sdk failed..."
+		exit 1
+	fi
 }
 
 if [ "$#" -eq "0" ]; then
@@ -243,16 +248,8 @@ elif [ $1 == "app" ]; then
 	check_for_dir "$1"
 	build_app "$@"
 elif [ $1 == "install_sdk" ]; then
-	usage
+	shift
+	install_sdk "$@"
 else
 	usage
-fi
-
-if [ -z "$2" ]; then
-	echo "Specify relative path including dockerfile name in the application directory to use"
-	usage
-else
-	check_for_dir "$2"
-	process_app_args "$3" "$4" "$5"
-	echo "docker runtime env args: $BUILD_APP_PROTO $BUILD_APP_ARG"
 fi

@@ -31,8 +31,8 @@ DBG_OP_LIB_FLAGS = -Os $(LTOFLAG)
 FW_EXEC = firmware_$(PROTOCOL)_$(DEV_BOARD).elf
 LDFLAGS ?= -Wl,-Map,fw.map,--cref
 
-# Header files for per-platform standard "device drivers".
-export INC
+#Include application header include
+INC += $(APP_INC)
 
 include $(SDK_ROOT)/cc_sdk.mk
 INC += $(SDK_INC)
@@ -47,11 +47,11 @@ CORELIB_SRC += $(PLATFORM_HAL_SRC)
 
 # Selecting platform according to CHIPSET_FAMILY
 ifeq ($(CHIPSET_FAMILY),stm32f4)
-include $(APP_ROOT)/stm32f4_buildenv.mk
+include $(SDK_APP_ROOT)/stm32f4_buildenv.mk
 else
 $(error "Makefile must define the CHIPSET_FAMILY variable")
 endif
 
 INC += $(CHIPSET_INC)
 # Defines the target rules
-include $(APP_ROOT)/rules.mk
+include $(SDK_APP_ROOT)/rules.mk
