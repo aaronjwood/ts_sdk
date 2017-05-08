@@ -28,8 +28,5 @@ void gpio_write(pin_name_t pin_name, bit_value_t bit)
 
 void gpio_pwr(pin_name_t pin_name, bool state)
 {
-	GPIO_PinState pin_state = state;
-	uint32_t pin = pp_map_drv_pin(pin_name);
-	GPIO_TypeDef *port = (GPIO_TypeDef *)pp_map_drv_port(pin_name);
-	HAL_GPIO_WritePin(port, pin, pin_state);
+	/* XXX: Stub for now */
 }

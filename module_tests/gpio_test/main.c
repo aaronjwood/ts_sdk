@@ -7,7 +7,6 @@
  * to enable write over pins. 
  */
 #include "sys.h"
-#include "dbg.h"
 #include "gpio_hal.h"
 
 int main(int argc, char *argv[])
