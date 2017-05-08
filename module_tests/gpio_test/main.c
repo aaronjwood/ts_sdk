@@ -1,11 +1,11 @@
 /* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
-/* This test program is an illustration to use the gpio hal apis 
+/* 
+ * This test program is an illustration to use the gpio hal apis 
  * for enabling the pins to write mode. This test uses
  * hal functions for initialisation and write apis 
  * to enable write over pins. 
  */
-
 #include "sys.h"
 #include "dbg.h"
 #include "gpio_hal.h"
