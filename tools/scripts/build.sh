@@ -24,23 +24,35 @@ Usage: 1) $SCRIPT_NAME chipset <docker file relative path including file>
 <relative path including file to app dockerfile> app_dir=<app directory name> chipset_env=<relative path> \
 [Optional application options in key=value pair]
        3) $SCRIPT_NAME install_sdk <absolute destination path>
-       Installs only sdk components
+       compiles and installs libsdk.a at the given path along with headers
+       Note: Based on protocol selected it will also compile mbedtls and install
+       compiled library at the give path. User needs to also provide APIs and
+       other platform related variables similar to as found in <install path>/platform_inc
+       headers to resolve missing depedent symbols.
 
-Note: Optional application options will be provided as a environment variable to docker container
-while building application. Also, argument provided for chipset_env will be exported
-to docker container as a environmental variable.
+Notes:
+
+1) Optional application options will be provided as a environment variable to docker container
+while building application.
+2) Argument provided for chipset_env will be exported to docker container as
+environmental variable.
+3) First build chipset before building any applications, option 1 in usage
+4) Before running $SCRIPT_NAME, run . tools/scripts/config_build_env.sh help to
+setup necessary build environment.
 
 Example Usage:
 
 To buid chipset sdk:
-tools/scripts/docker_build.sh chipset tools/docker/Dockerfile.stm32f4_dockerhub
+tools/scripts/build.sh chipset tools/docker/Dockerfile.stm32f4_dockerhub
 
 To buid Application:
-tools/scripts/docker_build.sh app tools/docker/Dockerfile.sdk_dockerhub \
+tools/scripts/build.sh app tools/docker/Dockerfile.sdk_dockerhub \
 tools/docker/Dockerfile.apps app_dir=sensor_examples chipset_env=/build/stm32f4 PROJ_NAME=bmp180
 Where PROJ_NAME is application specific option which is optional.
 
-Note: First build chipset sdk before building any applications
+To build Module tests (module_tests directory examples)
+tools/scripts/build.sh app tools/docker/Dockerfile.sdk_dockerhub \
+tools/docker/Dockerfile.module_tests app_dir=at_tcp_test chipset_env=/build/stm32f4
 
 Description:
 	Script to build various apps from apps and module_tests directories based on
@@ -52,9 +64,8 @@ Description:
 	and mounts ./build directory to output build results.
 	Provided dockerfiles can be found at ./tools/docker/
 
-	Script also installs sdk only components to destination, however this
-	will require destination environment to provide hardware abstraction layer
-	APIs used by this SDK. Usage 3 demonstrates this option.
+	Script also installs sdk only components to destination, see option 3 in
+	usage above.
 EOF
 	exit 1
 }
@@ -91,7 +102,7 @@ check_config()
 	fi
 
 	if [ $flag == "true" ]; then
-		echo "Run source tools/scripts/config_build_env.sh help to setup environment"
+		echo "Run . tools/scripts/config_build_env.sh help to setup environment"
 		exit 1
 	fi
 
@@ -210,7 +221,7 @@ install_sdk()
 		echo "Provide absolute path to install sdk"
 		usage
 	fi
-	cp -r -p $SDK_ROOT $1
+	cd $SDK_ROOT && make INSTALL_PATH=$1 clean && make INSTALL_PATH=$1 all && rm -rf build
 	if ! [ $? -eq 0 ]; then
 		echo "Installing sdk failed..."
 		exit 1
