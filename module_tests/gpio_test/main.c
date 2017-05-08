@@ -1,8 +1,10 @@
-/* Copyright(C) 2017 Verizon. All rights reserved. */
+/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
+
 /* This test program is an illustration to use the gpio hal apis 
-	for enabling the pins to write mode. This test uses
-	hal functions for initialisation and write apis 
-	to enable write over pins. */
+ * for enabling the pins to write mode. This test uses
+ * hal functions for initialisation and write apis 
+ * to enable write over pins. 
+ */
 
 #include "sys.h"
 #include "dbg.h"
@@ -19,9 +21,10 @@ int main(int argc, char *argv[])
 	gpio_init(pin_name, &my_led);
 
 	while (1) {
-	gpio_write(pin_name, PIN_LOW);
-	sys_delay(500);
-	gpio_write(pin_name, PIN_HIGH);
+		gpio_write(pin_name, PIN_LOW);
+		sys_delay(500);
+		gpio_write(pin_name, PIN_HIGH);
+		sys_delay(500);
 	}
 	return 0;
 }
