@@ -2,6 +2,7 @@
 
 #include <stm32f4xx_hal.h>
 #include <dbg.h>
+#include "gpio_hal.h"
 #include "timer_hal.h"
 #include "timer_interface.h"
 #include "board_config.h"
@@ -107,14 +108,13 @@ static void init_reset_gpio(void)
 	 * RESET_N which is the 26th pin on the DIL B2B J300 connector.
 	 */
 	/* XXX: The GPIO pin settings might be different for another modem. */
-	GPIO_InitTypeDef reset_pins;
-	__HAL_RCC_GPIOD_CLK_ENABLE();
-	reset_pins.Pin = GPIO_PIN_2;
-	reset_pins.Mode = GPIO_MODE_OUTPUT_OD;
-	reset_pins.Pull = GPIO_NOPULL;
-	reset_pins.Speed = GPIO_SPEED_FREQ_HIGH;
-	HAL_GPIO_Init(GPIOD, &reset_pins);
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
+	gpio_config_t reset_pins;
+	pin_name_t Pin = PD2;
+	reset_pins.dir = OUTPUT;
+	reset_pins.pull_mode = PP_NO_PULL;
+	reset_pins.speed = SPEED_HIGH;
+	gpio_init(Pin, &reset_pins);
+	gpio_write(Pin, PIN_HIGH);
 }
 
 static void tim5_cb(void)
@@ -260,7 +260,8 @@ void UsageFault_Handler(void)
 
 void sys_reset_modem(uint16_t pulse_width_ms)
 {
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET);
+	pin_name_t Pin = PD2;
+	gpio_write(Pin, PIN_HIGH);
 	sys_delay(pulse_width_ms);
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
+	gpio_write(Pin, PIN_LOW);
 }
