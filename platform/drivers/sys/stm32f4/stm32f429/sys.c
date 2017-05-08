@@ -264,3 +264,8 @@ void sys_reset_modem(uint16_t pulse_width_ms)
 	sys_delay(pulse_width_ms);
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
 }
+
+void dsb()
+{
+	__DSB();
+}
