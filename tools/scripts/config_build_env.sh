@@ -149,15 +149,15 @@ if ! [ -f "$SCRIPT" ]; then
 fi
 
 if ! [ -z "$1" ]; then
-	if [ "$1" == "print-env" ]; then
+	if [ "$1" = "print-env" ]; then
 		print_env
 		return 0
-	elif [ "$1" == "clear-env" ]; then
+	elif [ "$1" = "clear-env" ]; then
 		clear_env
 		return 0
-	elif [ "$1" == "help" ]; then
+	elif [ "$1" = "help" ]; then
 		usage
-	elif [ "$1" == "sdk_defaults" ]; then
+	elif [ "$1" = "sdk_defaults" ]; then
 		shift
 		exp_sdk_dafaults "$@"
 		return 0

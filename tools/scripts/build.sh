@@ -101,7 +101,7 @@ check_config()
 		flag="true"
 	fi
 
-	if [ $flag == "true" ]; then
+	if [ $flag = "true" ]; then
 		echo "Run . tools/scripts/config_build_env.sh help to setup environment"
 		exit 1
 	fi
@@ -235,7 +235,7 @@ fi
 
 if [ -z "$1" ]; then
 	usage
-elif [ $1 == "chipset" ]; then
+elif [ "$1" = "chipset" ]; then
 	if [ -z "$2" ]; then
 		echo "Specify relative path including dockerfile name.."
 		usage
@@ -243,7 +243,7 @@ elif [ $1 == "chipset" ]; then
 	shift
 	check_for_file "$1"
 	build_chipset_library "$@"
-elif [ $1 == "app" ]; then
+elif [ "$1" = "app" ]; then
 	if [ -z "$2" ]; then
 		echo "Specify relative path including dockerfile name.."
 		usage
@@ -252,7 +252,7 @@ elif [ $1 == "app" ]; then
 	check_for_file "$1"
 	check_for_file "$2"
 	build_app "$@"
-elif [ $1 == "install_sdk" ]; then
+elif [ "$1" = "install_sdk" ]; then
 	shift
 	install_sdk "$@"
 else
