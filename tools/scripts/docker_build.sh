@@ -24,17 +24,17 @@ Note: arguments in <> are mandatory while [] are optional, \
 optional arguments has to be specified by key=value format
 
 Example Usage:
-tools/scripts/docker_build.sh ./tools/docker/Dockerfile.thingservice ./sample_apps/Dockerfile \
+tools/scripts/docker_build.sh ./tools/docker/Dockerfile.thingservice ./apps/Dockerfile \
 PROTO=SMSNAS_PROTOCOL APP=sensor_examples upload=<relative path to firmware executable>
 
 Description:
-	Script to build various apps from sample_apps and module_tests directories based on
+	Script to build various apps from apps and module_tests directories based on
 	application dockerfile provided, script first creates chipset docker image which
 	copies all the necessary chipset specific SDK at /ts_sdk_bldenv in container. It
 	then creates docker image using image created in first step for the thing space SDK, image
 	has all the necessary sdk files at /ts_sdk. In a final step it creates application
 	docker image from the image created in second step which has application directory
-	at /ts_sdk/sample_apps or /ts_sdk/module_tests and other vendor dependent libraries
+	at /ts_sdk/apps or /ts_sdk/module_tests and other vendor dependent libraries
 	like mbedtls at /ts_sdk/vendor. Script and eventually docker run command creates
 	volume build/<app>/ to house all the compiled objects and binary images. Optional
 	upload argument can be supplied to burn given firmware executable
@@ -57,7 +57,7 @@ Application options: Optional paramters which are provided as key=value
 	Available options are as below:
 
 	1) APP=<application to compile>, for example APP=cc_test
-	available options are any app or test directories from sample_apps and module_tests
+	available options are any app or test directories from apps and module_tests
 	Note: This application should correspond to APP_DOCKERFILE, default is cc_test
 	2) PROTO=<Communication protocol to use>, thingspace sdk supports two options
 	OTT_PROTOCOL and SMSNAS_PROTOCOL as a value, default is SMSNAS_PROTOCOL
@@ -176,6 +176,10 @@ if [ $? -eq 0 ]; then
 		echo "Uploading firmware..."
 		upload_firmware
 	fi
+else
+	echo "Build failed"
+	cleanup_docker_images
+	exit 1
 fi
 
 cleanup_docker_images
