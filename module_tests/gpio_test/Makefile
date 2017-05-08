@@ -1,6 +1,6 @@
 # Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
-# Makefile for basic template to demonstrate stm32f4 platform test program.
+# Makefile for gpio test program.
 
 APP_ROOT = $(shell dirname $$PWD)
 BUILD_MK_PATH = $(shell dirname $(APP_ROOT))/tools/config
