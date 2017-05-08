@@ -36,6 +36,8 @@ SDK_SRC += $(MODEM_SRC) $(PROTOCOL_SRC) $(CLOUD_COMM_SRC) $(SERVICES_SRC)
 
 CFLAGS_SDK += $(MODEM_CFLAGS) $(PROTOCOL_CFLAGS)
 export CFLAGS_SDK
+export SDK_SRC
+export SDK_INC
 
 # Search paths for device driver sources
 vpath %.c $(SDK_ROOT)/src/cloud_comm_api: \
