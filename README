@@ -65,14 +65,10 @@ The following targets are supported by the SDK:
           Boards: NUCLEO-F429ZI ARM development board
 
 
-2.2 Supported transports and protocols
+2.2 Supported proprietary protocols
 ---------------------------------------
-The following data transports and protocols are supported by the SDK:
-        o Data transport: TCP/IP
-          Protocols: Over-the-top (OTT)
-
-        o Data transport: SMS over NAS
-          Protocols: SMSNAS
+        o Over-the-top (OTT) - uses TCP/IP as low level transport
+        o SMSNAS - uses sms as low level transport
 
 
 3. Repository layout
@@ -137,7 +133,7 @@ ts_sdk/tools/config                     General configuration and data files
                                         needed by tools.
 
 ts_sdk/tools/docker                     Dockerfiles for creating the various
-                                        chipset build Docker containers.
+                                        docker builds.
 
 ts_sdk/sdk                              Source code and related files that
                                         provide the API and communication path
@@ -295,19 +291,13 @@ ts_sdk/sdk/cloud_comm/inc/dev_creds/dev_creds.h
 No additional configuration is needed to build the TS SDK for the SMSNAS protocol.
 
 
-5.2 Building the SDK with the user application
+5.2 Building the application
 -----------------------------------------------
-For user applications that are small / have a simple build process, the SDK can
-be built with the application source. The actual build takes place inside a
-Docker container started by the build script (docker_build.sh) located at:
-ts_sdk/tools/scripts/. It can be invoked from the repository root.
+The SDK can be built with the application source. The actual build takes place inside a
+Docker container started by the build script (build.sh) located at:
+ts_sdk/tools/scripts/. It must be invoked from the repository root.
 
-The script takes in two Dockerfiles as parameters, one describing the build
-environment (ts_sdk/tools/docker/Dockerfile.dockerhub) and the second one for
-the project's source and build flags (Eg. ts_sdk/apps/Dockerfile).
-Additionally, it is possible to configure the protocol the SDK should be built
-for. For more information about the usage of the script, execute it without any
-parameters.
+Execute ts_sdk/tools/scripts/build.sh help for further information.
 
 Refer to Section 6 for the steps to create an application that can be built with
 this approach.
@@ -315,16 +305,22 @@ this approach.
 
 5.3 Building the SDK into a static library
 -------------------------------------------
-This build target is a work in progress. The purpose of this build target is to
-allow the application to use the TS SDK without imposing restrictions on the
-user's source tree and build process.
+The purpose of this build target is to allow the application to use the
+TS SDK without imposing restrictions on the user's source tree and build process.
+This process builds libsdk.a and installs all the necessary headers to provided
+destination.
 
-When fully implemented, the user will be able to build the SDK for a specific
-protocol, transport, modem and target MCU & board into a static library. The
-generated binary blob can then be moved to the user application source tree.
-The static library is linked to the application in the final steps of the user's
-build process.
-
+Steps to build:
+1) run . tools/scripts/config_build_env.sh [options]
+        This step configures SDK and exports necessary variables used by SDK
+        build process.
+        Note: User still need to modify CC, AR and RANLIB variable in
+        sdk/<sdk_name>/Makefile to point to correct toolchain
+2) tools/scripts/build.sh install_sdk <absolute path to install>
+        For OTT_PROTOCOL, it also installs mbedtls related static libraries
+        Note: This also installs platform dependent headers at <path>/platform_inc
+        for end user to provide similar APIs and variables that sdk library depends
+        on.
 
 6. Creating a new user application
 -----------------------------------
@@ -333,34 +329,31 @@ ts_sdk/apps. They are expected to roughly have the following directory layout:
 
 apps/
 |
-+- Dockerfile
-+- common.mk
-+- rules.mk
 +- <app_name>/
   |
   +- Makefile
-  +- inc/<header files>
-  +- src/<source files>
+  +- header and source directories/files
 
-To create a new application, simply copy the template provided in
-ts_sdk/apps/basic_template to the application's directory (<app_name> in the
-above layout).
+Makefile should provide APP_SRC for source files, vpath to search for the APP_SRC
+and APP_INC for application headers. Applicaton should also include *.mk from
+sdk/<sdk_name>/*.mk and platform/*.mk (depends if platform is supported by SDK).
+Some make helpers are provided at tools/config/*.mk, look for common.mk for the example.
+Example code in apps/<app_dir> provides example Makefile and application implementation.
 
-The Makefile can be modified to specify the board (BUILD_BOARD), MCU (BUILD_MCU)
-and chipset family (BUILD_TARGET). It can also be used to specify the protocol
-to be used (PROTOCOL) and in the future, to specify the modem. Acceptable values
-for the above parameters are as follows:
-        o BUILD_BOARD  : nucleo
-        o BUILD_TARGET : stm32f4
-        o BUILD_MCU    : stm32f429
-        o PROTOCOL     : OTT_PROTOCOL, SMSNAS_PROTOCOL
+Before building application, user needs to run ". tools/script/config_build_env.sh <options>"
+to set up necessary build and sdk options. Script exports below variables based on
+user input which are being consumed by various *.mk files. help in <options> for
+above script provides detail usage.
 
-For an example on using the SDK, refer to: ts_sdk/apps/cc_test
+        o DEV_BOARD      : development board
+        o CHIPSET_FAMILY : micro controller family
+        o CHIPSET_MCU    : micro controller or application processor
+        o PROTOCOL       : OTT_PROTOCOL, SMSNAS_PROTOCOL, NO_PROTOCOL
+        o MODEM_TARGET   : modem
+
 Use the following command to build the user application (assuming current
 location is repository root):
-./tools/scripts/docker_build.sh ./tools/docker/Dockerfile.dockerhub \
-./apps/Dockerfile PROTO=OTT_PROTOCOL APP=<app_name>
-
+./tools/scripts/build.sh help
 
 7. Generating documentation
 ----------------------------
