@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright(C) 2017 Verizon. All rights reserved
 
 MOUNT_DIR="$PROJ_ROOT/build"
