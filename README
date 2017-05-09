@@ -68,7 +68,7 @@ The following targets are supported by the SDK:
 2.2 Supported proprietary protocols
 ---------------------------------------
         o Over-the-top (OTT) - uses TCP/IP as low level transport
-        o SMSNAS - uses sms as low level transport
+        o SMSNAS - uses SMS as low level transport
 
 
 3. Repository layout
@@ -301,7 +301,7 @@ Build:
 Execute tools/scripts/build.sh help for further information.
 
 Upload:
-Execute tools/scripts/upload.sh help for firmware uploading/burning information.
+Execute tools/scripts/upload_firmware.sh help for firmware uploading/burning information.
 
 Refer to Section 6 for the steps to create new application that can be built with
 this approach.
@@ -315,7 +315,7 @@ This process builds libsdk.a and installs all the necessary headers to provided
 destination.
 
 Steps to build:
-1) run . tools/scripts/config_build_env.sh [options]
+1) run source tools/scripts/config_build_env.sh [options]
         This step configures SDK and exports necessary variables used by SDK
         build process.
         Note: User still need to modify CC, AR and RANLIB variable in
@@ -344,7 +344,7 @@ sdk/<sdk_name>/*.mk and platform/*.mk (depends if platform is supported by SDK).
 Some make helpers are provided at tools/config/*.mk, look for common.mk for the example.
 Example code in apps/<app_dir> provides example Makefile and application implementation.
 
-Before building application, user needs to run ". tools/script/config_build_env.sh <options>"
+Before building application, user needs to run "source tools/script/config_build_env.sh <options>"
 to set up necessary build and sdk options. Script exports below variables based on
 user input which are being consumed by various *.mk files. help in <options> for
 above script provides detail usage.

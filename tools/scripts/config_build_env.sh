@@ -48,14 +48,14 @@ Description:
 	to find different sources.
 
 Example Usage:
-. $SCRIPT_NAME chipset_family=<value> mcu=<> dev_board=<> modem=<> protocol=<>
+source $SCRIPT_NAME chipset_family=<value> mcu=<> dev_board=<> modem=<> protocol=<>
 
 Short Cut Settings: This sets sdk default for chipset family, mcu, board and modem
 except transport protocol
 
-. $SCRIPT_NAME sdk_defaults protocol=<>
+source $SCRIPT_NAME sdk_defaults protocol=<>
 
-Usage:  . $SCRIPT_NAME Options
+Usage:  source $SCRIPT_NAME Options
 	Options are speficied using key=value pair
 
 	Script Options: Script specific options
@@ -148,6 +148,10 @@ if ! [ -f "$SCRIPT" ]; then
 	return 1
 fi
 
+if [ "$1" = "help" ] || [ -z "$1" ]; then
+	usage
+fi
+
 if ! [ -z "$1" ]; then
 	if [ "$1" = "print-env" ]; then
 		print_env
@@ -155,8 +159,6 @@ if ! [ -z "$1" ]; then
 	elif [ "$1" = "clear-env" ]; then
 		clear_env
 		return 0
-	elif [ "$1" = "help" ]; then
-		usage
 	elif [ "$1" = "sdk_defaults" ]; then
 		shift
 		exp_sdk_dafaults "$@"

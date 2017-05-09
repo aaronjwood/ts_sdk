@@ -147,6 +147,10 @@ if ! [ -f $SCRIPT ]; then
 	usage
 fi
 
+if [ "$1" = "help" ] || [ -z "$1" ]; then
+	usage
+fi
+
 check_config
 
 build_chipset_library()
@@ -233,9 +237,7 @@ if [ "$#" -eq "0" ]; then
 	usage
 fi
 
-if [ -z "$1" ]; then
-	usage
-elif [ "$1" = "chipset" ]; then
+if [ "$1" = "chipset" ]; then
 	if [ -z "$2" ]; then
 		echo "Specify relative path including dockerfile name.."
 		usage
