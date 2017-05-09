@@ -79,20 +79,21 @@ Top level directories:
 ts_sdk/                                 The top level directory of the
                                         ThingSpace SDK repository.
 
-ts_sdk_bldenv/                          This directory exists in each Docker
-                                        container and is the top level for all
-                                        the files needed to perform the build
-                                        for a chipset (i.e. the chipset SDK and
-                                        toolchain)
-
 ---------------------------------------
 Build environment directories:
 ---------------------------------------
 ts_sdk_bldenv/toolchain (Optional)      All files that make up the toolchain,
                                         if not embedded in the chipset SDK.
-
-ts_sdk_bldenv/<chipset-name>            The chipset SDK as provided by the
-                                        chipset vendor.
+                                        Current sdk example apps uses docker
+                                        base image with inbuilt arm toolchain at
+                                        this location.
+build                                   Directory to house all the build artifacts
+                                        Current sdk example and supported chipset
+                                        docker build system mounts this directory
+                                        at /build in docker container.
+build/<app>                             Build artifacts of the App
+build/<chipset_family>                  Build artifacts of the chipset
+                                        i.e. header, library, source code etc...
 
 ---------------------------------------
 TS-SDK source repository:
