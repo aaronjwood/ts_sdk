@@ -1,7 +1,6 @@
 # Copyright(C) 2017 Verizon. All rights reserved.
 
-# This fragment of the Makefile lists the object files that need to be generated
-# along with the target rules.
+# SDK library generator makefile.
 
 ifneq (build,$(notdir $(CURDIR)))
 # If not invoked in the build directory, change to that directory and
