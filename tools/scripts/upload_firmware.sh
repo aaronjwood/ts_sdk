@@ -50,6 +50,8 @@ fi
 if [ -z "$1" ]; then
 	echo "Specify relative path to firmware executable"
 	usage
+elif [ "$1" = "help" ]; then
+	usage
 else
         FIRMWARE=$1
 fi

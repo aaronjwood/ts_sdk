@@ -15,7 +15,7 @@ Table of contents:
         5.1 Protocol specific configurations
                 5.1.1 OTT protocol
                 5.1.2 SMSNAS protocol
-        5.2 Building the SDK with the user application
+        5.2 Building and Uploading the SDK with the user application
         5.3 Building the SDK into a static library
 6. Creating a new user application
 7. Generating documentation
@@ -291,15 +291,19 @@ ts_sdk/sdk/cloud_comm/inc/dev_creds/dev_creds.h
 No additional configuration is needed to build the TS SDK for the SMSNAS protocol.
 
 
-5.2 Building the application
+5.2 Building and Uploading the SDK with the user application
 -----------------------------------------------
 The SDK can be built with the application source. The actual build takes place inside a
 Docker container started by the build script (build.sh) located at:
 ts_sdk/tools/scripts/. It must be invoked from the repository root.
 
-Execute ts_sdk/tools/scripts/build.sh help for further information.
+Build:
+Execute tools/scripts/build.sh help for further information.
 
-Refer to Section 6 for the steps to create an application that can be built with
+Upload:
+Execute tools/scripts/upload.sh help for firmware uploading/burning information.
+
+Refer to Section 6 for the steps to create new application that can be built with
 this approach.
 
 
