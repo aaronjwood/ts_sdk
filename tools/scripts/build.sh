@@ -21,7 +21,7 @@ usage()
 	cat << EOF
 Usage: 1) $SCRIPT_NAME chipset <docker file relative path including file>
        2) $SCRIPT_NAME app <relative path including file to sdk dockerfile> \
-<relative path including file to app dockerfile> app_dir=<app directory name> chipset_env=<relative path> \
+<relative path including file to app dockerfile> app_dir=<app directory name> chipset_env=<absolute path> \
 [Optional application options in key=value pair]
        3) $SCRIPT_NAME install_sdk <absolute destination path>
        compiles and installs libsdk.a at the given path along with headers
@@ -34,8 +34,8 @@ Notes:
 
 1) Optional application options will be provided as a environment variable to docker container
 while building application.
-2) Argument provided for chipset_env will be exported to docker container as
-environmental variable.
+2) Argument provided for chipset_env contains the absolute path inside container where
+it finds related chipset header and libraries.
 3) First build chipset before building any applications, option 1 in usage
 4) Before running $SCRIPT_NAME, run . tools/scripts/config_build_env.sh help to
 setup necessary build environment.
@@ -44,6 +44,8 @@ Example Usage:
 
 To buid chipset sdk:
 tools/scripts/build.sh chipset tools/docker/Dockerfile.stm32f4_dockerhub
+Produces output at <repo>/build/$CHIPSET_FAMILY, later application can mount this
+directory for its container.
 
 To buid Application:
 tools/scripts/build.sh app tools/docker/Dockerfile.sdk_dockerhub \
@@ -56,7 +58,7 @@ tools/docker/Dockerfile.module_tests app_dir=at_tcp_test chipset_env=/build/stm3
 
 Description:
 	Script to build various apps from apps and module_tests directories based on
-	application dockerfile provided. It also support of building stm32f4 chipset
+	application dockerfile provided. It also support of building stm32f4 chipset.
 	Script can be modified to append any other chipset. Chipset build artifacts
 	can be found under ./build/$CHIPSET_FAMILY where application depends to
 	get necessary headers and library. Currently, all the docker container
