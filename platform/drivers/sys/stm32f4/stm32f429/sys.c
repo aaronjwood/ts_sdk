@@ -1,6 +1,5 @@
 /* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
-#include <stm32f4xx_hal.h>
 #include <dbg.h>
 #include "gpio_hal.h"
 #include "timer_hal.h"
