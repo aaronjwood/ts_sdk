@@ -1,7 +1,5 @@
 /* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
-#include <stm32f4xx_hal.h>	/* XXX: Remove after rewriting raise_err */
-
 #include <stdint.h>
 #include "uart_hal.h"
 #include "board_config.h"
@@ -48,7 +46,6 @@ ssize_t _write(int fd, const void *buf, size_t count)
 
 void raise_err(void)
 {
-	/* XXX: Replace with routines from the GPIO HAL */
 	gpio_config_t err_led;
 	pin_name_t pin_name = PB7;
 	err_led.dir = OUTPUT;
@@ -60,5 +57,6 @@ void raise_err(void)
 		gpio_write(pin_name, PIN_LOW);
 		sys_delay(1000);
 		gpio_write(pin_name, PIN_HIGH);
+		sys_delay(1000);
 	}
 }
