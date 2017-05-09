@@ -269,7 +269,7 @@ no-hwrng  - Disable using the device hardware random number generator.
 heap-prof - Use a custom allocator to record maximum heap used.
 
 To build the mbedtls_test program to run on OSX (i.e. by setting
-BUILD_TARGET = osx in mbedtls_test/Makefile), you need to configure the library
+CHIPSET_FAMILY = osx in mbedtls_test/Makefile), you need to configure the library
 as:
 
         ./vz_configure_mbedtls full-msgs no-hwrng

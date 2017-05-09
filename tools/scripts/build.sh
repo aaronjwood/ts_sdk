@@ -26,9 +26,9 @@ Usage: 1) $SCRIPT_NAME chipset <docker file relative path including file>
        3) $SCRIPT_NAME install_sdk <absolute destination path>
        compiles and installs libsdk.a at the given path along with headers
        Note: Based on protocol selected it will also compile mbedtls and install
-       compiled library at the give path. User needs to also provide APIs and
+       compiled library at the given path. User needs to also provide APIs and
        other platform related variables similar to as found in <install path>/platform_inc
-       headers to resolve missing depedent symbols.
+       headers to resolve missing dependent symbols.
 
 Notes:
 
@@ -37,17 +37,17 @@ while building application.
 2) Argument provided for chipset_env contains the absolute path inside container where
 it finds related chipset header and libraries.
 3) First build chipset before building any applications, option 1 in usage
-4) Before running $SCRIPT_NAME, run . tools/scripts/config_build_env.sh help to
+4) Before running $SCRIPT_NAME, run source tools/scripts/config_build_env.sh help to
 setup necessary build environment.
 
 Example Usage:
 
-To buid chipset sdk:
+To build chipset sdk:
 tools/scripts/build.sh chipset tools/docker/Dockerfile.stm32f4_dockerhub
 Produces output at <repo>/build/$CHIPSET_FAMILY, later application can mount this
 directory for its container.
 
-To buid Application:
+To build Application:
 tools/scripts/build.sh app tools/docker/Dockerfile.sdk_dockerhub \
 tools/docker/Dockerfile.apps app_dir=sensor_examples chipset_env=/build/stm32f4 PROJ_NAME=bmp180
 Where PROJ_NAME is application specific option which is optional.
@@ -76,21 +76,6 @@ check_config()
 {
 	local flag="false"
 
-	if [ -z "$CHIPSET_FAMILY" ]; then
-		flag="true"
-	fi
-	if [ -z "$CHIPSET_MCU" ]; then
-		flag="true"
-	fi
-	if [ -z "$DEV_BOARD" ]; then
-		flag="true"
-	fi
-	if [ -z "$MODEM_TARGET" ]; then
-		flag="true"
-	fi
-	if [ -z "$PROTOCOL" ]; then
-		flag="true"
-	fi
 	if [ -z "$PROJ_ROOT" ]; then
 		flag="true"
 	fi
@@ -104,7 +89,7 @@ check_config()
 	fi
 
 	if [ $flag = "true" ]; then
-		echo "Run . tools/scripts/config_build_env.sh help to setup environment"
+		echo "Run source tools/scripts/config_build_env.sh help to setup environment"
 		exit 1
 	fi
 
@@ -158,7 +143,7 @@ check_config
 build_chipset_library()
 {
 	docker build -t $CHIPSET_IMAGE_NAME -f $1 $PROJ_ROOT
-	docker run --rm -e BUILD_MCU=$CHIPSET_MCU -v $CHIPSET_BUILD_MOUNT:/build $CHIPSET_IMAGE_NAME
+	docker run --rm -e CHIPSET_MCU=$CHIPSET_MCU -v $CHIPSET_BUILD_MOUNT:/build $CHIPSET_IMAGE_NAME
 	check_build $CHIPSET_IMAGE_NAME
 	cleanup_docker_images $CHIPSET_IMAGE_NAME
 	echo "Chipset build success, generated static library lib$CHIPSET_MCU.a \

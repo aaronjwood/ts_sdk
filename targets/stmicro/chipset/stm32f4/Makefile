@@ -24,7 +24,6 @@ DBG_MACRO = #-DNO_DEBUG
 # Eg: DBG_LIB_SRC = stm32l0xx_hal_uart.c stm32l0xx_hal_uart_ex.c
 DBG_LIB_SRC =
 
-# Selecting platform according to BUILD_TARGET
 include $(CHIPSET_BUILDENV)/stm32f4/common_stm32f4.mk
 
 # chipset device drivers, provided by common_xxxx.mk from above

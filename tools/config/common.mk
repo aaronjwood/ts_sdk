@@ -33,6 +33,18 @@ LDFLAGS ?= -Wl,-Map,fw.map,--cref
 # Include application header include
 INC += $(APP_INC)
 
+# Selecting platform according to CHIPSET_FAMILY
+ifeq ($(CHIPSET_FAMILY),stm32f4)
+include $(MK_HELPER_PATH)/stm32f4_buildenv.mk
+else ifeq ($(CHIPSET_FAMILY),osx)
+include $(MK_HELPER_PATH)/osx_buildenv.mk
+else
+$(error "Makefile must define the CHIPSET_FAMILY variable")
+endif
+
+# Header files provided by the chipset build environment
+INC += $(CHIPSET_INC)
+
 include $(SDK_ROOT)/cc_sdk.mk
 INC += $(SDK_INC)
 
@@ -45,15 +57,6 @@ CORELIB_SRC += $(SDK_SRC)
 # PLATFORM_HAL_SRC is provided by platform.mk
 CORELIB_SRC += $(PLATFORM_HAL_SRC)
 
-# Selecting platform according to CHIPSET_FAMILY
-ifeq ($(CHIPSET_FAMILY),stm32f4)
-include $(MK_HELPER_PATH)/stm32f4_buildenv.mk
-else
-$(error "Makefile must define the CHIPSET_FAMILY variable")
-endif
-
-# Header files provided by the chipset build environment
-INC += $(CHIPSET_INC)
 export INC
 
 # Defines the target rules

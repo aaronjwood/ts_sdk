@@ -30,7 +30,7 @@ MDEF = -DSTM32F429xx
 export MDEF
 export ARCHFLAGS
 
-CHIPSET_LDFLAGS = -L /build/$(BUILD_TARGET)/
+CHIPSET_LDFLAGS = -L /build/$(CHIPSET_FAMILY)/
 export CHIPSET_LDFLAGS
 
 # The following invokes an unused sections garbage collector
@@ -67,7 +67,6 @@ CHIPSET_SRC += stm32f4xx_hal_pwr_ex.c
 CHIPSET_SRC += stm32f4xx_hal_tim.c
 CHIPSET_SRC += stm32f4xx_hal_tim_ex.c
 CHIPSET_SRC += stm32f4xx_hal_rng.c
-CHIPSET_SRC += $(CHIPSET_SRC_$(BUILD_TARGET))
 
 vpath %.c $(STM32_PLIB): \
 	  $(STM32_CMSIS)/Source/Templates:

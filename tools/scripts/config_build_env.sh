@@ -148,7 +148,7 @@ if ! [ -f "$SCRIPT" ]; then
 	return 1
 fi
 
-if [ "$1" = "help" ] || [ -z "$1" ]; then
+if [ "$1" = "help" ]; then
 	usage
 fi
 
