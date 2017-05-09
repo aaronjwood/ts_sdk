@@ -1,4 +1,4 @@
-# Copyright(C) 2016, 2017 Verizon. All rights reserved.
+# Copyright(C) 2017 Verizon. All rights reserved.
 
 # Makefile for gpio test program.
 

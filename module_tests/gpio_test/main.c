@@ -1,15 +1,15 @@
-/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
+/* Copyright(C) 2017 Verizon. All rights reserved. */
 
-/* 
- * This test program is an illustration to use the gpio hal apis 
+/*
+ * This test program is an illustration to use the gpio hal apis
  * for enabling the pins to write mode. This test uses
- * hal functions for initialisation and write apis 
- * to enable write over pins. 
+ * hal functions for initialisation and write apis
+ * to enable write over pins.
  */
 #include "sys.h"
 #include "gpio_hal.h"
 
-int main(int argc, char *argv[])
+int main()
 {
 	pin_name_t pin_name = PB7;
 	gpio_config_t my_led;
