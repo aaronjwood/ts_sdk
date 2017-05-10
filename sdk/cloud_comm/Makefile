@@ -59,9 +59,10 @@ endif
 	rm -rf $(SDK_ROOT)/build
 
 install:
-	-mkdir -p $(INSTALL_PATH)/sdk_inc
+	-mkdir -p $(INSTALL_PATH)/sdk_inc/api
 	-mkdir -p $(INSTALL_PATH)/library
 	cp -r $(SDK_ROOT)/inc/* $(INSTALL_PATH)/sdk_inc
+	cp -r $(SDK_ROOT)/api/* $(INSTALL_PATH)/sdk_inc/api
 	cp $(SDK_ROOT)/build/*.a $(INSTALL_PATH)/library
 ifdef VENDOR_LIB_DIRS
 	cp -r $(SDK_ROOT)/vendor/mbedtls/include/ $(INSTALL_PATH)/sdk_inc
