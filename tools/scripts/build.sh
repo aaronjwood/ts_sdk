@@ -5,9 +5,6 @@ MOUNT_DIR="$PROJ_ROOT/build"
 # default mount point for the chipset build environment to output build artifacts
 CHIPSET_BUILD_MOUNT="$MOUNT_DIR"
 
-# default mount point for the application build environment to output build artifacts
-APP_BUILD_MOUNT="$MOUNT_DIR"
-
 BUILD_APP_ARG=""
 
 SCRIPT_NAME=`basename "$0"`
