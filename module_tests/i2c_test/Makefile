@@ -1,15 +1,9 @@
-# Copyright(C) 2016, 2017 Verizon. All rights reserved.
+# Copyright(C) 2017 Verizon. All rights reserved.
 
-# PROJ_NAME selects which example to build. By default, the Makefile assumes
-# 'bmp180' as the project. This means that 'make' is equivalent to
-# 'make PROJ_NAME=bmp180'
+# Makefile for i2c driver test program.
 
-# Makefile for the device side application API test program.
 APP_ROOT = $(shell dirname $$PWD)
 BUILD_MK_PATH = $(shell dirname $(APP_ROOT))/tools/config
-#PROJ_ROOT = $(shell dirname $(APP_ROOT))
-#CHIPSET_BUILDENV = $(shell dirname $(PROJ_ROOT))/ts_sdk_bldenv
-
 
 export PROJ_ROOT
 export APP_ROOT
@@ -32,22 +26,27 @@ export BUILD_TARGET
 export BUILD_MCU
 export BUILD_BOARD
 
-#PROJ_NAME ?= bmp180
-PROJ_NAME ?=xnucleo-iks01a1
+# This low-level test program bypasses the protocol layer and above.
+# This requires overriding some of the normal configuration.
+# Must always build with NO_PROTOCOL even if PROTOCOL is set externally.
+override PROTOCOL = NO_PROTOCOL
+override MODEM_PROTOCOL = none
+override MODEM_TARGET = none
+override SDK_SRC =
+CLOUD_COMM_SRC =
+SERVICES_SRC =
 
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG
 
 # Use 'vpath' to search specific directories for library and user sources
-vpath %.c $(SRCDIR)/$(PROJ_NAME): \
-	$(SRCDIR):
+vpath %.c $(SRCDIR):
 
 # User application includes
 INC += -I $(SRCDIR)/include
 
 # User application sources
 USER_SRC = $(wildcard $(SRCDIR)/*.c)
-USER_SRC += $(wildcard $(SRCDIR)/$(PROJ_NAME)/*_$(BUILD_TARGET).c)
 
 # Library sources are built without debug info and optimized for size.
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
@@ -65,6 +64,5 @@ include $(APP_ROOT)/common.mk
 
 # Defines the target rules
 include $(APP_ROOT)/rules.mk
-print-%: ; @echo $* = $($*)
 
 endif
