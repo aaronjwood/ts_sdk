@@ -1,7 +1,7 @@
 /* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
 #include <stm32f4xx_hal.h>
-#include <dbg.h>
+#include "dbg.h"
 #include "timer_hal.h"
 #include "timer_interface.h"
 #include "board_config.h"
@@ -263,4 +263,9 @@ void sys_reset_modem(uint16_t pulse_width_ms)
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET);
 	sys_delay(pulse_width_ms);
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
+}
+
+void dsb()
+{
+	__DSB();
 }

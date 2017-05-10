@@ -5,7 +5,7 @@
 VENDOR_ROOT=$(PROJ_ROOT)/sdk/cloud_comm/vendor
 
 mbedtls:
-	@echo "[Building mbedtls libraries.}"
+	@echo "[Building mbedtls libraries.]"
 	$(MAKE) -C $(VENDOR_ROOT)/mbedtls \
 		CFLAGS='-O2 $(LTOFLAG) $(INC) $(ARCHFLAGS) $(MDEF) \
 		-fdata-sections -ffunction-sections' \

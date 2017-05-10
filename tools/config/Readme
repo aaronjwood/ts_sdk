@@ -1,5 +1,11 @@
-Currently directory contains follwing files:
+Currently directory contains following files:
 1) build_in_subdir.mk: Hook to create build directory in the source directory to house
         all the object files
-2) openocd-configs: Directory contains configuration files to be used with openocd
+2) common.mk: make fragment to collect sdk and platform related source and header include
+paths based on the sdk configuration
+3) rule.mk: make fragement to house all the common build commands to generate firmware
+executable
+4) stm32f4_buildenv.mk: stm32f4 chipset build make fragment to include toolchain
+and chipset sdk header
+5) openocd-configs: Directory contains configuration files to be used with openocd
         debugger tool
