@@ -212,7 +212,7 @@ install_sdk()
 		echo "Provide absolute path to install sdk"
 		usage
 	fi
-	cd $SDK_ROOT && make INSTALL_PATH=$1 clean && make INSTALL_PATH=$1 all && rm -rf build
+	cd $SDK_ROOT && make INSTALL_PATH=$1 clean && make INSTALL_PATH=$1 all && make clean
 	if ! [ $? -eq 0 ]; then
 		echo "Installing sdk failed..."
 		exit 1
