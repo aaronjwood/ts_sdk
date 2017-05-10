@@ -318,7 +318,8 @@ destination.
 Steps to build:
 1) run source tools/scripts/config_build_env.sh [options]
         This step configures SDK and exports necessary variables used by SDK
-        build process.
+        build process. help option can give detail usage information about above
+        script.
         Note: User still need to modify CC, AR and RANLIB variable in
         sdk/<sdk_name>/Makefile to point to correct toolchain
 2) tools/scripts/build.sh install_sdk <absolute path to install>

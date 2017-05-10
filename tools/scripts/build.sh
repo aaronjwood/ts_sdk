@@ -37,7 +37,7 @@ while building application.
 2) Argument provided for chipset_env contains the absolute path inside container where
 it finds related chipset header and libraries.
 3) First build chipset before building any applications, option 1 in usage
-4) Before running $SCRIPT_NAME, run source tools/scripts/config_build_env.sh help to
+4) Before running $SCRIPT_NAME, run tools/scripts/config_build_env.sh help to
 setup necessary build environment.
 
 Example Usage:
@@ -89,7 +89,7 @@ check_config()
 	fi
 
 	if [ $flag = "true" ]; then
-		echo "Run source tools/scripts/config_build_env.sh help to setup environment"
+		echo "Run tools/scripts/config_build_env.sh help to setup environment"
 		exit 1
 	fi
 
