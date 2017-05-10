@@ -1,4 +1,4 @@
-# Copyright(C) 2016 Verizon. All rights reserved.
+# Copyright(C) 2016, 2017 Verizon. All rights reserved.
 #
 # Magic to run the including Makefile after changing to a subdirectory.
 # This lets VPATH be used to find the sources, while collecting all the
@@ -23,5 +23,4 @@ Makefile : ;
 %.mk :: ;
 
 # Everything depends on OBJDIR (but no explict action to take)
-% :: $(OBJDIR) ; 
-
+% :: $(OBJDIR) ;

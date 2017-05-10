@@ -128,7 +128,7 @@ print_env()
 	echo "Cloud transport protocol = $PROTOCOL"
 }
 
-exp_sdk_dafaults()
+exp_sdk_defaults()
 {
 	export CHIPSET_FAMILY="stm32f4"
 	export CHIPSET_MCU="stm32f429"
@@ -161,7 +161,7 @@ if ! [ -z "$1" ]; then
 		return 0
 	elif [ "$1" = "sdk_defaults" ]; then
 		shift
-		exp_sdk_dafaults "$@"
+		exp_sdk_defaults "$@"
 		return 0
 	else
 		process_app_args "$@"
