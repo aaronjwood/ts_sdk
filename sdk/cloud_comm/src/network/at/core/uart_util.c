@@ -1,7 +1,7 @@
 /* Copyright(C) 2017 Verizon. All rights reserved. */
 
-#include <stm32f4xx_hal.h>
 #include <string.h>
+#include "sys.h"
 #include "uart_util.h"
 #include "timer_hal.h"
 #include "timer_interface.h"
@@ -56,7 +56,7 @@ static void rx_char_cb(uint8_t data)
 		rx.buffer[rx.widx] = data;
 		rx.widx = (rx.widx + 1) % UART_BUF_SIZE;
 		rx.num_unread++;
-		__DSB();
+		dsb();
 	} else {
 		INVOKE_CALLBACK(UART_EVENT_RX_OVERFLOW);
 	}

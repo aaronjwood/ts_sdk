@@ -266,3 +266,8 @@ void sys_reset_modem(uint16_t pulse_width_ms)
 	sys_delay(pulse_width_ms);
 	gpio_write(Pin, PIN_HIGH);
 }
+
+void dsb()
+{
+	__DSB();
+}

@@ -6,12 +6,12 @@
 ifeq ($(PROTOCOL),OTT_PROTOCOL)
 PROTOCOL_SRC = ott_protocol.c
 PROTOCOL_DIR = ott_protocol
-PROTOCOL_INC = ott_protocol
+PROTOCOL_INC_DIR = ott_protocol
 
 else ifeq ($(PROTOCOL),SMSNAS_PROTOCOL)
 PROTOCOL_SRC = smsnas_protocol.c
 PROTOCOL_DIR = smsnas_protocol
-PROTOCOL_INC = smsnas_protocol
+PROTOCOL_INC_DIR = smsnas_protocol
 
 else ifeq ($(PROTOCOL),NO_PROTOCOL)
 # Some lower-level test programs bypass the protocol layer.
@@ -21,19 +21,18 @@ else
 $(error The PROTOCOL variable has an invalid value: $(PROTOCOL))
 endif
 
-export PROTOCOL
 
 PROTOCOLS_INC_ROOT = $(SDK_ROOT)/inc/protocols
 PROTOCOLS_SRC_ROOT = $(SDK_ROOT)/src/protocols
 
-INC += -I $(PROTOCOLS_INC_ROOT)
-INC += -I $(PROTOCOLS_INC_ROOT)/$(PROTOCOL_INC)
+PROTOCOL_INC += -I $(PROTOCOLS_INC_ROOT)
+PROTOCOL_INC += -I $(PROTOCOLS_INC_ROOT)/$(PROTOCOL_INC_DIR)
 
 vpath %.c $(PROTOCOLS_SRC_ROOT)/$(PROTOCOL_DIR):
 
 # OTT requires the mbed TLS library
 ifeq ($(PROTOCOL),OTT_PROTOCOL)
-VENDOR_INC += -I $(PROJ_ROOT)/sdk/cloud_comm/vendor/mbedtls/include
+VENDOR_INC += -I $(SDK_ROOT)/vendor/mbedtls/include
 VENDOR_LIB_DIRS += mbedtls
 VENDOR_LIB_FLAGS += -L. -lmbedtls -lmbedx509 -lmbedcrypto
 endif

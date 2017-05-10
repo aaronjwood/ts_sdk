@@ -21,8 +21,8 @@ ifneq ($(MODEM_TARGET),none)
 # Currently, all modems supporting TCP and SMS do so via AT commands.
 ifeq ($(MODEM_PROTOCOL),$(filter $(MODEM_PROTOCOL),tcp sms))
 MODEM_SRC += at_core.c uart_util.c
-INC += -I $(MODEM_INC_ROOT)
-INC += -I $(MODEM_SRC_ROOT)/at -I $(MODEM_SRC_ROOT)/at/core
+MODEM_INC += -I $(MODEM_INC_ROOT)
+MODEM_INC += -I $(MODEM_SRC_ROOT)/at -I $(MODEM_SRC_ROOT)/at/core
 endif
 
 # All TCP currently uses "TCP over AT commands" for TLS.
@@ -34,7 +34,7 @@ endif
 
 ifeq ($(MODEM_PROTOCOL),sms)
 MODEM_SRC += smscodec.c
-INC += -I $(MODEM_SRC_ROOT)/at/smscodec
+MODEM_INC += -I $(MODEM_SRC_ROOT)/at/smscodec
 endif
 endif
 

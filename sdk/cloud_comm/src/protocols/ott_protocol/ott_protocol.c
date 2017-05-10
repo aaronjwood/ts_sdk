@@ -682,7 +682,9 @@ static proto_result ott_send_auth_to_cloud(c_flags_t c_flags)
 
 static bool establish_session(bool polling)
 {
-	if (!session.host || !session.port || !session.rcv_buf)
+	if (strlen(session.host) == 0 || strlen(session.port) == 0)
+		return false;
+	if (!session.rcv_buf)
 		return false;
 
 retry_connection:
