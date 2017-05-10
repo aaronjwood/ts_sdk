@@ -1,11 +1,21 @@
-# Copyright(C) 2016, 2017 Verizon. All rights reserved.
+# Copyright(C) 2017 Verizon. All rights reserved.
 
-# Makefile for the device side application API test program.
+# Makefile for gpio test program.
+
+
 ifneq (build,$(notdir $(CURDIR)))
 # If not invoked in the build directory, change to that directory and
 # re-invoke the Makefile with SRCDIR set.
 include $(MK_HELPER_PATH)/build_in_subdir.mk
 else
+
+# This low-level test program bypasses the protocol layer and above.
+# This requires overriding some of the normal configuration.
+# Must always build with NO_PROTOCOL even if PROTOCOL is set externally.
+override PROTOCOL = NO_PROTOCOL
+override MODEM_PROTOCOL = none
+override MODEM_TARGET = none
+override SDK_SRC =
 
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG
@@ -27,4 +37,6 @@ DBG_LIB_SRC =
 
 # Common and per-platform Makefile variables
 include $(MK_HELPER_PATH)/common.mk
+
+
 endif

@@ -6,21 +6,24 @@
 include $(SDK_ROOT)/protocol.mk
 include $(SDK_ROOT)/modem.mk
 
+SDK_INC += $(PROTOCOL_INC)
+SDK_INC += $(MODEM_INC)
+
 # Header files for the cloud_comm API
-INC += -I $(SDK_ROOT)/api
+SDK_INC += -I $(SDK_ROOT)/api
 
 # Header files for services
-INC += -I $(SDK_ROOT)/inc
-INC += -I $(SDK_ROOT)/inc/services
+SDK_INC += -I $(SDK_ROOT)/inc
+SDK_INC += -I $(SDK_ROOT)/inc/services
 
 # Header files for certificates
-INC += -I $(SDK_ROOT)/inc/certs
+SDK_INC += -I $(SDK_ROOT)/inc/certs
 
 # Header files for device credentials
-INC += -I $(SDK_ROOT)/inc/dev_creds
+SDK_INC += -I $(SDK_ROOT)/inc/dev_creds
 
 # Header files for vendor libraries
-INC += $(VENDOR_INC)
+SDK_INC += $(VENDOR_INC)
 
 # Source for the main cloud API
 CLOUD_COMM_SRC ?= cloud_comm.c
@@ -33,6 +36,9 @@ SDK_SRC += $(MODEM_SRC) $(PROTOCOL_SRC) $(CLOUD_COMM_SRC) $(SERVICES_SRC)
 
 CFLAGS_SDK += $(MODEM_CFLAGS) $(PROTOCOL_CFLAGS)
 export CFLAGS_SDK
+export SDK_SRC
+export SDK_INC
+
 # Search paths for device driver sources
 vpath %.c $(SDK_ROOT)/src/cloud_comm_api: \
 	$(SDK_ROOT)/src/services:

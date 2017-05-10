@@ -57,4 +57,9 @@ uint32_t sys_sleep_ms(uint32_t sleep_ms);
  */
 void sys_reset_modem(uint16_t pulse_width_ms);
 
+/**
+ * \brief	data synchronous barrier
+ */
+void dsb(void);
+
 #endif

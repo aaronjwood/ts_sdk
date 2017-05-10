@@ -5,41 +5,31 @@
 
 # Remove files common to both debug and non-debug library sources
 CORELIB_SRC := $(filter-out $(DBG_LIB_SRC), $(CORELIB_SRC))
-CHIPSET_SRC := $(filter-out $(DBG_LIB_SRC), $(CHIPSET_SRC))
 
 # Create lists of object files to be generated from the sources
-OBJ_USER = $(addsuffix .o, $(basename $(notdir $(USER_SRC))))
+OBJ_USER = $(addsuffix .o, $(basename $(notdir $(APP_SRC))))
 OBJ_CORELIB = $(addsuffix .o, $(basename $(CORELIB_SRC)))
-OBJ_CHIPSET = $(addsuffix .o, $(basename $(CHIPSET_SRC)))
 OBJ_DBG_LIB = $(addsuffix .o, $(basename $(DBG_LIB_SRC)))
 
-OBJ = $(OBJ_USER) $(OBJ_CORELIB) $(OBJ_CHIPSET) $(OBJ_DBG_LIB)
+OBJ = $(OBJ_USER) $(OBJ_CORELIB) $(OBJ_DBG_LIB)
 
 CFLAGS_COM = -Werror -std=c99 $(INC) -D$(PROTOCOL) -D$(MODEM)
 CFLAGS_USER = -Wall -Wcast-align $(CFLAGS_COM) $(DBG_OP_USER_FLAGS)
 CFLAGS_LIB = -Wall -Wcast-align $(CFLAGS_SDK) $(PLATFORM_HAL_CFLAGS) \
 	$(CFLAGS_COM) $(DBG_OP_LIB_FLAGS) -fdata-sections -ffunction-sections
-CFLAGS_CHIPSET = $(CFLAGS_COM) $(DBG_OP_LIB_FLAGS) \
-	-fdata-sections -ffunction-sections
 CFLAGS_DBG_LIB = -Wall -Wcast-align $(CFLAGS_COM) $(DBG_OP_USER_FLAGS) \
 	-fdata-sections -ffunction-sections
 
 #==================================RULES=======================================#
-.PHONY: all build vendor_libs dump bin clean upload
+.PHONY: all build vendor_libs dump bin clean
 
 all build: $(FW_EXEC)
 	$(SIZE) $(FW_EXEC)
 
-$(FW_EXEC): $(OBJ) $(OBJ_STARTUP) vendor_libs
-	$(CC) $(LDFLAGS) $(NOSYSLIB) $(INC) -Os $(LTOFLAG) \
-		$(ARCHFLAGS) $(LDSCRIPT) $(OBJ) $(OBJ_STARTUP) \
+$(FW_EXEC): $(OBJ) vendor_libs
+	$(CC) $(LDFLAGS) $(CHIPSET_LDFLAGS) $(NOSYSLIB) $(INC) -Os $(LTOFLAG) \
+		$(ARCHFLAGS) $(LDSCRIPT) $(OBJ) $(CHIPSET_BUILDENV)/lib$(CHIPSET_MCU).a \
 		$(VENDOR_LIB_FLAGS) -o $(FW_EXEC)
-
-$(OBJ_STARTUP):
-	$(AS) $(ARCHFLAGS) -o $(OBJ_STARTUP) $(STARTUP_SRC)
-
-$(OBJ_CHIPSET): %.o: %.c
-	$(CC) -c $(CFLAGS_CHIPSET) $(ARCHFLAGS) $(MDEF) $< -o $@
 
 $(OBJ_CORELIB): %.o: %.c
 	$(CC) -c $(CFLAGS_LIB) $(DBG_MACRO) $(ARCHFLAGS) $(MDEF) $< -o $@
@@ -67,9 +57,3 @@ dump: $(FW_EXEC)
 bin: $(FW_EXEC)
 	$(OBJCOPY) -O binary $(FW_EXEC) fw.bin
 	$(OBJCOPY) -O ihex $(FW_EXEC) fw.hex
-
-upload: $(FW_EXEC)
-	openocd -f $(TOOLS_ROOT)/openocdcfg-stm32f4/board/st_nucleo_f4.cfg \
-		-c init -c "reset halt" \
-		-c "flash write_image erase $(FW_EXEC)" \
-		-c reset -c shutdown

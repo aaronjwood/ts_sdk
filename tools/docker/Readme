@@ -1,9 +1,4 @@
-Directory contains following docker files to set up chipset build environment
-at /ts_sdk_bldenv in the docker container
-1) Dockerfile.thingservice -      Pulls ubunutu 16.04 base image with gcc arm
-                                  toolchain at /ts_sdk_bldenv/toolchain from the
-                                  verizon internal server and copies additional
-                                  chipset sdk files at /ts_sdk_bldenv to be used
-                                  later by application and sdk build process
-2) Dockerfile.dockerhub -         Same as above except that it pulls base images
-                                  from dockerhub instead of internal server
+Directory contains all the docker files used in this SDK
+
+Note: docker files using ubuntu 16.04 base images comes with arm toolchain
+installed /ts_sdk_bldenv/toolchain

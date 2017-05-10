@@ -1,23 +1,22 @@
 # Copyright(C) 2016, 2017 Verizon. All rights reserved.
 
-# Makefile for the device side application API test program.
+# Makefile for to generate static library for the chipset sdk
+BUILD_MK_PATH = $(CURDIR)
+
+export CHIPSET_ROOT
+export CHIPSET_BUILDENV
+
 ifneq (build,$(notdir $(CURDIR)))
 # If not invoked in the build directory, change to that directory and
 # re-invoke the Makefile with SRCDIR set.
-include $(MK_HELPER_PATH)/build_in_subdir.mk
+include $(BUILD_MK_PATH)/build_in_subdir.mk
 else
+
+CHIPSET_ROOT = $(shell dirname $(SRCDIR))
+CHIPSET_BUILDENV = $(shell dirname $(CHIPSET_ROOT))ts_sdk_bldenv
 
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG
-
-# Use 'vpath' to search specific directories for library and user sources
-vpath %.c $(SRCDIR):
-
-# User application includes
-APP_INC =
-
-# User application sources
-APP_SRC = $(wildcard $(SRCDIR)/*.c)
 
 # Library sources are built without debug info and optimized for size.
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
@@ -25,6 +24,9 @@ APP_SRC = $(wildcard $(SRCDIR)/*.c)
 # Eg: DBG_LIB_SRC = stm32l0xx_hal_uart.c stm32l0xx_hal_uart_ex.c
 DBG_LIB_SRC =
 
-# Common and per-platform Makefile variables
-include $(MK_HELPER_PATH)/common.mk
+include $(CHIPSET_BUILDENV)/stm32f4/common_stm32f4.mk
+
+# Defines the target rules
+include $(SRCDIR)/rules.mk
+
 endif

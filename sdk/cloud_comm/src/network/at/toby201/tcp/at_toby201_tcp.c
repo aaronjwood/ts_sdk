@@ -597,7 +597,7 @@ int at_read_available(int s_id)
         return at_core_rx_available();
 }
 
-static buf_sz __at_calc_new_len(void)
+static int __at_calc_new_len(void)
 {
         buf_sz n_sz = at_core_rx_available();
         if (dl.matched_bytes > n_sz) {
@@ -691,11 +691,12 @@ static int __at_process_rcv_dl_partial(size_t len)
                  * arrived
                  */
                 if (prev_pos != dl.l_matched_pos) {
-                        a_avail = __at_calc_new_len();
-                        DEBUG_V0("%s:%d: new available: (%u)\n",
-                                __func__, __LINE__, a_avail);
-                        if (a_avail == DL_PARTIAL_ERROR)
+                        int res = __at_calc_new_len();
+                        if (res == DL_PARTIAL_ERROR)
                                 return DL_PARTIAL_ERROR;
+                        DEBUG_V0("%s:%d: new available: (%u)\n",
+                                __func__, __LINE__, res);
+                        a_avail = (buf_sz)res;
                 } else {
                         if (prev_matched == dl.matched_bytes) {
                                 /* no change in data, consider this as a
