@@ -150,6 +150,7 @@ fi
 
 if [ "$1" = "help" ]; then
 	usage
+	exit 0
 fi
 
 if ! [ -z "$1" ]; then
