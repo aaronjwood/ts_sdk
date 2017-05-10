@@ -2,6 +2,7 @@
 
 #include <stm32f4xx_hal.h>
 #include "dbg.h"
+#include "gpio_hal.h"
 #include "timer_hal.h"
 #include "timer_interface.h"
 #include "board_config.h"
@@ -73,12 +74,12 @@ static void SystemClock_Config(void)
 	RCC_OscInitStruct.PLL.PLLN = 360;
 	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
 	RCC_OscInitStruct.PLL.PLLQ = 8;		/* PLL48CLK = 45 MHz. */
-	if(HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
 		/* Initialization Error */
 		raise_err();
 
 	/* Extend maximum clock frequency to 180 MHz from 168 MHz. */
-	if(HAL_PWREx_EnableOverDrive() != HAL_OK)
+	if (HAL_PWREx_EnableOverDrive() != HAL_OK)
 		/* Initialization Error */
 		raise_err();
 
@@ -94,7 +95,7 @@ static void SystemClock_Config(void)
 	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;        /* 180 MHz */
 	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;         /* 45 MHz */
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;         /* 90 MHz */
-	if(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
 		/* Initialization Error */
 		raise_err();
 }
@@ -107,14 +108,13 @@ static void init_reset_gpio(void)
 	 * RESET_N which is the 26th pin on the DIL B2B J300 connector.
 	 */
 	/* XXX: The GPIO pin settings might be different for another modem. */
-	GPIO_InitTypeDef reset_pins;
-	__HAL_RCC_GPIOD_CLK_ENABLE();
-	reset_pins.Pin = GPIO_PIN_2;
-	reset_pins.Mode = GPIO_MODE_OUTPUT_OD;
-	reset_pins.Pull = GPIO_NOPULL;
-	reset_pins.Speed = GPIO_SPEED_FREQ_HIGH;
-	HAL_GPIO_Init(GPIOD, &reset_pins);
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
+	gpio_config_t reset_pins;
+	pin_name_t Pin = PD2;
+	reset_pins.dir = OUTPUT;
+	reset_pins.pull_mode = OD_NO_PULL;
+	reset_pins.speed = SPEED_HIGH;
+	gpio_init(Pin, &reset_pins);
+	gpio_write(Pin, PIN_HIGH);
 }
 
 static void tim5_cb(void)
@@ -157,7 +157,7 @@ void sys_init(void)
 
 void sys_delay(uint32_t delay_ms)
 {
-        HAL_Delay(delay_ms);
+	HAL_Delay(delay_ms);
 }
 
 uint64_t sys_get_tick_ms(void)
@@ -212,7 +212,8 @@ uint32_t sys_sleep_ms(uint32_t sleep)
 	/* Request to enter SLEEP mode */
 	do {
 		sleep_temp = set_timer(sleep);
-		HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+		HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, \
+			PWR_SLEEPENTRY_WFI);
 		total_slept += handle_wakeup_event(sleep_temp);
 		sleep = sleep - total_slept;
 	} while (rem_sleep);
@@ -260,9 +261,10 @@ void UsageFault_Handler(void)
 
 void sys_reset_modem(uint16_t pulse_width_ms)
 {
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET);
+	pin_name_t Pin = PD2;
+	gpio_write(Pin, PIN_LOW);
 	sys_delay(pulse_width_ms);
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
+	gpio_write(Pin, PIN_HIGH);
 }
 
 void dsb()
