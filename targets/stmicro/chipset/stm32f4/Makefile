@@ -26,10 +26,6 @@ DBG_LIB_SRC =
 
 include $(CHIPSET_BUILDENV)/stm32f4/common_stm32f4.mk
 
-# chipset device drivers, provided by common_xxxx.mk from above
-INC += $(CHIPSET_INC)
-
-
 # Defines the target rules
 include $(SRCDIR)/rules.mk
 

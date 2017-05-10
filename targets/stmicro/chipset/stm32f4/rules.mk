@@ -10,8 +10,8 @@ OBJ_DBG_LIB = $(addsuffix .o, $(basename $(DBG_LIB_SRC)))
 
 OBJ = $(OBJ_CHIPSET) $(OBJ_DBG_LIB) $(OBJ_STARTUP)
 
-CFLAGS_COM = -Werror -std=c99 $(INC) -D$(PROTOCOL) -D$(MODEM)
-CFLAGS_CHIPSET = -Werror -Os -std=c99 $(CHIPSET_INC) $(DBG_OP_LIB_FLAGS) \
+CFLAGS_COM = -Werror -std=c99 $(CHIPSET_INC)
+CFLAGS_CHIPSET = -Os $(CFLAGS_COM) $(DBG_OP_LIB_FLAGS) \
 	-fdata-sections -ffunction-sections
 CFLAGS_DBG_LIB = -Wall -Wcast-align $(CFLAGS_COM) $(DBG_OP_USER_FLAGS) \
 	-fdata-sections -ffunction-sections
