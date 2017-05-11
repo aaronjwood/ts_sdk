@@ -60,9 +60,9 @@ TOBY-L201.
 2.1 Supported targets
 ----------------------
 The following targets are supported by the SDK:
-        o MCU: STM32F429ZI
+        o MCU: STM32F429ZIT
           Family: ARM Cortex M4
-          Boards: NUCLEO-F429ZI ARM development board
+          Boards: NUCLEO-F429ZIT ARM development board
 
 
 2.2 Supported proprietary protocols
