@@ -83,8 +83,7 @@ int main()
 	for (int i = 0; i < HTS221_CALIB_SZ ; i++)
 		dbg_printf("HTS221 calibration table data[%d] = %x\n", i,\
 						 data.bytes[i]);
-	while (1)
-	{
+	while (1) {
 		i2c_dest_addr.reg = HTS_CTRL_REG_1;
 		/*HTS221 - writing in to the  sensor*/
 		dbg_printf("Initializing HTS221 sensor..\n");
@@ -94,16 +93,18 @@ int main()
 
 		dbg_printf("Reading the HTS221 Temp value.....\n");
 		i2c_dest_addr.reg = HTS_STATUS_REG;
-		EOE(read_until_matched_byte(i2c_handle, i2c_dest_addr, 0x01, 0x01));
+		EOE(read_until_matched_byte(i2c_handle, i2c_dest_addr,\
+								 0x01, 0x01));
 
 		i2c_dest_addr.reg = HTS_TEMP_OUT_L;
 		data.sz = HTS_TEMP_SZ;
 		/* Reading the sensor */
 		EOE(i2c_read(i2c_handle, i2c_dest_addr , data.sz, data.bytes));
-		dbg_printf("Value of HTS221 Temp Sensor = %2x%2x\n", *(data.bytes),\
-							 *(data.bytes+1));
+		dbg_printf("Value of HTS221 Temp Sensor = %2x%2x\n",\
+						*(data.bytes), *(data.bytes+1));
 		dbg_printf("Reading the HTS221 Humidity value....\n");
-		EOE(read_until_matched_byte(i2c_handle, i2c_dest_addr, 0x02, 0x02));
+		EOE(read_until_matched_byte(i2c_handle, i2c_dest_addr,\
+								 0x02, 0x02));
 
 		i2c_dest_addr.reg = HTS_HUMIDITY_OUT_L;
 		data.sz = HTS_HUMIDITY_SZ;

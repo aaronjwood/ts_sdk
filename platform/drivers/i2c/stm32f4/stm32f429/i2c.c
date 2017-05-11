@@ -126,6 +126,3 @@ void i2c_pwr(periph_t hdl, bool state)
 {
 	/* XXX: Stub for now */
 }
-
-
-
