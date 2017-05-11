@@ -66,7 +66,7 @@ The following targets are supported by the SDK:
 
 
 2.2 Supported proprietary protocols
----------------------------------------
+------------------------------------
         o Over-the-top (OTT) - uses TCP/IP as low level transport
         o SMSNAS - uses SMS as low level transport
 
@@ -293,7 +293,7 @@ No additional configuration is needed to build the TS SDK for the SMSNAS protoco
 
 
 5.2 Building and Uploading the SDK with the user application
------------------------------------------------
+-------------------------------------------------------------
 The SDK can be built with the application source. The actual build takes place inside a
 Docker container started by the build script (build.sh) located at:
 ts_sdk/tools/scripts/. It must be invoked from the repository root.
