@@ -6,6 +6,7 @@
 #define _CAT(a, ...)    a ## __VA_ARGS__
 #define CAT(a, ...)     _CAT(a, __VA_ARGS__)
 #define I2C_TIMEOUT_MS 2000
+#define I2C_CLOCKSPEED 400000
 #define READ_MATCH_TIMEOUT 1000
 
 /*
@@ -61,12 +62,14 @@ static bool init_i2c_peripheral(periph_t hdl)
 
 	i2c_stm32_handle[iid].Instance = i2c_instance;
 	i2c_stm32_handle[iid].Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-	i2c_stm32_handle[iid].Init.ClockSpeed = 400000;
+	i2c_stm32_handle[iid].Init.ClockSpeed = I2C_CLOCKSPEED;
 	i2c_stm32_handle[iid].Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
 	i2c_stm32_handle[iid].Init.DutyCycle = I2C_DUTYCYCLE_16_9;
 	i2c_stm32_handle[iid].Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
 	i2c_stm32_handle[iid].Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-	HAL_I2C_Init(&i2c_stm32_handle[iid]);
+	if(HAL_I2C_Init(&i2c_stm32_handle[iid]) != HAL_OK)
+		return false;
+
 	return true;
 }
 
@@ -83,33 +86,41 @@ periph_t i2c_init(pin_name_t scl, pin_name_t sda)
 			!pp_peripheral_pin_init(sda, i2c_sda_map))
 		return NO_PERIPH;
 
-	init_i2c_peripheral(p1);
-	return p1;
+	if((init_i2c_peripheral(p1)) == true)
+		return p1;
+	else
+		return false;
 }
 
 bool i2c_write(periph_t hdl, i2c_addr_t addr, uint8_t len, const uint8_t *buf)
 {
+	if(!buf)
+		return false;
+	
+	if(hdl == NO_PERIPH)
+		return false;
+	
 	if (HAL_I2C_Mem_Write(&i2c_stm32_handle[convert_hdl_to_id(hdl)],\
 		 addr.slave << 1 , addr.reg, I2C_MEMADD_SIZE_8BIT,\
 			 (uint8_t *) buf , len, I2C_TIMEOUT_MS) != HAL_OK)
 		return false;
-
 	return true;
 }
 
-
-
 bool i2c_read(periph_t hdl, i2c_addr_t addr, uint8_t len, uint8_t *buf)
 {
-
+	if(!buf)
+		return false;
+	
+	if(hdl == NO_PERIPH)
+		return false;
+	
 	if (HAL_I2C_Mem_Read(&i2c_stm32_handle[convert_hdl_to_id(hdl)],\
 		 addr.slave << 1 , addr.reg, I2C_MEMADD_SIZE_8BIT, buf ,\
 			 len, I2C_TIMEOUT_MS) != HAL_OK)
 		return false;
-
 	return true;
 }
-
 
 void i2c_pwr(periph_t hdl, bool state)
 {
