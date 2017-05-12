@@ -7,10 +7,10 @@
 
 /*
 * Use the following command to obtain the device ID and device secret:
-* $PROJ_ROOT/tools/scripts/ott-client-api.sh dev mydevice
+* $PROJ_ROOT/tools/scripts/thingspace-client-api.sh ott dev mydevice
 *
 * For more information on using the script:
-* $PROJ_ROOT/tools/scripts/ott-client-api.sh help
+* $PROJ_ROOT/tools/scripts/thingspace-client-api.sh help
 */
 static const uint8_t d_ID[] = {		/* Device ID */
 	0x03, 0x0c, 0x2f, 0x9a, 0x47, 0x5c, 0x4a, 0xa6,

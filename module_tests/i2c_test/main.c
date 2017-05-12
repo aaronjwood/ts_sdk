@@ -67,8 +67,7 @@ int main()
 	dbg_printf("Begin:\n");
 	 /* PB8 = SCL; PB9 = SDA */
 	periph_t i2c_handle =  i2c_init(PB8, PB9);
-	if (i2c_handle == NO_PERIPH)
-		return false;
+	ASSERT(i2c_handle == NO_PERIPH);
 	i2c_dest_addr.slave = HTS221_ADDR;
 	i2c_dest_addr.reg = HTS_WHO_AM_I;
 	EOE(i2c_read(i2c_handle, i2c_dest_addr, 1, data.bytes));

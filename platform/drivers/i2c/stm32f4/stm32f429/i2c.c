@@ -70,6 +70,7 @@ static bool init_i2c_peripheral(periph_t hdl)
 	if (HAL_I2C_Init(&i2c_stm32_handle[iid]) != HAL_OK)
 		return false;
 
+	i2c_usage[iid] = true;
 	return true;
 }
 
@@ -94,7 +95,7 @@ periph_t i2c_init(pin_name_t scl, pin_name_t sda)
 
 bool i2c_write(periph_t hdl, i2c_addr_t addr, uint8_t len, const uint8_t *buf)
 {
-	if (!buf)
+	if ((!buf) || (len == 0))
 		return false;
 
 	if (hdl == NO_PERIPH)
@@ -109,7 +110,7 @@ bool i2c_write(periph_t hdl, i2c_addr_t addr, uint8_t len, const uint8_t *buf)
 
 bool i2c_read(periph_t hdl, i2c_addr_t addr, uint8_t len, uint8_t *buf)
 {
-	if (!buf)
+	if ((!buf) || (len == 0))
 		return false;
 
 	if (hdl == NO_PERIPH)
