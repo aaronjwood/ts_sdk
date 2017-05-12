@@ -17,7 +17,7 @@ export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 
 # Example stmicro stm32f4 chipset and development board related parameters
 #CHIPSET_FAMILY="stm32f4"
-#CHIPSET_MCU="stm32f429"
+#CHIPSET_MCU="stm32f429zit"
 #DEV_BOARD="nucleo"
 
 # Defines which modem to use. Currently only the ublox toby201 is supported.
@@ -68,7 +68,7 @@ Usage:  source $SCRIPT_NAME Options
 		Displays script usage
 
 	Build Options: List of build options, all the options must be
-	specified as a key=value pair, for exaple, mcu=stm32f429.
+	specified as a key=value pair, for example, mcu=stm32f429zit.
 
 	chipset_family: Chipset family
 
@@ -131,7 +131,7 @@ print_env()
 exp_sdk_defaults()
 {
 	export CHIPSET_FAMILY="stm32f4"
-	export CHIPSET_MCU="stm32f429"
+	export CHIPSET_MCU="stm32f429zit"
 	export DEV_BOARD="nucleo"
 	export MODEM_TARGET="toby201"
 	if ! [ -z "$1" ]; then

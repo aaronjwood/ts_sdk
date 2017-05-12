@@ -21,7 +21,7 @@ consists of three layers:
 Layer No.       Description
 ----------      ----------------------------------------------------------------
     1           A chipset HAL that is usually provided for a chipset family by
-                the manufacturer (Eg. STM32F4 HAL etc.)
+                the chipset vendor (Eg. STM32F4 HAL etc.)
 
     2           A port and pin abstraction layer that generalizes the way ports
                 and pins are accessed across MCUs by layers above it.
@@ -67,8 +67,8 @@ the above layers is being changed:
         o When porting across MCUs belonging to the same chipset family, usually
           layer 1 remains the same while layers 2 and 3 need to be reimplemented.
         o When porting across MCUs belonging to different chipset families or if
-          they are from different manufacturers, layer 1 will need to be
-          switched out and layers 2 and 3 will need to be reimplemented.
+          they are from different vendors, layer 1 will need to be switched out
+          and layers 2 and 3 will need to be reimplemented.
 
 Chipset HALs/SDKs reside in ts_sdk/targets directory.
 
@@ -136,8 +136,8 @@ the second contains MCU specific implementations, and the third contains board
 specific implementations.
 
 Note that the names of the directories representing <chipset family>, <mcu> and
-<board> are also the expected values of CHIPSET_FAMILY, CHIPSET_MCU and DEV_BOARD,
-respectively, as referenced in the SDK README.
+<board> are also the expected values of CHIPSET_FAMILY, CHIPSET_MCU and
+DEV_BOARD, respectively, as referenced in the SDK README.
 
 
 4. Porting the SDK across boards
@@ -162,14 +162,16 @@ steps:
           pin map entries and how ports and pins are initialized.
         o Porting layer 3 to account for changes in the chipset HAL.
 
-Depending on how the manufacturer structures the chipset HAL, the second step
+Depending on how the chipset vendor structures the chipset HAL, the second step
 above may or may not be needed. For example, the STM32F4 HAL targets the entire
-Cortex M4 family at once and therefore the second step is not needed. However,
-in this case, it is necessary to modify the target specific Makefile fragment to
-configure the chipset HAL and choose the proper linker script. The details of
-doing this is specific to the chipset HAL and is beyond the scope of this guide.
+Cortex M4 family at once and therefore most of layer 3 remains the same.
+However, in this case, differences in the number and type of peripherals may
+need to be accounted for. It is also necessary to modify the target specific
+Makefile fragment to configure the chipset HAL and choose the proper linker
+script. The details of doing this is specific to the chipset HAL and is beyond
+the scope of this guide.
 
-If the chipset HAL does not have support for the entire family, the porting
+If the chipset HAL does not support the entire family at once, the porting
 process will be similar to the one described in Section 6.
 
 
@@ -179,5 +181,5 @@ This porting strategy is relevant when building support for an entirely new MCU.
 It consists of implementing layer 2, i.e. establishing pin name encodings, pin
 maps, implementing the API routines needed to initialize the ports and pins and
 implementing the layer 3 drivers. Both layers 2 and 3 rely on the chipset HAL
-provided by the manufacturer. So the chipset HAL will need to be configured for
-the given target.
+provided by the chipset vendor. So the chipset HAL will need to be configured
+for the given target.

@@ -30,8 +30,8 @@ void sys_delay(uint32_t delay_ms);
  *
  * \return      Number of milliseconds since calling sys_init()
  * \note
- * This function needs to be called atleast once within 49 days since boot up
- * for stm32f429 platform.
+ * This function needs to be called at least once within 49 days since boot up
+ * for all platforms with a 32-bit clock register.
  */
 uint64_t sys_get_tick_ms(void);
 
@@ -44,8 +44,8 @@ uint64_t sys_get_tick_ms(void);
  * 	0 if sleep was completed uninterrupted or remaining sleep time in milli
  *      seconds.
  * \note
- * This function stops systick timer before going into sleep and resumes it
- * right after wake up for stm32f429 platform.
+ * This function stops SysTick timer before going into sleep and resumes it
+ * right after wake up for all STM32 MCUs.
  */
 uint32_t sys_sleep_ms(uint32_t sleep_ms);
 

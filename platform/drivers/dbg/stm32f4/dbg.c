@@ -47,16 +47,15 @@ ssize_t _write(int fd, const void *buf, size_t count)
 void raise_err(void)
 {
 	gpio_config_t err_led;
-	pin_name_t pin_name = PB7;
 	err_led.dir = OUTPUT;
 	err_led.pull_mode = PP_NO_PULL;
 	err_led.speed = SPEED_LOW;
-	gpio_init(pin_name, &err_led);
+	gpio_init(ERROR_LED_PIN, &err_led);
 
 	while (1) {
-		gpio_write(pin_name, PIN_LOW);
+		gpio_write(ERROR_LED_PIN, PIN_LOW);
 		sys_delay(1000);
-		gpio_write(pin_name, PIN_HIGH);
+		gpio_write(ERROR_LED_PIN, PIN_HIGH);
 		sys_delay(1000);
 	}
 }
