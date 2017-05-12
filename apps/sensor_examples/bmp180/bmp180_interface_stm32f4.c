@@ -1,4 +1,4 @@
-/* Copyright(C) 2016 Verizon. All rights reserved. */
+/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
 /* Sensor module for the BMP180 temperature and pressure sensor */
 #include <stdbool.h>
@@ -14,8 +14,6 @@
 		if (!(func)) \
 			return false; \
 	} while (0)
-
-#define I2C_TIMEOUT	2000	/* 2000ms timeout for I2C response */
 
 periph_t  i2c_handle;
 i2c_addr_t i2c_dest_addr;
