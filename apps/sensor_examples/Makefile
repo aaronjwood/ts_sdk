@@ -11,8 +11,8 @@ include $(MK_HELPER_PATH)/build_in_subdir.mk
 else
 
 
-#PROJ_NAME ?= bmp180
-PROJ_NAME ?=xnucleo-iks01a1
+PROJ_NAME ?= bmp180
+#PROJ_NAME ?=xnucleo-iks01a1
 
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG
