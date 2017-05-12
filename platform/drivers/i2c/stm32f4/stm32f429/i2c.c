@@ -90,7 +90,7 @@ periph_t i2c_init(pin_name_t scl, pin_name_t sda)
 	if ((init_i2c_peripheral(p1)) == true)
 		return p1;
 	else
-		return false;
+		return NO_PERIPH;
 }
 
 bool i2c_write(periph_t hdl, i2c_addr_t addr, uint8_t len, const uint8_t *buf)
