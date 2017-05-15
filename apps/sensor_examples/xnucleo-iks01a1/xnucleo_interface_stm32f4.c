@@ -191,9 +191,9 @@ static bool read_until_matched_byte(uint8_t dev, uint8_t reg,
 	uint8_t value;
 	uint32_t start = sys_get_tick_ms();
 	uint32_t end = start;
+	i2c_dest_addr.slave = dev;
+	i2c_dest_addr.reg = reg;
 	do {
-		i2c_dest_addr.slave = dev;
-		i2c_dest_addr.reg = reg;
 		EOE(i2c_read(i2c_handle, i2c_dest_addr, 1, &value));
 		if ((value & mask) == expected)
 			return true;
