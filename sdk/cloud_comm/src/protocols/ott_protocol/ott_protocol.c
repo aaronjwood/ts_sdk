@@ -587,8 +587,11 @@ static proto_result ott_initiate_connection(const char *host, const char *port)
 	/* Connect to the cloud server over TCP */
 	ret = mbedtls_net_connect(&server_fd, host, port,
 				  MBEDTLS_NET_PROTO_TCP);
-	if (ret < 0)
+	if (ret < 0) {
+		mbedtls_net_free(&server_fd);
 		return PROTO_ERROR;
+	}
+
 
 	/* Set up the SSL context */
 	ret = mbedtls_ssl_setup(&ssl, &conf);

@@ -455,6 +455,13 @@ static void __at_parse_tcp_conf_rsp(void *rcv_rsp, int rcv_rsp_len,
                                 __func__, *((int *)data));
 }
 
+static at_ret_code __at_pdp_conf(void)
+{
+        at_ret_code result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4_PREF], true);
+        CHECK_SUCCESS(result, AT_SUCCESS, result);
+        return at_core_wcmd(&pdp_conf_comm[ACT_PDP], true);
+}
+
 static int __at_tcp_connect(const char *host, const char *port)
 {
         int s_id = -1;
@@ -479,19 +486,19 @@ static int __at_tcp_connect(const char *host, const char *port)
         desc->comm = temp_comm;
         result = at_core_wcmd(desc, true);
 
+	/* If connection fails, make sure PDP context remains intact */
+	if (result == AT_CONNECT_FAILED) {
+		at_ret_code res = __at_pdp_conf();
+		if (res != AT_SUCCESS)
+			DEBUG_V0("%s: failed to reinit pdp ctx\n", __func__);
+	}
+
         CHECK_SUCCESS(result, AT_SUCCESS, AT_CONNECT_FAILED);
 
         state |= TCP_CONNECTED;
         state &= ~TCP_CONN_CLOSED;
         DEBUG_V0("%s: socket:%d created\n", __func__, s_id);
         return s_id;
-}
-
-static at_ret_code __at_pdp_conf(void)
-{
-        at_ret_code result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4_PREF], true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result);
-        return at_core_wcmd(&pdp_conf_comm[ACT_PDP], true);
 }
 
 int at_tcp_connect(const char *host, const char *port)
