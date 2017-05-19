@@ -1,8 +1,8 @@
 # Copyright(C) 2016,2017 Verizon. All rights reserved.
 
 CHIPSET_FAMILY ?= stm32f4
-CHIPSET_MCU ?= stm32f429zit
-DEV_BOARD ?= nucleo
+CHIPSET_MCU ?= $(CHIPSET_MCU)
+DEV_BOARD ?= $(DEV_BOARD)
 # Defines which modem to use. Currently only the ublox toby201 is supported.
 MODEM_TARGET ?= toby201
 
