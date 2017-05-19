@@ -487,11 +487,9 @@ static int __at_tcp_connect(const char *host, const char *port)
         result = at_core_wcmd(desc, true);
 
 	/* If connection fails, make sure PDP context remains intact */
-	if (result == AT_CONNECT_FAILED) {
-		at_ret_code res = __at_pdp_conf();
-		if (res != AT_SUCCESS)
+	if (result == AT_CONNECT_FAILED)
+		if (__at_pdp_conf() != AT_SUCCESS)
 			DEBUG_V0("%s: failed to reinit pdp ctx\n", __func__);
-	}
 
         CHECK_SUCCESS(result, AT_SUCCESS, AT_CONNECT_FAILED);
 
