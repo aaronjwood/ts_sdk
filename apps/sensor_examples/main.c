@@ -1,10 +1,12 @@
-/* Copyright(C) 2016,2017 Verizon. All rights reserved. */
+/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
 
 /*
  * Example firmware that reads the sensors and reports the reading(s) back to
  * the cloud using the OTT protocol. It also reports back calibration data on
  * receiving a command (RESEND_CALIB).
  * Data from each sensor is sent in a separate message to the cloud.
+ * To keep the test program simple, error handling is kept to a minimum.
+ * Wherever possible, the program halts with an ASSERT in case the API fails.
  */
 
 #include "sys.h"
@@ -30,6 +32,9 @@ CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 #endif
 
 static bool resend_calibration;		/* Set if RESEND command was received */
+
+/* Number of times to retry sending in case of failure */
+#define MAX_RETRIES	((uint8_t)3)
 
 /* Arbitrary long sleep time in milliseconds */
 #define LONG_SLEEP_INT_MS	180000
@@ -97,14 +102,29 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 		dbg_printf("\t\t\tUnsupported control event: %d\n", event);
 }
 
+static void send_with_retry(cc_buffer_desc *b, cc_data_sz s, cc_service_id id)
+{
+	uint8_t retries = 0;
+	cc_send_result res;
+	while (retries < MAX_RETRIES) {
+		res = cc_send_svc_msg_to_cloud(b, s, id);
+		if (res == CC_SEND_SUCCESS)
+			break;
+		retries++;
+		dbg_printf("\t%s: send attempt %d out of %d failed\n", __func__,
+				retries, MAX_RETRIES);
+	}
+	if (res != CC_SEND_SUCCESS)
+		dbg_printf("\t%s: Failed to send message.\n", __func__);
+}
+
 static void send_all_calibration_data(void)
 {
 	array_t data;
 	data.bytes = cc_get_send_buffer_ptr(&send_buffer, CC_SERVICE_BASIC);
 	ASSERT(si_read_calib(0, SEND_DATA_SZ, &data));
 	dbg_printf("\tCalibration table : %d bytes\n", data.sz);
-	ASSERT(cc_send_svc_msg_to_cloud(&send_buffer, data.sz,
-					CC_SERVICE_BASIC) == CC_SEND_SUCCESS);
+	send_with_retry(&send_buffer, data.sz, CC_SERVICE_BASIC);
 }
 
 static uint32_t read_and_send_all_sensor_data(uint64_t cur_ts)
@@ -120,9 +140,7 @@ static uint32_t read_and_send_all_sensor_data(uint64_t cur_ts)
 		ASSERT(si_read_data(i, SEND_DATA_SZ, &data));
 		dbg_printf("\tSensor [%d], ", i);
 		dbg_printf("sending out status message : %d bytes\n", data.sz);
-		ASSERT(cc_send_svc_msg_to_cloud(&send_buffer, data.sz,
-						CC_SERVICE_BASIC)
-		       == CC_SEND_SUCCESS);
+		send_with_retry(&send_buffer, data.sz, CC_SERVICE_BASIC);
 	}
 	last_st_ts = cur_ts;
 	return STATUS_REPORT_INT_MS;
