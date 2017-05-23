@@ -592,7 +592,6 @@ static proto_result ott_initiate_connection(const char *host, const char *port)
 		return PROTO_ERROR;
 	}
 
-
 	/* Set up the SSL context */
 	ret = mbedtls_ssl_setup(&ssl, &conf);
 	if (ret != 0) {

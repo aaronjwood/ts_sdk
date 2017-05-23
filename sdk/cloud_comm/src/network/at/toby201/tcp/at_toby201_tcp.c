@@ -486,15 +486,11 @@ static int __at_tcp_connect(const char *host, const char *port)
         desc->comm = temp_comm;
         result = at_core_wcmd(desc, true);
 
-	/* If connection fails, make sure PDP context remains intact */
-	if (result == AT_CONNECT_FAILED)
-		if (__at_pdp_conf() != AT_SUCCESS)
-			DEBUG_V0("%s: failed to reinit pdp ctx\n", __func__);
-
         CHECK_SUCCESS(result, AT_SUCCESS, AT_CONNECT_FAILED);
 
         state |= TCP_CONNECTED;
         state &= ~TCP_CONN_CLOSED;
+        state &= ~TCP_REMOTE_DISCONN;
         DEBUG_V0("%s: socket:%d created\n", __func__, s_id);
         return s_id;
 }
@@ -509,11 +505,12 @@ int at_tcp_connect(const char *host, const char *port)
                 return -1;
         }
         if (state > IDLE) {
-                if ((state & TCP_CONN_CLOSED) != TCP_CONN_CLOSED) {
-                        DEBUG_V0("%s: TCP connect not possible, state :%u\n",
-                                __func__, state);
-                        return -1;
-                }
+		if ((state & TCP_CONN_CLOSED) != TCP_CONN_CLOSED &&
+			(state & TCP_REMOTE_DISCONN) != TCP_REMOTE_DISCONN) {
+			DEBUG_V0("%s: TCP connect not possible, state :%u\n",
+					__func__, state);
+			return -1;
+		}
         }
         if (!pdp_conf) {
                 if (__at_pdp_conf() != AT_SUCCESS) {
