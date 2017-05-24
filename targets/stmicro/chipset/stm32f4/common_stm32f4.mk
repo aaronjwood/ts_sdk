@@ -36,7 +36,7 @@ else ifeq ($(CHIPSET_MCU), stm32f429zit)
 	STARTUP_SRC = $(STM32_CMSIS)/Source/Templates/gcc/startup_stm32f429xx.s
 	OBJ_STARTUP = startup_stm32f429xx.o 
 else
-$(error "$(CHIPSET_MCU) chipset is not supported")
+	$(error "$(CHIPSET_MCU) chipset is not supported")
 endif
 
 
