@@ -23,10 +23,13 @@ export CC OBJDUMP OBJCOPY SIZE
 
 # Machine specific compiler and assembler settings
 ARCHFLAGS = -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
-ifeq  ($(CHIPSET_MCU),stm32f415rgt)
+ifeq ($(CHIPSET_MCU),stm32f415rgt)
 	MDEF = -DSTM32F415xx
-else ifeq($(CHIPSET_MCU), stm32f429zit)
+else ifeq ($(CHIPSET_MCU), stm32f429zit)
 	MDEF = -DSTM32F429xx
+else
+	$(error $(CHIPSET_MCU) chipset is not supported)
+
 endif
 export MDEF
 export ARCHFLAGS
@@ -48,10 +51,10 @@ export CHIPSET_LDFLAGS
 NOSYSLIB =  -Wl,--gc-sections -Wl,--as-needed --specs=nosys.specs --specs=nano.specs
 
 # Linker script
-ifeq  ($(CHIPSET_MCU),stm32f415rgt)
+ifeq ($(CHIPSET_MCU),stm32f415rgt)
 	LDSCRIPT = -T $(STM32_LIB_COMMON)/STM32F415RGTx_FLASH.ld
-else ifeq($(CHIPSET_MCU), stm32f429zit)
+else ifeq ($(CHIPSET_MCU), stm32f429zit)
 	LDSCRIPT = -T $(STM32_LIB_COMMON)/STM32F429ZITx_FLASH.ld 
 else
-	@echo "CHIPSET_MCU Linker script is not found"
+	$(error $(CHIPSET_MCU) chipset linker script is not found)
 endif

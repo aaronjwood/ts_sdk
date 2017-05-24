@@ -25,20 +25,18 @@ SIZE = $(GCC_ROOT)/bin/arm-none-eabi-size
 
 # Machine specific compiler and assembler settings
 ARCHFLAGS = -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
-ifeq  ($(CHIPSET_MCU),stm32f415rgt)
-        MDEF = -DSTM32F415xx
-else ifeq($(CHIPSET_MCU), stm32f429zit)
-        MDEF = -DSTM32F429xx
-endif
 
 # Point to the C Runtime startup code
-ifeq  ($(CHIPSET_MCU),stm32f415rgt)
+ifeq ($(CHIPSET_MCU),stm32f415rgt)
+        MDEF = -DSTM32F415xx
 	STARTUP_SRC = $(STM32_CMSIS)/Source/Templates/gcc/startup_stm32f415xx.s
 	OBJ_STARTUP = startup_stm32f415xx.o
-else ifeq($(CHIPSET_MCU), stm32f429zit)
+else ifeq ($(CHIPSET_MCU), stm32f429zit)
+        MDEF = -DSTM32F429xx
 	STARTUP_SRC = $(STM32_CMSIS)/Source/Templates/gcc/startup_stm32f429xx.s
 	OBJ_STARTUP = startup_stm32f429xx.o 
 endif
+
 
 # Platform support is based on STMicro's HAL library
 # Peripheral related headers
