@@ -21,14 +21,16 @@ OBJCOPY = $(GCC_ROOT)/bin/arm-none-eabi-objcopy
 SIZE = $(GCC_ROOT)/bin/arm-none-eabi-size
 export CC OBJDUMP OBJCOPY SIZE
 
-# Machine specific compiler and assembler settings
+# Machine specific compiler, assembler settings and Linker script
 ARCHFLAGS = -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
 ifeq ($(CHIPSET_MCU),stm32f415rgt)
 	MDEF = -DSTM32F415xx
+	LDSCRIPT = -T $(STM32_LIB_COMMON)/STM32F415RGTx_FLASH.ld
 else ifeq ($(CHIPSET_MCU), stm32f429zit)
 	MDEF = -DSTM32F429xx
+	LDSCRIPT = -T $(STM32_LIB_COMMON)/STM32F429ZITx_FLASH.ld 
 else
-	$(error $(CHIPSET_MCU) chipset is not supported)
+	$(error "$(CHIPSET_MCU) chipset is not supported")
 
 endif
 export MDEF
@@ -50,11 +52,3 @@ export CHIPSET_LDFLAGS
 # The following invokes an unused sections garbage collector
 NOSYSLIB =  -Wl,--gc-sections -Wl,--as-needed --specs=nosys.specs --specs=nano.specs
 
-# Linker script
-ifeq ($(CHIPSET_MCU),stm32f415rgt)
-	LDSCRIPT = -T $(STM32_LIB_COMMON)/STM32F415RGTx_FLASH.ld
-else ifeq ($(CHIPSET_MCU), stm32f429zit)
-	LDSCRIPT = -T $(STM32_LIB_COMMON)/STM32F429ZITx_FLASH.ld 
-else
-	$(error $(CHIPSET_MCU) chipset linker script is not found)
-endif
