@@ -14,6 +14,9 @@ mbedtls:
 	cp $(VENDOR_ROOT)/mbedtls/library/libmbedtls.a $(SRCDIR)/build
 	cp $(VENDOR_ROOT)/mbedtls/library/libmbedx509.a $(SRCDIR)/build
 
+paho:
+	@echo "[Building the Paho MQTT library.]"
+
 clean:
 	@echo "[Cleaning vendor libraries.]"
 	$(MAKE) -C $(VENDOR_ROOT)/mbedtls clean
