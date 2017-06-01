@@ -1,8 +1,5 @@
 # Makefile to build a static library from the Paho MQTT source
 
-CC = arm-none-eabi-gcc
-AR = arm-none-eabi-ar
-
 MQTTPacketSRC := $(wildcard MQTTPacket/src/*.c)
 MQTTPacketINCPATH := MQTTPacket/src
 MQTTClientSRC := MQTTClient-C/src/MQTTClient.c
@@ -16,7 +13,7 @@ BUILD_DIR := build
 OBJS = $(patsubst %.c,$(BUILD_DIR)/%.o,$(notdir $(MQTTPacketSRC)))
 OBJS += $(patsubst %.c,$(BUILD_DIR)/%.o,$(notdir $(MQTTClientSRC)))
 
-CFLAGS := -O2
+CFLAGS ?= -O2
 
 vpath %.c MQTTClient-C/src: \
 	MQTTPacket/src:
