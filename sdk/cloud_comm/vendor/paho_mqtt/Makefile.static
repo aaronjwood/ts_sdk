@@ -1,0 +1,40 @@
+# Makefile to build a static library from the Paho MQTT source
+
+CC = arm-none-eabi-gcc
+AR = arm-none-eabi-ar
+
+MQTTPacketSRC := $(wildcard MQTTPacket/src/*.c)
+MQTTPacketINCPATH := MQTTPacket/src
+MQTTClientSRC := MQTTClient-C/src/MQTTClient.c
+MQTTClientINCPATH := MQTTClient-C/src
+PLATFORM_HDR := paho_port_generic.h
+PLATFORM_INCPATH := MQTTClient-C/src/paho_port_generic
+PLATFORM_SRC := MQTTClient-C/src/ts_sdk_mbedtls/mqtt_ts_sdk_mbedtls.c
+
+BUILD_DIR := build
+
+OBJS = $(patsubst %.c,$(BUILD_DIR)/%.o,$(notdir $(MQTTPacketSRC)))
+OBJS += $(patsubst %.c,$(BUILD_DIR)/%.o,$(notdir $(MQTTClientSRC)))
+
+CFLAGS := -O2
+
+vpath %.c MQTTClient-C/src: \
+	MQTTPacket/src:
+
+.PHONY: all clean
+
+all: $(BUILD_DIR) $(OBJS)
+	@echo "[Building static library in $(BUILD_DIR)]"
+	$(AR) rcs $(BUILD_DIR)/libpahomqtt.a $(OBJS)
+
+$(BUILD_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) -c -I$(MQTTPacketINCPATH) -I$(MQTTClientINCPATH) \
+	-I$(PLATFORM_INCPATH) -DMQTTCLIENT_PLATFORM_HEADER=$(PLATFORM_HDR) $< -o $@
+
+$(BUILD_DIR):
+	@echo "[Creating build directory]"
+	@mkdir $(BUILD_DIR)
+
+clean:
+	@echo "[Cleaning object files]"
+	@rm -rf ./build
