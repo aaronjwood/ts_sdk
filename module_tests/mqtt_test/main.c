@@ -2,14 +2,14 @@
 
 #include "dbg.h"
 #include "sys.h"
-#include "paho_port.h"
+#include "MQTTClient.h"
 
 int main(int argc, char *argv[])
 {
 	sys_init();
 
 	dbg_module_init();
-	dbg_printf("Begin:\n");
+	dbg_printf("Begin MQTT test:\n");
 
 	while (1) {
 	}

@@ -15,6 +15,13 @@ override PROTOCOL = NO_PROTOCOL
 override MODEM_PROTOCOL = tcp
 CLOUD_COMM_SRC =
 SERVICES_SRC =
+VENDOR_INC += -I $(PROJ_ROOT)/sdk/cloud_comm/vendor/mbedtls/include
+VENDOR_INC += -I $(SDK_ROOT)/vendor/paho_mqtt/MQTTClient-C/src
+VENDOR_INC += -DMQTTCLIENT_PLATFORM_HEADER=paho_port_generic.h \
+	      -I $(SDK_ROOT)/vendor/paho_mqtt/MQTTClient-C/src/paho_port_generic
+VENDOR_INC += -I $(SDK_ROOT)/vendor/paho_mqtt/MQTTPacket/src
+VENDOR_LIB_DIRS += paho_mqtt
+VENDOR_LIB_FLAGS += -L. -lpahomqtt
 
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG
@@ -23,7 +30,7 @@ DBG_MACRO = #-DNO_DEBUG
 vpath %.c $(SRCDIR):
 
 # User application include path
-APP_INC = -I $(SRCDIR)/include
+APP_INC =
 
 # User application sources
 APP_SRC = $(wildcard $(SRCDIR)/*.c)

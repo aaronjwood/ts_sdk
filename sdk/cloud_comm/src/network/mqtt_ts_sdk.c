@@ -1,18 +1,22 @@
 #include <stdio.h>
 
-#include "paho_port.h"
+#include "paho_port_generic.h"
 #include "sys.h"
+
+#include "mbedtls/net.h"
 
 #ifdef MBEDTLS_DEBUG_C
 #include "mbedtls/debug.h"
 #endif
+
+static mbedtls_net_context ctx;
 
 void TimerInit(Timer *timer)
 {
 	timer->end_time = 0;
 }
 
-bool TimerIsExpired(Timer *timer)
+char TimerIsExpired(Timer *timer)
 {
 	uint64_t now = sys_get_tick_ms();
 	return timer->end_time < now;
@@ -38,7 +42,7 @@ int TimerLeftMS(Timer *timer)
 
 static int read_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 {
-	return mbedtls_net_recv_timeout(&n->ctx, b, len, timeout_ms);
+	return mbedtls_net_recv_timeout(&ctx, b, len, timeout_ms);
 }
 
 static int write_fn(Network *n, unsigned char *b, int len, int timeout_ms)
@@ -47,7 +51,7 @@ static int write_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 	uint64_t end_time = sys_get_tick_ms();
 	int nbytes = 0;
 	do {
-		int ret = mbedtls_net_send(&n->ctx, b, len);
+		int ret = mbedtls_net_send(&ctx, b, len);
 		if (ret > 0)
 			nbytes += ret;
 		end_time = sys_get_tick_ms();
@@ -57,7 +61,7 @@ static int write_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 
 void paho_net_init(Network* n)
 {
-	mbedtls_net_init(&n->ctx);
+	mbedtls_net_init(&ctx);
 	n->mqttread = read_fn;
 	n->mqttwrite = write_fn;
 }
@@ -66,12 +70,12 @@ bool paho_net_connect(Network* n, char* addr, int port)
 {
 	char port_str[6];
 	snprintf(port_str, 6, "%d", port);
-	int r = mbedtls_net_connect(&n->ctx, (const char *)addr, port_str,
+	int r = mbedtls_net_connect(&ctx, (const char *)addr, port_str,
 			MBEDTLS_NET_PROTO_TCP);
 	return r >= 0;
 }
 
 void paho_net_disconnect(Network* n)
 {
-	mbedtls_net_free(&n->ctx);
+	mbedtls_net_free(&ctx);
 }
