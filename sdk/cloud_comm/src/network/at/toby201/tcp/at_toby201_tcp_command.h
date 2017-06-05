@@ -42,7 +42,11 @@ typedef enum at_modem_stat_command {
 
 /** For PDN (packet data network) activation commands */
 typedef enum at_pdp_command {
-        SEL_IPV4_PREF = 0, /** configure PDP context for IPV4 for preference */
+        SEL_IPV4_PREF = 0,	/** configure PDP context for IPV4 for preference */
+        SEL_IPV4,		/** configure PDP context for IPV4 */
+	ADD_PDP,
+	ACT_PDP_CTX,
+	SEL_PROF,
         ACT_PDP, /** activate pdp context */
         PDP_END
 } at_pdp_command;
@@ -101,6 +105,54 @@ static const at_command_desc modem_net_status_comm[MOD_END] = {
 static const at_command_desc pdp_conf_comm[PDP_END] = {
         [SEL_IPV4_PREF] = {
                 .comm = "at+upsd=0,0,2\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        }
+                },
+                .err = "\r\n+CME ERROR: ",
+                .comm_timeout = 100
+        },
+        [SEL_IPV4] = {
+                .comm = "at+upsd=0,0,0\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        }
+                },
+                .err = "\r\n+CME ERROR: ",
+                .comm_timeout = 100
+        },
+        [ADD_PDP] = {
+                .comm = "at+cgdcont=1,\"IP\",\"UWSEXT.GW15.VZWENTP\"\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        }
+                },
+                .err = "\r\n+CME ERROR: ",
+                .comm_timeout = 100
+        },
+        [ACT_PDP_CTX] = {
+                .comm = "at+cgact=1,1\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        }
+                },
+                .err = "\r\n+CME ERROR: ",
+                .comm_timeout = 500
+        },
+        [SEL_PROF] = {
+                .comm = "at+upsd=0,100,1\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
