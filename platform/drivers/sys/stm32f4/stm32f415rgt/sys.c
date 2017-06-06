@@ -46,7 +46,7 @@ static uint64_t accu_tick;
   */
 static void SystemClock_Config(void)
 {
-	//RCC_ClkInitTypeDef RCC_ClkInitStruct;
+	RCC_ClkInitTypeDef RCC_ClkInitStruct;
 	RCC_OscInitTypeDef RCC_OscInitStruct;
 
 	/* Enable Power Control clock */
@@ -68,7 +68,6 @@ static void SystemClock_Config(void)
 	 * turn sourced from an 8MHz on-board crystal.
 	 */
 	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-	//RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
 	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
 	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
@@ -80,13 +79,7 @@ static void SystemClock_Config(void)
 		/* Initialization Error */
 		raise_err();
 
-	/* Extend maximum clock frequency to 180 MHz from 168 MHz. */
-	/* if (HAL_PWREx_EnableOverDrive() != HAL_OK) */
-		/* Initialization Error */
-	/*	raise_err(); */
 
-/* Some Problem here */
-#if 0
 	/*
 	 * Select PLL as system clock source and configure the HCLK, PCLK1 and
 	 * PCLK2 clocks dividers.
@@ -95,14 +88,17 @@ static void SystemClock_Config(void)
 			RCC_CLOCKTYPE_HCLK |
 			RCC_CLOCKTYPE_PCLK1 |
 			RCC_CLOCKTYPE_PCLK2);
-	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK; /* 180 MHz */
-	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;        /* 180 MHz */
-	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;         /* 45 MHz */
-	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;         /* 90 MHz */
-	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
+	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK; /* 168 MHz */
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;        /* 168 MHz */
+	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;         /* 42 MHz */
+	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;         /* 84 MHz */
+	RCC_ClkInitStruct = RCC_ClkInitStruct;
+
+	/* Some Problem here */
+	/*if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5)\
+			!= HAL_OK)*/
 		/* Initialization Error */
-		raise_err();
-#endif
+		/*raise_err(); */
 }
 
 static void init_reset_gpio(void)

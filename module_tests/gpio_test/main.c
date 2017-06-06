@@ -19,19 +19,19 @@ int main()
 	dbg_module_init();
 	dbg_printf("\r Welcome to Beduin_v2:\r\n");
 
-        dbg_printf("Init LEDS\n\r");
+	dbg_printf("Init LEDS\n\r");
 	my_led.dir = OUTPUT;
 	my_led.pull_mode = PP_PULL_UP;
 	my_led.speed = SPEED_LOW;
 	gpio_init(pin_name, &my_led);
 
-        dbg_printf("set leds in default state\n\r");
-        /* set onboard LEDS */
+	dbg_printf("set leds in default state\n\r");
+	/* set onboard LEDS */
 	while (1) {
-        	dbg_printf("set leds in OFF state\n\r");
+		dbg_printf("set leds in OFF state\n\r");
 		gpio_write(pin_name, PIN_LOW);
 		sys_delay(1500);
-        	dbg_printf("set leds in ON state\n\r");
+		dbg_printf("set leds in ON state\n\r");
 		gpio_write(pin_name, PIN_HIGH);
 		sys_delay(1500);
 	}
