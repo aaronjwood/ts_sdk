@@ -48,6 +48,9 @@ static volatile bool pdp_conf;
 /* maximum timeout value in searching for the network coverage */
 #define NET_REG_CHECK_DELAY     60000 /* In milli seconds */
 
+/* Wait for this duration after setting the PDP context */
+#define PDP_CTX_STABLE_MS	500
+
 static at_ret_code __at_process_dl_close_urc(const char *urc, at_urc u_code)
 {
         if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) == 0) {
@@ -539,9 +542,8 @@ int at_tcp_connect(const char *host, const char *port)
                         return -1;
                 }
                 pdp_conf = true;
-
+		sys_delay(PDP_CTX_STABLE_MS);
         }
-	sys_delay(500);
         int s_id = __at_tcp_connect(host, port);
         if (s_id >= 0) {
                 at_ret_code result1 = __at_conf_dl_mode(s_id);
