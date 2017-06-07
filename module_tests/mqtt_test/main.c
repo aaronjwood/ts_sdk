@@ -4,22 +4,32 @@
 #include "sys.h"
 #include "MQTTClient.h"
 
-#define SEND_BUF_SZ			100
-#define READ_BUF_SZ			100
+#define SEND_BUF_SZ			255
+#define READ_BUF_SZ			255
 
-char host[] = "test.mosquitto.org";
-int port = 1883;			/* Use the unencrypted MQTT port */
-char clientid[] = "stm32f4-ublox";
-char topic[] = "vztest/1";
-enum QoS qos = QOS2;
+static char host[] = "test.mosquitto.org";
+static int port = 1883;			/* Use the unencrypted MQTT port */
+static char clientid[] = "stm32f4-ublox";
+static char subtopic[] = "vztest/1";
+static char pubtopic[] = "vztest/2";
+static enum QoS qos = QOS2;
+
+static char payload[SEND_BUF_SZ];
+static MQTTMessage msg = { .qos = QOS1, .retained = 0, .payload = payload};
+static bool recvd;
 
 static void msg_arrived(MessageData *md)
 {
 	MQTTMessage *m = md->message;
 	dbg_printf("%d\n", (int)m->payloadlen);
-	for (uint8_t i = 0; i < m->payloadlen; i++)
+	msg.payloadlen = m->payloadlen;
+	for (uint8_t i = 0; i < m->payloadlen; i++) {
 		dbg_printf("%c", ((char *)m->payload)[i]);
+		((char *)msg.payload)[i] = ((char *)m->payload)[i];
+	}
+	((char *)msg.payload)[msg.payloadlen] = '\0';
 	dbg_printf("\n");
+	recvd = true;
 }
 
 int main(int argc, char *argv[])
@@ -52,14 +62,22 @@ int main(int argc, char *argv[])
 	int rc = MQTTConnect(&c, &data);
 	dbg_printf("Connected %d\n", rc);
 
-	dbg_printf("Subscribing to %s\n", topic);
-	rc = MQTTSubscribe(&c, topic, qos, msg_arrived);
+	dbg_printf("Subscribing to %s\n", subtopic);
+	rc = MQTTSubscribe(&c, subtopic, qos, msg_arrived);
 	dbg_printf("Subscribed %d\n", rc);
 
 	while (1) {
 		/* XXX: Maybe attempt reconnect on failure? */
 		if (MQTTYield(&c, 1000) == FAILURE)
 			dbg_printf("MQTT Fail\n");
+		sys_delay(1000);
+
+		if (recvd) {
+			dbg_printf("[echo back]\n");
+			if (MQTTPublish(&c, pubtopic, &msg) == FAILURE)
+				dbg_printf("Pub fail\n");
+			recvd = false;
+		}
 	}
 
 	return 0;

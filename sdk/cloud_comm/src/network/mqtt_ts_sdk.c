@@ -45,8 +45,7 @@ static int read_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 		int recvd = mbedtls_net_recv(&ctx, &b[nbytes], (len - nbytes));
 		if (recvd == 0)
 			return 0;
-		if (recvd < 0 && recvd != MBEDTLS_ERR_SSL_WANT_READ &&
-				recvd != MBEDTLS_ERR_NET_CONN_RESET)
+		if (recvd < 0 && recvd != MBEDTLS_ERR_SSL_WANT_READ)
 			return -1;
 		if (recvd > 0)
 			nbytes += recvd;
