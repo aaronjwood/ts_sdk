@@ -30,4 +30,4 @@ clean:
 # Using the vendor-supplied perl script rather than editing by hand should
 # make it easier to see what we are changing and why.
 mbedtls_config:
-	(cd $(VENDOR_ROOT)/mbedtls; ./vz_configure_mbedtls)
+	(cd mbedtls; ./vz_configure_mbedtls no-net)

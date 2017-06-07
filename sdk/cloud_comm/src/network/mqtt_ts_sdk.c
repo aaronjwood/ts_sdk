@@ -5,10 +5,6 @@
 
 #include "mbedtls/net.h"
 
-#ifdef MBEDTLS_DEBUG_C
-#include "mbedtls/debug.h"
-#endif
-
 static mbedtls_net_context ctx;
 
 void TimerInit(Timer *timer)
@@ -19,7 +15,7 @@ void TimerInit(Timer *timer)
 char TimerIsExpired(Timer *timer)
 {
 	uint64_t now = sys_get_tick_ms();
-	return timer->end_time < now;
+	return timer->end_time <= now;
 }
 
 void TimerCountdownMS(Timer *timer, unsigned int ms)
@@ -37,25 +33,41 @@ void TimerCountdown(Timer *timer, unsigned int sec)
 int TimerLeftMS(Timer *timer)
 {
 	uint64_t now = sys_get_tick_ms();
-	return timer->end_time < now ? 0 : (int)(timer->end_time - now);
+	return timer->end_time <= now ? 0 : (int)(timer->end_time - now);
 }
 
 static int read_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 {
-	return mbedtls_net_recv_timeout(&ctx, b, len, timeout_ms);
+	uint64_t start_time = sys_get_tick_ms();
+	uint64_t now = sys_get_tick_ms();
+	int nbytes = 0;
+	do {
+		int recvd = mbedtls_net_recv(&ctx, &b[nbytes], (len - nbytes));
+		if (recvd == 0)
+			return 0;
+		if (recvd < 0 && recvd != MBEDTLS_ERR_SSL_WANT_READ &&
+				recvd != MBEDTLS_ERR_NET_CONN_RESET)
+			return -1;
+		if (recvd > 0)
+			nbytes += recvd;
+		now = sys_get_tick_ms();
+	} while (nbytes < len && now - start_time < timeout_ms);
+	return nbytes;
 }
 
 static int write_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 {
+	uint64_t start_time = sys_get_tick_ms();
 	uint64_t now = sys_get_tick_ms();
-	uint64_t end_time = sys_get_tick_ms();
 	int nbytes = 0;
 	do {
-		int ret = mbedtls_net_send(&ctx, b, len);
-		if (ret > 0)
-			nbytes += ret;
-		end_time = sys_get_tick_ms();
-	} while (nbytes != len && end_time - now < timeout_ms);
+		int sent = mbedtls_net_send(&ctx, b, len);
+		if (sent < 0 && sent != MBEDTLS_ERR_SSL_WANT_WRITE)
+			return -1;
+		if (sent >= 0)
+			nbytes += sent;
+		now = sys_get_tick_ms();
+	} while (nbytes < len && now - start_time < timeout_ms);
 	return nbytes;
 }
 
