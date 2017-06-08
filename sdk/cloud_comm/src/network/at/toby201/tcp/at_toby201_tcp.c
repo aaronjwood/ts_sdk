@@ -171,13 +171,6 @@ static void __at_xfer_to_buf()
 	buf_sz sz = at_core_rx_available();
 	if (sz == 0) {
 		DEBUG_V0("%d:UERR\n", __LINE__);
-#if 0
-		/* XXX: NB */
-		DEBUG_V0("I:%d\n", dl.dl_buf.ridx);
-		DEBUG_V0("I:%d\n", dl.dl_buf.buf_unread);
-		for (buf_sz i = dl.dl_buf.ridx; i < dl.dl_buf.ridx + dl.dl_buf.buf_unread; i++)
-			DEBUG_V0("D:%x\n", dl.dl_buf.buf[i]);
-#endif
 		dl.dl_buf.buf_unread = 0;
 		return;
 	}
@@ -268,10 +261,6 @@ static void at_uart_callback(void)
 	if (((state & DL_MODE) == DL_MODE) &&
 			((state & TCP_DL_RX) != TCP_DL_RX)) {
 		if (dl.dis_state < DIS_FULL) {
-#if 0
-			/* XXX: NB */
-			DEBUG_V0("DS:%d\n", dl.dis_state);
-#endif
 			__at_lookup_dl_esc_str();
 			if (dl.dis_state == DIS_FULL) {
 				state = TCP_REMOTE_DISCONN;
@@ -503,15 +492,20 @@ static int __at_tcp_connect(const char *host, const char *port)
 
 static at_ret_code __at_pdp_conf(void)
 {
-	at_ret_code result = at_core_wcmd(&pdp_conf_comm[ADD_PDP], true);
+	at_ret_code result = AT_FAILURE;
+#if defined (APN_VALUE) && defined (APN_TYPE)
+	result = at_core_wcmd(&pdp_conf_comm[ADD_PDP_CTX], true);
         CHECK_SUCCESS(result, AT_SUCCESS, result);
 	result = at_core_wcmd(&pdp_conf_comm[ACT_PDP_CTX], true);
         CHECK_SUCCESS(result, AT_SUCCESS, result);
-	result = at_core_wcmd(&pdp_conf_comm[SEL_PROF], true);
+	result = at_core_wcmd(&pdp_conf_comm[MAP_PDP_PROFILE], true);
         CHECK_SUCCESS(result, AT_SUCCESS, result);
 	result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4], true);
+#else
+        result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4_PREF], true);
+#endif
         CHECK_SUCCESS(result, AT_SUCCESS, result);
-        return at_core_wcmd(&pdp_conf_comm[ACT_PDP], true);
+        return at_core_wcmd(&pdp_conf_comm[ACT_PDP_PROFILE], true);
 
 #if 0
         result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4_PREF], true);

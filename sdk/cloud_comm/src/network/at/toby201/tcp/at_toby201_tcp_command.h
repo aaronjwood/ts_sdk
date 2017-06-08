@@ -11,6 +11,7 @@
 #define AT_TOBY_TCP_COMM_H
 
 #include "at_tcp_defs.h"
+#include "ts_sdk_board_config.h"
 
 /* Upper limit for commands which need formatting before sending to modem */
 #define TEMP_COMM_LIMIT            64
@@ -42,12 +43,15 @@ typedef enum at_modem_stat_command {
 
 /** For PDN (packet data network) activation commands */
 typedef enum at_pdp_command {
-        SEL_IPV4_PREF = 0,	/** configure PDP context for IPV4 for preference */
-        SEL_IPV4,		/** configure PDP context for IPV4 */
-	ADD_PDP,
-	ACT_PDP_CTX,
-	SEL_PROF,
-        ACT_PDP, /** activate pdp context */
+#if defined (APN_VALUE) && defined (APN_TYPE)
+	ADD_PDP_CTX,		/** Add PDP context */
+	ACT_PDP_CTX,		/** Activate PDP Context */
+	MAP_PDP_PROFILE,	/** Map UPSD profile to PDP Context */
+        SEL_IPV4,		/** IPV4-only stack */
+#else
+        SEL_IPV4_PREF = 0,	/** Prefer IPV4 from IPV4V6 stack */
+#endif
+        ACT_PDP_PROFILE,	/** Activate PDP context with specific profile */
         PDP_END
 } at_pdp_command;
 
@@ -103,32 +107,9 @@ static const at_command_desc modem_net_status_comm[MOD_END] = {
 };
 
 static const at_command_desc pdp_conf_comm[PDP_END] = {
-        [SEL_IPV4_PREF] = {
-                .comm = "at+upsd=0,0,2\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 100
-        },
-        [SEL_IPV4] = {
-                .comm = "at+upsd=0,0,0\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 100
-        },
-        [ADD_PDP] = {
-                .comm = "at+cgdcont=1,\"IP\",\"UWSEXT.GW15.VZWENTP\"\r",
+#if defined (APN_VALUE) && defined (APN_TYPE)
+        [ADD_PDP_CTX] = {
+                .comm = "at+cgdcont=1,\""APN_TYPE"\",\""APN_VALUE"\"\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
@@ -151,7 +132,7 @@ static const at_command_desc pdp_conf_comm[PDP_END] = {
                 .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 500
         },
-        [SEL_PROF] = {
+        [MAP_PDP_PROFILE] = {
                 .comm = "at+upsd=0,100,1\r",
                 .rsp_desc = {
                         {
@@ -163,7 +144,33 @@ static const at_command_desc pdp_conf_comm[PDP_END] = {
                 .err = "\r\n+CME ERROR: ",
                 .comm_timeout = 100
         },
-        [ACT_PDP] = {
+        [SEL_IPV4] = {
+                .comm = "at+upsd=0,0,0\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        }
+                },
+                .err = "\r\n+CME ERROR: ",
+                .comm_timeout = 100
+        },
+#else
+        [SEL_IPV4_PREF] = {
+                .comm = "at+upsd=0,0,2\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        }
+                },
+                .err = "\r\n+CME ERROR: ",
+                .comm_timeout = 100
+        },
+#endif
+        [ACT_PDP_PROFILE] = {
                 .comm = "at+upsda=0,3\r",
                 .rsp_desc = {
                         {

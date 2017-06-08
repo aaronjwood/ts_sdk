@@ -29,4 +29,14 @@
 /* Timer ID */
 #define MODEM_UART_IDLE_TIMER	TIMER2
 
+/*
+ * Uncomment the following to set a custom APN. If they are commented out, the
+ * modem will attempt to use an existing APN. Note that both values must be
+ * defined for the APN to be used.
+ */
+
+/* M2M SIM card APN */
+/*#define APN_TYPE		"IP"*/
+/*#define APN_VALUE		"UWSEXT.GW15.VZWENTP"*/
+
 #endif
