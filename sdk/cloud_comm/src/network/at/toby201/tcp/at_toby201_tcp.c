@@ -495,22 +495,22 @@ static at_ret_code __at_pdp_conf(void)
 	at_ret_code result = AT_FAILURE;
 #if defined (MODEM_APN_VALUE) && defined (MODEM_APN_TYPE)
 	result = at_core_wcmd(&pdp_conf_comm[ADD_PDP_CTX], true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result);
+	CHECK_SUCCESS(result, AT_SUCCESS, result);
 	result = at_core_wcmd(&pdp_conf_comm[ACT_PDP_CTX], true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result);
+	CHECK_SUCCESS(result, AT_SUCCESS, result);
 	result = at_core_wcmd(&pdp_conf_comm[MAP_PDP_PROFILE], true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result);
+	CHECK_SUCCESS(result, AT_SUCCESS, result);
 	result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4], true);
 #else
-        result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4_PREF], true);
+	result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4_PREF], true);
 #endif
-        CHECK_SUCCESS(result, AT_SUCCESS, result);
-        return at_core_wcmd(&pdp_conf_comm[ACT_PDP_PROFILE], true);
+	CHECK_SUCCESS(result, AT_SUCCESS, result);
+	return at_core_wcmd(&pdp_conf_comm[ACT_PDP_PROFILE], true);
 
 #if 0
-        result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4_PREF], true);
-        CHECK_SUCCESS(result, AT_SUCCESS, result);
-        return at_core_wcmd(&pdp_conf_comm[ACT_PDP], true);
+	result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4_PREF], true);
+	CHECK_SUCCESS(result, AT_SUCCESS, result);
+	return at_core_wcmd(&pdp_conf_comm[ACT_PDP], true);
 #endif
 }
 

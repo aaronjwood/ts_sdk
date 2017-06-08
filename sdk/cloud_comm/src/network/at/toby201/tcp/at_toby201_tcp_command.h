@@ -47,12 +47,12 @@ typedef enum at_pdp_command {
 	ADD_PDP_CTX,		/** Add PDP context */
 	ACT_PDP_CTX,		/** Activate PDP Context */
 	MAP_PDP_PROFILE,	/** Map UPSD profile to PDP Context */
-        SEL_IPV4,		/** IPV4-only stack */
+	SEL_IPV4,		/** IPV4-only stack */
 #else
-        SEL_IPV4_PREF = 0,	/** Prefer IPV4 from IPV4V6 stack */
+	SEL_IPV4_PREF = 0,	/** Prefer IPV4 from IPV4V6 stack */
 #endif
-        ACT_PDP_PROFILE,	/** Activate PDP context with specific profile */
-        PDP_END
+	ACT_PDP_PROFILE,	/** Activate PDP context with specific profile */
+	PDP_END
 } at_pdp_command;
 
 /** TCP related commands */
