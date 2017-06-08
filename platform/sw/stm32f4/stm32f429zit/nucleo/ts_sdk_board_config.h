@@ -36,7 +36,7 @@
  */
 
 /* M2M SIM card APN */
-#define MODEM_APN_TYPE		"IP"
-#define MODEM_APN_VALUE		"UWSEXT.GW15.VZWENTP"
+/* #define MODEM_APN_TYPE		"IP" */
+/* #define MODEM_APN_VALUE		"UWSEXT.GW15.VZWENTP" */
 
 #endif
