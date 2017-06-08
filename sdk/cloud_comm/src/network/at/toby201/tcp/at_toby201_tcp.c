@@ -493,7 +493,7 @@ static int __at_tcp_connect(const char *host, const char *port)
 static at_ret_code __at_pdp_conf(void)
 {
 	at_ret_code result = AT_FAILURE;
-#if defined (APN_VALUE) && defined (APN_TYPE)
+#if defined (MODEM_APN_VALUE) && defined (MODEM_APN_TYPE)
 	result = at_core_wcmd(&pdp_conf_comm[ADD_PDP_CTX], true);
         CHECK_SUCCESS(result, AT_SUCCESS, result);
 	result = at_core_wcmd(&pdp_conf_comm[ACT_PDP_CTX], true);

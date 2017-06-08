@@ -43,7 +43,7 @@ typedef enum at_modem_stat_command {
 
 /** For PDN (packet data network) activation commands */
 typedef enum at_pdp_command {
-#if defined (APN_VALUE) && defined (APN_TYPE)
+#if defined (MODEM_APN_VALUE) && defined (MODEM_APN_TYPE)
 	ADD_PDP_CTX,		/** Add PDP context */
 	ACT_PDP_CTX,		/** Activate PDP Context */
 	MAP_PDP_PROFILE,	/** Map UPSD profile to PDP Context */
@@ -107,9 +107,10 @@ static const at_command_desc modem_net_status_comm[MOD_END] = {
 };
 
 static const at_command_desc pdp_conf_comm[PDP_END] = {
-#if defined (APN_VALUE) && defined (APN_TYPE)
+#if defined (MODEM_APN_VALUE) && defined (MODEM_APN_TYPE)
         [ADD_PDP_CTX] = {
-                .comm = "at+cgdcont=1,\""APN_TYPE"\",\""APN_VALUE"\"\r",
+                .comm = "at+cgdcont=1,\""MODEM_APN_TYPE"\",\""\
+			 MODEM_APN_VALUE"\"\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",

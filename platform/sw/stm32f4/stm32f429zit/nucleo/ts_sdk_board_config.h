@@ -31,12 +31,12 @@
 
 /*
  * Uncomment the following to set a custom APN. If they are commented out, the
- * modem will attempt to use an existing APN. Note that both values must be
- * defined for the APN to be used.
+ * modem will attempt to use an existing APN. Both values must be defined for
+ * the APN to be used. APN type and value are modem specific.
  */
 
 /* M2M SIM card APN */
-/*#define APN_TYPE		"IP"*/
-/*#define APN_VALUE		"UWSEXT.GW15.VZWENTP"*/
+#define MODEM_APN_TYPE		"IP"
+#define MODEM_APN_VALUE		"UWSEXT.GW15.VZWENTP"
 
 #endif
