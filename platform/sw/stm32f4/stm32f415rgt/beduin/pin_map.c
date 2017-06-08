@@ -70,10 +70,14 @@ const pin_map_t uart_cts_map[] = {
 
 const pin_map_t i2c_sda_map[] = {
 	{PB7, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C1},
+	{PB9, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C1},
+	{PB11, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C2},
 	END_OF_MAP
 };
 
 const pin_map_t i2c_scl_map[] = {
 	{PB6, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C1},
+	{PB8, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C1},
+	{PB10, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C2},
 	END_OF_MAP
 };

@@ -9,7 +9,6 @@
 #include "sys.h"
 #include "gpio_hal.h"
 #include "dbg.h"
-#include "uart_hal.h"
 
 int main()
 {
@@ -17,7 +16,7 @@ int main()
 	gpio_config_t my_led;
 	sys_init();
 	dbg_module_init();
-	dbg_printf("\r Welcome to Beduin_v2:\r\n");
+	dbg_printf("\r Welcome to GPIO Test\r\n");
 
 	dbg_printf("Init LEDS\n\r");
 	my_led.dir = OUTPUT;
