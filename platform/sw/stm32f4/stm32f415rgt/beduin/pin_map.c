@@ -12,7 +12,7 @@
  * may be valid for a given board. Invalid mappings (i.e. pins already hardwired
  * to perform some other function) are commented out.
  *
- * Target board : beduinv2
+ * Target board : beduin
  * Target MCU   : STM32F415RGT
  */
 

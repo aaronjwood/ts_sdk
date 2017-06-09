@@ -1,4 +1,4 @@
-/* Copyright(C) 2016 Verizon. All rights reserved. */
+/* Copyright(C) 2017 Verizon. All rights reserved. */
 
 #include <stm32f4xx_hal.h>
 #include "hwrng_hal.h"
