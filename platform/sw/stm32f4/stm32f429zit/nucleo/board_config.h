@@ -10,7 +10,7 @@
 #define BOARD_CONFIG_H
 
 /* If the MCU runs on an external clock / crystal, define its frequency */
-#define EXT_CLK_FREQ_HZ		((uint32_t)8000000)
+#define EXT_CLK_FREQ_HZ ((uint32_t)8000000)
 
 /* Pin and peripheral configuration for the debug UART */
 #define DEBUG_UART_TX_PIN	PC10

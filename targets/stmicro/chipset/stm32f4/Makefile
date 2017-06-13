@@ -14,6 +14,7 @@ else
 
 CHIPSET_ROOT = $(shell dirname $(SRCDIR))
 CHIPSET_BUILDENV = $(shell dirname $(CHIPSET_ROOT))ts_sdk_bldenv
+CHIPSET_HSECLK =$(shell ../../hse_clk_freq.sh $(CHIPSET_MCU)) 
 
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG
