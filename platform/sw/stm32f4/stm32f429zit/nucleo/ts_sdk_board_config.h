@@ -32,7 +32,7 @@
 /*
  * Uncomment the following to set a custom APN. If they are commented out, the
  * modem will attempt to use an existing APN. Both values must be defined for
- * the APN to be used. APN type and value are modem specific.
+ * the APN to be used. APN type and value are SIM specific.
  */
 
 /* M2M SIM card APN */

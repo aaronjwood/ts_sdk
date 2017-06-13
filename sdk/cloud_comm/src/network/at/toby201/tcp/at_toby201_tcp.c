@@ -506,12 +506,6 @@ static at_ret_code __at_pdp_conf(void)
 #endif
 	CHECK_SUCCESS(result, AT_SUCCESS, result);
 	return at_core_wcmd(&pdp_conf_comm[ACT_PDP_PROFILE], true);
-
-#if 0
-	result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4_PREF], true);
-	CHECK_SUCCESS(result, AT_SUCCESS, result);
-	return at_core_wcmd(&pdp_conf_comm[ACT_PDP], true);
-#endif
 }
 
 int at_tcp_connect(const char *host, const char *port)
