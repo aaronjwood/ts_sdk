@@ -19,8 +19,8 @@ typedef struct Network {
 	int (*mqttwrite) (struct Network*, unsigned char*, int, int);
 } Network;
 
-void paho_net_init(Network* n);
-bool paho_net_connect(Network* n, char* addr, int port);
-void paho_net_disconnect(Network* n);
+bool paho_net_init(Network* n);
+int paho_net_connect(Network* n, char* addr, int port);
+bool paho_net_disconnect(Network* n);
 
 #endif
