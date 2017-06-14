@@ -48,7 +48,12 @@ static volatile bool pdp_conf;
 /* maximum timeout value in searching for the network coverage */
 #define NET_REG_CHECK_DELAY     60000 /* In milli seconds */
 
-/* Wait for this duration after setting the PDP context */
+/*
+ * FIXME: After setting the PDP context, it seems the modem needs some time to
+ * stabilize after responding with an OK. Without this wait, the command to
+ * create a socket (usually the very next command) fails with a generic error
+ * (ERROR) even with AT+CMEE = 1. This behavior needs to be investigated further.
+ */
 #define PDP_CTX_STABLE_MS	500
 
 static at_ret_code __at_process_dl_close_urc(const char *urc, at_urc u_code)
@@ -493,17 +498,15 @@ static int __at_tcp_connect(const char *host, const char *port)
 static at_ret_code __at_pdp_conf(void)
 {
 	at_ret_code result = AT_FAILURE;
-#if defined (MODEM_APN_VALUE) && defined (MODEM_APN_TYPE)
+#if SIM_TYPE == M2M
 	result = at_core_wcmd(&pdp_conf_comm[ADD_PDP_CTX], true);
 	CHECK_SUCCESS(result, AT_SUCCESS, result);
 	result = at_core_wcmd(&pdp_conf_comm[ACT_PDP_CTX], true);
 	CHECK_SUCCESS(result, AT_SUCCESS, result);
 	result = at_core_wcmd(&pdp_conf_comm[MAP_PDP_PROFILE], true);
 	CHECK_SUCCESS(result, AT_SUCCESS, result);
-	result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4], true);
-#else
-	result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4_PREF], true);
 #endif
+	result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4], true);
 	CHECK_SUCCESS(result, AT_SUCCESS, result);
 	return at_core_wcmd(&pdp_conf_comm[ACT_PDP_PROFILE], true);
 }

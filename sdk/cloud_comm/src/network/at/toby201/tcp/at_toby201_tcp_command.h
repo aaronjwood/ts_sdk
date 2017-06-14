@@ -12,6 +12,7 @@
 
 #include "at_tcp_defs.h"
 #include "ts_sdk_board_config.h"
+#include "ts_sdk_modem_config.h"
 
 /* Upper limit for commands which need formatting before sending to modem */
 #define TEMP_COMM_LIMIT            64
@@ -43,14 +44,12 @@ typedef enum at_modem_stat_command {
 
 /** For PDN (packet data network) activation commands */
 typedef enum at_pdp_command {
-#if defined (MODEM_APN_VALUE) && defined (MODEM_APN_TYPE)
+#if SIM_TYPE == M2M
 	ADD_PDP_CTX,		/** Add PDP context */
 	ACT_PDP_CTX,		/** Activate PDP Context */
 	MAP_PDP_PROFILE,	/** Map UPSD profile to PDP Context */
-	SEL_IPV4,		/** IPV4-only stack */
-#else
-	SEL_IPV4_PREF = 0,	/** Prefer IPV4 from IPV4V6 stack */
 #endif
+	SEL_IPV4,		/** IPV4 stack */
 	ACT_PDP_PROFILE,	/** Activate PDP context with specific profile */
 	PDP_END
 } at_pdp_command;
@@ -79,7 +78,7 @@ static const at_command_desc modem_net_status_comm[MOD_END] = {
                 .comm = "at+umnoconf?\r",
                 .rsp_desc = {
                         {
-                                .rsp = "\r\n+UMNOCONF: 3,23\r\n",
+                                .rsp = "\r\n+UMNOCONF: "MODEM_UMNOCONF_VAL"\r\n",
                                 .rsp_handler = NULL,
                                 .data = NULL
                         },
@@ -93,7 +92,7 @@ static const at_command_desc modem_net_status_comm[MOD_END] = {
                 .comm_timeout = 100
         },
         [MNO_SET] = {
-                .comm = "at+umnoconf=3,23\r",
+                .comm = "at+umnoconf="MODEM_UMNOCONF_VAL"\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
@@ -107,9 +106,9 @@ static const at_command_desc modem_net_status_comm[MOD_END] = {
 };
 
 static const at_command_desc pdp_conf_comm[PDP_END] = {
-#if defined (MODEM_APN_VALUE) && defined (MODEM_APN_TYPE)
+#if SIM_TYPE == M2M
         [ADD_PDP_CTX] = {
-                .comm = "at+cgdcont=1,\""MODEM_APN_TYPE"\",\""\
+                .comm = "at+cgdcont="MODEM_APN_CTX_ID",\""MODEM_APN_TYPE"\",\""\
 			 MODEM_APN_VALUE"\"\r",
                 .rsp_desc = {
                         {
@@ -122,7 +121,7 @@ static const at_command_desc pdp_conf_comm[PDP_END] = {
                 .comm_timeout = 100
         },
         [ACT_PDP_CTX] = {
-                .comm = "at+cgact=1,1\r",
+                .comm = "at+cgact=1,"MODEM_APN_CTX_ID"\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
@@ -134,32 +133,7 @@ static const at_command_desc pdp_conf_comm[PDP_END] = {
                 .comm_timeout = 500
         },
         [MAP_PDP_PROFILE] = {
-                .comm = "at+upsd=0,100,1\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 100
-        },
-        [SEL_IPV4] = {
-                .comm = "at+upsd=0,0,0\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 100
-        },
-#else
-        [SEL_IPV4_PREF] = {
-                .comm = "at+upsd=0,0,2\r",
+                .comm = "at+upsd=0,100,"MODEM_APN_CTX_ID"\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
@@ -171,6 +145,18 @@ static const at_command_desc pdp_conf_comm[PDP_END] = {
                 .comm_timeout = 100
         },
 #endif
+        [SEL_IPV4] = {
+                .comm = "at+upsd=0,0,"MODEM_APN_TYPE_ID"\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        }
+                },
+                .err = "\r\n+CME ERROR: ",
+                .comm_timeout = 100
+        },
         [ACT_PDP_PROFILE] = {
                 .comm = "at+upsda=0,3\r",
                 .rsp_desc = {
