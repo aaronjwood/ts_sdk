@@ -3,7 +3,28 @@
 #ifndef VERIZON_MQTT_CLIENT_KEY_H
 #define VERIZON_MQTT_CLIENT_KEY_H
 
-static unsigned char client_key[] = {
+#if 0
+static const unsigned char client_key[] = {
+	"-----BEGIN RSA PRIVATE KEY-----\n"
+	"MIICXAIBAAKBgQDiETb/YM+SGfWV2UYTub2mmMXJITgTNDxc8aSfm2ZAtE8HVKll\n"
+	"eH1DcnIEHGxSTAklqcrzz7lxQGWtPRjAdp1MhhaMcdNQqoVMPxHHhFCYtJy9yFgB\n"
+	"UvcSipIw86z24Dah5u5eYBdbkxqBVSfpusXe3Pax70ofZ/XxhgKj2YXM+wIDAQAB\n"
+	"AoGBAKnITAnYZ4xOusbj+2FtKiYorsKzlC24GW2kfgLw7wbBZGkZCHAQ4eL53O+B\n"
+	"eUkFmgkTUD10UM3hk3tcW26QpukcHsaIM6iy4tRWdyqqMShHccKYlYJ2ASofgqQm\n"
+	"3adk1XNpxRr9/KL9Iy2NUttxM5AMJ/gnouW+9gM2J/4A2IWBAkEA/bEx5vTWXOrw\n"
+	"Snab+FI/W2S75DaJn/7/7+cG9QkP8PF2U2MHxgKMC6qE/Wy82r5vdCXWae7L4IP9\n"
+	"kYmBm6PiqwJBAOQfr64Ua1TYbFe+Da9stE2JbQBnUDxCnV30+vfz3O9+oZAhMINy\n"
+	"p6iGtgqgmpkXOCdtU7Cn6+RWtV++3qoIPvECQDWY+CgJVjivUjEJOg6OoeAXOjMO\n"
+	"6qio4T24G5otXfbTrOIVLBFDfH8CebJpBMVaMoXhcJlU4DIA8NOMr5tIVp0CQGD/\n"
+	"QBnKwOBwrZCZVQRUOk4Fsv1K8IjO4k7DDbtES5rhwxyfoBskMzmrHdhi9ZlGkC/j\n"
+	"goRIwjpyy+gMJm0x2GECQDSn4389dfiGor2G7KJQd2qfaodypHUZBKtGhDu1oOtC\n"
+	"FaLgpd8YpNU1E72BC6LSCTHxADsD0nSD2tHyObD5da0=\n"
+	"-----END RSA PRIVATE KEY-----\n"
+};
+#endif
+
+#if 1
+static const unsigned char client_key[] = {
 	0x30, 0x82, 0x02, 0x5c, 0x02, 0x01, 0x00, 0x02, 0x81, 0x81, 0x00, 0xe2,
 	0x11, 0x36, 0xff, 0x60, 0xcf, 0x92, 0x19, 0xf5, 0x95, 0xd9, 0x46, 0x13,
 	0xb9, 0xbd, 0xa6, 0x98, 0xc5, 0xc9, 0x21, 0x38, 0x13, 0x34, 0x3c, 0x5c,
@@ -56,5 +77,6 @@ static unsigned char client_key[] = {
 	0x0b, 0xa2, 0xd2, 0x09, 0x31, 0xf1, 0x00, 0x3b, 0x03, 0xd2, 0x74, 0x83,
 	0xda, 0xd1, 0xf2, 0x39, 0xb0, 0xf9, 0x75, 0xad
 };
+#endif
 
 #endif

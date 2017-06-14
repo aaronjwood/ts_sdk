@@ -23,8 +23,8 @@ VENDOR_INC += -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTClient-C/src
 VENDOR_INC += -DMQTTCLIENT_PLATFORM_HEADER=paho_port_generic.h \
 	      -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTClient-C/src/paho_port_generic
 VENDOR_INC += -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTPacket/src
-VENDOR_LIB_DIRS += paho_mqtt
-VENDOR_LIB_FLAGS += -L. -lpahomqtt
+VENDOR_LIB_DIRS += paho_mqtt mbedtls
+VENDOR_LIB_FLAGS += -L. -lpahomqtt -lmbedtls -lmbedx509 -lmbedcrypto
 
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG

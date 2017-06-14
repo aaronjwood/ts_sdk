@@ -7,12 +7,12 @@
 #define SEND_BUF_SZ			255
 #define READ_BUF_SZ			255
 
-static char host[] = "test.mosquitto.org";
-static int port = 1883;			/* Use the unencrypted MQTT port */
+static char host[] = "simpm-ea-iwk.thingspace.verizon.com";
+static int port = 8883;
 static char clientid[] = "stm32f4-ublox";
 static char subtopic[] = "vztest/1";
 static char pubtopic[] = "vztest/2";
-static enum QoS qos = QOS2;
+static enum QoS qos = QOS1;
 
 static char payload[SEND_BUF_SZ];
 static MQTTMessage msg = { .qos = QOS1, .retained = 0, .payload = payload};
@@ -45,8 +45,13 @@ int main(int argc, char *argv[])
 	Network n;
 	MQTTClient c;
 
-	paho_net_init(&n);
-	ASSERT(paho_net_connect(&n, host, port));
+	ASSERT(paho_net_init(&n) == true);
+	int r = paho_net_connect(&n, host, port);
+	if (r == -1)
+		fatal_err("Error in SSL handshake\n");
+	if (r == -2)
+		fatal_err("SSL handshake timeout\n");
+
 	MQTTClientInit(&c, &n, 1000, sendbuf, SEND_BUF_SZ, readbuf, READ_BUF_SZ);
 
 	MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
