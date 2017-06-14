@@ -21,7 +21,7 @@
 #define CONV_HDL_TO_ID(a, b)    do {\
 	if ((I2C_TypeDef *)hdl == b) \
 		return a; \
-} while (0);
+} while (0)
 
 #define ENABLE_CLOCKS(a, b) \
 	if (inst == b) { \
@@ -52,7 +52,6 @@ static void enable_clock(const I2C_TypeDef *inst)
 
 static bool init_i2c_peripheral(periph_t hdl)
 {
-	printf ("Entering %s\n", __func__);
 	enum i2c_id iid = convert_hdl_to_id(hdl);
 
 	/*Peripheral under usage*/
@@ -61,7 +60,6 @@ static bool init_i2c_peripheral(periph_t hdl)
 	I2C_TypeDef *i2c_instance = (I2C_TypeDef *)hdl;
 	enable_clock(i2c_instance);
 
-	printf ("%s :  i2c initialization .. \n",__func__);
 	i2c_stm32_handle[iid].Instance = i2c_instance;
 	i2c_stm32_handle[iid].Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
 	i2c_stm32_handle[iid].Init.ClockSpeed = I2C_CLOCKSPEED;
@@ -72,30 +70,23 @@ static bool init_i2c_peripheral(periph_t hdl)
 	if (HAL_I2C_Init(&i2c_stm32_handle[iid]) != HAL_OK)
 		return false;
 
-	printf ("%s :  i2c initialization succesful.. \n",__func__);
 	i2c_usage[iid] = true;
 	return true;
 }
 
 periph_t i2c_init(pin_name_t scl, pin_name_t sda)
 {
-	printf ("Entering %s\n", __func__);
 	/* Mapping scl, sda pins */
 	periph_t p1, p2;
 	p1 = pp_get_peripheral(scl, i2c_scl_map);
-	printf (" %s: p1 = %lu \n", __func__, p1);
 	p2 = pp_get_peripheral(sda, i2c_sda_map);
-	printf (" %s: p2 = %lu \n", __func__, p2);
 	if (p1 != p2 || p1 == NO_PERIPH || p2 == NO_PERIPH)
 		return NO_PERIPH;
 	/* Pin Initialization */
-	printf ("Pin initialization.......... \n");
-	printf ("calling pp_peripheral_pin_init....\n");
 	if (!pp_peripheral_pin_init(scl, i2c_scl_map) || \
 			!pp_peripheral_pin_init(sda, i2c_sda_map))
 		return NO_PERIPH;
 
-	printf ("calling init_i2c_peripheral....\n");
 	if ((init_i2c_peripheral(p1)) == true)
 		return p1;
 	else
@@ -104,7 +95,6 @@ periph_t i2c_init(pin_name_t scl, pin_name_t sda)
 
 bool i2c_write(periph_t hdl, i2c_addr_t addr, uint8_t len, const uint8_t *buf)
 {
-	printf ("Entering %s\n", __func__);
 	if ((!buf) || (len == 0))
 		return false;
 
@@ -114,37 +104,27 @@ bool i2c_write(periph_t hdl, i2c_addr_t addr, uint8_t len, const uint8_t *buf)
 	if (HAL_I2C_Mem_Write(&i2c_stm32_handle[convert_hdl_to_id(hdl)],\
 		 addr.slave << 1 , addr.reg, I2C_MEMADD_SIZE_8BIT,\
 			 (uint8_t *) buf , len, I2C_TIMEOUT_MS) != HAL_OK){
-		printf ("%s is failed......... \n", __func__);
 		return false;
 	}
 	else
-		printf ("%s is Succesful.......... \n", __func__);
 	
 	return true;
 }
 
 bool i2c_read(periph_t hdl, i2c_addr_t addr, uint8_t len, uint8_t *buf)
 {
-	printf ("Entering %s\n", __func__);
 	if ((!buf) || (len == 0)){
-		printf ("Buf is NULL......... \n");
 		return false;
 	}
 
 	if (hdl == NO_PERIPH) {
-		printf ("HDL is NULL......... \n");
 		return false;
 	}
-	printf ("addr = 0x%2x\n", addr.slave);
-	printf ("Calling HAL_I2C_read........\n");
 	if (HAL_I2C_Mem_Read(&i2c_stm32_handle[convert_hdl_to_id(hdl)],\
 		 addr.slave << 1 , addr.reg, I2C_MEMADD_SIZE_8BIT, buf ,\
 			 len, I2C_TIMEOUT_MS) != HAL_OK){
-		printf ("i2c_read is failed......... \n");
 		return false;
 	}
-	else
-		printf ("i2c_read is Succesful.......... \n");
 	
 
 	return true;
