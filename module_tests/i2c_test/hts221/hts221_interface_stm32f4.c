@@ -16,17 +16,10 @@
 periph_t  i2c_handle;
 i2c_addr_t i2c_dest_addr;
 
-enum sensors {
-        HTS221,
-        NUM_SENSORS
-};
-
 /* PowerDevice, Inhibit update when reading, 1 Hz update */
 static uint8_t hts_init1 = 0x85;
 /* ONE_SHOT bit */
 static uint8_t hts_init2 = 0x01;
-
-#define NUM_SENSORS             1 
 
 /* Registers and data lengths internal to the sensor */
 #define HTS221_ADDR             0x5f
@@ -60,19 +53,19 @@ static bool read_until_matched_byte(periph_t i2c_handle,
 
 bool si_i2c_init(void)
 {
-        /* Initialize the I2C bus on the processor */
-        i2c_handle =  i2c_init(PB8, PB9);
+	/* Initialize the I2C bus on the processor */
+	i2c_handle =  i2c_init(PB8, PB9);
 
-        if (i2c_handle != NO_PERIPH)
-                return true;
+	if (i2c_handle != NO_PERIPH)
+		return true;
 	else
-        	return false;
+		return false;
 }
 
 bool si_i2c_read_data(array_t *data)
 {
 	uint8_t a[HTS221_CALIB_SZ] = {0};
-        data->bytes = a;
+	data->bytes = a;
 	i2c_dest_addr.slave = HTS221_ADDR;
 	i2c_dest_addr.reg = HTS_WHO_AM_I;
 	EOE(i2c_read(i2c_handle, i2c_dest_addr, 1, data->bytes));
@@ -103,19 +96,20 @@ bool si_i2c_read_data(array_t *data)
 		i2c_dest_addr.reg = HTS_TEMP_OUT_L;
 		data->sz = HTS_TEMP_SZ;
 		/* Reading the sensor */
-		EOE(i2c_read(i2c_handle, i2c_dest_addr , data->sz, data->bytes));
+		EOE(i2c_read(i2c_handle, i2c_dest_addr , data->sz,\
+							 data->bytes));
 		dbg_printf("Value of HTS221 Temp Sensor = %2x%2x\n",\
-						*(data->bytes), *(data->bytes+1));
+					*(data->bytes), *(data->bytes+1));
 		dbg_printf("Reading the HTS221 Humidity value....\n");
 		EOE(read_until_matched_byte(i2c_handle, i2c_dest_addr,\
 								 0x02, 0x02));
 		i2c_dest_addr.reg = HTS_HUMIDITY_OUT_L;
 		data->sz = HTS_HUMIDITY_SZ;
 		/* Reading the sensor */
-
-		EOE(i2c_read(i2c_handle, i2c_dest_addr , data->sz, data->bytes));
+		EOE(i2c_read(i2c_handle, i2c_dest_addr , data->sz, \
+							data->bytes));
 		dbg_printf("Value of HTS221 Humidity  Sensor = %2x%2x\n",\
-					 *(data->bytes),	 *(data->bytes+1));
+					 *(data->bytes), *(data->bytes+1));
 		sys_delay(1000);
 	}
 	return 0;
