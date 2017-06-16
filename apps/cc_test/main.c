@@ -15,6 +15,7 @@
 #include "cc_control_service.h"
 #include "dbg.h"
 #include "dev_creds.h"
+#include "gpio_hal.h"
 
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
 CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
@@ -165,6 +166,16 @@ int main(int argc, char *argv[])
 	dbg_module_init();
 	dbg_printf("Begin:\n");
 
+	gpio_config_t init_st;
+	pin_name_t pin_name = PB4;
+	init_st.dir = OUTPUT;
+	init_st.pull_mode = PP_PULL_DOWN;
+	init_st.speed = SPEED_HIGH;
+	gpio_init(pin_name, &init_st);
+	gpio_write(pin_name, PIN_LOW);
+
+	/* on the beduin board, the UART level shifter !OE must be enabled to talk to the
+           u-blox 201 */
 	dbg_printf("Initializing communications module\n");
 	ASSERT(cc_init(ctrl_cb));
 
