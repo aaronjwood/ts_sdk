@@ -9,28 +9,29 @@
 #include "sys.h"
 #include "gpio_hal.h"
 #include "dbg.h"
+#include "board_config.h"
 
 int main()
 {
-	pin_name_t pin_name = PC13;
+	pin_name_t pin_name = RED_LED_PIN;
 	gpio_config_t my_led;
 	sys_init();
 	dbg_module_init();
-	dbg_printf("\r Welcome to GPIO Test\r\n");
+	dbg_printf("Welcome to GPIO Test\n");
 
-	dbg_printf("Init LEDS\n\r");
+	dbg_printf("Init LEDS\n");
 	my_led.dir = OUTPUT;
 	my_led.pull_mode = PP_PULL_UP;
 	my_led.speed = SPEED_LOW;
 	gpio_init(pin_name, &my_led);
 
-	dbg_printf("set leds in default state\n\r");
+	dbg_printf("set leds in default state\n");
 	/* set onboard LEDS */
 	while (1) {
-		dbg_printf("set leds in OFF state\n\r");
+		dbg_printf("set leds in OFF state\n");
 		gpio_write(pin_name, PIN_LOW);
 		sys_delay(1500);
-		dbg_printf("set leds in ON state\n\r");
+		dbg_printf("set leds in ON state\n");
 		gpio_write(pin_name, PIN_HIGH);
 		sys_delay(1500);
 	}

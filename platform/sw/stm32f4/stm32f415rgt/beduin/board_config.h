@@ -31,4 +31,7 @@
 /* GPIO pin connected to an LED to hint an error */
 #define ERROR_LED_PIN		PC12
 
+/* GPIO pin connected to an RED LED to verify the GPIO test */
+#define RED_LED_PIN		PC13
+
 #endif

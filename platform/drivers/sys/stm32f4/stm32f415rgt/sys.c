@@ -62,10 +62,6 @@ static void SystemClock_Config(void)
 
 	/*
 	 * Enable HSE Oscillator and activate PLL with HSE as source.
-	 * Note : The following code uses a non-crystal / non-ceramic high speed
-	 * external clock source (signified by RCC_HSE_BYPASS). It is derived
-	 * from the MCO of the chip housing the STLink firmware. This MCO is in
-	 * turn sourced from an 12MHz on-board crystal.
 	 */
 	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
 	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
