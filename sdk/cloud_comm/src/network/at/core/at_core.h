@@ -43,7 +43,7 @@ typedef enum at_return_codes {
 /* Enable this macro to display messages, error will alway be reported if this
  * macro is enabled while V2 and V1 will depend on debug_level setting
  */
-/*#define DEBUG_AT_LIB*/
+#define DEBUG_AT_LIB
 
 /* level v2 is normally for extensive debugging need, for example tracing
  * function calls

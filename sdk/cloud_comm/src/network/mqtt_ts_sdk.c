@@ -18,6 +18,7 @@
 
 /* Certificate used for the TLS connection */
 #include "simpm-ea-iwk-server.h"
+//#include "verizon_ott_ca.h"
 
 /* XXX: Move these to the application code and create an interface for them here */
 #include "client-crt-1801.h"
@@ -188,29 +189,30 @@ static bool init_tls(void)
 
 	/* Seed the RNG */
 	mbedtls_entropy_init(&entropy);
-	dbg_printf("phase 0\n");
 	if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
 				NULL, 0) != 0) {
 		cleanup_mbedtls();
 		return false;
 	}
-	dbg_printf("phase 1\n");
 
 	/* Load the CA root certificate */
-	if (mbedtls_x509_crt_parse(&cacert, cacert_buf,
+	/*if (mbedtls_x509_crt_parse_der(&cacert, cacert_der,
+					 sizeof(cacert_der)) < 0) {
+		cleanup_mbedtls();
+		return false;
+	}*/
+	if (mbedtls_x509_crt_parse_der(&cacert, cacert_buf,
 					 sizeof(cacert_buf)) < 0) {
 		cleanup_mbedtls();
 		return false;
 	}
-	dbg_printf("phase 2\n");
 
 	/* Load the client certificate */
-	if (mbedtls_x509_crt_parse(&cl_cert, client_cert,
+	if (mbedtls_x509_crt_parse_der(&cl_cert, client_cert,
 					 sizeof(client_cert)) < 0) {
 		cleanup_mbedtls();
 		return false;
 	}
-	dbg_printf("phase 3\n");
 
 	/* Load the client key */
 	if (mbedtls_pk_parse_key(&cl_key, client_key, sizeof(client_key),
@@ -218,7 +220,6 @@ static bool init_tls(void)
 		cleanup_mbedtls();
 		return false;
 	}
-	dbg_printf("phase 4\n");
 
 	/* Set up the TLS structures */
 	if (mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT,
@@ -229,15 +230,16 @@ static bool init_tls(void)
 	}
 
 	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
-	if (mbedtls_ssl_conf_own_cert(&conf, &cl_cert, &cl_key) != 0) {
-		cleanup_mbedtls();
-		return false;
-	}
-	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
+
 	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 #ifdef MBEDTLS_DEBUG_C
 	mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
 #endif
+	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
+	if (mbedtls_ssl_conf_own_cert(&conf, &cl_cert, &cl_key) != 0) {
+		cleanup_mbedtls();
+		return false;
+	}
 	return true;
 }
 
@@ -266,14 +268,14 @@ int paho_net_connect(Network* n, char* addr, int port)
 		return -1;
 	}
 
-	mbedtls_ssl_set_bio(&ssl, &ctx, mbedtls_net_send, mbedtls_net_recv, NULL);
-
 	/*
 	 * Set the server identity (hostname) that must be present in its
 	 * certificate CN or SubjectAltName.
 	 */
 	if (mbedtls_ssl_set_hostname(&ssl, addr) != 0)
 		return -1;
+
+	mbedtls_ssl_set_bio(&ssl, &ctx, mbedtls_net_send, mbedtls_net_recv, NULL);
 
 	/* Perform TLS handshake */
 	int ret = mbedtls_ssl_handshake(&ssl);

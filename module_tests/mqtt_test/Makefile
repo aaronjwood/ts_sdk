@@ -18,7 +18,7 @@ SERVICES_SRC =
 
 # MQTT library uses -isystem instead of -I to avoid checking them with -Wall
 # and -Werror.
-VENDOR_INC += -I $(PROJ_ROOT)/sdk/cloud_comm/vendor/mbedtls/include
+VENDOR_INC += -I $(SDK_ROOT)/vendor/mbedtls/include
 VENDOR_INC += -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTClient-C/src
 VENDOR_INC += -DMQTTCLIENT_PLATFORM_HEADER=paho_port_generic.h \
 	      -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTClient-C/src/paho_port_generic
