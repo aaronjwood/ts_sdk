@@ -12,11 +12,11 @@
 #define TS_SDK_BOARD_CONFIG_H
 
 /* Pin and peripheral configuration for UART connecting modem and MCU */
-#define MODEM_UART_TX_PIN	PC10
-#define MODEM_UART_RX_PIN	PC11
+#define MODEM_UART_TX_PIN	PB10
+#define MODEM_UART_RX_PIN	PB11
 #define MODEM_UART_RTS_PIN	PB14
 #define MODEM_UART_CTS_PIN	PB13
-#define MODEM_HW_RESET_PIN	PD2
+#define MODEM_HW_RESET_PIN	PB3
 #define MODEM_UART_BAUD_RATE	115200
 #define MODEM_UART_DATA_WIDTH	8
 #define MODEM_UART_PARITY	NONE
