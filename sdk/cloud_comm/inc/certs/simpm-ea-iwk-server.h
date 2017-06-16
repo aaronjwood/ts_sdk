@@ -4,7 +4,7 @@
 #define VERIZON_MQTT_CA_H
 
 #if 0
-static const unsigned char cacert_pem[] = {
+static const unsigned char cacert_buf[] = {
 	"-----BEGIN CERTIFICATE-----\n"
 	"MIIFqTCCBJGgAwIBAgIUNSxGSj/c70oyGmmWXem44mKSN5AwDQYJKoZIhvcNAQEL\n"
 	"BQAwgY0xCzAJBgNVBAYTAk5MMRIwEAYDVQQHEwlBbXN0ZXJkYW0xJTAjBgNVBAoT\n"

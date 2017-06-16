@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "paho_port_generic.h"
 #include "sys.h"
@@ -173,6 +174,27 @@ static int write_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 	return nbytes;
 }
 
+static int my_verify( void *data, mbedtls_x509_crt *crt, int depth, uint32_t *flags )
+{
+    char buf[1024];
+    ((void) data);
+
+    dbg_printf( "\nVerify requested for (Depth %d):\n", depth );
+    mbedtls_x509_crt_info( buf, sizeof( buf ) - 1, "", crt );
+    dbg_printf( "%s", buf );
+
+    if ( ( *flags ) == 0 )
+        dbg_printf( "  This certificate has no flags\n" );
+    else
+    {
+        mbedtls_x509_crt_verify_info( buf, sizeof( buf ), "  ! ", *flags );
+        dbg_printf( "%s\n", buf );
+    }
+
+    return( 0 );
+}
+
+static const char pers[] = "mqtt_ts_sdk";
 static bool init_tls(void)
 {
 #ifdef MBEDTLS_DEBUG_C
@@ -190,7 +212,7 @@ static bool init_tls(void)
 	/* Seed the RNG */
 	mbedtls_entropy_init(&entropy);
 	if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
-				NULL, 0) != 0) {
+				(const unsigned char *)pers, strlen(pers)) != 0) {
 		cleanup_mbedtls();
 		return false;
 	}
@@ -230,6 +252,8 @@ static bool init_tls(void)
 	}
 
 	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
+
+        mbedtls_ssl_conf_verify( &conf, my_verify, NULL );
 
 	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 #ifdef MBEDTLS_DEBUG_C
