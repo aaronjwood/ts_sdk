@@ -107,6 +107,17 @@ static void init_reset_gpio(void)
 	gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
 }
 
+static void enable_level_shifter(void)
+{
+	gpio_config_t init_st;
+	pin_name_t pin_name = PB4;
+	init_st.dir = OUTPUT;
+	init_st.pull_mode = PP_PULL_DOWN;
+	init_st.speed = SPEED_HIGH;
+	gpio_init(pin_name, &init_st);
+	gpio_write(pin_name, PIN_LOW);
+}
+
 static void tim5_cb(void)
 {
 	timer_expired = true;
@@ -138,6 +149,9 @@ void sys_init(void)
 	HAL_Init();
 	SystemClock_Config();
 	init_reset_gpio();
+	/* on the beduin board, the UART level shifter !OE must be enabled
+	 * to talk to the u-blox 201 */
+	enable_level_shifter();
 
 	if (!tim5_module_init())
 		dbg_printf("Timer module init failed\n");

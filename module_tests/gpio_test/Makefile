@@ -38,5 +38,8 @@ DBG_LIB_SRC =
 # Common and per-platform Makefile variables
 include $(MK_HELPER_PATH)/common.mk
 
+ifeq ($(CHIPSET_MCU),stm32f415rgt)
+	MDEF = -DSTM32F415xx -DBEDUIN
+endif
 
 endif

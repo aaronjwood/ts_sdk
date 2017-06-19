@@ -15,7 +15,6 @@
 #include "cc_control_service.h"
 #include "dbg.h"
 #include "dev_creds.h"
-#include "gpio_hal.h"
 
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
 CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
@@ -166,16 +165,6 @@ int main(int argc, char *argv[])
 	dbg_module_init();
 	dbg_printf("Begin:\n");
 
-	gpio_config_t init_st;
-	pin_name_t pin_name = PB4;
-	init_st.dir = OUTPUT;
-	init_st.pull_mode = PP_PULL_DOWN;
-	init_st.speed = SPEED_HIGH;
-	gpio_init(pin_name, &init_st);
-	gpio_write(pin_name, PIN_LOW);
-
-	/* on the beduin board, the UART level shifter !OE must be enabled to talk to the
-           u-blox 201 */
 	dbg_printf("Initializing communications module\n");
 	ASSERT(cc_init(ctrl_cb));
 
@@ -221,22 +210,23 @@ int main(int argc, char *argv[])
 				",sleeping for %"PRIu32" sec.\n",
 				wake_up_interval / 1000);
 		} else {
-			dbg_printf("Protocol requests wakeup in %"
-				   PRIu32" sec.\n", next_wakeup_interval / 1000);
+			dbg_printf("Protocol requests wakeup in %"PRIu32
+				"sec.\n", next_wakeup_interval / 1000);
 			wake_up_interval = next_wakeup_interval;
 		}
 
 		if (wake_up_interval > next_report_interval) {
 			wake_up_interval = next_report_interval;
-			dbg_printf("Reporting required in %"
-				   PRIu32" sec.\n", wake_up_interval / 1000);
+			dbg_printf("Reporting required in %"PRIu32" sec.\n",
+				wake_up_interval / 1000);
 		}
 
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
 		slept_till = sys_sleep_ms(wake_up_interval);
 		slept_till = wake_up_interval - slept_till;
-		dbg_printf("Slept for %"PRIu32" seconds\n\n", slept_till / 1000);
+		dbg_printf("Slept for %"PRIu32" seconds\n\n",
+			slept_till / 1000);
 	}
 	return 0;
 }

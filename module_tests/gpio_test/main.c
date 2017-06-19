@@ -9,11 +9,17 @@
 #include "sys.h"
 #include "gpio_hal.h"
 #include "dbg.h"
-#include "board_config.h"
+
+/* GPIO pin connected to an LED to verify the GPIO test */
+#ifdef BEDUIN
+#define GPIO_LED_PIN		PC13
+#else
+#define GPIO_LED_PIN		PB14
+#endif
 
 int main()
 {
-	pin_name_t pin_name = RED_LED_PIN;
+	pin_name_t pin_name = GPIO_LED_PIN;
 	gpio_config_t my_led;
 	sys_init();
 	dbg_module_init();

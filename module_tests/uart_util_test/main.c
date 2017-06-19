@@ -5,7 +5,6 @@
 #include "uart_hal.h"
 #include "uart_util.h"
 #include "ts_sdk_board_config.h"
-#include "gpio_hal.h"
 
 #define SEND_TIMEOUT_MS		2000
 #define IDLE_CHARS		5
@@ -71,15 +70,6 @@ int main(int argc, char *argv[])
 	 * not ready yet.
 	 */
 	dbg_printf("Begin :\n");
-	pin_name_t pin_name = PB4;
-	gpio_config_t my_led;
-	my_led.dir = OUTPUT;
-	my_led.pull_mode = PP_PULL_DOWN;
-	my_led.speed = SPEED_HIGH;
-	/* on the beduin board, the UART level shifter !OE must be enabled to talk to the
-           u-blox 201 */
-	gpio_init(pin_name, &my_led);
-	gpio_write(pin_name, PIN_LOW);
 
 	/* ATE0 turns off echo in DCE for DTE commands */
 	uint8_t echo_off[] = "ATE0\r";
