@@ -91,25 +91,6 @@ int TimerLeftMS(Timer *timer)
 }
 
 /*
-static int read_fn(Network *n, unsigned char *b, int len, int timeout_ms)
-{
-	uint64_t start_time = sys_get_tick_ms();
-	uint64_t now = sys_get_tick_ms();
-	int nbytes = 0;
-	do {
-		int recvd = mbedtls_net_recv(&ctx, &b[nbytes], (len - nbytes));
-		if (recvd == 0)
-			return 0;
-		if (recvd < 0 && recvd != MBEDTLS_ERR_SSL_WANT_READ)
-			return -1;
-		if (recvd > 0)
-			nbytes += recvd;
-		now = sys_get_tick_ms();
-	} while (nbytes < len && now - start_time < timeout_ms);
-	return nbytes;
-}*/
-
-/*
  * Attempt to read 'len' bytes from the TCP/TLS stream into buffer 'b' within
  * 'timeout_ms' ms.
  */
@@ -133,24 +114,6 @@ static int read_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 }
 
 /*
-static int write_fn(Network *n, unsigned char *b, int len, int timeout_ms)
-{
-	uint64_t start_time = sys_get_tick_ms();
-	uint64_t now = sys_get_tick_ms();
-	int nbytes = 0;
-	do {
-		int sent = mbedtls_net_send(&ctx, b, len);
-		if (sent < 0 && sent != MBEDTLS_ERR_SSL_WANT_WRITE)
-			return -1;
-		if (sent >= 0)
-			nbytes += sent;
-		now = sys_get_tick_ms();
-	} while (nbytes < len && now - start_time < timeout_ms);
-	return nbytes;
-}
-*/
-
-/*
  * Attempt writing to TCP/TLS stream a buffer 'b' of length 'len' within
  * 'timeout_ms' ms. Return -1 for an error, a positive number for the number of
  * bytes actually written.
@@ -172,26 +135,6 @@ static int write_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 		now = sys_get_tick_ms();
 	} while (nbytes < len && now - start_time < timeout_ms);
 	return nbytes;
-}
-
-static int my_verify( void *data, mbedtls_x509_crt *crt, int depth, uint32_t *flags )
-{
-    char buf[1024];
-    ((void) data);
-
-    dbg_printf( "\nVerify requested for (Depth %d):\n", depth );
-    mbedtls_x509_crt_info( buf, sizeof( buf ) - 1, "", crt );
-    dbg_printf( "%s", buf );
-
-    if ( ( *flags ) == 0 )
-        dbg_printf( "  This certificate has no flags\n" );
-    else
-    {
-        mbedtls_x509_crt_verify_info( buf, sizeof( buf ), "  ! ", *flags );
-        dbg_printf( "%s\n", buf );
-    }
-
-    return( 0 );
 }
 
 static const char pers[] = "mqtt_ts_sdk";
@@ -218,11 +161,6 @@ static bool init_tls(void)
 	}
 
 	/* Load the CA root certificate */
-	/*if (mbedtls_x509_crt_parse_der(&cacert, cacert_der,
-					 sizeof(cacert_der)) < 0) {
-		cleanup_mbedtls();
-		return false;
-	}*/
 	if (mbedtls_x509_crt_parse_der(&cacert, cacert_buf,
 					 sizeof(cacert_buf)) < 0) {
 		cleanup_mbedtls();
@@ -252,13 +190,12 @@ static bool init_tls(void)
 	}
 
 	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
-
-        mbedtls_ssl_conf_verify( &conf, my_verify, NULL );
-
 	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
+
 #ifdef MBEDTLS_DEBUG_C
 	mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
 #endif
+
 	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
 	if (mbedtls_ssl_conf_own_cert(&conf, &cl_cert, &cl_key) != 0) {
 		cleanup_mbedtls();

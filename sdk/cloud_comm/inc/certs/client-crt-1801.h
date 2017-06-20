@@ -3,31 +3,6 @@
 #ifndef VERIZON_MQTT_CLIENT_CERT_H
 #define VERIZON_MQTT_CLIENT_CERT_H
 
-#if 0
-static const unsigned char client_cert[] = {
-	"-----BEGIN CERTIFICATE-----\n"
-	"MIIDGDCCAgCgAwIBAgIUR8j8f/scmT03tMgFWtMMT+QEJ9YwDQYJKoZIhvcNAQEF\n"
-	"BQAwgZIxCzAJBgNVBAYTAlVTMQswCQYDVQQIDAJOSjEWMBQGA1UEBwwNQmFza2lu\n"
-	"ZyBSaWRnZTEZMBcGA1UECgwQVmVyaXpvbiBXaXJlbGVzczEbMBkGA1UECwwSVGhp\n"
-	"bmdTcGFjZSBEZXZlbG9wMSYwJAYDVQQDDB1UaGluZ1NwYWNlIFByaW1hcnkgSXNz\n"
-	"dWluZyBDQTAeFw0xNzA0MTEyMDMzNTlaFw0xODA0MTEyMDMyMTZaMGwxCzAJBgNV\n"
-	"BAYTAlVTMRMwEQYDVQQIDApOZXcgSmVyc2V5MREwDwYDVQQHDAhCZXJuYXJkczEQ\n"
-	"MA4GA1UECgwHVmVyaXpvbjEMMAoGA1UECwwDSW9UMRUwEwYDVQQDDAx0c19iZXRh\n"
-	"XzE4MDEwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBAOIRNv9gz5IZ9ZXZRhO5\n"
-	"vaaYxckhOBM0PFzxpJ+bZkC0TwdUqWV4fUNycgQcbFJMCSWpyvPPuXFAZa09GMB2\n"
-	"nUyGFoxx01CqhUw/EceEUJi0nL3IWAFS9xKKkjDzrPbgNqHm7l5gF1uTGoFVJ+m6\n"
-	"xd7c9rHvSh9n9fGGAqPZhcz7AgMBAAGjDzANMAsGA1UdDwQEAwIFoDANBgkqhkiG\n"
-	"9w0BAQUFAAOCAQEAICsk3izF5yq9sQ8g5QaVI/HPw2Xzakwtb1q1DlcjFyi3PBcW\n"
-	"0imClmML7S6Z/+EMyDbaUlcDRiW9WPstb2+Vp9cky4W6Qdq+rYDWH82n9vncOm0Q\n"
-	"O+g4KRL1IxCeEMe3NMI37KAuNUce9JvEp3cu60+gRHyfN4Yw1lesRkCQuql/Q86e\n"
-	"sq+uFHa87XcDoZ8gR8goel0531VzrZnHl8sutHNz+wS8bGI/+CQHyQwoRNfw9oa1\n"
-	"5s5twxfUd1+FXqcZ/BxZOF8GNaFlBbRyDV27DexTN4O31PpgReYNJyaMn43arK+9\n"
-	"P/14p+meVE8bdgz0ZehGCVmn/+3c+4/LGsFBhg==\n"
-	"-----END CERTIFICATE-----\n"
-};
-#endif
-
-#if 1
 static const unsigned char client_cert[] = {
 	0x30, 0x82, 0x03, 0x18, 0x30, 0x82, 0x02, 0x00, 0xa0, 0x03, 0x02, 0x01,
 	0x02, 0x02, 0x14, 0x47, 0xc8, 0xfc, 0x7f, 0xfb, 0x1c, 0x99, 0x3d, 0x37,
@@ -97,6 +72,5 @@ static const unsigned char client_cert[] = {
 	0x65, 0xe8, 0x46, 0x09, 0x59, 0xa7, 0xff, 0xed, 0xdc, 0xfb, 0x8f, 0xcb,
 	0x1a, 0xc1, 0x41, 0x86
 };
-#endif
 
 #endif

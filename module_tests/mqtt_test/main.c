@@ -9,8 +9,6 @@
 
 static char host[] = "simpm-ea-iwk.thingspace.verizon.com";
 static int port = 8883;
-//static char host[] = "iwk.ott.thingspace.verizon.com";
-//static int port = 443;
 static char clientid[] = "stm32f4-ublox";
 static char subtopic[] = "vztest/1";
 static char pubtopic[] = "vztest/2";
@@ -55,8 +53,6 @@ int main(int argc, char *argv[])
 		fatal_err("SSL handshake timeout\n");
 
 	dbg_printf("Connected to server\n");
-
-	/* ^-- PRE-MQTT */ ASSERT(0); /* MQTT --v */
 
 	MQTTClientInit(&c, &n, 1000, sendbuf, SEND_BUF_SZ, readbuf, READ_BUF_SZ);
 
