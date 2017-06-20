@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 	 * the assertion over uart_tx is likely to fail implying the modem is
 	 * not ready yet.
 	 */
-	dbg_printf("Begin:\n");
+	dbg_printf("Begin :\n");
 
 	/* ATE0 turns off echo in DCE for DTE commands */
 	uint8_t echo_off[] = "ATE0\r";

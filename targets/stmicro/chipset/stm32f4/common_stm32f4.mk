@@ -28,11 +28,11 @@ ARCHFLAGS = -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
 
 # Point to the C Runtime startup code
 ifeq ($(CHIPSET_MCU),stm32f415rgt)
-        MDEF = -DSTM32F415xx
+        MDEF = -DSTM32F415xx $(CHIPSET_HSECLK)
 	STARTUP_SRC = $(STM32_CMSIS)/Source/Templates/gcc/startup_stm32f415xx.s
 	OBJ_STARTUP = startup_stm32f415xx.o
 else ifeq ($(CHIPSET_MCU), stm32f429zit)
-        MDEF = -DSTM32F429xx
+        MDEF = -DSTM32F429xx $(CHIPSET_HSECLK)
 	STARTUP_SRC = $(STM32_CMSIS)/Source/Templates/gcc/startup_stm32f429xx.s
 	OBJ_STARTUP = startup_stm32f429xx.o 
 else
