@@ -85,7 +85,6 @@ static void SystemClock_Config(void)
 			RCC_CLOCKTYPE_PCLK1 |
 			RCC_CLOCKTYPE_PCLK2);
 	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK; /* 168 MHz */
-	/*RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSE;*/ /* 168 MHz */
 	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;        /* 168 MHz */
 	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;         /* 42 MHz */
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;         /* 84 MHz */

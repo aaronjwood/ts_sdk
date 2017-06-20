@@ -9,13 +9,7 @@
 #include "sys.h"
 #include "gpio_hal.h"
 #include "dbg.h"
-
-/* GPIO pin connected to an LED to verify the GPIO test */
-#ifdef BEDUIN
-#define GPIO_LED_PIN		PC13
-#else
-#define GPIO_LED_PIN		PB14
-#endif
+#include "module_config.h"
 
 int main()
 {

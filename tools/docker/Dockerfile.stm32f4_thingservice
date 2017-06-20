@@ -1,6 +1,7 @@
 FROM thingservice.verizon.com:5000/dpatel/ubuntu:arm_toolchain
 RUN mkdir -p ts_sdk_bldenv
 COPY targets/stmicro/chipset /ts_sdk_bldenv/
+COPY platform/sw/stm32f4 /ts_sdk_bldenv/
 ENV CHIPSET_MCU=$(CHIPSET_MCU)
 CMD cd /ts_sdk_bldenv/stm32f4 && make clean && make all \
         && mkdir -p /build/stm32f4 \
