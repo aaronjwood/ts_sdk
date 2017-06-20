@@ -4,6 +4,7 @@
 #define AT_TOBY_SMS_COMMAND_H
 
 #include "at_core.h"
+#include "ts_sdk_modem_config.h"
 
 #define NET_STAT_REG_CODE	6
 enum at_modem_network_commands {
@@ -180,7 +181,7 @@ static const at_command_desc mod_netw_cmd[NUM_MODEM_COMMANDS] = {
 		.comm = "at+umnoconf?\r",
 		.rsp_desc = {
 			{
-				.rsp = "\r\n+UMNOCONF: 1,6,0\r\n",
+				.rsp = "\r\n+UMNOCONF: "MODEM_UMNOCONF_VAL",0\r\n",
 				.rsp_handler = NULL,
 				.data = NULL
 			},
@@ -194,7 +195,7 @@ static const at_command_desc mod_netw_cmd[NUM_MODEM_COMMANDS] = {
 		.comm_timeout = 100
 	},
 	[MNO_CONF_SET] = {
-		.comm = "at+umnoconf=1,6\r",
+		.comm = "at+umnoconf="MODEM_UMNOCONF_VAL"\r",
 		.rsp_desc = {
 			{
 				.rsp = "\r\nOK\r\n",
