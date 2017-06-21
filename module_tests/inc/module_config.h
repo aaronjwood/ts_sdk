@@ -5,7 +5,7 @@
  * tests for specific boards.
  */
 
-#if defined (beduin)
+#if defined(beduin)
 
 /* GPIO pin connected to an LED to verify the GPIO test */
 #define GPIO_LED_PIN		PC13
@@ -17,11 +17,13 @@
 #define SLAVE_ID                0xD0  /* Device identfication register */
 #define SLAVE_IDENTIFIER        0x60  /* Device identification value */
 #define CTRL_REG                0xF4  /* Sensor control register */
-#define CALIB_SZ                26    /* calibration table length */
+#define CTRL_REG_VAL            0x27  /* Value to write in the register */
+#define DATA_SIZE      	 	1     /* size of the control register value */
+
+
 
 /* Other module conifgs */
-
-#elif defined (nucleo)
+#elif defined(nucleo)
 
 /* GPIO pin connected to an LED to verify the GPIO test */
 #define GPIO_LED_PIN		PB14
@@ -33,7 +35,8 @@
 #define SLAVE_ID                0x0f  /* Device identfication register */
 #define SLAVE_IDENTIFIER        0xBC  /* Device identfication value */
 #define CTRL_REG                0x20  /* Sensor control register */
-#define CALIB_SZ                16    /*calibration table length */
+#define CTRL_REG_VAL            0x27  /* Value to write in the register */
+#define DATA_SIZE		1     /* size of the control register value */
 
 /* Other module conifgs */
 
