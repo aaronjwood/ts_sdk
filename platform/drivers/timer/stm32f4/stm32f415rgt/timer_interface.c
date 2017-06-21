@@ -25,14 +25,14 @@ typedef struct timer_private {
 	do { \
 		PRINTF_ERR("%s:%d:" #string, __func__, __LINE__); \
 		PRINTF_ERR("\n"); \
-		return ret; \
+		return (ret); \
 	} while (0)
 
 #define TYPECAST_TO_TIM(x) timer_private_t *tm = (timer_private_t *)((x))
 #define CHECK_RET_AND_TYPECAST(x, y) \
 	if ((x) == NULL) { \
 		PRINTF_ERR("%s at line %d\n", __func__, __LINE__); \
-		return y; \
+		return (y); \
 	} \
 	TYPECAST_TO_TIM(x)
 
@@ -54,7 +54,8 @@ static bool tim5_init(uint32_t period, uint32_t priority, uint32_t base_freq,
 	__HAL_RCC_TIM5_CLK_ENABLE();
 	tm->timer_handle->Instance = TIM5;
 	/* Beduin board SystemCoreClock is 168Mhz. Set the prescalar to 42000*/
-	tm->timer_handle->Init.Prescaler = SystemCoreClock / 2 / base_freq;
+	tm->timer_handle->Init.Prescaler = (SystemCoreClock / 2 / base_freq)\
+	 - 1;
 	tm->timer_handle->Init.CounterMode = TIM_COUNTERMODE_UP;
 	/* It will not start until first call to sys_sleep function */
 	tm->timer_handle->Init.Period = 0;
@@ -73,7 +74,8 @@ static bool tim2_init(uint32_t period, uint32_t priority, uint32_t base_freq,
 	CHECK_RET_AND_TYPECAST(data, false);
 	__HAL_RCC_TIM2_CLK_ENABLE();
 	tm->timer_handle->Instance = TIM2;
-	tm->timer_handle->Init.Prescaler = SystemCoreClock / 2 / base_freq;
+	tm->timer_handle->Init.Prescaler = (SystemCoreClock / 2 / base_freq)\
+	 - 1;
 	tm->timer_handle->Init.CounterMode = TIM_COUNTERMODE_UP;
 	tm->timer_handle->Init.Period = period;
 	tm->timer_handle->Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
