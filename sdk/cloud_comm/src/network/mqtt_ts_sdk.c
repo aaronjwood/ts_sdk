@@ -1,3 +1,5 @@
+/* Copyright(C) 2017 Verizon. All rights reserved. */
+
 #include <stdio.h>
 #include <string.h>
 
@@ -19,16 +21,11 @@
 
 /* Certificate used for the TLS connection */
 #include "simpm-ea-iwk-server.h"
-//#include "verizon_ott_ca.h"
-
-/* XXX: Move these to the application code and create an interface for them here */
-#include "client-crt-1801.h"
-#include "client-key-1801.h"
 
 #ifdef MBEDTLS_DEBUG_C
 static void my_debug(void *ctx, int level,
                      const char *file, int line,
-		     const char *str)
+	     const char *str)
 {
 	(void)(level);
 	dbg_printf("%s:%04d: %s", file, line, str);
@@ -37,6 +34,22 @@ static void my_debug(void *ctx, int level,
 #endif
 
 #define TIMEOUT_MS			5000
+
+#ifdef CALC_TLS_OVRHD_BYTES
+#include "dbg.h"
+extern bool ovrhd_profile_flag;
+extern uint32_t num_bytes_recvd;
+extern uint32_t num_bytes_sent;
+#define START_CALC_OVRHD_BYTES()	ovrhd_profile_flag = true
+#define STOP_CALC_OVRHD_BYTES()		ovrhd_profile_flag = false
+#define PRINT_OVRHD_SENT()		dbg_printf("OVS:%"PRIu32"\n", num_bytes_sent);
+#define PRINT_OVRHD_RECVD()		dbg_printf("OVR:%"PRIu32"\n", num_bytes_recvd);
+#else
+#define START_CALC_OVRHD_BYTES()
+#define STOP_CALC_OVRHD_BYTES()
+#define PRINT_OVRHD_SENT()
+#define PRINT_OVRHD_RECVD()
+#endif	/* CALC_TLS_OVRHD_BYTES */
 
 /* mbedTLS specific variables */
 static mbedtls_net_context ctx;
@@ -138,7 +151,7 @@ static int write_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 }
 
 static const char pers[] = "mqtt_ts_sdk";
-static bool init_tls(void)
+static bool init_tls(const auth_creds *creds)
 {
 #ifdef MBEDTLS_DEBUG_C
 	mbedtls_debug_set_threshold(1);
@@ -168,14 +181,14 @@ static bool init_tls(void)
 	}
 
 	/* Load the client certificate */
-	if (mbedtls_x509_crt_parse_der(&cl_cert, client_cert,
-					 sizeof(client_cert)) < 0) {
+	if (mbedtls_x509_crt_parse_der(&cl_cert, creds->cl_cert,
+					 creds->cl_cert_len) < 0) {
 		cleanup_mbedtls();
 		return false;
 	}
 
 	/* Load the client key */
-	if (mbedtls_pk_parse_key(&cl_key, client_key, sizeof(client_key),
+	if (mbedtls_pk_parse_key(&cl_key, creds->cl_key, creds->cl_key_len,
 			NULL, 0) != 0) {
 		cleanup_mbedtls();
 		return false;
@@ -204,42 +217,49 @@ static bool init_tls(void)
 	return true;
 }
 
-bool paho_net_init(Network* n)
+bool mqtt_net_init(Network *net, const auth_creds *creds)
 {
 	mbedtls_net_init(&ctx);
-	if (!init_tls())
+	if (!init_tls(creds))
 		return false;
-	n->mqttread = read_fn;
-	n->mqttwrite = write_fn;
+	net->mqttread = read_fn;
+	net->mqttwrite = write_fn;
 	return true;
 }
 
-int paho_net_connect(Network* n, char* addr, int port)
+int mqtt_net_connect(const char *addr, uint16_t port)
 {
 	char port_str[6];
 	snprintf(port_str, 6, "%d", port);
 
+	int ret = 0;
+	START_CALC_OVRHD_BYTES();
 	/* Connect to the cloud services over TCP */
-	if (mbedtls_net_connect(&ctx, addr, port_str, MBEDTLS_NET_PROTO_TCP) < 0)
-		return -1;
+	if (mbedtls_net_connect(&ctx, addr, port_str, MBEDTLS_NET_PROTO_TCP) < 0) {
+		ret = -1;
+		goto exit_func;
+	}
 
 	/* Set up the SSL context */
 	if (mbedtls_ssl_setup(&ssl, &conf) != 0) {
 		mbedtls_net_free(&ctx);
-		return -1;
+		ret = -1;
+		goto exit_func;
 	}
 
 	/*
 	 * Set the server identity (hostname) that must be present in its
 	 * certificate CN or SubjectAltName.
 	 */
-	if (mbedtls_ssl_set_hostname(&ssl, addr) != 0)
-		return -1;
+	if (mbedtls_ssl_set_hostname(&ssl, addr) != 0) {
+		ret = -1;
+		goto exit_func;
+	}
 
 	mbedtls_ssl_set_bio(&ssl, &ctx, mbedtls_net_send, mbedtls_net_recv, NULL);
 
 	/* Perform TLS handshake */
-	int ret = mbedtls_ssl_handshake(&ssl);
+	ret = mbedtls_ssl_handshake(&ssl);
 	uint64_t start = sys_get_tick_ms();
 	while (ret != 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
@@ -247,20 +267,27 @@ int paho_net_connect(Network* n, char* addr, int port)
 			mbedtls_ssl_session_reset(&ssl);
 			mbedtls_ssl_free(&ssl);
 			mbedtls_net_free(&ctx);
-			return -1;
+			ret = -1;
+			goto exit_func;
 		}
 		if (sys_get_tick_ms() - start > TIMEOUT_MS) {
 			mbedtls_ssl_session_reset(&ssl);
 			mbedtls_ssl_free(&ssl);
 			mbedtls_net_free(&ctx);
-			return -2;
+			ret = -2;
+			goto exit_func;
 		}
 		ret = mbedtls_ssl_handshake(&ssl);
 	}
-	return 0;
+
+exit_func:
+	STOP_CALC_OVRHD_BYTES();
+	PRINT_OVRHD_SENT();
+	PRINT_OVRHD_RECVD();
+	return ret;
 }
 
-bool paho_net_disconnect(Network* n)
+bool mqtt_net_disconnect(void)
 {
 	int s = mbedtls_ssl_close_notify(&ssl);
 	mbedtls_ssl_free(&ssl);

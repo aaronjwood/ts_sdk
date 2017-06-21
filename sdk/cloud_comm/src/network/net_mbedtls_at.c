@@ -20,6 +20,29 @@
 #include "mbedtls/net.h"
 #include "sys.h"
 
+#ifdef CALC_TLS_OVRHD_BYTES
+bool ovrhd_profile_flag;
+uint32_t num_bytes_recvd;
+uint32_t num_bytes_sent;
+#define INIT_COUNTERS()		do { \
+	ovrhd_profile_flag = false;
+	num_bytes_recvd = 0; \
+	num_bytes_sent = 0; \
+} while (0)
+#define ADD_TO_RECVD(x)		do { \
+	if (ovrhd_profile_flag) \
+		num_bytes_recvd += (x); \
+} while (0)
+#define ADD_TO_SEND(x)		do { \
+	if (ovrhd_profile_flag) \
+		(num_bytes_sent += (x)); \
+} while (0)
+#else
+#define INIT_COUNTERS()
+#define ADD_TO_RECVD(x)
+#define ADD_TO_SEND(x)
+#endif	/* CALC_TLS_OVRHD_BYTES */
+
 #if defined(OTT_EXPLICIT_NETWORK_TIME) && defined(OTT_TIME_PROFILE)
 
 uint32_t network_time_ms;
@@ -71,6 +94,7 @@ static bool init_flag;
  */
 void mbedtls_net_init(mbedtls_net_context *ctx)
 {
+	INIT_COUNTERS();
 	NET_TIME_PROFILE_BEGIN();
         init_flag = false;
         if (!ctx)
@@ -142,6 +166,7 @@ int mbedtls_net_recv(void *ctx, unsigned char *buf, size_t len)
                 return MBEDTLS_ERR_NET_RECV_FAILED;
         }
 	NET_TIME_PROFILE_END();
+	ADD_TO_RECVD(ret);
         return ret;
 }
 
@@ -219,6 +244,7 @@ int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len)
                 return MBEDTLS_ERR_NET_SEND_FAILED;
         }
 	NET_TIME_PROFILE_END();
+	ADD_TO_SEND(ret);
         return ret;
 }
 
