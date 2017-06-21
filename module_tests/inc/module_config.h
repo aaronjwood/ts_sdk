@@ -18,7 +18,7 @@
 #define SLAVE_IDENTIFIER        0x60  /* Device identification value */
 #define CTRL_REG                0xF4  /* Sensor control register */
 #define CTRL_REG_VAL            0x27  /* Value to write in the register */
-#define DATA_SIZE      	 	1     /* size of the control register value */
+#define DATA_SIZE		1     /* size of the control register value */
 
 
 
