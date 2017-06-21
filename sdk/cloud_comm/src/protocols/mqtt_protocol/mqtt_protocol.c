@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "paho_port_generic.h"
+#include "mqtt_protocol.h"
 #include "sys.h"
 
 #include "mbedtls/net.h"

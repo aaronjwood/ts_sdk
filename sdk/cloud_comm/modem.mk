@@ -31,9 +31,6 @@ endif
 # Provide the network abstraction module used by the TLS library.
 ifeq ($(MODEM_PROTOCOL),tcp)
 MODEM_SRC += net_mbedtls_at.c
-ifeq (paho_mqtt,$(findstring paho_mqtt,$(VENDOR_LIB_DIRS)))
-MODEM_SRC += mqtt_ts_sdk.c
-endif
 endif
 
 ifeq ($(MODEM_PROTOCOL),sms)

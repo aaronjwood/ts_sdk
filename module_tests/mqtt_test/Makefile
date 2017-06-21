@@ -1,4 +1,4 @@
-# Copyright(C) 2016, 2017 Verizon. All rights reserved.
+# Copyright(C) 2017 Verizon. All rights reserved.
 
 # Makefile for the MQTT test program.
 
@@ -10,21 +10,11 @@ else
 
 # This low-level test program bypasses the protocol layer and above.
 # This requires overriding some of the normal configuration.
-# Must always build with NO_PROTOCOL even if PROTOCOL is set externally.
-override PROTOCOL = NO_PROTOCOL
+# Must always build with MQTT_PROTOCOL even if PROTOCOL is set externally.
+override PROTOCOL = MQTT_PROTOCOL
 override MODEM_PROTOCOL = tcp
 CLOUD_COMM_SRC =
 SERVICES_SRC =
-
-# MQTT library uses -isystem instead of -I to avoid checking them with -Wall
-# and -Werror.
-VENDOR_INC += -I $(SDK_ROOT)/vendor/mbedtls/include
-VENDOR_INC += -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTClient-C/src
-VENDOR_INC += -DMQTTCLIENT_PLATFORM_HEADER=paho_port_generic.h \
-	      -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTClient-C/src/paho_port_generic
-VENDOR_INC += -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTPacket/src
-VENDOR_LIB_DIRS += paho_mqtt mbedtls
-VENDOR_LIB_FLAGS += -L. -lpahomqtt -lmbedtls -lmbedx509 -lmbedcrypto
 
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG

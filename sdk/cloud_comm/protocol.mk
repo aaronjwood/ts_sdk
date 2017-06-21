@@ -14,7 +14,7 @@ PROTOCOL_DIR = smsnas_protocol
 PROTOCOL_INC_DIR = smsnas_protocol
 
 else ifeq ($(PROTOCOL),MQTT_PROTOCOL)
-PROTOCOL_SRC =
+PROTOCOL_SRC = mqtt_protocol.c
 PROTOCOL_DIR = mqtt_protocol
 PROTOCOL_INC_DIR = mqtt_protocol
 
@@ -41,12 +41,13 @@ VENDOR_LIB_DIRS += mbedtls
 VENDOR_LIB_FLAGS += -L. -lmbedtls -lmbedx509 -lmbedcrypto
 endif
 
-# MQTT requires the Paho MQTT library
+# MQTT requires the Paho MQTT library. It uses -isystem instead of -I to avoid
+# checking them with -Wall and -Werror.
 ifeq ($(PROTOCOL),MQTT_PROTOCOL)
-VENDOR_INC += -I $(SDK_ROOT)/vendor/paho_mqtt/MQTTClient-C/src
-VENDOR_INC += -DMQTTCLIENT_PLATFORM_HEADER=paho_port_generic.h \
-	      -I $(SDK_ROOT)/vendor/paho_mqtt/MQTTClient-C/src/paho_port_generic
-VENDOR_INC += -I $(SDK_ROOT)/vendor/paho_mqtt/MQTTPacket/src
+VENDOR_INC += -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTClient-C/src
+VENDOR_INC += -DMQTTCLIENT_PLATFORM_HEADER=paho_mqtt_port.h \
+	      -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTClient-C/src/paho_port_generic
+VENDOR_INC += -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTPacket/src
 VENDOR_LIB_DIRS += paho_mqtt
 VENDOR_LIB_FLAGS += -L. -lpahomqtt
 endif

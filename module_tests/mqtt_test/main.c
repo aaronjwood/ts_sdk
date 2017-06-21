@@ -1,14 +1,15 @@
-/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
+/* Copyright(C) 2017 Verizon. All rights reserved. */
+
+/*
+ * This is a test rig to verify that the MQTT library works. It should be
+ * eventually phased out as we get closer to fully implementing the TS MQTT
+ * protocol.
+ */
 
 #include "dbg.h"
 #include "sys.h"
+#include "mqtt_protocol.h"
 #include "MQTTClient.h"
-
-/*
- * XXX: In future implementations, paho_port_generic.h should not be referenced
- * directly. Instead, the middleware header should be included.
- */
-#include "paho_port_generic.h"
 
 /* Client certificate and private key */
 #include "client-crt-1801.h"
@@ -59,6 +60,14 @@ static void attempt_mqtt_conn(MQTTClient *cl, MQTTPacket_connectData *data)
 	dbg_printf("MQTT connect succeeded\n");
 }
 
+static void attempt_subscription(MQTTClient *cl, const char *t,
+		enum QoS q, messageHandler mh)
+{
+	if (MQTTSubscribe(cl, t, q, mh) < 0)
+		fatal_err("MQTT Subscription failed\n");
+	dbg_printf("Subscribed to topic %s\n", t);
+}
+
 int main(void)
 {
 	sys_init();
@@ -81,8 +90,8 @@ int main(void)
 	if (!mqtt_net_init(&net, &creds))
 		fatal_err("Could not initialize the TLS context\n");
 
+	dbg_printf("Connecting to %s %d\n", host, port);
 	attempt_tls_tcp_conn(host, port);
-
 	dbg_printf("Connected to server\n");
 
 	MQTTClientInit(&cl, &net, 1000, sendbuf, SEND_BUF_SZ,
@@ -97,12 +106,10 @@ int main(void)
 	data.keepAliveInterval = 10;
 	data.cleansession = 1;
 
-	dbg_printf("Connecting to %s %d\n", host, port);
+	dbg_printf("Initiating MQTT connecton\n");
 	attempt_mqtt_conn(&cl, &data);
-
 	dbg_printf("Subscribing to %s\n", subtopic);
-	int rc = MQTTSubscribe(&cl, subtopic, QOS_LVL, msg_arrived);
-	dbg_printf("Subscribed %d\n", rc);
+	attempt_subscription(&cl, subtopic, QOS_LVL, msg_arrived);
 
 	/*
 	 * XXX: Current model is to connect to the server and stay connected
@@ -115,9 +122,12 @@ int main(void)
 			dbg_printf("MQTT Fail\n");
 			MQTTDisconnect(&cl);
 			mqtt_net_disconnect();
-			attempt_tls_tcp_conn(host, port);
 			dbg_printf("Reconnecting to %s %d\n", host, port);
+			attempt_tls_tcp_conn(host, port);
+			dbg_printf("Reinitiating MQTT connection\n");
 			attempt_mqtt_conn(&cl, &data);
+			dbg_printf("Subscribing again to %s\n", subtopic);
+			attempt_subscription(&cl, subtopic, QOS_LVL, msg_arrived);
 		}
 		sys_delay(1000);
 
