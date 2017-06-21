@@ -4,10 +4,12 @@
 #include "sys.h"
 #include "dbg.h"
 
-#define SLEEP_INETRVAL 15000
+#define SLEEP_INTERVAL 15000
 
-/* To test timer functionality used sys_sleep_ms function.
-It internally uses tim5 timer */
+/*
+ * This test program is an illustration on how to use timer.
+ * This function used sys_sleep_ms function which internally uses timer APIs
+ */
 int main(int argc, char *argv[])
 {
 	sys_init();
@@ -15,7 +17,7 @@ int main(int argc, char *argv[])
 	dbg_printf("Begin:\n");
 
 	/* Interval value in ms */
-	uint32_t sleep_interval = SLEEP_INETRVAL;
+	uint32_t sleep_interval = SLEEP_INTERVAL;
 	uint32_t slept_till = 0;
 	uint32_t timer_start_tick = 0;
 	uint32_t timer_end_tick = 0;
@@ -34,7 +36,7 @@ int main(int argc, char *argv[])
 		} else {
 			dbg_printf("Uninterrupted: Slept till %"PRIu32"sec.\n"\
 				, (timer_end_tick - timer_start_tick)/1000);
-			sleep_interval = SLEEP_INETRVAL;
+			sleep_interval = SLEEP_INTERVAL;
 		}
 		timer_start_tick = sys_get_tick_ms();
 		slept_till = sys_sleep_ms(sleep_interval);
