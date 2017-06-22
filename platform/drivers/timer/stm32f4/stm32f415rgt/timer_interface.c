@@ -41,6 +41,7 @@ typedef struct timer_private {
 		PRINTF_ERR("%s at line %d\n", __func__, __LINE__); \
 		return; \
 	} \
+	TYPECAST_TO_TIM(x)
 
 static TIM_HandleTypeDef tim2;
 static TIM_HandleTypeDef tim5;
