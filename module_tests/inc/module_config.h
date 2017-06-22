@@ -24,6 +24,7 @@
 
 /* Other module conifgs */
 #elif defined(nucleo)
+/* Other module conifgs */
 
 /* GPIO pin connected to an LED to verify the GPIO test */
 #define GPIO_LED_PIN		PB14

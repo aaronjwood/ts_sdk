@@ -2,7 +2,7 @@
  * \file pin_defs.h
  * \copyright Copyright (c) 2017 Verizon. All rights reserved.
  * \brief Defines pins and ports supported by a specific chipset.
- * \details Variant : \b STM32F429ZIT \n
+ * \details Variant : \b STM32F415RGT \n
  */
 #ifndef PIN_DEFS_H
 #define PIN_DEFS_H
@@ -17,9 +17,6 @@ typedef enum {
 	PORT_B,
 	PORT_C,
 	PORT_D,
-	PORT_E,
-	PORT_F,
-	PORT_G,
 	PORT_H,
 	NUM_PORTS
 } port_id_t;
@@ -29,7 +26,8 @@ typedef uint8_t pin_id_t;
 #define PD_GET_NAME(port, pin)	((uint8_t)(port << 4 | pin))
 #define PD_GET_PORT(pin_name)	((port_id_t)(pin_name >> 4))
 #define PD_GET_PIN(pin_name)	((pin_id_t)(pin_name & 0x0F))
-#define NUM_PINS_PORT_A_TO_G		16
+#define NUM_PINS_PORT_A_TO_C		16
+#define NUM_PINS_PORT_D			1
 #define NUM_PINS_PORT_H			2
 
 /**
@@ -107,77 +105,10 @@ enum pin_name {
 	PC14 = PD_GET_NAME(PORT_C, 14),
 	PC15 = PD_GET_NAME(PORT_C, 15),
 
-	PD0 = PD_GET_NAME(PORT_D, 0),
-	PD1 = PD_GET_NAME(PORT_D, 1),
 	PD2 = PD_GET_NAME(PORT_D, 2),
-	PD3 = PD_GET_NAME(PORT_D, 3),
-	PD4 = PD_GET_NAME(PORT_D, 4),
-	PD5 = PD_GET_NAME(PORT_D, 5),
-	PD6 = PD_GET_NAME(PORT_D, 6),
-	PD7 = PD_GET_NAME(PORT_D, 7),
-	PD8 = PD_GET_NAME(PORT_D, 8),
-	PD9 = PD_GET_NAME(PORT_D, 9),
-	PD10 = PD_GET_NAME(PORT_D, 10),
-	PD11 = PD_GET_NAME(PORT_D, 11),
-	PD12 = PD_GET_NAME(PORT_D, 12),
-	PD13 = PD_GET_NAME(PORT_D, 13),
-	PD14 = PD_GET_NAME(PORT_D, 14),
-	PD15 = PD_GET_NAME(PORT_D, 15),
-
-	PE0 = PD_GET_NAME(PORT_E, 0),
-	PE1 = PD_GET_NAME(PORT_E, 1),
-	PE2 = PD_GET_NAME(PORT_E, 2),
-	PE3 = PD_GET_NAME(PORT_E, 3),
-	PE4 = PD_GET_NAME(PORT_E, 4),
-	PE5 = PD_GET_NAME(PORT_E, 5),
-	PE6 = PD_GET_NAME(PORT_E, 6),
-	PE7 = PD_GET_NAME(PORT_E, 7),
-	PE8 = PD_GET_NAME(PORT_E, 8),
-	PE9 = PD_GET_NAME(PORT_E, 9),
-	PE10 = PD_GET_NAME(PORT_E, 10),
-	PE11 = PD_GET_NAME(PORT_E, 11),
-	PE12 = PD_GET_NAME(PORT_E, 12),
-	PE13 = PD_GET_NAME(PORT_E, 13),
-	PE14 = PD_GET_NAME(PORT_E, 14),
-	PE15 = PD_GET_NAME(PORT_E, 15),
-
-	PF0 = PD_GET_NAME(PORT_F, 0),
-	PF1 = PD_GET_NAME(PORT_F, 1),
-	PF2 = PD_GET_NAME(PORT_F, 2),
-	PF3 = PD_GET_NAME(PORT_F, 3),
-	PF4 = PD_GET_NAME(PORT_F, 4),
-	PF5 = PD_GET_NAME(PORT_F, 5),
-	PF6 = PD_GET_NAME(PORT_F, 6),
-	PF7 = PD_GET_NAME(PORT_F, 7),
-	PF8 = PD_GET_NAME(PORT_F, 8),
-	PF9 = PD_GET_NAME(PORT_F, 9),
-	PF10 = PD_GET_NAME(PORT_F, 10),
-	PF11 = PD_GET_NAME(PORT_F, 11),
-	PF12 = PD_GET_NAME(PORT_F, 12),
-	PF13 = PD_GET_NAME(PORT_F, 13),
-	PF14 = PD_GET_NAME(PORT_F, 14),
-	PF15 = PD_GET_NAME(PORT_F, 15),
-
-	PG0 = PD_GET_NAME(PORT_G, 0),
-	PG1 = PD_GET_NAME(PORT_G, 1),
-	PG2 = PD_GET_NAME(PORT_G, 2),
-	PG3 = PD_GET_NAME(PORT_G, 3),
-	PG4 = PD_GET_NAME(PORT_G, 4),
-	PG5 = PD_GET_NAME(PORT_G, 5),
-	PG6 = PD_GET_NAME(PORT_G, 6),
-	PG7 = PD_GET_NAME(PORT_G, 7),
-	PG8 = PD_GET_NAME(PORT_G, 8),
-	PG9 = PD_GET_NAME(PORT_G, 9),
-	PG10 = PD_GET_NAME(PORT_G, 10),
-	PG11 = PD_GET_NAME(PORT_G, 11),
-	PG12 = PD_GET_NAME(PORT_G, 12),
-	PG13 = PD_GET_NAME(PORT_G, 13),
-	PG14 = PD_GET_NAME(PORT_G, 14),
-	PG15 = PD_GET_NAME(PORT_G, 15),
 
 	PH0 = PD_GET_NAME(PORT_H, 0),
 	PH1 = PD_GET_NAME(PORT_H, 1),
-	PH2 = PD_GET_NAME(PORT_H, 2),
 
 	FORCE_WIDTH_32BITS = 0xFFFFFFFEu
 };
