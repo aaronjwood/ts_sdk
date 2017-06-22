@@ -28,13 +28,18 @@ int main()
 
 	i2c_dest_addr.slave = SLAVE_ADDR;
 	i2c_dest_addr.reg = CTRL_REG ;
-	dbg_printf("writing value  of 0x%2x in to the register\n", value);
-	if (!(i2c_write(i2c_handle, i2c_dest_addr, data.sz , &value)))
-		dbg_printf("i2c_write failed\n");
 
-	dbg_printf("Reading value from the register\n");
-	if (!(i2c_read(i2c_handle, i2c_dest_addr, data.sz, data.bytes)))
-		dbg_printf("i2c_read failed\n");
-	else
-		dbg_printf("value is 0x%2x\n", *(data.bytes));
+	while (1) {
+		dbg_printf("writing value of 0x%2x in to the register\n",\
+								 value);
+		if (!(i2c_write(i2c_handle, i2c_dest_addr, data.sz , &value)))
+			dbg_printf("i2c_write failed\n");
+
+		dbg_printf("Reading value from the register\n");
+		if (!(i2c_read(i2c_handle, i2c_dest_addr, data.sz, data.bytes)))
+			dbg_printf("i2c_read failed\n");
+		else
+			dbg_printf("value is 0x%2x\n", *(data.bytes));
+		sys_delay(1000);
+	}
 }
