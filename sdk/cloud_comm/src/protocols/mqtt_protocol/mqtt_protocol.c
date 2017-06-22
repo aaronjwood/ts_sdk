@@ -110,7 +110,6 @@ int TimerLeftMS(Timer *timer)
 static int read_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 {
 	uint64_t start_time = sys_get_tick_ms();
-	uint64_t now = sys_get_tick_ms();
 	int nbytes = 0;
 	do {
 		int recvd = mbedtls_ssl_read(&ssl, b + nbytes, len - nbytes);
@@ -121,8 +120,7 @@ static int read_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 			return -1;
 		if (recvd > 0)
 			nbytes += recvd;
-		now = sys_get_tick_ms();
-	} while (nbytes < len && now - start_time < timeout_ms);
+	} while (nbytes < len && sys_get_tick_ms() - start_time < timeout_ms);
 	return nbytes;
 }
 
@@ -134,7 +132,6 @@ static int read_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 static int write_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 {
 	uint64_t start_time = sys_get_tick_ms();
-	uint64_t now = sys_get_tick_ms();
 	int nbytes = 0;
 	do {
 		int ret = mbedtls_ssl_write(&ssl, b + nbytes, len - nbytes);
@@ -145,8 +142,7 @@ static int write_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 		}
 		if (ret >= 0)
 			nbytes += ret;
-		now = sys_get_tick_ms();
-	} while (nbytes < len && now - start_time < timeout_ms);
+	} while (nbytes < len && sys_get_tick_ms() - start_time < timeout_ms);
 	return nbytes;
 }
 
