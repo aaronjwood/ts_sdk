@@ -10,7 +10,7 @@
  * This test program is an illustration on how to use timer.
  * This function used sys_sleep_ms function which internally uses timer APIs
  */
-int main(int argc, char *argv[])
+int main()
 {
 	sys_init();
 	dbg_module_init();
