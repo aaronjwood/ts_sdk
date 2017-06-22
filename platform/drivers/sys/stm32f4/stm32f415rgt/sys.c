@@ -62,10 +62,6 @@ static void SystemClock_Config(void)
 
 	/*
 	 * Enable HSE Oscillator and activate PLL with HSE as source.
-	 * Note : The following code uses a non-crystal / non-ceramic high speed
-	 * external clock source (signified by RCC_HSE_BYPASS). It is derived
-	 * from the MCO of the chip housing the STLink firmware. This MCO is in
-	 * turn sourced from an 12MHz on-board crystal.
 	 */
 	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
 	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
@@ -89,7 +85,6 @@ static void SystemClock_Config(void)
 			RCC_CLOCKTYPE_PCLK1 |
 			RCC_CLOCKTYPE_PCLK2);
 	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK; /* 168 MHz */
-	/*RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSE;*/ /* 168 MHz */
 	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;        /* 168 MHz */
 	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;         /* 42 MHz */
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;         /* 84 MHz */
@@ -109,6 +104,17 @@ static void init_reset_gpio(void)
 	reset_pins.speed = SPEED_HIGH;
 	gpio_init(MODEM_HW_RESET_PIN, &reset_pins);
 	gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
+}
+
+static void enable_level_shifter(void)
+{
+	gpio_config_t init_st;
+	pin_name_t pin_name = PB4;
+	init_st.dir = OUTPUT;
+	init_st.pull_mode = PP_PULL_DOWN;
+	init_st.speed = SPEED_HIGH;
+	gpio_init(pin_name, &init_st);
+	gpio_write(pin_name, PIN_LOW);
 }
 
 static void tim5_cb(void)
@@ -142,6 +148,9 @@ void sys_init(void)
 	HAL_Init();
 	SystemClock_Config();
 	init_reset_gpio();
+	/* on the beduin board, the UART level shifter !OE must be enabled
+	 * to talk to the u-blox 201 */
+	enable_level_shifter();
 
 	if (!tim5_module_init())
 		dbg_printf("Timer module init failed\n");

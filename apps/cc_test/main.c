@@ -4,8 +4,10 @@
  * Minimal test application program. It sends back NUM_STATUS messages to the
  * cloud. If an update message is received, it is made the new status message.
  * Each status message is at most 10 bytes large for SMSNAS_PROTOCOL and
- * OTT_PROTOCOL,  max STAT_SZ_BYTES size when CONCAT_SMS and SMSNAS_PROTOCOL are
- * selected
+ * OTT_PROTOCOL, max STAT_SZ_BYTES size when CONCAT_SMS and SMSNAS_PROTOCOL
+ * are selected.
+ * To keep the test program simple, error handling is kept to a minimum.
+ * Wherever possible, the program halts with an ASSERT in case the API fails.
  */
 #include <string.h>
 
@@ -45,6 +47,9 @@ static uint8_t status[STAT_SZ_BYTES];
 static cc_data_sz send_data_sz = sizeof(status);
 
 #define NUM_STATUSES	((uint8_t)1)
+
+/* Number of times to retry sending in case of failure */
+#define MAX_RETRIES	((uint8_t)3)
 
 /* Arbitrary long sleep time in milliseconds */
 #define LONG_SLEEP_INT_MS	180000
@@ -138,6 +143,22 @@ static void set_send_buffer(bool init)
 	memcpy(send_dptr, status, send_data_sz);
 }
 
+static void send_with_retry(cc_buffer_desc *b, cc_data_sz s, cc_service_id id)
+{
+	uint8_t retries = 0;
+	cc_send_result res;
+	while (retries < MAX_RETRIES) {
+		res = cc_send_svc_msg_to_cloud(b, s, id);
+		if (res == CC_SEND_SUCCESS)
+			break;
+		retries++;
+		dbg_printf("\t%s: send attempt %d out of %d failed\n", __func__,
+				retries, MAX_RETRIES);
+	}
+	if (res != CC_SEND_SUCCESS)
+		dbg_printf("\t%s: Failed to send message.\n", __func__);
+}
+
 static uint32_t send_status_msgs(uint64_t cur_ts)
 {
 	if (last_st_ts != 0) {
@@ -150,10 +171,7 @@ static uint32_t send_status_msgs(uint64_t cur_ts)
 		set_send_buffer(false);
 		dbg_printf("\tStatus (%u/%u) of bytes: %u\n",
 				i + 1, NUM_STATUSES, send_data_sz);
-		ASSERT(cc_send_svc_msg_to_cloud(&send_buffer,
-						send_data_sz,
-						CC_SERVICE_BASIC)
-		       == CC_SEND_SUCCESS);
+		send_with_retry(&send_buffer, send_data_sz, CC_SERVICE_BASIC);
 	}
 	last_st_ts = cur_ts;
 	return STATUS_REPORT_INT_MS;
@@ -210,22 +228,23 @@ int main(int argc, char *argv[])
 				",sleeping for %"PRIu32" sec.\n",
 				wake_up_interval / 1000);
 		} else {
-			dbg_printf("Protocol requests wakeup in %"
-				   PRIu32" sec.\n", next_wakeup_interval / 1000);
+			dbg_printf("Protocol requests wakeup in %"PRIu32
+				"sec.\n", next_wakeup_interval / 1000);
 			wake_up_interval = next_wakeup_interval;
 		}
 
 		if (wake_up_interval > next_report_interval) {
 			wake_up_interval = next_report_interval;
-			dbg_printf("Reporting required in %"
-				   PRIu32" sec.\n", wake_up_interval / 1000);
+			dbg_printf("Reporting required in %"PRIu32" sec.\n",
+				wake_up_interval / 1000);
 		}
 
 		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
 				wake_up_interval / 1000);
 		slept_till = sys_sleep_ms(wake_up_interval);
 		slept_till = wake_up_interval - slept_till;
-		dbg_printf("Slept for %"PRIu32" seconds\n\n", slept_till / 1000);
+		dbg_printf("Slept for %"PRIu32" seconds\n\n",
+			slept_till / 1000);
 	}
 	return 0;
 }

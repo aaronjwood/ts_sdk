@@ -7,6 +7,8 @@ ifeq ($(PROTOCOL),OTT_PROTOCOL)
 MODEM_PROTOCOL = tcp
 else ifeq ($(PROTOCOL),SMSNAS_PROTOCOL)
 MODEM_PROTOCOL = sms
+else ifeq ($(PROTOCOL),MQTT_PROTOCOL)
+MODEM_PROTOCOL = tcp
 else ifeq ($(PROTOCOL),NO_PROTOCOL)
 # Some lower-level test programs bypass the protocol layer.
 # They may need to set MODEM_PROTOCOL and other variables.
@@ -29,7 +31,6 @@ endif
 # Provide the network abstraction module used by the TLS library.
 ifeq ($(MODEM_PROTOCOL),tcp)
 MODEM_SRC += net_mbedtls_at.c
-VENDOR_INC += -I $(PROJ_ROOT)/sdk/cloud_comm/vendor/mbedtls/include
 endif
 
 ifeq ($(MODEM_PROTOCOL),sms)

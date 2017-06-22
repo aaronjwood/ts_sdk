@@ -15,8 +15,9 @@ Table of contents:
         5.1 Protocol specific configurations
                 5.1.1 OTT protocol
                 5.1.2 SMSNAS protocol
-        5.2 Building and Uploading the SDK with the user application
-        5.3 Building the SDK into a static library
+        5.2 Modem configuration
+        5.3 Building and Uploading the SDK with the user application
+        5.4 Building the SDK into a static library
 6. Creating a new user application
 7. Generating documentation
 
@@ -292,23 +293,38 @@ ts_sdk/sdk/cloud_comm/inc/dev_creds/dev_creds.h
 No additional configuration is needed to build the TS SDK for the SMSNAS protocol.
 
 
-5.2 Building and Uploading the SDK with the user application
+5.2 Modem configuration
+------------------------
+The initialization routine for the modem changes depending on the SIM card
+inserted and the protocol being used. Modem configurations are stored in the
+file platform/modem/<modem name>/ts_sdk_modem_config.h. Macros defined in this
+file are closely coupled with the modem and the corresponding transport
+implementation (TCP, SMS etc.).
+
+Currently, the following SIM types are supported:
+        o M2M : Machine-to-machine
+        o COM : Commercial SIM
+        o DAK : Dakota SIM (SMSNAS)
+
+
+5.3 Building and Uploading the SDK with the user application
 -------------------------------------------------------------
-The SDK can be built with the application source. The actual build takes place inside a
-Docker container started by the build script (build.sh) located at:
+The SDK can be built with the application source. The actual build takes place
+inside a Docker container started by the build script (build.sh) located at:
 ts_sdk/tools/scripts/. It must be invoked from the repository root.
 
 Build:
 Execute tools/scripts/build.sh help for further information.
 
 Upload:
-Execute tools/scripts/upload_firmware.sh help for firmware uploading/burning information.
+Execute tools/scripts/upload_firmware.sh help for firmware uploading/burning
+information.
 
 Refer to Section 6 for the steps to create new application that can be built with
 this approach.
 
 
-5.3 Building the SDK into a static library
+5.4 Building the SDK into a static library
 -------------------------------------------
 The purpose of this build target is to allow the application to use the
 TS SDK without imposing restrictions on the user's source tree and build process.
@@ -340,16 +356,18 @@ apps/
   +- Makefile
   +- header and source directories/files
 
-Makefile should provide APP_SRC for source files, vpath to search for the APP_SRC
-and APP_INC for application headers. Applicaton should also include *.mk from
-sdk/<sdk_name>/*.mk and platform/*.mk (depends if platform is supported by SDK).
-Some make helpers are provided at tools/config/*.mk, look for common.mk for the example.
-Example code in apps/<app_dir> provides example Makefile and application implementation.
+Makefile should provide APP_SRC for source files, vpath to search for the
+APP_SRC and APP_INC for application headers. Applicaton should also include *.mk
+from sdk/<sdk_name>/*.mk and platform/*.mk (depends if platform is supported by
+SDK).  Some make helpers are provided at tools/config/*.mk, look for common.mk
+for the example.  Example code in apps/<app_dir> provides example Makefile and
+application implementation.
 
-Before building application, user needs to run "source tools/script/config_build_env.sh <options>"
-to set up necessary build and sdk options. Script exports below variables based on
-user input which are being consumed by various *.mk files. help in <options> for
-above script provides detail usage.
+Before building application, user needs to run "source
+tools/script/config_build_env.sh <options>" to set up necessary build and sdk
+options. Script exports below variables based on user input which are being
+consumed by various *.mk files. help in <options> for above script provides
+detail usage.
 
         o DEV_BOARD      : development board
         o CHIPSET_FAMILY : micro controller family
