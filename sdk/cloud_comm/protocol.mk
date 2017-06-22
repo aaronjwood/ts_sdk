@@ -45,8 +45,7 @@ endif
 # checking them with -Wall and -Werror.
 ifeq ($(PROTOCOL),MQTT_PROTOCOL)
 VENDOR_INC += -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTClient-C/src
-VENDOR_INC += -DMQTTCLIENT_PLATFORM_HEADER=paho_mqtt_port.h \
-	      -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTClient-C/src/paho_port_generic
+VENDOR_INC += -DMQTTCLIENT_PLATFORM_HEADER=paho_mqtt_port.h
 VENDOR_INC += -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTPacket/src
 VENDOR_LIB_DIRS += paho_mqtt
 VENDOR_LIB_FLAGS += -L. -lpahomqtt
