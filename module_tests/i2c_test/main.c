@@ -34,10 +34,10 @@ int main()
 	i2c_dest_addr.slave = SLAVE_ADDR;
 	i2c_dest_addr.reg = CTRL_REG ;
 	printf("writing value  of 0x%2x in to the register\n", value);
-	EOE(i2c_write(i2c_handle, i2c_dest_addr, 1 , &value));
+	EOE(i2c_write(i2c_handle, i2c_dest_addr, DATA_SIZE, &value));
 
 	printf("Reading value from the register\n");
-	EOE(i2c_read(i2c_handle, i2c_dest_addr, 1, data.bytes));
+	EOE(i2c_read(i2c_handle, i2c_dest_addr, DATA_SIZE, data.bytes));
 	dbg_printf("value is 0x%2x\n", *(data.bytes));
 	return 0;
 }
