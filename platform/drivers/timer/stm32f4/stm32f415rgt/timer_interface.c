@@ -53,7 +53,6 @@ static bool tim5_init(uint32_t period, uint32_t priority, uint32_t base_freq,
 	CHECK_RET_AND_TYPECAST(data, false);
 	__HAL_RCC_TIM5_CLK_ENABLE();
 	tm->timer_handle->Instance = TIM5;
-	/* Beduin board SystemCoreClock is 168Mhz. Set the prescalar to 42000*/
 	tm->timer_handle->Init.Prescaler = (SystemCoreClock / 2 / base_freq)\
 	 - 1;
 	tm->timer_handle->Init.CounterMode = TIM_COUNTERMODE_UP;
