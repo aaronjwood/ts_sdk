@@ -298,22 +298,26 @@ static bool flags_are_valid(c_flags_t f)
 static proto_result write_tls(const uint8_t *buf, uint16_t len)
 {
 	/* Attempt to write 'len' bytes of 'buf' over the TCP/TLS stream. */
-	int ret = mbedtls_ssl_write(&ssl, (const unsigned char *)buf,
-				(size_t)len);
-	uint32_t start = sys_get_tick_ms();
-	while (ret <= 0) {
-		if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
+	uint64_t start = sys_get_tick_ms();
+	uint16_t nbytes = 0;
+
+	do {
+		int ret = mbedtls_ssl_write(&ssl, (const unsigned char *)buf +
+				nbytes, (size_t)(len - nbytes));
+		if (ret < 0 && ret != MBEDTLS_ERR_SSL_WANT_READ &&
 				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 			mbedtls_ssl_session_reset(&ssl);
 			return PROTO_ERROR;
 		}
-		if (sys_get_tick_ms() - start > TIMEOUT_MS) {
+
+		if (sys_get_tick_ms() - start >= TIMEOUT_MS) {
 			mbedtls_ssl_session_reset(&ssl);
 			return PROTO_TIMEOUT;
 		}
-		ret = mbedtls_ssl_write(&ssl, (const unsigned char *)buf,
-				(size_t)len);
-	}
+
+		if (ret > 0)
+			nbytes += ret;
+	} while (nbytes < len);
 	return PROTO_OK;
 }
 
