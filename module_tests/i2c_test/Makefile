@@ -24,7 +24,8 @@ DBG_MACRO = #-DNO_DEBUG
 vpath %.c $(SRCDIR):
 
 # User application includes
-APP_INC =
+APP_INC = 
+APP_INC += -I $(PROJ_ROOT)/module_tests/inc/
 
 # User application sources
 APP_SRC = $(wildcard $(SRCDIR)/*.c)
@@ -37,6 +38,5 @@ DBG_LIB_SRC =
 
 # Common and per-platform Makefile variables
 include $(MK_HELPER_PATH)/common.mk
-
 
 endif
