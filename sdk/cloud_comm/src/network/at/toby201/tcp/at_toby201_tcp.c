@@ -491,6 +491,7 @@ static int __at_tcp_connect(const char *host, const char *port)
 
         state |= TCP_CONNECTED;
         state &= ~TCP_CONN_CLOSED;
+        state &= ~TCP_REMOTE_DISCONN;
         DEBUG_V0("%s: socket:%d created\n", __func__, s_id);
         return s_id;
 }
@@ -521,11 +522,12 @@ int at_tcp_connect(const char *host, const char *port)
                 return -1;
         }
         if (state > IDLE) {
-                if ((state & TCP_CONN_CLOSED) != TCP_CONN_CLOSED) {
-                        DEBUG_V0("%s: TCP connect not possible, state :%u\n",
-                                __func__, state);
-                        return -1;
-                }
+		if ((state & TCP_CONN_CLOSED) != TCP_CONN_CLOSED &&
+			(state & TCP_REMOTE_DISCONN) != TCP_REMOTE_DISCONN) {
+			DEBUG_V0("%s: TCP connect not possible, state :%u\n",
+					__func__, state);
+			return -1;
+		}
         }
         if (!pdp_conf) {
                 if (__at_pdp_conf() != AT_SUCCESS) {
