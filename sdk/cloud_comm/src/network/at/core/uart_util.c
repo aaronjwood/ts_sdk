@@ -22,7 +22,7 @@ static periph_t uart;
 #define INVOKE_CALLBACK(ev)	do { \
 	if (recv_callback) \
 		recv_callback(ev); \
-} while(0)
+} while (0)
 
 /* The internal buffer that will hold incoming data. */
 static volatile struct {
@@ -37,21 +37,23 @@ static uint16_t timeout_chars;
 
 static const timer_interface_t *idle_timer;
 static volatile uint16_t num_idle_chars;
-static volatile bool byte_recvd;	/* Set if a byte was received in the last
-					 * TIMEOUT_BYTE_US microseconds.
+static volatile bool byte_recvd;	/* Set if a byte was received in the
+					 * last TIMEOUT_BYTE_US microseconds.
 					 */
 
 static void rx_char_cb(uint8_t data)
 {
 	byte_recvd = true;
 
-	/* If the timer isn't running, this is the first byte of the response. */
+	/* If the timer isn't running, this is the first byte of the
+	response. */
 	if (!timer_is_running(idle_timer)) {
 		num_idle_chars = 0;
 		timer_start(idle_timer);
 	}
 
-	/* Buffer characters as long as the size of the buffer isn't exceeded. */
+	/* Buffer characters as long as the size of the buffer isn't
+	exceeded. */
 	if (rx.num_unread < UART_BUF_SIZE) {
 		rx.buffer[rx.widx] = data;
 		rx.widx = (rx.widx + 1) % UART_BUF_SIZE;
@@ -72,15 +74,16 @@ static void idle_timer_callback(void)
 	if (byte_recvd) {
 		byte_recvd = false;
 		num_idle_chars = 0;
-	} else
-		num_idle_chars++;
 
+	} else {
+		num_idle_chars++;
+	}
 	/*
-	 * Invoke the callback with the receive event in two situations:
-	 * 	> When the RX line is detected to be idle after a response has
-	 * 	  begun arriving.
-	 * 	> When a certain percentage of bytes have been received.
-	 */
+	* Invoke the callback with the receive event in two situations:
+	* > When the RX line is detected to be idle after a response has
+	* begun arriving.
+	* > When a certain percentage of bytes have been received.
+	*/
 	if ((num_idle_chars >= timeout_chars) ||
 			(rx.num_unread == CALLBACK_TRIGGER_MARK)) {
 		timer_stop(idle_timer);
@@ -96,20 +99,26 @@ static bool idle_timer_init(void)
 	 * TIM2's clock source is connected to APB1. According to the TRM,
 	 * this source needs to be multiplied by 2 if the APB1 prescaler is not
 	 * 1 (it's 4 in our case). Therefore effectively, the clock source for
-	 * TIM2 is:
-	 * APB1 x 2 = SystemCoreClock / 4 * 2 = SystemCoreClock / 2 = 90 MHz.
+	 * Nucleo board TIM2 is:
+	 * APB1 x 2 = (SystemCoreClock / 4) * 2 = SystemCoreClock / 2 = 90 MHz.
 	 * The base frequency of the timer's clock is chosen as 1 MHz (time
 	 * period of 1 microsecond).
-	 * Therefore, prescaler = 90 MHz / 1 MHz - 1 = 89.
+	 * Therefore, prescaler = (90 MHz / 1 MHz) - 1  = 89.
+	 * For Beduin board TIM2 is:
+	 * APB1 x 2 = (SystemCoreClock / 4) * 2 = SystemCoreClock / 2 = 84 MHz.
+	 * The base frequency of the timer's clock is chosen as 1 MHz (time
+	 * period of 1 microsecond).
+	 * Therefore, prescaler = (84 MHz / 1 MHz) - 1  = 83.
 	 * The clock is set to restart every 70us (value of 'Period' member)
-	 * which is how much time it takes to receive a character on a 115200 bps
-	 * UART.
+	 * which is how much time it takes to receive a character on a 115200
+	 * bps UART.
 	 */
+
 	idle_timer = timer_get_interface(MODEM_UART_IDLE_TIMER);
 	if (!idle_timer)
 		return false;
 	return timer_init(idle_timer, TIMEOUT_BYTE_US - 1, IDL_TIM_IRQ_PRIORITY,
-			TIM_BASE_FREQ_HZ - 1, idle_timer_callback);
+			TIM_BASE_FREQ_HZ, idle_timer_callback);
 }
 
 bool uart_util_init(periph_t hdl, uint8_t idle_timeout)
@@ -179,8 +188,8 @@ static int find_substr_in_ring_buffer(buf_sz idx_start, const uint8_t *substr,
 			return found_idx;
 		if (bidx == UART_BUF_SIZE)	/* Index wrapping */
 			bidx = 0;
-	} while(bidx != rx.widx);			/* Scan until write index */
-	return -1;					/* No substring found */
+	} while (bidx != rx.widx);		/* Scan until write index */
+	return -1;				/* No substring found */
 }
 
 int uart_util_find_pattern(int start_idx, const uint8_t *pattern, buf_sz nlen)

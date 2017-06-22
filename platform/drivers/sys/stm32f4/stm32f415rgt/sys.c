@@ -125,9 +125,9 @@ static void tim5_cb(void)
 /* Set up timer module 5 (TIM5) to facilitate sleep functionality */
 static bool tim5_module_init(void)
 {
-	/* Timer 5's prescaler is fed by APB clock which is 90MHz, setting
+	/* Timer 5's prescaler is fed by APB clock which is 84MHz, setting
 	 * precaler to highest divider possible to make generate counter clock
-	 * 90MHz / 45000 = base_frequency = 2KHz = 0.5mS
+	 * 84MHz / 42000 = base_frequency = 2KHz = 0.5mS
 	 * Minumum resolution = 0.5mS
 	 * Maximum resolution = 0.5mS * Auto Reload register (Period) value
 	 */
