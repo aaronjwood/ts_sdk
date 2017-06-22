@@ -5,12 +5,6 @@
 #include "i2c_hal.h"
 #include "module_config.h"
 
-/* Exit On Error (EOE) macro */
-#define EOE(func) \
-	do { \
-		if (!(func)) \
-			return false; \
-	} while (0)
 
 struct array_t {
 	uint8_t sz;      /* Number of bytes contained in the data buffer */
@@ -25,6 +19,7 @@ int main()
 	i2c_addr_t i2c_dest_addr;
 	uint8_t a[DATA_SIZE] = {0};
 	data.bytes = a;
+	data.sz = DATA_SIZE;
 	uint8_t value = CTRL_REG_VAL;
 	dbg_printf("Begin:\n");
 
@@ -33,11 +28,12 @@ int main()
 
 	i2c_dest_addr.slave = SLAVE_ADDR;
 	i2c_dest_addr.reg = CTRL_REG ;
-	printf("writing value  of 0x%2x in to the register\n", value);
-	EOE(i2c_write(i2c_handle, i2c_dest_addr, DATA_SIZE, &value));
+	dbg_printf("writing value  of 0x%2x in to the register\n", value);
+	if(!(i2c_write(i2c_handle, i2c_dest_addr, data.sz , &value)))
+		dbg_printf("i2c_write failed\n");
 
-	printf("Reading value from the register\n");
-	EOE(i2c_read(i2c_handle, i2c_dest_addr, DATA_SIZE, data.bytes));
+	dbg_printf("Reading value from the register\n");
+	if(!(i2c_read(i2c_handle, i2c_dest_addr, data.sz, data.bytes)))
+		dbg_printf("i2c_read failed\n");
 	dbg_printf("value is 0x%2x\n", *(data.bytes));
-	return 0;
 }

@@ -22,14 +22,14 @@
 
 
 
-/* Other module conifgs */
+/* Other module configs */
 #elif defined(nucleo)
-/* Other module conifgs */
+/* Other module configs */
 
 /* GPIO pin connected to an LED to verify the GPIO test */
 #define GPIO_LED_PIN		PB14
 
-/* xnucleo-iks01a1 hts21 sensor registers and values */
+/* xnucleo-iks01a1 hts221 sensor registers and values */
 #define I2C_SCL                 PB8   /* I2C Serial clock pin */
 #define I2C_SDA                 PB9   /* I2C Serial data pin */
 #define SLAVE_ADDR              0x5f  /* I2C Device address  */
@@ -39,7 +39,7 @@
 #define CTRL_REG_VAL            0x27  /* Value to write in the register */
 #define DATA_SIZE		1     /* size of the control register value */
 
-/* Other module conifgs */
+/* Other module configs */
 
 #else
 

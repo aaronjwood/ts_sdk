@@ -21,7 +21,7 @@
 #define CONV_HDL_TO_ID(a, b)    do {\
 	if ((I2C_TypeDef *)hdl == b) \
 		return a; \
-} while (0)
+} while (0);
 
 #define ENABLE_CLOCKS(a, b) \
 	if (inst == b) { \
@@ -106,8 +106,6 @@ bool i2c_write(periph_t hdl, i2c_addr_t addr, uint8_t len, const uint8_t *buf)
 			 (uint8_t *) buf , len, I2C_TIMEOUT_MS) != HAL_OK){
 		return false;
 	}
-	else
-	
 	return true;
 }
 
@@ -125,8 +123,6 @@ bool i2c_read(periph_t hdl, i2c_addr_t addr, uint8_t len, uint8_t *buf)
 			 len, I2C_TIMEOUT_MS) != HAL_OK){
 		return false;
 	}
-	
-
 	return true;
 }
 
