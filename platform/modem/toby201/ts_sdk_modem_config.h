@@ -39,7 +39,7 @@
 
 
 /* Protocol and SIM specific settings */
-#if defined (OTT_PROTOCOL)
+#if defined (OTT_PROTOCOL) || defined (MQTT_PROTOCOL)
 
 #define MODEM_UMNOCONF_VAL	"3,23"
 
