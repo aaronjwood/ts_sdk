@@ -9,6 +9,7 @@ MODEM_TARGET ?= toby201
 # Defines which cloud protocol to use. Valid options are:
 # OTT_PROTOCOL
 # SMSNAS_PROTOCOL
+# MQTT_PROTOCOL
 # NO_PROTOCOL
 # Override on the command line with: make PROTOCOL=<option>
 PROTOCOL ?= OTT_PROTOCOL
