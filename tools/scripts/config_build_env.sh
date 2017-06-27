@@ -26,6 +26,7 @@ export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 # Defines which cloud protocol to use. Valid options are:
 # OTT_PROTOCOL
 # SMSNAS_PROTOCOL
+# MQTT_PROTOCOL
 # NO_PROTOCOL
 #PROTOCOL="OTT_PROTOCOL"
 
@@ -79,7 +80,7 @@ Usage:  source $SCRIPT_NAME Options
 	modem: LTE modem target, only toby201 value supported
 
 	protocol: Cloud data transport protocol. Valid values are OTT_PROTOCOL,
-	SMSNAS_PROTOCOL and NO_PROTOCOL
+	SMSNAS_PROTOCOL, MQTT_PROTOCOL and NO_PROTOCOL
 
 	Note: All the options must be present, there are no default values
 
