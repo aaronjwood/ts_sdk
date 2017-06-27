@@ -1,4 +1,4 @@
-# Copyright(C) 2016,2017 Verizon. All rights reserved.
+# Copyright(C) 2017 Verizon. All rights reserved.
 
 # Define common parameters used by the build process for a basic build for
 # this MCU.
@@ -27,7 +27,7 @@ SIZE = $(GCC_ROOT)/bin/arm-none-eabi-size
 ARCHFLAGS = -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
 
 # Point to the C Runtime startup code
-ifeq ($(CHIPSET_MCU),stm32l476rg)
+ifeq ($(CHIPSET_MCU),stm32l476rgt)
         MDEF = -DSTM32L476xx $(CHIPSET_HSECLK)
 	STARTUP_SRC = $(STM32_CMSIS)/Source/Templates/gcc/startup_stm32l476xx.s
 	OBJ_STARTUP = startup_stm32l476xx.o
