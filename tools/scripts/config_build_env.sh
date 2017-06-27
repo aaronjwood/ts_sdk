@@ -22,8 +22,8 @@ export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 
 # Example stmicro stm32l4 chipset and development board related parameters
 #CHIPSET_FAMILY="stm32l4"
-#CHIPSET_MCU="stm32l476rg"
-#DEV_BOARD="nucleo476"
+#CHIPSET_MCU="stm32l476rgt"
+#DEV_BOARD="nucleo"
 
 # Defines which modem to use. Currently only the ublox toby201 is supported.
 #MODEM_TARGET="toby201"
