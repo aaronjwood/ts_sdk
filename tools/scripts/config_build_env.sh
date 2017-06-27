@@ -135,12 +135,9 @@ print_env()
 
 exp_sdk_defaults()
 {
-	export CHIPSET_FAMILY="stm32l4"
-	export CHIPSET_MCU="stm32l476rg"
-	export DEV_BOARD="nucleo476"
-	#export CHIPSET_FAMILY="stm32f4"
-	#export CHIPSET_MCU="stm32f429zit"
-	#export DEV_BOARD="nucleo"
+	export CHIPSET_FAMILY="stm32f4"
+	export CHIPSET_MCU="stm32f429zit"
+	export DEV_BOARD="nucleo"
 	export MODEM_TARGET="toby201"
 	if ! [ -z "$1" ]; then
 		key=$(echo $1 | cut -f1 -d=)
