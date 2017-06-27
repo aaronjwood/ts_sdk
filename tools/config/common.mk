@@ -1,6 +1,6 @@
 # Copyright(C) 2016,2017 Verizon. All rights reserved.
 
-CHIPSET_FAMILY ?= stm32f4
+CHIPSET_FAMILY ?= $(CHIPSET_FAMILY)
 CHIPSET_MCU ?= $(CHIPSET_MCU)
 DEV_BOARD ?= $(DEV_BOARD)
 # Defines which modem to use. Currently only the ublox toby201 is supported.
@@ -36,10 +36,12 @@ INC += $(APP_INC)
 # Selecting platform according to CHIPSET_FAMILY
 ifeq ($(CHIPSET_FAMILY),stm32f4)
 include $(MK_HELPER_PATH)/stm32f4_buildenv.mk
+else ifeq ($(CHIPSET_FAMILY),stm32l4)
+include $(MK_HELPER_PATH)/stm32l4_buildenv.mk
 else ifeq ($(CHIPSET_FAMILY),osx)
 include $(MK_HELPER_PATH)/osx_buildenv.mk
 else
-$(error "Makefile must define the CHIPSET_FAMILY variable")
+$(error "Unsupported CHIPSET FAMILY")
 endif
 
 # Header files provided by the chipset build environment
