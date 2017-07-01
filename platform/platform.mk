@@ -7,11 +7,14 @@ PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)
 PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)
 PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/$(DEV_BOARD)
 
+
 # List of core library components to be included in the build process
 # This includes the standard per-platform device drivers but not any
 # toolchain or externally supplied files that may need to be built with
 # different compiler options.
+ifneq ($(DEV_BOARD),raspberry_pi3)
 PLATFORM_TIMER_HAL_SRC = timer_hal.c timer_interface.c
+endif
 
 PLATFORM_HAL_SRC = dbg.c uart.c
 PLATFORM_HAL_SRC += sys.c gpio.c
@@ -37,13 +40,24 @@ DRV_ROOT = $(PLATFORM_HAL_ROOT)/drivers/*
 DRV_COM = $(shell find $(DRV_ROOT) $(FIND_PARAM))
 DRV_CS = $(shell find $(DRV_ROOT)/$(CHIPSET_FAMILY) $(FIND_PARAM))
 DRV_MCU = $(shell find $(DRV_ROOT)/$(CHIPSET_FAMILY)/$(CHIPSET_MCU) $(FIND_PARAM))
-DRV_PATH = $(patsubst %,%:,$(sort $(dir $(DRV_COM) $(DRV_CS) $(DRV_MCU))))
 
 # Path for software abstraction sources
 SW_ROOT = $(PLATFORM_HAL_ROOT)/sw
 SW_MCU = $(shell find $(SW_ROOT)/$(CHIPSET_FAMILY)/$(CHIPSET_MCU) $(FIND_PARAM))
 SW_BOARD = $(shell find $(SW_ROOT)/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/$(DEV_BOARD) $(FIND_PARAM))
-SW_PATH = $(patsubst %,%:,$(sort $(dir $(SW_MCU) $(SW_BOARD))))
+
+# This eases the strict conditions for specifying chipset details and directly
+# includes files from the specified dev board
+ifeq ($(CHIPSET_FAMILY),)
+ifeq ($(CHIPSET_MCU),)
+PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(DEV_BOARD)
+DRV_BYPASS_CHIP = $(shell find $(DRV_ROOT)/$(DEV_BOARD) $(FIND_PARAM))
+SW_BYPASS_CHIP = $(shell find $(SW_ROOT)/$(DEV_BOARD) $(FIND_PARAM))
+endif
+endif
+
+DRV_PATH = $(patsubst %,%:,$(sort $(dir $(DRV_COM) $(DRV_CS) $(DRV_MCU) $(DRV_BYPASS_CHIP))))
+SW_PATH = $(patsubst %,%:,$(sort $(dir $(SW_MCU) $(SW_BOARD) $(SW_BYPASS_CHIP))))
 
 # Search paths for device drivers and port pin API sources
 vpath %.c $(DRV_PATH) $(SW_PATH)
