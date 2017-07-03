@@ -8,14 +8,15 @@
 #define CHECK_HANDLE(hdl, retval)	do { \
 	if ((hdl) == NO_PERIPH) \
 		return retval; \
-} while(0)
+} while (0)
 
 #define _CAT(a, ...)	a ## __VA_ARGS__
 #define CAT(a, ...)	_CAT(a, __VA_ARGS__)
 
 /*
- * Table mapping UARTs / USARTs peripherals to their IDs. The format of the table
- * is: ID, followed by the corresponding UART / USART peripheral.
+ * Table mapping UARTs / USARTs peripherals to their IDs.
+ * The format of the table  is: ID, followed by the
+ * corresponding UART / USART peripheral.
  */
 #define UART_TABLE(X) \
 	X(U1, USART1) \
@@ -152,10 +153,12 @@ static bool init_peripheral(periph_t hdl, const uart_config *config,
 	/* Enable Error Interrupts: (Frame error, noise error, overrun error) */
 	SET_BIT(uart_instance->CR3, USART_CR3_EIE);
 
-	/* Enable the UART Parity Error and Data Register not empty Interrupts */
+	/* Enable the UART Parity Error and Data Register
+	 * not empty Interrupts
+	 */
 	SET_BIT(uart_instance->CR1, USART_CR1_PEIE | USART_CR1_RXNEIE);
 
-	if (rx != NC) {
+	if ((rx != NC) && (rx != GPS_RX_PIN)) {
 		HAL_NVIC_SetPriority(irq_vec[uid], MODEM_UART_IRQ_PRIORITY, 0);
 		HAL_NVIC_EnableIRQ(irq_vec[uid]);
 	}
@@ -202,7 +205,7 @@ static periph_t find_common_periph(const struct uart_pins *pins)
 	if (pins->x != NC) \
 		if (!pp_peripheral_pin_init(pins->x, uart_##x##_map)) \
 			return NO_PERIPH; \
-} while(0)
+} while (0)
 
 periph_t uart_init(const struct uart_pins *pins, const uart_config *config)
 {
@@ -282,6 +285,18 @@ bool uart_tx(periph_t hdl, uint8_t *data, uint16_t size, uint16_t timeout_ms)
 		return false;
 
 	if (HAL_UART_Transmit(&uart_stm32_handle[convert_hdl_to_id(hdl)], data,
+				size, timeout_ms) != HAL_OK)
+		return false;
+	return true;
+}
+
+bool uart_rx(periph_t hdl, uint8_t *data, uint16_t size, uint16_t timeout_ms)
+{
+	CHECK_HANDLE(hdl, false);
+
+	if (!data)
+		return false;
+	if (HAL_UART_Receive(&uart_stm32_handle[convert_hdl_to_id(hdl)], data,
 				size, timeout_ms) != HAL_OK)
 		return false;
 	return true;

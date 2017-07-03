@@ -17,6 +17,7 @@ PLATFORM_HAL_SRC = dbg.c uart.c
 PLATFORM_HAL_SRC += sys.c gpio.c
 PLATFORM_HAL_SRC += i2c.c
 PLATFORM_HAL_SRC += pin_map.c port_pin_api.c
+PLATFORM_HAL_SRC += gps.c
 PLATFORM_HAL_SRC += $(PLATFORM_TIMER_HAL_SRC)
 
 ifneq ($(PROTOCOL),SMSNAS_PROTOCOL)
