@@ -58,6 +58,14 @@ uint32_t sys_sleep_ms(uint32_t sleep_ms);
 void sys_reset_modem(uint16_t pulse_width_ms);
 
 /**
+ * \brief	Retrieves unique device id i.e. mac address/ imei etc...
+ * \param[in] id:	valid buffer to store retrieved id.
+ * \param[in] len:	buffer length.
+ *
+ */
+bool sys_get_device_id(const char *id, uint8_t len);
+
+/**
  * \brief	data synchronous barrier
  */
 void dsb(void);
