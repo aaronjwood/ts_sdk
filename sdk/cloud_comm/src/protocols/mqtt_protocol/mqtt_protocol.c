@@ -8,7 +8,6 @@
 #include "MQTTClient.h"
 
 #include "sys.h"
-#include "oem.h"
 
 #include "mbedtls/net.h"
 #include "mbedtls/ssl.h"
@@ -77,7 +76,7 @@ static const char pers[] = "mqtt_ts_sdk";
 static uint8_t send_intr_buf[MQTT_SEND_SZ];
 static uint8_t recv_intr_buf[MQTT_RCV_SZ];
 
-static char device_id[MAX_DEVICE_ID_SZ];
+static char device_id[MQTT_DEVICE_ID_SZ];
 static char sub_command[MQTT_TOPIC_SZ];
 static char pub_command_rsp[MQTT_TOPIC_SZ];
 static char pub_unit_on_board[MQTT_TOPIC_SZ];
@@ -349,26 +348,34 @@ static void mqtt_rcvd_msg(MessageData *md)
 	recvd = true;
 }
 
-static void reg_pub_sub()
+static bool reg_pub_sub()
 {
-        snprintf(sub_command, sizeof(sub_command), MQTT_SERV_PUBL_COMMAND, imei);
+        snprintf(sub_command, sizeof(sub_command), MQTT_SERV_PUBL_COMMAND,
+		device_id);
         snprintf(pub_unit_on_board, sizeof(pub_unit_on_board),
-                MQTT_PUBL_UNIT_ON_BOARD, imei);
-        snprintf(pub_command_rsp, sizeof(pub_command_rsp),
-                MQTT_PUBL_CMD_RESPONSE, imei);
+                MQTT_PUBL_UNIT_ON_BOARD, device_id);
         if (MQTTSubscribe(&session.mclient, sub_command, MQTT_QOS_LVL,
-                mqtt_rcvd_msg) < 0)
-		fatal_err("MQTT Subscription failed\n");
+                mqtt_rcvd_msg) < 0) {
+		dbg_printf("%s:%d: MQTT Subscription failed\n",
+			__func__, __LINE__);
+		return false;
+	}
 
-	dbg_printf("Subscribed to topic %s\n", sub_command);
+	dbg_printf("Subscribed to topic %s successful\n", sub_command);
+	return true;
 }
 
-static void mqtt_client_and_topic_init()
+static bool mqtt_client_and_topic_init()
 {
         MQTTClientInit(&session.mclient, &session.net, TIMEOUT_MS,
                 send_intr_buf, MQTT_SEND_SZ, recv_intr_buf, MQTT_RCV_SZ);
 
-        device_id = (char *)oem_get_device_id();
+        if (!sys_get_device_id(device_id, MQTT_DEVICE_ID_SZ)) {
+		dbg_printf("%s:%d: Can not retrieve device id\n",
+			__func__, __LINE__);
+		return false;
+	}
+
 	session.mqtt_conn_data.willFlag = MQTT_WILL;
 	session.mqtt_conn_data.MQTTVersion = MQTT_PROTO_VERSION;
 	session.mqtt_conn_data.clientID.cstring = device_id;
@@ -377,11 +384,15 @@ static void mqtt_client_and_topic_init()
 	session.mqtt_conn_data.keepAliveInterval = MQTT_KEEPALIVE_INT_SEC;
 	session.mqtt_conn_data.cleansession = MQTT_CLEAN_SESSION;
 
-        if (MQTTConnect(&session.mclient, &session.mqtt_conn_data) < 0)
-		fatal_err("MQTT connect failed\n");
+        if (MQTTConnect(&session.mclient, &session.mqtt_conn_data) < 0) {
+		dbg_printf("%s:%d: MQTT connect failed\n",
+			__func__, __LINE__);
+		return false;
+	}
 	dbg_printf("MQTT connect succeeded\n");
-
-	reg_pub_sub();
+	if (!reg_pub_sub())
+		return false;
+	return true;
 }
 
 static bool __mqtt_net_connect(bool flag)
@@ -402,7 +413,8 @@ static bool __mqtt_net_connect(bool flag)
                                 __func__, __LINE__);
                         return false;
                 }
-                mqtt_client_and_topic_init();
+                if (!mqtt_client_and_topic_init())
+			return false;
                 session.conn_valid = true;
         }
         return true;
@@ -480,12 +492,10 @@ proto_result mqtt_send_msg_to_cloud(const void *buf, uint32_t sz,
         if (!session.conn_valid)
                 RETURN_ERROR("No active connection", PROTO_ERROR);
 
-
 	session.send_buf = buf;
 	session.send_sz = sz;
 	session.send_cb = cb;
 	session.send_svc_id = svc_id;
-	session.pend_ack = false;
 
 	return PROTO_OK;
 }

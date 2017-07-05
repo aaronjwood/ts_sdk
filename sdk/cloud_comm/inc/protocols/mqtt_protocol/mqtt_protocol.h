@@ -42,7 +42,7 @@ proto_result mqtt_protocol_init(void);
  * will be needed in all future communications with the cloud serivices.
  * Parameters:
  * 	creds : Pointer to a device/client, server certificate and device
- *              private keys.
+ *              private key.
  *
  * Returns:
  * 	PROTO_OK    : Setting authorization credentials was successful.
