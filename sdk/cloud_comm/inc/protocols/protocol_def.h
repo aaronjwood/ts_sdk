@@ -9,6 +9,8 @@
 #include "ott_limits.h"
 #elif defined (SMSNAS_PROTOCOL)
 #include "smsnas_limits.h"
+#elif defined (MQTT_PROTOCOL)
+#include "mqtt_limits.h"
 #else
 #error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
 #endif
@@ -51,6 +53,8 @@ typedef uint8_t proto_service_id;
  * Pointer to a callback routine. The callback accepts a buffer, its size,
  * an event from the source of the callback explaining why it was invoked,
  * and the service id of the service that should process the event.
+ * Note: Some protocols do not support service id concept in which case it should
+ * be ingnored.
  */
 typedef void (*proto_callback)(const void *buf, uint32_t sz,
 			       proto_event event, proto_service_id svc_id);

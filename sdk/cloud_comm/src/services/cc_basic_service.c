@@ -21,7 +21,7 @@
  * specific.
  */
 struct __attribute__((packed)) basic_header {
-#if !defined(OTT_PROTOCOL)
+#if !defined(OTT_PROTOCOL) && !defined(MQTT_PROTOCOL)
 	uint8_t version;		/* Version of control service protocol*/
 #endif
 };
