@@ -65,6 +65,7 @@ static struct {
 	Network net;
 	MQTTClient mclient;
 	MQTTPacket_connectData mqtt_conn_data;
+	MQTTMessage msg;
 } session;
 
 /*

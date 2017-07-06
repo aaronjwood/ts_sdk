@@ -8,6 +8,7 @@
 #include "MQTTClient.h"
 
 #include "sys.h"
+#include "dbg.h"
 
 #include "mbedtls/net.h"
 #include "mbedtls/ssl.h"
@@ -18,7 +19,6 @@
 #include "mbedtls/pk.h"
 
 #ifdef MBEDTLS_DEBUG_C
-#include "dbg.h"
 #include "mbedtls/debug.h"
 #endif
 
@@ -29,6 +29,23 @@
 		return (ret); \
 	} while (0)
 
+#define IN_FUNCTION_AT() \
+	do { \
+		PRINTF_FUNC("%s:%d:\n", __func__, __LINE__);\
+	} while (0)
+
+#define INVOKE_SEND_CALLBACK(_buf, _sz, _evt)	\
+	do { \
+		if (session.send_cb) \
+			session.send_cb((_buf), (_sz), (_evt), \
+					session.send_svc_id ); \
+	} while(0)
+
+#define INVOKE_RECV_CALLBACK(_buf, _sz, _evt, _svc_id)	\
+	do { \
+		if (session.rcv_cb) \
+			session.rcv_cb((_buf), (_sz), (_evt), (_svc_id)); \
+	} while(0)
 
 #ifdef MBEDTLS_DEBUG_C
 static void my_debug(void *ctx, int level,
@@ -44,7 +61,6 @@ static void my_debug(void *ctx, int level,
 #define TIMEOUT_MS			5000
 
 #ifdef CALC_TLS_OVRHD_BYTES
-#include "dbg.h"
 extern bool ovrhd_profile_flag;
 extern uint32_t num_bytes_recvd;
 extern uint32_t num_bytes_sent;
@@ -81,6 +97,8 @@ static char sub_command[MQTT_TOPIC_SZ];
 static char pub_command_rsp[MQTT_TOPIC_SZ];
 static char pub_unit_on_board[MQTT_TOPIC_SZ];
 
+static uint32_t current_polling_interval = INIT_POLLING_MS;
+
 static void cleanup_mbedtls(void)
 {
 	/* Free network interface resources. */
@@ -92,35 +110,6 @@ static void cleanup_mbedtls(void)
 	mbedtls_ssl_config_free(&conf);
 	mbedtls_ctr_drbg_free(&ctr_drbg);
 	mbedtls_entropy_free(&entropy);
-}
-
-void TimerInit(Timer *timer)
-{
-	timer->end_time = 0;
-}
-
-char TimerIsExpired(Timer *timer)
-{
-	uint64_t now = sys_get_tick_ms();
-	return timer->end_time <= now;
-}
-
-void TimerCountdownMS(Timer *timer, unsigned int ms)
-{
-	uint64_t now = sys_get_tick_ms();
-	timer->end_time = now + ms;
-}
-
-void TimerCountdown(Timer *timer, unsigned int sec)
-{
-	uint64_t now = sys_get_tick_ms();
-	timer->end_time = now + sec * 1000;
-}
-
-int TimerLeftMS(Timer *timer)
-{
-	uint64_t now = sys_get_tick_ms();
-	return timer->end_time <= now ? 0 : (int)(timer->end_time - now);
 }
 
 /*
@@ -323,29 +312,36 @@ exit_func:
 	return ret;
 }
 
-static bool mqtt_net_disconnect(void)
-{
-	int s = mbedtls_ssl_close_notify(&ssl);
-	mbedtls_ssl_free(&ssl);
-	mbedtls_net_free(&ctx);
-	if (s == 0)
-		return true;
-	else
-		return false;
-}
-
 static void mqtt_rcvd_msg(MessageData *md)
 {
+	if (!session.rcv_buf || !session.rcv_cb) {
+		dbg_printf("%s:%d, mqtt_set_recv_buffer_cb needs to be called "
+		"to receive new messages\n", __func__, __LINE__);
+		return;
+	}
+
 	MQTTMessage *m = md->message;
 	dbg_printf("%d\n", (int)m->payloadlen);
-	msg.payloadlen = m->payloadlen;
-	for (uint8_t i = 0; i < m->payloadlen; i++) {
-		dbg_printf("%c", ((char *)m->payload)[i]);
-		((char *)msg.payload)[i] = ((char *)m->payload)[i];
+	if ((uint32_t)m->payloadlen > session.rcv_sz) {
+		dbg_printf("%s:%d, rcvd payload len %u is greater then "
+			"rcv buffer sz %u\n", __func__, __LINE__, m->payloadlen);
+		INVOKE_RECV_CALLBACK(session.rcv_buf, m->payloadlen,
+			PROTO_RCVD_MEM_OVRFL, CC_SERVICE_BASIC);
+		return;
 	}
-	((char *)msg.payload)[msg.payloadlen] = '\0';
-	dbg_printf("\n");
-	recvd = true;
+#if 0
+	for (uint8_t i = 0; i < m->payloadlen; i++)
+		dbg_printf("%c", ((char *)m->payload)[i]);
+#endif
+	if (strncmp(sub_command, md->topicName.lenstring.data,
+		md->topicName.lenstring.len) != 0) {
+		INVOKE_RECV_CALLBACK(session.rcv_buf, m->payloadlen,
+			PROTO_RCVD_WRONG_MSG, CC_SERVICE_BASIC);
+		return;
+	}
+	memcpy(session.rcv_buf, m->payload, m->payloadlen);
+	INVOKE_RECV_CALLBACK(session.rcv_buf, m->payloadlen, PROTO_RCVD_MSG,
+		CC_SERVICE_BASIC);
 }
 
 static bool reg_pub_sub()
@@ -365,7 +361,7 @@ static bool reg_pub_sub()
 	return true;
 }
 
-static bool mqtt_client_and_topic_init()
+static bool mqtt_client_and_topic_init(void)
 {
         MQTTClientInit(&session.mclient, &session.net, TIMEOUT_MS,
                 send_intr_buf, MQTT_SEND_SZ, recv_intr_buf, MQTT_RCV_SZ);
@@ -397,10 +393,6 @@ static bool mqtt_client_and_topic_init()
 
 static bool __mqtt_net_connect(bool flag)
 {
-        /*
-         * If a session hasn't been established, initiate a connection. This
-         * indicates very first message being sent
-         */
         if (!session.conn_valid && flag) {
                 int ret = mqtt_net_connect();
                 if (r == -1) {
@@ -476,28 +468,98 @@ proto_result mqtt_set_recv_buffer_cb(void *rcv_buf, uint32_t sz,
 	return PROTO_OK;
 }
 
-proto_result mqtt_send_msg_to_cloud(const void *buf, uint32_t sz,
-				   proto_service_id svc_id, proto_callback cb)
+static proto_result initialize_send(const void *buf, uint32_t sz,
+				proto_callback cb)
 {
-
 	if (!buf || sz == 0)
 		RETURN_ERROR("buffer or size invalid", PROTO_INV_PARAM);
 
 	if (!session.host_valid)
 		RETURN_ERROR("mqtt_set_destination needs to be called first",
-                        PROTO_ERROR);
-        if (!session.auth_valid)
+			PROTO_ERROR);
+	if (!session.auth_valid)
 		RETURN_ERROR("mqtt_set_auth needs to be called first",
-                        PROTO_ERROR);
-        if (!session.conn_valid)
-                RETURN_ERROR("No active connection", PROTO_ERROR);
+			PROTO_ERROR);
+	if (!session.conn_valid)
+		RETURN_ERROR("No active connection", PROTO_ERROR);
 
 	session.send_buf = buf;
 	session.send_sz = sz;
 	session.send_cb = cb;
-	session.send_svc_id = svc_id;
+	session.send_svc_id = CC_SERVICE_BASIC;
+	session.msg = {
+		.qos = MQTT_QOS_LVL,
+		.retained = 0,
+		.payload = buf,
+		.payloadlen = sz
+	};
+	return PROTO_OK;
+}
+
+static proto_result mqtt_publish_msg(char *topic)
+{
+	if (MQTTPublish(&session.mclient, topic, &session.msg) == FAILURE) {
+		dbg_printf("%s:%d: Publication failed\n", __func__, __LINE__);
+		INVOKE_SEND_CALLBACK(session.send_buf, session.send_sz,
+				     PROTO_SEND_FAILED);
+		RETURN_ERROR("Send failed", PROTO_ERROR);
+	}
+	return PROTO_OK;
+}
+
+proto_result mqtt_send_msg_to_cloud(const void *buf, uint32_t sz,
+				   proto_service_id svc_id, proto_callback cb)
+{
+
+	(void)svc_id;
+	proto_result res = initialize_send(buf, sz, cb);
+	if (res != PROTO_OK)
+		return res;
+
+	res = mqtt_publish_msg(pub_command_rsp);
+	if (res != PROTO_OK)
+		return res;
 
 	return PROTO_OK;
+}
+
+proto_result mqtt_send_status_msg_to_cloud(const void *buf, uint32_t sz,
+					proto_callback cb)
+{
+	proto_result res = initialize_send(buf, sz, cb);
+	if (res != PROTO_OK)
+		return res;
+
+	res = mqtt_publish_msg(pub_unit_on_board);
+	if (res != PROTO_OK)
+		return res;
+
+	return PROTO_OK;
+
+}
+
+void mqtt_maintenance(void)
+{
+	if (MQTTYield(&session.mclient, TIMEOUT_MS) == FAILURE)
+		dbg_printf("MQTT Fail\n");
+}
+
+static bool mqtt_net_disconnect(void)
+{
+	int s = mbedtls_ssl_close_notify(&ssl);
+	mbedtls_ssl_free(&ssl);
+	mbedtls_net_free(&ctx);
+	if (s == 0)
+		return true;
+	else
+		return false;
+}
+
+void mqtt_initiate_quit(void)
+{
+	MQTTDisconnect(&session.mclient);
+	mqtt_net_disconnect();
+	mqtt_reset_state();
 }
 
 const uint8_t *mqtt_get_rcv_buffer_ptr(const void *msg)
@@ -505,4 +567,9 @@ const uint8_t *mqtt_get_rcv_buffer_ptr(const void *msg)
 	if (!msg)
 		return NULL;
 	return (uint8_t *)msg + PROTO_OVERHEAD_SZ;
+}
+
+uint32_t mqtt_get_polling_interval(void)
+{
+        return current_polling_interval;
 }

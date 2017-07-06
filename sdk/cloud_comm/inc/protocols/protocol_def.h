@@ -37,12 +37,17 @@ typedef enum {
 	PROTO_RCVD_ACK,		/* Received an ACK for the last message sent */
 	PROTO_RCVD_NACK,	/* Received a NACK for the last message sent */
 	PROTO_SEND_TIMEOUT,	/* Timed out waiting for a response */
+	PROTO_SEND_FAILED,	/* Sending message failed */
 
 	/* Incoming message events: */
 	/* Insufficient memory to store received message */
 	PROTO_RCVD_MEM_OVRFL,
-	PROTO_RCVD_QUIT,	/* Received quit (i.e. session termination) */
-	PROTO_RCVD_MSG          /* Received a message from the cloud */
+	/* Received quit (i.e. session termination) */
+	PROTO_RCVD_QUIT,
+	/* Received message out of protocol spec or defines */
+	PROTO_RCVD_WRONG_MSG,
+	/* Received a message from the cloud */
+	PROTO_RCVD_MSG
 } proto_event;
 
 typedef uint16_t proto_pl_sz; /* type representing total payload size */

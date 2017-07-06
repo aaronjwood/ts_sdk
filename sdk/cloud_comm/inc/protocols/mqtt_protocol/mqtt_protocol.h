@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include "service_ids.h"
 #include "protocol_def.h"
+#include "paho_mqtt_port.h"
 
 typedef struct auth_creds {
 	size_t serv_cert_len;
@@ -116,6 +117,23 @@ proto_result mqtt_set_recv_buffer_cb(void *rcv_buf, uint32_t sz,
  */
 proto_result mqtt_send_msg_to_cloud(const void *buf, uint32_t sz,
 				   proto_service_id svc_id, proto_callback cb);
+
+/*
+ * Sends a status message to the cloud service. This call is blocking in nature.
+ *
+ * Parameters:
+ *	buf    : Message to send.
+ *	sz     : Size of the message in bytes.
+ * 	cb     : Callback to indicate the event related to send activity.
+ *
+ * Returns:
+ * 	PROTO_OK        : message was sent to the cloud.
+ * 	PROTO_INV_PARAM : Invalid parameters
+ * 	PROTO_ERROR     : Sending the message failed.
+ * 	PROTO_TIMEOUT   : Timed out sending the message. Sending failed.
+ */
+proto_result mqtt_send_status_msg_to_cloud(const void *buf, uint32_t sz,
+					proto_callback cb);
 
 /*
  * Maintenance of the protocol which can be used to complete any
