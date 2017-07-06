@@ -2,6 +2,7 @@
 
 #include <string.h>
 #include "sys.h"
+#include "utils.h"
 #include "dbg.h"
 
 #define SLEEP_INTERVAL 15000
@@ -24,10 +25,16 @@ int main()
 
 	timer_start_tick = sys_get_tick_ms();
 	dbg_printf("Started sleep timer:\n");
-	slept_till = sys_sleep_ms(sleep_interval);
-	timer_end_tick = sys_get_tick_ms();
+	//slept_till = sys_sleep_ms(sleep_interval);
+	//timer_end_tick = sys_get_tick_ms();
 
+	char dev_id[7];
+	utils_get_device_id(dev_id, 7);
+	printf("Mac addr: %s\n", dev_id);
 
+	char ip_addr[17];
+	utils_get_ip_addr(ip_addr, 17);
+	printf("Mac addr: %s\n", ip_addr);
 	while (1) {
 		if (slept_till) {
 			dbg_printf("Interrupted: Slept till %"PRIu32" msec.\n"\
