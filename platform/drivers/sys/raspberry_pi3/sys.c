@@ -7,20 +7,9 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <errno.h>
-#include <string.h>
-
-/* IP address and mac address related includes */
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <net/if.h>
 
 #define MS_NS_MULT	     1000000
 #define MS_SEC_MULT          1000
-
-#define NETWORK_INTERFACE    "eth0"
-#define MAX_CLIENT_ID_SZ     23
 
 void sys_init(void)
 {
