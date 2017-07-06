@@ -50,6 +50,9 @@ typedef enum {
 
 	/* Incoming message events: */
 	CC_EVT_RCVD_MSG,	/**< Received a message from the cloud */
+	/**< Received a bad message from the cloud indicating out of protocol
+	 spec messages */
+	CC_EVT_RCVD_WRONG_MSG,
 	CC_EVT_RCVD_MSG_HIGHPRIO, /**< Received high priority message. */
 	CC_EVT_RCVD_OVERFLOW,   /**< Received message too big for buffer. */
 
@@ -250,11 +253,37 @@ cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf,
  *                        cloud.
  *
  * The data is sent using the selected protocol to the specified service.
- * A send is said to be active when it is waiting for a response from the
- * cloud services. Only one send can be active at a time.
+ *
+ * \note
+ * For MQTT protocol this sends message as a part of command response and svc_id
+ * field will be ignored. For other protocols, it is svc_id service message.
  */
 cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
 					cc_data_sz sz, cc_service_id svc_id);
+
+/**
+ * \brief
+ * Send a status message to the cloud.
+ *
+ * \param[in] buf    : Pointer to the cloud communication buffer descriptor
+ *                     containing the data to be sent.
+ * \param[in] sz     : Size of the data in bytes.
+ * \param[in] svc_id : Id of the service that will process this message.
+ *
+ * \returns
+ * 	CC_SEND_FAILED  : Failed to send the message.
+ * 	CC_SEND_BUSY    : A send is in progress.
+ * 	CC_SEND_SUCCESS : Message was sent, waiting for a response from the
+ *                        cloud.
+ *
+ * The data is sent using the selected protocol to the specified service.
+ *
+ * \note
+ * For MQTT protocol this sends message to onboard topic, mqtt message generally
+ * contains device info, app data etc...For other protocols, it is
+ * basic service message.
+ */
+cc_send_result cc_send_status_msg_to_cloud(cc_buffer_desc *buf, cc_data_sz sz);
 
 /**
  * \brief
