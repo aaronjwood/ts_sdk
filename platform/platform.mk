@@ -17,7 +17,7 @@ PLATFORM_TIMER_HAL_SRC = timer_hal.c timer_interface.c
 endif
 
 PLATFORM_HAL_SRC = dbg.c uart.c
-PLATFORM_HAL_SRC += sys.c gpio.c
+PLATFORM_HAL_SRC += sys.c gpio.c utils.c
 PLATFORM_HAL_SRC += i2c.c
 PLATFORM_HAL_SRC += pin_map.c port_pin_api.c
 PLATFORM_HAL_SRC += $(PLATFORM_TIMER_HAL_SRC)
