@@ -13,7 +13,7 @@
 #define EXT_CLK_FREQ_HZ		((uint32_t)8000000)
 
 /* Pin and peripheral configuration for the debug UART */
-#define DEBUG_UART_TX_PIN	PC10
+#define DEBUG_UART_TX_PIN	PA2
 #define DEBUG_UART_RX_PIN	NC
 #define DEBUG_UART_RTS_PIN	NC
 #define DEBUG_UART_CTS_PIN	NC

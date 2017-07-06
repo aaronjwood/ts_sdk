@@ -4,7 +4,7 @@
 #include "port_pin_api.h"
 
 /* Chipset specific implementation. Target: STM32L476RGT */
-#include <stm32f4xx_hal.h>
+#include <stm32l4xx_hal.h>
 
 static uint16_t port_usage[NUM_PORTS];
 
@@ -20,7 +20,7 @@ static bool is_pin_name_valid(pin_name_t pin_name)
 	case PORT_A:
 	case PORT_B:
 	case PORT_C:
-		if (pin >= NUM_PINS_PORT_A_TO_G)
+		if (pin >= NUM_PINS_PORT_A_TO_C)
 			return false;
 		break;
 	case PORT_D:

@@ -16,6 +16,7 @@ typedef enum {
 	PORT_A,
 	PORT_B,
 	PORT_C,
+	PORT_D,
 	NUM_PORTS
 } port_id_t;
 

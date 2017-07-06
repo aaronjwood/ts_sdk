@@ -1,7 +1,7 @@
 /* Copyright(C) 2017 Verizon. All rights reserved. */
 
 #include <stdint.h>
-#include <stm32f4xx_hal.h>
+#include <stm32l4xx_hal.h>
 #include "pin_map.h"
 
 /*
@@ -25,13 +25,12 @@
 }
 
 const pin_map_t uart_tx_map[] = {
-	{PA3, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART2}, /* Ethernet */
+	{PA3, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART2},
 	{PC4, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
 	{PB10, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
-	{PA9, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1}, /* USB */
+	{PA9, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1},
 	{PC10, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
 	{PB6, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1},
-	{PC1, DEFAULT_UART_PIN_CONF, AF7, (periph_t)UART1},
 	{PA0, DEFAULT_UART_PIN_CONF, AF8, (periph_t)UART4},
 	{PC10, DEFAULT_UART_PIN_CONF, AF8, (periph_t)UART4},
 	{PC12, DEFAULT_UART_PIN_CONF, AF8, (periph_t)UART5},
@@ -39,41 +38,38 @@ const pin_map_t uart_tx_map[] = {
 };
 
 const pin_map_t uart_rx_map[] = {
-	/*{PA1, DEFAULT_UART_PIN_CONF, AF8, (periph_t)UART4},*/ /* Ethernet */
 	{PA2, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART2},
-	/*{PA10, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1},*/ /* USB */
-	/*{PB7, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1},*/ /* LED2 */
 	{PC5, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
-	{PB11, DEFAULT_UART_PIN_CONF, AF8, (periph_t)USART3},
-	{PA10, DEFAULT_UART_PIN_CONF, AF8, (periph_t)USART1},
+	{PB11, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
+	{PA10, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1},
 	{PC11, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
 	{PB7, DEFAULT_UART_PIN_CONF, AF8, (periph_t)USART1},
-	{PC0, DEFAULT_UART_PIN_CONF, AF7, (periph_t)UART1},
-	{PA1, DEFAULT_UART_PIN_CONF, AF7, (periph_t)UART4},
+	{PA1, DEFAULT_UART_PIN_CONF, AF8, (periph_t)UART4},
 	{PC11, DEFAULT_UART_PIN_CONF, AF8, (periph_t)UART4},
 	{PD2, DEFAULT_UART_PIN_CONF, AF8, (periph_t)UART5},
 	END_OF_MAP
 };
 
 const pin_map_t uart_rts_map[] = {
-	{PA0, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART2},
-	{PA6, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
-	{PB13, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
-	{PA11, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1}, /* USB */
-	{PD2, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
+	{PA1, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART2},
+	{PA12, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1},
+	{PB1, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
+	{PB14, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
 	{PB3, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1},
-	{PA15, DEFAULT_UART_PIN_CONF, AF7, (periph_t)UART4},
-	{PB4, DEFAULT_UART_PIN_CONF, AF7, (periph_t)UART5},
+	{PD2, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
+	{PB4, DEFAULT_UART_PIN_CONF, AF8, (periph_t)UART5},
+	{PA15, DEFAULT_UART_PIN_CONF, AF8, (periph_t)UART4},
 	END_OF_MAP
 };
 
 const pin_map_t uart_cts_map[] = {
-	{PA1, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART2},
-	{PB1, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
-	{PB14, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
-	{PA12, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1}, /* USB */
+	{PA0, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART2},
+	{PA11, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1},
+	{PA6, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
+	{PB13, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
 	{PB4, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1},
-	{PB5, DEFAULT_UART_PIN_CONF, AF7, (periph_t)UART5},
+	{PB5, DEFAULT_UART_PIN_CONF, AF8, (periph_t)UART5},
+	{PB7, DEFAULT_UART_PIN_CONF, AF8, (periph_t)UART4},
 	END_OF_MAP
 };
 
@@ -84,19 +80,19 @@ const pin_map_t uart_cts_map[] = {
 }
 
 const pin_map_t i2c_sda_map[] = {
-	{PC1, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C3},
-	{PB11, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C2},
-	{PB14, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C2},
 	{PB7, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C1},
 	{PB9, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C1},
+	{PB11, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C2},
+	{PB14, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C2},
+	{PC1, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C3},
 	END_OF_MAP
 };
 
 const pin_map_t i2c_scl_map[] = {
-	{PC0, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C3},
-	{PB10, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C2},
-	{PB13, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C2},
 	{PB6, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C1},
 	{PB8, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C1},
+	{PB10, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C2},
+	{PB13, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C2},
+	{PC0, DEFAULT_I2C_PIN_CONF, AF4, (periph_t)I2C3},
 	END_OF_MAP
 };
