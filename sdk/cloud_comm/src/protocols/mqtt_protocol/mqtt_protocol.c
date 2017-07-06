@@ -8,6 +8,7 @@
 #include "MQTTClient.h"
 
 #include "sys.h"
+#include "utils.h"
 #include "dbg.h"
 
 #include "mbedtls/net.h"
@@ -366,7 +367,7 @@ static bool mqtt_client_and_topic_init(void)
         MQTTClientInit(&session.mclient, &session.net, TIMEOUT_MS,
                 send_intr_buf, MQTT_SEND_SZ, recv_intr_buf, MQTT_RCV_SZ);
 
-        if (!sys_get_device_id(device_id, MQTT_DEVICE_ID_SZ)) {
+        if (!utils_get_device_id(device_id, MQTT_DEVICE_ID_SZ, NET_INTERFACE)) {
 		dbg_printf("%s:%d: Can not retrieve device id\n",
 			__func__, __LINE__);
 		return false;
@@ -499,7 +500,8 @@ static proto_result initialize_send(const void *buf, uint32_t sz,
 static proto_result mqtt_publish_msg(char *topic)
 {
 	if (MQTTPublish(&session.mclient, topic, &session.msg) == FAILURE) {
-		dbg_printf("%s:%d: Publication failed\n", __func__, __LINE__);
+		dbg_printf("%s:%d: Publication failed on topic: %s\n",
+			__func__, __LINE__, topic);
 		INVOKE_SEND_CALLBACK(session.send_buf, session.send_sz,
 				     PROTO_SEND_FAILED);
 		RETURN_ERROR("Send failed", PROTO_ERROR);

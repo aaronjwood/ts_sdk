@@ -11,6 +11,11 @@
 #define MAX_HOST_LEN		50
 #define MAX_PORT_LEN		5
 
+/* optional interface parameters, for linux devices this is required for others
+ * this can be ignored
+ */
+#define NET_INTERFACE		"eth0"
+
 /* This overhead is fixed + variable header size based on selected mqtt protocol
  * version 3 and it is dictated by low level mqtt protocol
  */
