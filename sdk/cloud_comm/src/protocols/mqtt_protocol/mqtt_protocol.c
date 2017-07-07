@@ -103,7 +103,7 @@ MQTTPacket_connectData mqtt_conn_data = MQTTPacket_connectData_initializer;
 
 static void cleanup_mbedtls(void)
 {
-	printf("%s:%d\n", __func__, __LINE__);
+
 	/* Free network interface resources. */
 	mbedtls_net_free(&ctx);
 	mbedtls_x509_crt_free(&cacert);
@@ -146,8 +146,8 @@ static int write_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 	uint64_t start_time = sys_get_tick_ms();
 	int nbytes = 0;
 	do {
-		//printf("%s:%d:0x%x:0x%x\n", __func__, __LINE__, (uint32_t)&ssl, conf.endpoint);
-		//printf("%s:%d:0x%x:0x%x\n", __func__, __LINE__, (uint32_t)&ssl, (uint32_t)(ssl.conf->endpoint));
+		//printf("%s:%d:0x%x:0x%x\n", __func__, __LINE__, (uint32_t)&ssl, (uint32_t)&conf);
+		//printf("%s:%d:0x%x:0x%x\n", __func__, __LINE__, (uint32_t)&ssl, (uint32_t)(ssl.conf));
 		int ret = mbedtls_ssl_write(&ssl, b + nbytes, len - nbytes);
 		if (ret < 0 && ret != MBEDTLS_ERR_SSL_WANT_READ &&
 				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
@@ -269,6 +269,7 @@ static void mqtt_rcvd_msg(MessageData *md)
 			PROTO_RCVD_WRONG_MSG, CC_SERVICE_BASIC);
 		return;
 	}
+
 	memcpy(session.rcv_buf, m->payload, m->payloadlen);
 	INVOKE_RECV_CALLBACK(session.rcv_buf, m->payloadlen, PROTO_RCVD_MSG,
 		CC_SERVICE_BASIC);
@@ -276,13 +277,12 @@ static void mqtt_rcvd_msg(MessageData *md)
 
 static bool reg_pub_sub()
 {
-        //dbg_printf("Device id: %s\n", device_id);
-
-	snprintf(sub_command, sizeof(sub_command), MQTT_SERV_PUBL_COMMAND,
+        snprintf(sub_command, sizeof(sub_command), MQTT_SERV_PUBL_COMMAND,
 		device_id);
         snprintf(pub_unit_on_board, sizeof(pub_unit_on_board),
                 MQTT_PUBL_UNIT_ON_BOARD, device_id);
-	//	IN_FUNCTION_AT();
+        snprintf(pub_command_rsp, sizeof(pub_command_rsp),
+                MQTT_PUBL_CMD_RESPONSE, device_id);
         if (MQTTSubscribe(&session.mclient, sub_command, MQTT_QOS_LVL,
                 mqtt_rcvd_msg) < 0) {
 		dbg_printf("%s:%d: MQTT Subscription failed\n",
@@ -290,6 +290,8 @@ static bool reg_pub_sub()
 		return false;
 	}
 	dbg_printf("Subscribed to topic %s successful\n", sub_command);
+        dbg_printf("Publication topic %s successful\n", pub_unit_on_board);
+        dbg_printf("Publication topic %s successful\n", pub_command_rsp);
 	return true;
 }
 
@@ -297,7 +299,6 @@ static bool mqtt_client_and_topic_init(void)
 {
         MQTTClientInit(&session.mclient, &session.net, MQTT_TIMEOUT_MS,
                 send_intr_buf, MQTT_SEND_SZ, recv_intr_buf, MQTT_RCV_SZ);
-
         if (!utils_get_device_id(device_id, MQTT_DEVICE_ID_SZ, NET_INTERFACE)) {
 		dbg_printf("%s:%d: Can not retrieve device id\n",
 			__func__, __LINE__);
@@ -326,9 +327,9 @@ static bool mqtt_client_and_topic_init(void)
 static bool init_tls(const auth_creds *creds)
 {
 #ifdef MBEDTLS_DEBUG_C
-	mbedtls_debug_set_threshold(1);
+	mbedtls_debug_set_threshold(3);
 #endif
-	/* Initialize TLS structures */
+        /* Initialize TLS structures */
 	mbedtls_ssl_init(&ssl);
 	mbedtls_ssl_config_init(&conf);
 	mbedtls_x509_crt_init(&cacert);
@@ -507,6 +508,7 @@ static proto_result mqtt_publish_msg(char *topic, const void *buf, uint32_t sz)
 		INVOKE_SEND_CALLBACK(buf, sz, PROTO_SEND_FAILED);
 		RETURN_ERROR("Send failed", PROTO_ERROR);
 	}
+        dbg_printf("%s:%d: Published on topic: %s\n", __func__, __LINE__, topic);
 	return PROTO_OK;
 }
 
@@ -518,11 +520,9 @@ proto_result mqtt_send_msg_to_cloud(const void *buf, uint32_t sz,
 	proto_result res = initialize_send(buf, sz, cb);
 	if (res != PROTO_OK)
 		return res;
-
 	res = mqtt_publish_msg(pub_command_rsp, buf, sz);
 	if (res != PROTO_OK)
 		return res;
-
 	return PROTO_OK;
 }
 
@@ -532,11 +532,9 @@ proto_result mqtt_send_status_msg_to_cloud(const void *buf, uint32_t sz,
 	proto_result res = initialize_send(buf, sz, cb);
 	if (res != PROTO_OK)
 		return res;
-
 	res = mqtt_publish_msg(pub_unit_on_board, buf, sz);
 	if (res != PROTO_OK)
 		return res;
-
 	return PROTO_OK;
 
 }
