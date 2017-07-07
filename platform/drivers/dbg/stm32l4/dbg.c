@@ -1,4 +1,4 @@
-/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
+/* Copyright(C) 2017 Verizon. All rights reserved. */
 
 #include <stdint.h>
 #include "uart_hal.h"

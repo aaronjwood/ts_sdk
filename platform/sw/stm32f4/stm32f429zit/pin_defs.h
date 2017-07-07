@@ -29,7 +29,7 @@ typedef uint8_t pin_id_t;
 #define PD_GET_NAME(port, pin)	((uint8_t)(port << 4 | pin))
 #define PD_GET_PORT(pin_name)	((port_id_t)(pin_name >> 4))
 #define PD_GET_PIN(pin_name)	((pin_id_t)(pin_name & 0x0F))
-#define NUM_PINS_PORT_A_TO_C		16
+#define NUM_PINS_PORT_A_TO_G		16
 #define NUM_PINS_PORT_H			2
 
 /**
