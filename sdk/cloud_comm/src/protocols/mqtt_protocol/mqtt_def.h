@@ -33,8 +33,9 @@
 #define MQTT_SERV_PUBL_COMMAND         	"ThingspaceSDK/%s/TSServerPublishCommand"
 #define MQTT_PUBL_UNIT_ON_BOARD   	"ThingspaceSDK/%s/UNITOnBoard"
 #define MQTT_PUBL_CMD_RESPONSE    	"ThingspaceSDK/%s/UNITCmdResponse"
+
 #define MQTT_TOPIC_SZ 			100
-#define MQTT_DEVICE_ID_SZ		7
+#define MQTT_DEVICE_ID_SZ		14
 
 #define SEC_TO_MS		1000
 #define INIT_POLLING_MS		((uint32_t)(MQTT_KEEPALIVE_INT_SEC * SEC_TO_MS))
