@@ -17,13 +17,13 @@
  *
  * With this service, the cloud can send variable length binary blobs
  * (aka "update" messages) to the device.  The device can send variable length
- * binary blobs (aka "status" messages) to the cloud.  The contents of the 
+ * binary blobs (aka "status" messages) to the cloud.  The contents of the
  * blobs are defined entirely by the application using the service.
  *
  */
 
-/* XXX Remove the second value once OTT starts including BASIC header. */
-#if !defined(OTT_PROTOCOL)
+/* XXX Remove the second value once OTT/MQTT starts including BASIC header. */
+#if !defined(OTT_PROTOCOL) && !defined(MQTT_PROTOCOL)
 #define __CC_BASIC_SERVICE_OVERHEAD (1)
 #else
 #define __CC_BASIC_SERVICE_OVERHEAD (0)

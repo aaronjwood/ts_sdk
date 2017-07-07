@@ -8,6 +8,10 @@
 #include "cc_basic_service.h"
 #include "dbg.h"
 
+/* Only smsnas protocol supports basic services, others just fake it to make it
+ * compatible with the overall implementation for now
+ */
+
 #define BASIC_PROTOCOL_VERSION 1
 
 /*
@@ -16,17 +20,17 @@
  */
 
 /*
- * XXX Basic service messages are supposed to have a header, except OTT
+ * XXX Basic service messages are supposed to have a header, except OTT/MQTT
  * doesn't have one yet.  Will need to cheat for now and do something protocol
  * specific.
  */
 struct __attribute__((packed)) basic_header {
-#if !defined(OTT_PROTOCOL) && !defined(MQTT_PROTOCOL)
+#if defined(SMSNAS_PROTOCOL)
 	uint8_t version;		/* Version of control service protocol*/
 #endif
 };
 
-#if !defined(OTT_PROTOCOL)
+#if defined(SMSNAS_PROTOCOL)
 static bool check_validity(cc_buffer_desc *buf)
 {
 
@@ -63,7 +67,7 @@ static void basic_dispatch_callback(cc_buffer_desc *buf, cc_event event,
 		return;
 	}
 
-#if !defined(OTT_PROTOCOL)
+#if defined(SMSNAS_PROTOCOL)
 	switch (event) {
 	case CC_EVT_RCVD_MSG:
 		if (!check_validity(buf))
@@ -87,7 +91,7 @@ static bool basic_add_send_hdr(cc_buffer_desc *buf)
 	if (payload == NULL)
 		return false;
 
-#if !defined(OTT_PROTOCOL)
+#if defined(SMSNAS_PROTOCOL)
 	struct basic_header *hdr = (struct basic_header *)(payload -
 					     sizeof(struct basic_header));
 	hdr->version = BASIC_PROTOCOL_VERSION;

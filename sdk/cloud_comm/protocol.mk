@@ -15,6 +15,7 @@ PROTOCOL_INC_DIR = smsnas_protocol
 
 else ifeq ($(PROTOCOL),MQTT_PROTOCOL)
 PROTOCOL_SRC = mqtt_protocol.c
+PROTOCOL_SRC += mqtt_timer_utils.c
 PROTOCOL_DIR = mqtt_protocol
 PROTOCOL_INC_DIR = mqtt_protocol
 

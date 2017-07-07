@@ -11,8 +11,10 @@
 #include "ott_protocol.h"
 #elif defined (SMSNAS_PROTOCOL)
 #include "smsnas_protocol.h"
+#elif defined (MQTT_PROTOCOL)
+#include "mqtt_protocol.h"
 #else
-#error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
+#error "define valid protocol options from OTT_PROTOCOL/SMSNAS_PROTOCOL/MQTT_PROTOCOL"
 #endif
 
 /* Very thin layer sits between cloud_comm api and undelying protocol depending
@@ -33,8 +35,8 @@
 		return false; \
 } while(0)
 
-#define PROTO_SET_AUTH(d_id, d_id_sz, d_sec, d_sec_sz) do { \
-        if (ott_set_auth((d_id), (d_id_sz), (d_sec), (d_sec_sz)) != PROTO_OK) \
+#define PROTO_SET_AUTH(d_id) do { \
+        if (ott_set_auth((d_id)) != PROTO_OK) \
 		return false; \
 } while(0)
 
@@ -121,7 +123,7 @@
         smsnas_maintenance((poll_due), (cur_ts)); \
 } while(0)
 
-#define PROTO_SET_AUTH(d_id, d_id_sz, d_sec, d_sec_sz)
+#define PROTO_SET_AUTH(d_id)
 #define PROTO_SET_POLLING(new_value) (void)((new_value))
 
 #elif defined (MQTT_PROTOCOL)
@@ -138,16 +140,13 @@
 		return false; \
 } while(0)
 
-#define PROTO_SET_AUTH(d_id, d_id_sz, d_sec, d_sec_sz) do { \
-        (void)(d_id_sz); \
-        (void)(d_sec); \
-        (void)(d_sec_sz); \
+#define PROTO_SET_AUTH(d_id) do { \
         if (mqtt_set_auth((d_id)) != PROTO_OK) \
 		return false; \
 } while(0)
 
 #define PROTO_GET_POLLING() mqtt_get_polling_interval()
-#define PROTO_SET_POLLING(new_value)
+#define PROTO_SET_POLLING(new_value) (void)((new_value))
 
 #define PROTO_INITIATE_QUIT(send_nack)
 
@@ -161,7 +160,7 @@
 
 #define PROTO_SEND_STATUS_MSG_TO_CLOUD(msg, sz, cb) do {		\
 		if (mqtt_send_status_msg_to_cloud((msg), (sz), \
-                        (CC_SERVICE_BASIC), (cc_send_cb)) != PROTO_OK) { \
+                        (cc_send_cb)) != PROTO_OK) { \
 		        reset_conn_states(); \
 		        return CC_SEND_FAILED; \
                 } \

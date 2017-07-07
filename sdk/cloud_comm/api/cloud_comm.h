@@ -176,10 +176,7 @@ bool cc_set_destination(const char *dest);
  * this must be called at least once before attempting to communicate with the
  * cloud.
  *
- * \param[in] d_id     : Pointer to a unique device ID.
- * \param[in] d_id_sz  : size of the d_id
- * \param[in] d_sec    : Pointer to the buffer holding the device secret.
- * \param[in] d_sec_sz : Size of the device secret in bytes.
+ * \param[in] creds    : Pointer to the device certificates.
  *
  * \returns
  *	True  : device secrets were set properly.
@@ -190,8 +187,7 @@ bool cc_set_destination(const char *dest);
  * to the cloud e.g. by its cellular network identity.
  * For the OTT protocol, both the id and secret must be supplied.
  */
-bool cc_set_auth_credentials(const uint8_t *d_id, uint32_t d_id_sz,
- 				const uint8_t *d_sec, uint32_t d_sec_sz);
+bool cc_set_auth_credentials(const auth_creds *creds);
 
 /**
  * \brief

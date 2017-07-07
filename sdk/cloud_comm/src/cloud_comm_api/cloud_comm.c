@@ -47,6 +47,13 @@ static void cc_recv_cb(const void *buf, uint32_t sz,
 		dispatch_event_to_service(svc_id, conn_in.buf, CC_EVT_RCVD_MSG);
 		activate_buffer_for_recv(conn_in.buf);
 		break;
+	case PROTO_RCVD_WRONG_MSG:
+		conn_in.buf->current_len = sz;
+		conn_in.recv_in_progress = false;
+		dispatch_event_to_service(svc_id, conn_in.buf,
+					CC_EVT_RCVD_WRONG_MSG);
+		activate_buffer_for_recv(conn_in.buf);
+		break;
 	case PROTO_RCVD_MEM_OVRFL:
 		conn_in.recv_in_progress = false;
 		dispatch_event_to_service(svc_id, conn_in.buf,
@@ -155,11 +162,9 @@ bool cc_set_destination(const char *dest)
 	return true;
 }
 
-bool cc_set_auth_credentials(const uint8_t *d_id, uint32_t d_id_sz,
-				const uint8_t *d_sec, uint32_t d_sec_sz)
+bool cc_set_auth_credentials(const auth_creds *creds)
 {
-
-	PROTO_SET_AUTH(d_id, d_id_sz, d_sec, d_sec_sz);
+	PROTO_SET_AUTH(creds);
 	return true;
 }
 

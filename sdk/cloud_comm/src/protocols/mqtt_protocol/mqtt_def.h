@@ -38,7 +38,7 @@
 
 #define SEC_TO_MS		1000
 #define INIT_POLLING_MS		((uint32_t)(MQTT_KEEPALIVE_INT_SEC * SEC_TO_MS))
-#define TIMEOUT_MS		1000
+#define MQTT_TIMEOUT_MS		1000
 
 /* Defines to enable printing of all the error strings */
 #define DEBUG_ERROR
@@ -49,7 +49,7 @@
 #endif
 
 /* Defines to enable printf to track function entry points */
-/*#define DEBUG_FUNCTION*/
+#define DEBUG_FUNCTION
 #ifdef DEBUG_FUNCTION
 #define PRINTF_FUNC(...)	printf(__VA_ARGS__)
 #else
@@ -69,7 +69,6 @@ static struct {
 	proto_callback send_cb;
 	Network net;
 	MQTTClient mclient;
-	MQTTPacket_connectData mqtt_conn_data;
 	MQTTMessage msg;
 } session;
 

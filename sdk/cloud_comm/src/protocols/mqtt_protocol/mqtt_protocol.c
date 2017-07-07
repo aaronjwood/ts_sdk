@@ -90,8 +90,8 @@ static mbedtls_pk_context cl_key;
 static const char pers[] = "mqtt_ts_sdk";
 
 /* Intermediate buffers required by mqtt paho library */
-static uint8_t send_intr_buf[MQTT_SEND_SZ];
-static uint8_t recv_intr_buf[MQTT_RCV_SZ];
+static unsigned char send_intr_buf[MQTT_SEND_SZ];
+static unsigned char recv_intr_buf[MQTT_RCV_SZ];
 
 static char device_id[MQTT_DEVICE_ID_SZ];
 static char sub_command[MQTT_TOPIC_SZ];
@@ -99,9 +99,11 @@ static char pub_command_rsp[MQTT_TOPIC_SZ];
 static char pub_unit_on_board[MQTT_TOPIC_SZ];
 
 static uint32_t current_polling_interval = INIT_POLLING_MS;
+MQTTPacket_connectData mqtt_conn_data = MQTTPacket_connectData_initializer;
 
 static void cleanup_mbedtls(void)
 {
+	printf("%s:%d\n", __func__, __LINE__);
 	/* Free network interface resources. */
 	mbedtls_net_free(&ctx);
 	mbedtls_x509_crt_free(&cacert);
@@ -144,9 +146,12 @@ static int write_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 	uint64_t start_time = sys_get_tick_ms();
 	int nbytes = 0;
 	do {
+		//printf("%s:%d:0x%x:0x%x\n", __func__, __LINE__, (uint32_t)&ssl, conf.endpoint);
+		//printf("%s:%d:0x%x:0x%x\n", __func__, __LINE__, (uint32_t)&ssl, (uint32_t)(ssl.conf->endpoint));
 		int ret = mbedtls_ssl_write(&ssl, b + nbytes, len - nbytes);
 		if (ret < 0 && ret != MBEDTLS_ERR_SSL_WANT_READ &&
 				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+                        printf("%s:%d: ret :%d\n", __func__, __LINE__, ret);
 			mbedtls_ssl_session_reset(&ssl);
 			return -1;
 		}
@@ -156,41 +161,8 @@ static int write_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 	return nbytes;
 }
 
-static bool init_certs(const auth_creds *creds)
-{
-	/* Load the CA root certificate */
-	if (mbedtls_x509_crt_parse_der(&cacert, creds->serv_cert,
-					 creds->serv_cert_len) < 0) {
-		cleanup_mbedtls();
-		return false;
-	}
-
-	/* Load the client certificate */
-	if (mbedtls_x509_crt_parse_der(&cl_cert, creds->cl_cert,
-					 creds->cl_cert_len) < 0) {
-		cleanup_mbedtls();
-		return false;
-	}
-
-	/* Load the client key */
-	if (mbedtls_pk_parse_key(&cl_key, creds->cl_key, creds->cl_key_len,
-			NULL, 0) != 0) {
-		cleanup_mbedtls();
-		return false;
-	}
-
-	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
-	if (mbedtls_ssl_conf_own_cert(&conf, &cl_cert, &cl_key) != 0) {
-		cleanup_mbedtls();
-		return false;
-	}
-	return true;
-}
-
 static void mqtt_reset_state(void)
 {
-	session.send_buf = NULL;
-	session.send_sz = 0;
 	session.send_cb = NULL;
 	session.send_svc_id = CC_SERVICE_BASIC;
 	session.conn_valid = false;
@@ -200,8 +172,6 @@ static void mqtt_reset_state(void)
 
 static void mqtt_init_state(void)
 {
-	session.host = NULL;
-	session.port = NULL;
         session.rcv_buf = NULL;
         session.rcv_sz = 0;
         mqtt_reset_state();
@@ -210,48 +180,6 @@ static void mqtt_init_state(void)
 proto_result mqtt_protocol_init(void)
 {
 	mqtt_init_state();
-	int ret;
-
-#ifdef MBEDTLS_DEBUG_C
-	mbedtls_debug_set_threshold(1);
-#endif
-
-        mbedtls_net_init(&ctx);
-        sessoin.net.mqttread = read_fn;
-	session.net.mqttwrite = write_fn;
-        session.mqtt_conn_data = MQTTPacket_connectData_initializer;
-
-	/* Initialize TLS structures */
-	mbedtls_ssl_init(&ssl);
-	mbedtls_ssl_config_init(&conf);
-	mbedtls_x509_crt_init(&cacert);
-	mbedtls_x509_crt_init(&cl_cert);
-	mbedtls_pk_init(&cl_key);
-	mbedtls_ctr_drbg_init(&ctr_drbg);
-
-	/* Seed the RNG */
-	mbedtls_entropy_init(&entropy);
-	if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
-				(const unsigned char *)pers, strlen(pers)) != 0) {
-		cleanup_mbedtls();
-		return false;
-	}
-
-        /* Set up the TLS structures */
-        if (mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT,
-                                MBEDTLS_SSL_TRANSPORT_STREAM,
-                                MBEDTLS_SSL_PRESET_DEFAULT) != 0) {
-                cleanup_mbedtls();
-                return false;
-        }
-
-        mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
-	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
-
-#ifdef MBEDTLS_DEBUG_C
-	mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
-#endif
-
 	return PROTO_OK;
 }
 
@@ -324,8 +252,9 @@ static void mqtt_rcvd_msg(MessageData *md)
 	MQTTMessage *m = md->message;
 	dbg_printf("%d\n", (int)m->payloadlen);
 	if ((uint32_t)m->payloadlen > session.rcv_sz) {
-		dbg_printf("%s:%d, rcvd payload len %u is greater then "
-			"rcv buffer sz %u\n", __func__, __LINE__, m->payloadlen);
+		dbg_printf("%s:%d, rcvd payload len %d is greater then "
+			"rcv buffer sz %u\n", __func__, __LINE__, m->payloadlen,
+			session.rcv_sz);
 		INVOKE_RECV_CALLBACK(session.rcv_buf, m->payloadlen,
 			PROTO_RCVD_MEM_OVRFL, CC_SERVICE_BASIC);
 		return;
@@ -334,8 +263,8 @@ static void mqtt_rcvd_msg(MessageData *md)
 	for (uint8_t i = 0; i < m->payloadlen; i++)
 		dbg_printf("%c", ((char *)m->payload)[i]);
 #endif
-	if (strncmp(sub_command, md->topicName.lenstring.data,
-		md->topicName.lenstring.len) != 0) {
+	if (strncmp(sub_command, md->topicName->lenstring.data,
+		md->topicName->lenstring.len) != 0) {
 		INVOKE_RECV_CALLBACK(session.rcv_buf, m->payloadlen,
 			PROTO_RCVD_WRONG_MSG, CC_SERVICE_BASIC);
 		return;
@@ -347,24 +276,26 @@ static void mqtt_rcvd_msg(MessageData *md)
 
 static bool reg_pub_sub()
 {
-        snprintf(sub_command, sizeof(sub_command), MQTT_SERV_PUBL_COMMAND,
+        //dbg_printf("Device id: %s\n", device_id);
+
+	snprintf(sub_command, sizeof(sub_command), MQTT_SERV_PUBL_COMMAND,
 		device_id);
         snprintf(pub_unit_on_board, sizeof(pub_unit_on_board),
                 MQTT_PUBL_UNIT_ON_BOARD, device_id);
+	//	IN_FUNCTION_AT();
         if (MQTTSubscribe(&session.mclient, sub_command, MQTT_QOS_LVL,
                 mqtt_rcvd_msg) < 0) {
 		dbg_printf("%s:%d: MQTT Subscription failed\n",
 			__func__, __LINE__);
 		return false;
 	}
-
 	dbg_printf("Subscribed to topic %s successful\n", sub_command);
 	return true;
 }
 
 static bool mqtt_client_and_topic_init(void)
 {
-        MQTTClientInit(&session.mclient, &session.net, TIMEOUT_MS,
+        MQTTClientInit(&session.mclient, &session.net, MQTT_TIMEOUT_MS,
                 send_intr_buf, MQTT_SEND_SZ, recv_intr_buf, MQTT_RCV_SZ);
 
         if (!utils_get_device_id(device_id, MQTT_DEVICE_ID_SZ, NET_INTERFACE)) {
@@ -372,18 +303,18 @@ static bool mqtt_client_and_topic_init(void)
 			__func__, __LINE__);
 		return false;
 	}
+	mqtt_conn_data.willFlag = MQTT_WILL;
+	mqtt_conn_data.MQTTVersion = MQTT_PROTO_VERSION;
+	mqtt_conn_data.clientID.cstring = device_id;
+	mqtt_conn_data.username.cstring = NULL;
+	mqtt_conn_data.password.cstring = NULL;
+	mqtt_conn_data.keepAliveInterval = MQTT_KEEPALIVE_INT_SEC;
+	mqtt_conn_data.cleansession = MQTT_CLEAN_SESSION;
 
-	session.mqtt_conn_data.willFlag = MQTT_WILL;
-	session.mqtt_conn_data.MQTTVersion = MQTT_PROTO_VERSION;
-	session.mqtt_conn_data.clientID.cstring = device_id;
-	session.mqtt_conn_data.username.cstring = NULL;
-	session.mqtt_conn_data.password.cstring = NULL;
-	session.mqtt_conn_data.keepAliveInterval = MQTT_KEEPALIVE_INT_SEC;
-	session.mqtt_conn_data.cleansession = MQTT_CLEAN_SESSION;
-
-        if (MQTTConnect(&session.mclient, &session.mqtt_conn_data) < 0) {
-		dbg_printf("%s:%d: MQTT connect failed\n",
-			__func__, __LINE__);
+        int res = MQTTConnect(&session.mclient, &mqtt_conn_data);
+        if (res < 0) {
+		dbg_printf("%s:%d: MQTT connect failed:%d\n",
+			__func__, __LINE__, res);
 		return false;
 	}
 	dbg_printf("MQTT connect succeeded\n");
@@ -392,16 +323,95 @@ static bool mqtt_client_and_topic_init(void)
 	return true;
 }
 
-static bool __mqtt_net_connect(bool flag)
+static bool init_tls(const auth_creds *creds)
+{
+#ifdef MBEDTLS_DEBUG_C
+	mbedtls_debug_set_threshold(1);
+#endif
+	/* Initialize TLS structures */
+	mbedtls_ssl_init(&ssl);
+	mbedtls_ssl_config_init(&conf);
+	mbedtls_x509_crt_init(&cacert);
+	mbedtls_x509_crt_init(&cl_cert);
+	mbedtls_pk_init(&cl_key);
+	mbedtls_ctr_drbg_init(&ctr_drbg);
+
+	/* Seed the RNG */
+	mbedtls_entropy_init(&entropy);
+	if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
+				(const unsigned char *)pers, strlen(pers)) != 0) {
+		cleanup_mbedtls();
+		return false;
+	}
+
+	/* Load the CA root certificate */
+	if (mbedtls_x509_crt_parse_der(&cacert, creds->serv_cert,
+					 creds->serv_cert_len) < 0) {
+		cleanup_mbedtls();
+		return false;
+	}
+
+	/* Load the client certificate */
+	if (mbedtls_x509_crt_parse_der(&cl_cert, creds->cl_cert,
+					 creds->cl_cert_len) < 0) {
+		cleanup_mbedtls();
+		return false;
+	}
+
+	/* Load the client key */
+	if (mbedtls_pk_parse_key(&cl_key, creds->cl_key, creds->cl_key_len,
+			NULL, 0) != 0) {
+		cleanup_mbedtls();
+		return false;
+	}
+
+	/* Set up the TLS structures */
+	if (mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT,
+				MBEDTLS_SSL_TRANSPORT_STREAM,
+				MBEDTLS_SSL_PRESET_DEFAULT) != 0) {
+		cleanup_mbedtls();
+		return false;
+	}
+
+	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
+	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
+
+#ifdef MBEDTLS_DEBUG_C
+	mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
+#endif
+
+	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
+	if (mbedtls_ssl_conf_own_cert(&conf, &cl_cert, &cl_key) != 0) {
+		cleanup_mbedtls();
+		return false;
+	}
+	return true;
+}
+
+static bool mqtt_net_init(const auth_creds *creds)
+{
+        mbedtls_net_init(&ctx);
+        if (!init_tls(creds))
+		return false;
+        session.net.mqttread = read_fn;
+	session.net.mqttwrite = write_fn;
+        return true;
+}
+
+static bool __mqtt_net_connect(bool flag, const auth_creds *creds)
 {
         if (!session.conn_valid && flag) {
-                int ret = mqtt_net_connect();
-                if (r == -1) {
+                if (!mqtt_net_init(creds)) {
+                        dbg_printf("%s:%d:net init failed\n", __func__, __LINE__);
+                        return false;
+                }
+		int ret = mqtt_net_connect();
+		if (ret == -1) {
         		dbg_printf("%s:%d:Error in SSL handshake\n",
                                 __func__, __LINE__);
                         return false;
                 }
-        	if (r == -2) {
+        	if (ret == -2) {
         		dbg_printf("%s:%d: SSL handshake timeout\n",
                                 __func__, __LINE__);
                         return false;
@@ -421,11 +431,8 @@ proto_result mqtt_set_auth(const auth_creds *creds)
                 (creds->cl_key == NULL))
 		RETURN_ERROR("certs is null", PROTO_INV_PARAM);
 
-        if (!init_certs(creds))
-                RETURN_ERROR("certs initialization failed", PROTO_INV_PARAM);
-
 	session.auth_valid = true;
-        if (!__mqtt_net_connect(session.host_valid))
+        if (!__mqtt_net_connect(session.host_valid, creds))
                 RETURN_ERROR("remote connect failed", PROTO_ERROR);
 	return PROTO_OK;
 }
@@ -452,9 +459,8 @@ proto_result mqtt_set_destination(const char *dest)
 	strncpy(session.port, delimiter + 1, plen);
         session.port[plen] = '\0';
         session.host_valid = true;
-
-        if (!__mqtt_net_connect(session.auth_valid))
-                RETURN_ERROR("remote connect failed", PROTO_ERROR);
+        //if (!__mqtt_net_connect(session.auth_valid))
+        //        RETURN_ERROR("remote connect failed", PROTO_ERROR);
 	return PROTO_OK;
 }
 
@@ -484,26 +490,21 @@ static proto_result initialize_send(const void *buf, uint32_t sz,
 	if (!session.conn_valid)
 		RETURN_ERROR("No active connection", PROTO_ERROR);
 
-	session.send_buf = buf;
-	session.send_sz = sz;
 	session.send_cb = cb;
 	session.send_svc_id = CC_SERVICE_BASIC;
-	session.msg = {
-		.qos = MQTT_QOS_LVL,
-		.retained = 0,
-		.payload = buf,
-		.payloadlen = sz
-	};
+	session.msg.qos = MQTT_QOS_LVL;
+	session.msg.retained = 0,
+	session.msg.payload = (void *)buf;
+	session.msg.payloadlen = sz;
 	return PROTO_OK;
 }
 
-static proto_result mqtt_publish_msg(char *topic)
+static proto_result mqtt_publish_msg(char *topic, const void *buf, uint32_t sz)
 {
 	if (MQTTPublish(&session.mclient, topic, &session.msg) == FAILURE) {
 		dbg_printf("%s:%d: Publication failed on topic: %s\n",
 			__func__, __LINE__, topic);
-		INVOKE_SEND_CALLBACK(session.send_buf, session.send_sz,
-				     PROTO_SEND_FAILED);
+		INVOKE_SEND_CALLBACK(buf, sz, PROTO_SEND_FAILED);
 		RETURN_ERROR("Send failed", PROTO_ERROR);
 	}
 	return PROTO_OK;
@@ -518,7 +519,7 @@ proto_result mqtt_send_msg_to_cloud(const void *buf, uint32_t sz,
 	if (res != PROTO_OK)
 		return res;
 
-	res = mqtt_publish_msg(pub_command_rsp);
+	res = mqtt_publish_msg(pub_command_rsp, buf, sz);
 	if (res != PROTO_OK)
 		return res;
 
@@ -532,7 +533,7 @@ proto_result mqtt_send_status_msg_to_cloud(const void *buf, uint32_t sz,
 	if (res != PROTO_OK)
 		return res;
 
-	res = mqtt_publish_msg(pub_unit_on_board);
+	res = mqtt_publish_msg(pub_unit_on_board, buf, sz);
 	if (res != PROTO_OK)
 		return res;
 
@@ -542,7 +543,7 @@ proto_result mqtt_send_status_msg_to_cloud(const void *buf, uint32_t sz,
 
 void mqtt_maintenance(void)
 {
-	if (MQTTYield(&session.mclient, TIMEOUT_MS) == FAILURE)
+	if (MQTTYield(&session.mclient, MQTT_TIMEOUT_MS) == FAILURE)
 		dbg_printf("MQTT Fail\n");
 }
 

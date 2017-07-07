@@ -4,6 +4,7 @@
 #define __PROTOCOL_DEF
 
 #include <stdint.h>
+#include <stdlib.h>
 
 #if defined (OTT_PROTOCOL)
 #include "ott_limits.h"
@@ -64,6 +65,14 @@ typedef uint8_t proto_service_id;
 typedef void (*proto_callback)(const void *buf, uint32_t sz,
 			       proto_event event, proto_service_id svc_id);
 
+typedef struct auth_creds {
+	size_t serv_cert_len;
+	const unsigned char *serv_cert;
+	size_t cl_cert_len;
+	const unsigned char *cl_cert;
+	size_t cl_key_len;
+	const unsigned char *cl_key;
+} auth_creds;
 /*
  * Define this to profile function execution time
  *

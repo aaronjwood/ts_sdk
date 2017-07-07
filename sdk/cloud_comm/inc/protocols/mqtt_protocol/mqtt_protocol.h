@@ -9,15 +9,6 @@
 #include "protocol_def.h"
 #include "paho_mqtt_port.h"
 
-typedef struct auth_creds {
-	size_t serv_cert_len;
-	const unsigned char *serv_cert;
-	size_t cl_cert_len;
-	const unsigned char *cl_cert;
-	size_t cl_key_len;
-	const unsigned char *cl_key;
-} auth_creds;
-
 /*
  * mqtt Protocol API:
  * This header lays out the mqtt Protocol API which is used to communicate with
