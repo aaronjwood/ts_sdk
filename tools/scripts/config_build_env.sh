@@ -31,6 +31,7 @@ export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 # Defines which cloud protocol to use. Valid options are:
 # OTT_PROTOCOL
 # SMSNAS_PROTOCOL
+# MQTT_PROTOCOL
 # NO_PROTOCOL
 #PROTOCOL="OTT_PROTOCOL"
 
@@ -81,10 +82,10 @@ Usage:  source $SCRIPT_NAME Options
 
 	dev_board: Name of the development board
 
-	modem: LTE modem target, only toby201 value supported
+	modem: LTE modem target, only "toby201" and "none" value supported
 
 	protocol: Cloud data transport protocol. Valid values are OTT_PROTOCOL,
-	SMSNAS_PROTOCOL and NO_PROTOCOL
+	SMSNAS_PROTOCOL, MQTT_PROTOCOL and NO_PROTOCOL
 
 	Note: All the options must be present, there are no default values
 
@@ -92,8 +93,29 @@ EOF
 	return 0
 }
 
+clear_sdk_chip_env()
+{
+	unset CHIPSET_FAMILY
+	unset CHIPSET_MCU
+	unset DEV_BOARD
+	unset MODEM_TARGET
+	unset PROTOCOL
+}
+
+clear_env()
+{
+	clear_sdk_chip_env
+	unset PROJ_ROOT
+	unset PLATFORM_HAL_ROOT
+	unset SDK_ROOT
+	unset MK_HELPER_PATH
+	unset SDK_APP_ROOT
+
+}
+
 process_app_args()
 {
+	clear_sdk_chip_env
 	for ARGUMENT in "$@"
 	do
 		key=$(echo $ARGUMENT | cut -f1 -d=)
@@ -107,21 +129,6 @@ process_app_args()
 			*)		usage;;
 		esac
 	done
-}
-
-clear_env()
-{
-	unset CHIPSET_FAMILY
-	unset CHIPSET_MCU
-	unset DEV_BOARD
-	unset MODEM_TARGET
-	unset PROTOCOL
-	unset PROJ_ROOT
-	unset PLATFORM_HAL_ROOT
-	unset SDK_ROOT
-	unset MK_HELPER_PATH
-	unset SDK_APP_ROOT
-
 }
 
 print_env()

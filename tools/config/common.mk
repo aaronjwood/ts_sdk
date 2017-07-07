@@ -40,8 +40,13 @@ else ifeq ($(CHIPSET_FAMILY),stm32l4)
 include $(MK_HELPER_PATH)/stm32l4_buildenv.mk
 else ifeq ($(CHIPSET_FAMILY),osx)
 include $(MK_HELPER_PATH)/osx_buildenv.mk
+else ifeq ($(DEV_BOARD),raspberry_pi3)
+include $(MK_HELPER_PATH)/raspberry_pi3_buildenv.mk
 else
-$(error "Unsupported CHIPSET FAMILY")
+$(error "Makefile must define valid DEV_BOARD variable")
+endif
+else
+$(error "Makefile must define the CHIPSET_FAMILY variable")
 endif
 
 # Header files provided by the chipset build environment

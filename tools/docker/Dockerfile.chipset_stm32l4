@@ -1,0 +1,10 @@
+FROM vzlabs/ubuntu:ubuntu_1604_gcc-arm-none-eabi-5_4-2016q2-20160622-linux
+RUN mkdir -p ts_sdk_bldenv
+COPY targets/stmicro/chipset/stm32l4 /ts_sdk_bldenv/stm32l4
+ENV CHIPSET_MCU=$(CHIPSET_MCU)
+CMD cp /ts_sdk_bldenv/stm32l4/chipset_hal/STM32Cube_FW_L4_V1.8.0/Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_conf_template.h /ts_sdk_bldenv/stm32l4/chipset_hal/STM32Cube_FW_L4_V1.8.0/Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_conf.h \
+	&& cd /ts_sdk_bldenv/stm32l4 && make clean && make all \
+        && mkdir -p /build/stm32l4 \
+        && cp ./build/lib$CHIPSET_MCU.a /build/stm32l4/ \
+        && (find . -name '*.h' | tar --create --files-from -) | (cd /build/stm32l4/ && tar xvfp -) \
+        && cp chipset_hal/STM32Cube_FW_L4_V1.8.0/Projects/STM32L476RG-Nucleo/Templates/SW4STM32/STM32L476RG_NUCLEO/*.ld /build/stm32l4/
