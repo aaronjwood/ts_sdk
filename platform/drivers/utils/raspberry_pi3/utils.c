@@ -39,7 +39,7 @@ bool utils_get_mac_addr(char *id, uint8_t len, char *interface)
                         "address\n", __func__, __LINE__);
                 return false;
         }
-        snprintf(id, len * 2, "%X%X%X%X%X%X", macadd[0], macadd[1], macadd[2],
+        snprintf(id, len, "%X%X%X%X%X%X", macadd[0], macadd[1], macadd[2],
                 macadd[3] ,macadd[4] ,macadd[5]);
         return true;
 }
