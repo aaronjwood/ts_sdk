@@ -31,18 +31,18 @@ all build: $(FW_EXEC)
 	$(SIZE) $(FW_EXEC)
 
 $(FW_EXEC): $(OBJ) vendor_libs
-	$(CC) $(LDFLAGS) $(CHIPSET_LDFLAGS) $(NOSYSLIB) $(INC) -Os $(LTOFLAG) \
+	$(CC) $(CHIPSET_CFLAGS) $(LDFLAGS) $(CHIPSET_LDFLAGS) $(NOSYSLIB) $(INC) -Os $(LTOFLAG) \
 		$(ARCHFLAGS) $(LDSCRIPT) $(OBJ) $(DEP_LIB) \
 		$(VENDOR_LIB_FLAGS) -o $(FW_EXEC)
 
 $(OBJ_CORELIB): %.o: %.c
-	$(CC) -c $(CFLAGS_LIB) $(DBG_MACRO) $(ARCHFLAGS) $(MDEF) $< -o $@
+	$(CC) $(CHIPSET_CFLAGS) -c $(CFLAGS_LIB) $(DBG_MACRO) $(ARCHFLAGS) $(MDEF) $< -o $@
 
 $(OBJ_DBG_LIB): %.o: %.c
-	$(CC) -c $(CFLAGS_DBG_LIB) $(DBG_MACRO) $(ARCHFLAGS) $(MDEF) $< -o $@
+	$(CC) $(CHIPSET_CFLAGS) -c $(CFLAGS_DBG_LIB) $(DBG_MACRO) $(ARCHFLAGS) $(MDEF) $< -o $@
 
 $(OBJ_USER): %.o: %.c
-	$(CC) -c $(CFLAGS_USER) $(DBG_MACRO) $(ARCHFLAGS) $(MDEF) $< -o $@
+	$(CC) $(CHIPSET_CFLAGS) -c $(CFLAGS_USER) $(DBG_MACRO) $(ARCHFLAGS) $(MDEF) $< -o $@
 
 vendor_libs:
 ifdef VENDOR_LIB_DIRS
