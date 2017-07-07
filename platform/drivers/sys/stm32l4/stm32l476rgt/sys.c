@@ -1,4 +1,4 @@
-/* Copyright(C) 2016, 2017 Verizon. All rights reserved. */
+/* Copyright(C) 2017 Verizon. All rights reserved. */
 
 #include <stm32l4xx_hal.h>
 #include "dbg.h"
