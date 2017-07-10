@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include "mqtt_protocol.h"
+#include "paho_mqtt_port.h"
 #include "sys.h"
 
 void TimerInit(Timer *timer)

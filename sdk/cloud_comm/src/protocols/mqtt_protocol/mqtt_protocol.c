@@ -5,6 +5,7 @@
 
 #include "mqtt_def.h"
 #include "mqtt_protocol.h"
+#include "paho_mqtt_port.h"
 #include "MQTTClient.h"
 
 #include "sys.h"

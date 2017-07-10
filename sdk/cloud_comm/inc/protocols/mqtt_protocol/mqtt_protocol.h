@@ -7,7 +7,6 @@
 #include <stdbool.h>
 #include "service_ids.h"
 #include "protocol_def.h"
-#include "paho_mqtt_port.h"
 
 /*
  * mqtt Protocol API:

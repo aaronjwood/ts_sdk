@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "protocol_def.h"
-#include "MQTTClient.h"
 
 #define MAX_HOST_LEN		50
 #define MAX_PORT_LEN		5
