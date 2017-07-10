@@ -16,7 +16,6 @@
 #include "cc_basic_service.h"
 #include "cc_control_service.h"
 #include "dbg.h"
-#include "dev_creds.h"
 
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
 CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
@@ -27,6 +26,10 @@ CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 #if defined (OTT_PROTOCOL)
 #define REMOTE_HOST	"iwk.ott.thingspace.verizon.com:443"
 #define STAT_SZ_BYTES	10
+#include "dev_creds.h"
+/* Certificate that is used with the OTT services */
+#include "verizon_ott_ca.h"
+
 #elif defined (SMSNAS_PROTOCOL)
 #define REMOTE_HOST	"+12345678912"
 #if defined (CONCAT_SMS)
@@ -109,6 +112,8 @@ static void basic_service_cb(cc_event event, uint32_t value, void *ptr)
 
 	else if (event == CC_EVT_RCVD_OVERFLOW)
 		handle_buf_overflow();
+	else if (event == CC_EVT_RCVD_WRONG_MSG)
+		dbg_printf("\t\t\tWrong message recieved\n");
 	else
 		dbg_printf("\t\t\tUnexpected event received: %d\n", event);
 }
@@ -194,8 +199,11 @@ int main(int argc, char *argv[])
 	ASSERT(cc_set_destination(REMOTE_HOST));
 
 	dbg_printf("Setting device authentiation credentials\n");
-	ASSERT(cc_set_auth_credentials(d_ID, sizeof(d_ID),
+	ASSERT(cc_set_own_auth_credentials(d_ID, sizeof(d_ID),
 				d_sec, sizeof(d_sec)));
+
+	dbg_printf("Setting remote side authentiation credentials\n");
+	ASSERT(cc_set_remote_credentials(cacert_der, sizeof(cacert_der)));
 
 	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
 	uint32_t wake_up_interval = 15000;	/* Interval value in ms */

@@ -14,7 +14,7 @@ DBG_MACRO = #-DNO_DEBUG
 vpath %.c $(SRCDIR):
 
 # User application includes
-APP_INC =
+APP_INC = -I $(SRCDIR)/include
 
 # User application sources
 APP_SRC = $(wildcard $(SRCDIR)/*.c)
