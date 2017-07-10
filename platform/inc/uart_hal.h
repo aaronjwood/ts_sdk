@@ -99,6 +99,24 @@ void uart_set_rx_char_cb(periph_t hdl, uart_rx_char_cb cb);
  */
 bool uart_tx(periph_t hdl, uint8_t *data, uint16_t size, uint16_t timeout_ms);
 
+/**
+ * \brief Receive data over the UART.
+ * \details This is a blocking receive. In case the receiver blocks the flow via
+ * hardware flow control, the call will block for at most 'timeout_ms'
+ * milliseconds.
+ *
+ * \param[in] hdl Handle of the UART peripheral to read.
+ * \param[in] data Pointer of the buffer to receive the data.
+ * \param[in] size Number of bytes in buffer to receive the data.
+ * \param[in] timeout_ms Total number of milliseconds to wait before giving up
+ * in case of a busy channel.
+ *
+ * \retval true Data was received successfully.
+ * \retval false Receive aborted due to timeout or null pointer was provided for
+ * the data.
+ *
+ * \pre \ref uart_init must be called to retrieve a valid handle.
+ */
 bool uart_rx(periph_t hdl, uint8_t *data, uint16_t size, uint16_t timeout_ms);
 
 /**
