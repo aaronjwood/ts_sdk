@@ -1,6 +1,6 @@
 # Copyright(C) 2016 Verizon. All rights reserved.
 
-.PHONY: clean mbedtls paho_mqtt
+.PHONY: clean mbedtls paho_mqtt cJSON
 
 VENDOR_ROOT=$(PROJ_ROOT)/sdk/cloud_comm/vendor
 
@@ -20,10 +20,15 @@ paho_mqtt:
 		CC='$(CC)' AR='$(AR)' CFLAGS='-O2 $(ARCHFLAGS)'
 	cp $(VENDOR_ROOT)/paho_mqtt/build/libpahomqtt.a $(SRCDIR)/build
 
+cJSON:
+	@echo "[Building the cJSON library.]"
+	$(MAKE) -C $(VENDOR_ROOT)/cJSON static
+	cp $(VENDOR_ROOT)/cJSON/libcjson.a $(SRCDIR)/build
 clean:
 	@echo "[Cleaning vendor libraries.]"
 	$(MAKE) -C $(VENDOR_ROOT)/mbedtls clean
 	$(MAKE) -C $(VENDOR_ROOT)/paho_mqtt -f Makefile.static clean
+	$(MAKE) -C $(VENDOR_ROOT)/cJSON clean
 
 # Rebuild our version of the mbedtls config.h file from an unmodified copy.
 # This is one-time configuration when we have a new version of mbedtls.

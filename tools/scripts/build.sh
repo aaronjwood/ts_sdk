@@ -25,6 +25,7 @@ CHIPSET_STM32L4_BRANCH="stm32l4_chipset"
 CHIPSET_ROOT="targets/stmicro/chipset/stm32l4"
 
 BRANCH_NAME=
+
 EXIT_CODE=
 
 usage()
@@ -239,7 +240,6 @@ checkout_chipset_hal()
 		fi
 	fi
 }
-
 
 build_chipset_library()
 {
