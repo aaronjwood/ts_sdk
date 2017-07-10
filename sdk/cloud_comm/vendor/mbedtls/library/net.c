@@ -165,11 +165,6 @@ int mbedtls_net_connect( mbedtls_net_context *ctx, const char *host, const char 
 
         if( connect( ctx->fd, cur->ai_addr, MSVC_INT_CAST cur->ai_addrlen ) == 0 )
         {
-                if(fcntl(ctx->fd, F_SETFL, fcntl(ctx->fd, F_GETFL) | O_NONBLOCK) < 0) {
-                        close( ctx->fd );
-                        ret = MBEDTLS_ERR_NET_CONNECT_FAILED;
-                        break;
-                }
             ret = 0;
             break;
         }
