@@ -20,8 +20,8 @@ export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 #CHIPSET_MCU="stm32f429zit"
 #DEV_BOARD="nucleo"
 
-# Defines which modem to use. Currently only the ublox toby201 is supported.
-#MODEM_TARGET="toby201"
+# Defines which modem to use. Currently only the ublox toby201 and Sequans Monarch are supported.
+#MODEM_TARGET="toby201" | "sqmonarch"
 
 # Defines which cloud protocol to use. Valid options are:
 # OTT_PROTOCOL
@@ -77,7 +77,7 @@ Usage:  source $SCRIPT_NAME Options
 
 	dev_board: Name of the development board
 
-	modem: LTE modem target, only "toby201" and "none" value supported
+	modem: LTE modem target, only "toby201", "sqmonarch" and "none" value supported
 
 	protocol: Cloud data transport protocol. Valid values are OTT_PROTOCOL,
 	SMSNAS_PROTOCOL, MQTT_PROTOCOL and NO_PROTOCOL

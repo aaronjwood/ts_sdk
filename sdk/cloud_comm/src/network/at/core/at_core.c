@@ -6,7 +6,7 @@
 #include "at_core.h"
 #include "ts_sdk_board_config.h"
 
-#ifdef MODEM_TOBY201
+#if defined (MODEM_TOBY201) || defined (MODEM_SQMONARCH)
 #define MODEM_RESET_DELAY		25000 /* In milli seconds */
 #define RESET_PULSE_WIDTH_MS		3000  /* Toby-L2 data sheet Section 4.2.9 */
 #define AT_UART_TX_WAIT_MS		10000
@@ -45,20 +45,26 @@ enum modem_core_commands {
 	SIM_READY,	/* Check if the SIM is present */
 	EPS_REG_QUERY,	/* Query EPS registration */
 	EPS_URC_SET,	/* Set the EPS registration URC */
+#ifdef MODEM_TOBY201
 	ExPS_REG_QUERY,	/* Query extended packet switched network registration */
 	ExPS_URC_SET,	/* Set the extended packet switched network reg URC */
+#endif
 	MODEM_CORE_END	/* End-of-commands marker */
 };
 
 typedef enum at_core_urc {
 	EPS_STAT_URC,
+#ifdef MODEM_TOBY201
 	ExPS_STAT_URC,
+#endif
 	NUM_URCS
 } at_core_urc;
 
 static const char *at_urcs[NUM_URCS] = {
 	[EPS_STAT_URC] = "\r\n+CEREG: ",
+#ifdef MODEM_TOBY201
 	[ExPS_STAT_URC] = "\r\n+UREG: "
+#endif
 };
 
 static const at_command_desc modem_core[MODEM_CORE_END] = {
@@ -144,6 +150,7 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                 .err = NULL,
                 .comm_timeout = 100
         },
+#ifdef MODEM_TOBY201
         [ExPS_REG_QUERY] = {
                 .comm = "at+ureg?\r",
                 .rsp_desc = {
@@ -173,12 +180,17 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                 .err = NULL,
                 .comm_timeout = 100
         },
+#endif
         [MODEM_RESET] = {
                 /*
 		 * Response will be processed in __at_modem_reset_comm
                  * function
                  */
+#ifdef MODEM_TOBY201
                 .comm = "at+cfun=16\r",
+#elif MODEM_SQMONARCH
+		.comm = "at^reset\r",
+#endif
                 .err = NULL,
                 .comm_timeout = 7000
         }
@@ -508,12 +520,14 @@ static at_ret_code __at_process_netw_urc(const char *urc, at_core_urc u_code)
 		else
 			DEBUG_V0("%s: Registered to EPS network\n", __func__);
 		break;
+#ifdef MODEM_TOBY201
 	case ExPS_STAT_URC:
 		if (net_stat == 0)
 			DEBUG_V0("%s: Extended PS network reg lost\n", __func__);
 		else
 			DEBUG_V0("%s: Registered to extended PS network\n", __func__);
 		break;
+#endif
 	default:
 		return AT_FAILURE;
 	}
@@ -540,8 +554,10 @@ void at_core_process_urc(bool mode)
 		if (__at_process_netw_urc(urc, EPS_STAT_URC) == AT_SUCCESS)
 			continue;
 
+#ifdef MODEM_TOBY201
 		if (__at_process_netw_urc(urc, ExPS_STAT_URC) == AT_SUCCESS)
 			continue;
+#endif
 
 		urc_callback(urc);
 	}
@@ -657,9 +673,11 @@ at_ret_code at_core_modem_reset(void)
 	result = at_core_wcmd(&modem_core[CME_CONF], true);
 	CHECK_SUCCESS(result, AT_SUCCESS, result);
 
+#ifdef MODEM_TOBY201
 	/* Enable the Extended Packet Switched network registration URC */
 	result = at_core_wcmd(&modem_core[ExPS_URC_SET], true);
 	CHECK_SUCCESS(result, AT_SUCCESS, result);
+#endif
 
 	/* Enable the EPS network registration URC */
 	result = at_core_wcmd(&modem_core[EPS_URC_SET], true);
@@ -751,9 +769,11 @@ bool at_core_query_netw_reg(void)
 	if (res != AT_SUCCESS)
 		return false;
 
+#ifdef MODEM_TOBY201
 	res = at_core_wcmd(&modem_core[ExPS_REG_QUERY], true);
 	if (res != AT_SUCCESS)
 		return false;
+#endif
 
 	return true;
 }

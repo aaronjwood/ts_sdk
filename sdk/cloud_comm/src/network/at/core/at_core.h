@@ -23,7 +23,7 @@ typedef enum at_return_codes {
         AT_RECHECK_MODEM
 } at_ret_code;
 
-#ifdef MODEM_TOBY201
+#if defined (MODEM_TOBY201) || defined (MODEM_SQMONARCH)
 /*
  * Delay between successive commands in milisecond, datasheet recommends atleast
  * 20mS
