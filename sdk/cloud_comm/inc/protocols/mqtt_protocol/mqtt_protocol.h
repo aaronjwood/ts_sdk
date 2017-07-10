@@ -71,14 +71,6 @@ proto_result mqtt_set_remote_auth(const uint8_t *serv_cert, uint32_t cert_len);
 uint32_t mqtt_get_polling_interval(void);
 
 /*
- * Set the polling interval in mili seconds
- *
- * Parameters:
- * 	interval	: Polling interval in miliseconds
- */
-void mqtt_set_polling_interval(uint32_t interval_ms);
-
-/*
  * Initialize the protocol module with the remote host and port
  * Parameters:
  * 	dest : A NULL terminated string specifying destination for the
@@ -111,7 +103,8 @@ proto_result mqtt_set_recv_buffer_cb(void *rcv_buf, uint32_t sz,
 				proto_callback rcv_cb);
 
 /*
- * Sends a message to the cloud service. This call is blocking in nature.
+ * Sends a message to the cloud service and to command response topic.
+ * This call is blocking in nature.
  *
  * Parameters:
  *	buf    : Message to send.
@@ -130,6 +123,7 @@ proto_result mqtt_send_msg_to_cloud(const void *buf, uint32_t sz,
 
 /*
  * Sends a status message to the cloud service. This call is blocking in nature.
+ * Function publishes message to unit on board topic.
  *
  * Parameters:
  *	buf    : Message to send.
