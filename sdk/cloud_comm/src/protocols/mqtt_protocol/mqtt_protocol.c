@@ -271,6 +271,10 @@ static int mqtt_net_connect()
 		ret = -1;
 		goto exit_func;
 	}
+	if (mbedtls_net_set_nonblock(&ctx) != 0) {
+		ret = -1;
+		goto exit_func;
+	}
 
 	/* Set up the SSL context */
 	if (mbedtls_ssl_setup(&ssl, &conf) != 0) {
