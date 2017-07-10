@@ -214,7 +214,7 @@ proto_result ott_set_remote_auth(const uint8_t *serv_cert, uint32_t cert_len)
 
 	/* Load the CA root certificate */
 	int ret = mbedtls_x509_crt_parse_der(&cacert,
-	                                 (const unsigned char *)&serv_cert,
+	                                 (const unsigned char *)serv_cert,
 					 cert_len);
 	if (ret < 0) {
 		cleanup_mbedtls();
