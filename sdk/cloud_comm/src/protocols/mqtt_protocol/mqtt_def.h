@@ -49,6 +49,14 @@
 #define PRINTF_ERR(...)
 #endif
 
+/* Enables displaying major milestones achieved in flow */
+/*#define DEBUG_MSG*/
+#ifdef DEBUG_ERROR
+#define PRINTF(...)	printf(__VA_ARGS__)
+#else
+#define PRINTF(...)
+#endif
+
 /* Defines to enable printf to track function entry points */
 #define DEBUG_FUNCTION
 #ifdef DEBUG_FUNCTION
@@ -64,13 +72,10 @@ static struct {
 	char host[MAX_HOST_LEN + 1];	/* Store the host name */
 	char port[MAX_PORT_LEN + 1];	/* Store the host port */
 	proto_service_id send_svc_id;	/* Service id of last sent message */
-	uint8_t *rcv_buf;
-	uint32_t rcv_sz;
-	proto_callback rcv_cb;
-	proto_callback send_cb;
-	Network net;
-	MQTTClient mclient;
-	MQTTMessage msg;
+	uint8_t *rcv_buf;		/* receive buffer */
+	uint32_t rcv_sz;		/* size in bytes for above buffer */
+	proto_callback rcv_cb;		/* receive callback */
+	proto_callback send_cb;		/* send callback */
 } session;
 
 /*
