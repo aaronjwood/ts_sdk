@@ -20,13 +20,15 @@ STM_BASE_IMG="vzlabs/ubuntu"
 STM_IMGID=$(docker images -q $STM_BASE_IMG)
 ST_BRANCH="stm32f4_images"
 
-CHIPSET_HAL_DIR="targets/stmicro/chipset/stm32l4/chipset_hal"
-CHIPSET_STM32L4_BRANCH="stm32l4_chipset"
-CHIPSET_ROOT="targets/stmicro/chipset/stm32l4"
-
 BRANCH_NAME=
 
 EXIT_CODE=
+
+if [ $CHIPSET_FAMILY = 'stm32l4' ]; then
+	CHIPSET_HAL_DIR="$PROJ_ROOT/targets/stmicro/chipset/stm32l4/chipset_hal"
+	CHIPSET_ROOT="$PROJ_ROOT/targets/stmicro/chipset/stm32l4"
+	CHIPSET_STM32L4_BRANCH="stm32l4_chipset"
+fi
 
 usage()
 {

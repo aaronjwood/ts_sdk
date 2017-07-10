@@ -14,9 +14,6 @@ else
 
 CHIPSET_ROOT = $(shell dirname $(SRCDIR))
 CHIPSET_BUILDENV = $(shell dirname $(CHIPSET_ROOT))ts_sdk_bldenv
-ifeq ($(CHIPSET_MCU),stm32l476rgt)
-	DEV_BOARD="nucleo"
-endif
 
 
 # Define this macro to turn off debug messages globally.

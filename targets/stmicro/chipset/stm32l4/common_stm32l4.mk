@@ -11,9 +11,7 @@ GCC_ROOT = $(CHIPSET_BUILDENV)/toolchain/gcc-arm-none-eabi-5_4-2016q2
 STM32_LIB_COMMON = $(TOOLS_ROOT)
 
 # Source paths
-#STM32_PLIB = $(STM32_LIB_COMMON)/src
 STM32_PLIB = $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/STM32L4xx_HAL_Driver/Src
-#STM32_CMSIS = $(STM32_LIB_COMMON)/src/CMSIS/Device/ST/STM32L4xx
 STM32_CMSIS = $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/CMSIS/Device/ST/STM32L4xx
 
 # Compiler, assembler, object code dumper and object code section copier
@@ -30,7 +28,7 @@ ARCHFLAGS = -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
 
 # Point to the C Runtime startup code
 ifeq ($(CHIPSET_MCU),stm32l476rgt)
-        MDEF = -DSTM32L476xx $(CHIPSET_HSECLK)
+        MDEF = -DSTM32L476xx 
 	STARTUP_SRC = $(STM32_CMSIS)/Source/Templates/gcc/startup_stm32l476xx.s
 	OBJ_STARTUP = startup_stm32l476xx.o
 else
@@ -40,10 +38,8 @@ endif
 
 # Platform support is based on STMicro's HAL library
 # Peripheral related headers
-#CHIPSET_INC = -I $(STM32_LIB_COMMON)/inc
 CHIPSET_INC = -I $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/STM32L4xx_HAL_Driver/Inc
 # CMSIS (Core) headers
-#CHIPSET_INC += -I $(STM32_LIB_COMMON)/src/CMSIS/Include
 CHIPSET_INC += -I $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/CMSIS/Include
 # CMSIS (Device specific) headers
 CHIPSET_INC += -I $(STM32_CMSIS)/Include
@@ -51,6 +47,7 @@ CHIPSET_INC += -I $(STM32_CMSIS)/Include
 CHIPSET_INC += -I $(GCC_ROOT)/include
 
 # Base HAL sources
+# Needs to be modified/added depending on the other peripherals requirement
 CHIPSET_SRC = stm32l4xx_hal.c system_stm32l4xx.c
 # Peripheral HAL sources
 CHIPSET_SRC += stm32l4xx_hal_cortex.c

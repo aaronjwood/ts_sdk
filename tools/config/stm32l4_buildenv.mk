@@ -11,9 +11,7 @@ GCC_ROOT = /ts_sdk_bldenv/toolchain/gcc-arm-none-eabi-5_4-2016q2
 STM32_LIB_COMMON = $(STMSDK_HEADER_ROOT)
 
 # Source paths
-#STM32_PLIB = $(STM32_LIB_COMMON)/src
 STM32_PLIB = $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/STM32L4xx_HAL_Driver/Src
-#STM32_CMSIS = $(STM32_LIB_COMMON)/src/CMSIS/Device/ST/STM32L4xx
 STM32_CMSIS = $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/CMSIS/Device/ST/STM32L4xx
 
 # Compiler, assembler, object code dumper and object code section copier
@@ -37,10 +35,8 @@ export ARCHFLAGS
 
 # Platform support is based on STMicro's HAL library
 # Peripheral related headers
-#CHIPSET_INC = -I $(STM32_LIB_COMMON)/inc
 CHIPSET_INC = -I $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/STM32L4xx_HAL_Driver/Inc
 # CMSIS (Core) headers
-#CHIPSET_INC += -I $(STM32_LIB_COMMON)/src/CMSIS/Include
 CHIPSET_INC += -I $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/CMSIS/Include
 CHIPSET_INC += -I $(STM32_CMSIS)/Include
 # Standard library function headers
