@@ -99,9 +99,16 @@ process_app_args()
 			dev_board)	DEV_BOARD="$value";;
 			modem)		MODEM_TARGET="$value";;
 			protocol)	PROTOCOL="$value";;
+			gps_chipset)    GPS_CHIPSET="$value";;	
 			*)		usage;;
 		esac
+	
 	done
+
+         if [ -z "$GPS_CHIPSET" ]; then      
+	         export GPS_CHIPSET="neo-6m"
+                 echo "GPS CHIPSET has been set value:" $GPS_CHIPSET
+        fi
 }
 
 clear_env()
@@ -116,6 +123,7 @@ clear_env()
 	unset SDK_ROOT
 	unset MK_HELPER_PATH
 	unset SDK_APP_ROOT
+	unset GPS_CHIPSET
 
 }
 
@@ -126,6 +134,7 @@ print_env()
 	echo "Dev board/kit = $DEV_BOARD"
 	echo "Modem target = $MODEM_TARGET"
 	echo "Cloud transport protocol = $PROTOCOL"
+	echo "GPS Chipset = $GPS_CHIPSET"
 }
 
 exp_sdk_defaults()
@@ -134,6 +143,7 @@ exp_sdk_defaults()
 	export CHIPSET_MCU="stm32f429zit"
 	export DEV_BOARD="nucleo"
 	export MODEM_TARGET="toby201"
+	export GPS_CHIPSET="neo-6m"
 	if ! [ -z "$1" ]; then
 		key=$(echo $1 | cut -f1 -d=)
 		value=$(echo $1 | cut -f2 -d=)
@@ -174,3 +184,4 @@ export CHIPSET_MCU=$CHIPSET_MCU
 export DEV_BOARD=$DEV_BOARD
 export MODEM_TARGET=$MODEM_TARGET
 export PROTOCOL=$PROTOCOL
+export GPS_CHIPSET=$GPS_CHIPSET

@@ -12,13 +12,14 @@ PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/$(DE
 # toolchain or externally supplied files that may need to be built with
 # different compiler options.
 PLATFORM_TIMER_HAL_SRC = timer_hal.c timer_interface.c
+PLATFORM_GPS_HAL_SRC = gps.c
 
 PLATFORM_HAL_SRC = dbg.c uart.c
 PLATFORM_HAL_SRC += sys.c gpio.c
 PLATFORM_HAL_SRC += i2c.c
 PLATFORM_HAL_SRC += pin_map.c port_pin_api.c
-PLATFORM_HAL_SRC += gps.c
 PLATFORM_HAL_SRC += $(PLATFORM_TIMER_HAL_SRC)
+PLATFORM_HAL_SRC += $(PLATFORM_GPS_HAL_SRC)
 
 ifneq ($(PROTOCOL),SMSNAS_PROTOCOL)
 PLATFORM_HAL_SRC += hwrng.c
@@ -46,5 +47,10 @@ SW_MCU = $(shell find $(SW_ROOT)/$(CHIPSET_FAMILY)/$(CHIPSET_MCU) $(FIND_PARAM))
 SW_BOARD = $(shell find $(SW_ROOT)/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/$(DEV_BOARD) $(FIND_PARAM))
 SW_PATH = $(patsubst %,%:,$(sort $(dir $(SW_MCU) $(SW_BOARD))))
 
+# Path for GPS sources
+GPS_ROOT = $(PLATFORM_HAL_ROOT)/drivers/gps
+GPS_CS = $(shell find $(GPS_ROOT)/$(GPS_CHIPSET) $(FIND_PARAM))
+GPS_PATH = $(patsubst %,%:,$(sort $(dir $(GPS_CS))))
+
 # Search paths for device drivers and port pin API sources
-vpath %.c $(DRV_PATH) $(SW_PATH)
+vpath %.c $(DRV_PATH) $(SW_PATH) $(GPS_PATH)
