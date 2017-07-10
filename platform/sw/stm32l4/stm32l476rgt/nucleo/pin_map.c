@@ -13,7 +13,7 @@
  * to perform some other function) are commented out.
  *
  * Target board : Nucleo-L476RG
- * Target MCU   : STM32F476RGT
+ * Target MCU   : STM32L476RGT
  */
 
 #define END_OF_MAP	{NC, {0}, 0, 0}

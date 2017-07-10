@@ -27,20 +27,19 @@ static uint64_t accu_tick;
 /**
   * @brief  System Clock Configuration
   *         The system Clock is configured as follow :
-  *            System Clock source            = PLL (HSE)
-  *            SYSCLK(Hz)                     = 168000000
-  *            HCLK(Hz)                       = 168000000
+  *            System Clock source            = PLL (HSI)
+  *            SYSCLK(Hz)                     = 80000000
+  *            HCLK(Hz)                       = 80000000
   *            AHB Prescaler                  = 1
-  *            APB1 Prescaler                 = 4
-  *            APB2 Prescaler                 = 2
-  *            HSE Frequency(Hz)              = 12000000
-  *            PLL_M                          = 12
-  *            PLL_N                          = 336
-  *            PLL_P                          = 2
-  *            PLL_Q                          = 4
-  *            VDD(V)                         = 3.3
-  *            Main regulator output voltage  = Scale1 mode
-  *            Flash Latency(WS)              = 5
+  *            APB1 Prescaler                 = 1
+  *            APB2 Prescaler                 = 1
+  *            HSI Frequency(Hz)              = 16000000
+  *            PLLM                           = 2
+  *            PLLN                           = 20
+  *            PLLP                           = 7
+  *            PLLQ                           = 4
+  *            PLLR                           = 2
+  *            Flash Latency(WS)              = 4
   * @param  None
   * @retval None
   */
@@ -49,17 +48,6 @@ static void SystemClock_Config(void)
 	RCC_ClkInitTypeDef RCC_ClkInitStruct;
 	RCC_OscInitTypeDef RCC_OscInitStruct;
 
-	/* Enable Power Control clock */
-	__HAL_RCC_PWR_CLK_ENABLE();
-
-	/*
-	 * The voltage scaling allows optimizing the power consumption when the
-	 * device is clocked below the maximum system frequency, to update the
-	 * voltage scaling value regarding system frequency refer to product
-	 * datasheet.
-	 */
-	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-
 	/*
 	 * Enable HSE Oscillator and activate PLL with HSE as source.
 	 */
@@ -67,10 +55,11 @@ static void SystemClock_Config(void)
 	RCC_OscInitStruct.HSEState = RCC_HSI_ON;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
 	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-	RCC_OscInitStruct.PLL.PLLM = 16;
-	RCC_OscInitStruct.PLL.PLLN = 336;
+	RCC_OscInitStruct.PLL.PLLM = 2;
+	RCC_OscInitStruct.PLL.PLLN = 20;
 	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
-	RCC_OscInitStruct.PLL.PLLQ = 7;
+	RCC_OscInitStruct.PLL.PLLQ = 4;
+	RCC_OscInitStruct.PLL.PLLR = 2;
 	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
 		/* Initialization Error */
 		raise_err();
@@ -86,7 +75,7 @@ static void SystemClock_Config(void)
 			RCC_CLOCKTYPE_PCLK2);
 	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
 	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
 	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4)\
@@ -104,17 +93,6 @@ static void init_reset_gpio(void)
 	reset_pins.speed = SPEED_HIGH;
 	gpio_init(MODEM_HW_RESET_PIN, &reset_pins);
 	gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
-}
-
-static void enable_level_shifter(void)
-{
-	gpio_config_t init_st;
-	pin_name_t pin_name = PB4;
-	init_st.dir = OUTPUT;
-	init_st.pull_mode = PP_PULL_DOWN;
-	init_st.speed = SPEED_HIGH;
-	gpio_init(pin_name, &init_st);
-	gpio_write(pin_name, PIN_LOW);
 }
 
 static void tim5_cb(void)
@@ -148,9 +126,6 @@ void sys_init(void)
 	HAL_Init();
 	SystemClock_Config();
 	init_reset_gpio();
-	/* on the beduin board, the UART level shifter !OE must be enabled
-	 * to talk to the u-blox 201 */
-	enable_level_shifter();
 
 	if (!tim5_module_init())
 		dbg_printf("Timer module init failed\n");

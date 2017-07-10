@@ -2,7 +2,7 @@
 #include "gpio_hal.h"
 #include <stm32l4xx_hal.h>
 
-/* Chipset specific implementation. Target: STM32F4xx */
+/* Chipset specific implementation. Target: STM32L4xx */
 
 bool gpio_init(pin_name_t pin_name, const gpio_config_t *config)
 {
