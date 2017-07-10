@@ -23,7 +23,7 @@
  */
 
 /* XXX Remove the second value once OTT/MQTT starts including BASIC header. */
-#if !defined(OTT_PROTOCOL) && !defined(MQTT_PROTOCOL)
+#if defined(SMSNAS_PROTOCOL)
 #define __CC_BASIC_SERVICE_OVERHEAD (1)
 #else
 #define __CC_BASIC_SERVICE_OVERHEAD (0)
