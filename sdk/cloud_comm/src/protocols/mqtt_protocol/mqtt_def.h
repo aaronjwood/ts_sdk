@@ -67,7 +67,8 @@
 
 static struct {
 	bool conn_valid;		/* TCP connection was established */
-	bool auth_valid;		/* Auth credentials are set and valid */
+	bool own_auth_valid;		/* Client credentials are set and valid */
+	bool remote_auth_valid;		/* Remote credentials are set and valid */
 	bool host_valid;		/* host:port arrays content is valid */
 	char host[MAX_HOST_LEN + 1];	/* Store the host name */
 	char port[MAX_PORT_LEN + 1];	/* Store the host port */

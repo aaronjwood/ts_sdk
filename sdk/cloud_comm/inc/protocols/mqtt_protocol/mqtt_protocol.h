@@ -30,18 +30,37 @@
 proto_result mqtt_protocol_init(void);
 
 /*
- * Initialize the mqtt Protocol module with device authorization credential which
- * will be needed in all future communications with the cloud serivices.
+ * Initialize the protocol module with device authorization credential.
  * Parameters:
- * 	creds : Pointer to a device/client, server certificate and device
- *              private key.
+ * 	cli_cert     : Pointer to a client certificate.
+ *      cert_len     : Size in bytes of cli_cert.
+ *      cli_key      : Pointer to the buffer holding client private key.
+ * 	key_len      : Size of the cli_key in bytes.
+ *
  *
  * Returns:
  * 	PROTO_OK    : Setting authorization credentials was successful.
  * 	PROTO_INV_PARAM : Passed parameters are not valid.
  * Note: This API must be called before any communication with the cloud.
  */
-proto_result mqtt_set_auth(const auth_creds *creds);
+proto_result mqtt_set_own_auth(const uint8_t *cli_cert, uint32_t cert_len,
+        const uint8_t *cli_key, uint32_t key_len);
+
+/*
+ * Initialize the protocol module with root ca credential which
+ * will be needed in all future communications with the cloud serivices to verify
+ * remote endpoint.
+ * Parameters:
+ * 	serv_cert : Pointer to a server certificate.
+ *      cert_len  : Size in bytes of serv_cert
+ *
+ *
+ * Returns:
+ * 	PROTO_OK    : Setting authorization credentials was successful.
+ * 	PROTO_INV_PARAM : Passed parameters are not valid.
+ * Note: This API must be called before any communication with the cloud.
+ */
+proto_result mqtt_set_remote_auth(const uint8_t *serv_cert, uint32_t cert_len);
 
 /*
  * Retrieves polling interval in milliseconds

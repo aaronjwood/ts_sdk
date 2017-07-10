@@ -176,18 +176,46 @@ bool cc_set_destination(const char *dest);
  * this must be called at least once before attempting to communicate with the
  * cloud.
  *
- * \param[in] creds    : Pointer to the device certificates.
+ * \param[in] client_cred : Pointer to a device credentials.
+ * \param[in] cred_len   : Size of the client_cred in bytes.
+ * \param[in] client_key : Pointer to the buffer holding the device secret key.
+ * \param[in] key_len : Size of the device secret in bytes.
  *
  * \returns
  *	True  : device secrets were set properly.
- *	False : Failed to set authentication due to wrong parameters.
+ *	False : Failed to set authentication.
  *
  * \note
  * This function need not be called if the protocol is implicitly authenticated
  * to the cloud e.g. by its cellular network identity.
- * For the OTT protocol, both the id and secret must be supplied.
+ * For the OTT protocol, client_cred is device id and client_key is secret.
+ * For MQTT protocol, client_cred and client_key are own certificates.
+ * For SMSNAS protocol, this API is just a stub and does nothing.
  */
-bool cc_set_auth_credentials(const auth_creds *creds);
+bool cc_set_own_auth_credentials(const uint8_t *client_cred, uint32_t cred_len,
+	const uint8_t *client_key, uint32_t key_len);
+
+/**
+ * \brief
+ * Sets remote authorization credentials which will be used to authenticate the
+ * remote side while initiating cloud communication. If required by the protocol,
+ * this must be called at least once before attempting to communicate with the
+ * cloud.
+ *
+ * \param[in] serv_cred : Pointer to a serv_cred/remote side credentials
+ * \param[in] serv_len   : Size of the serv_cred in bytes.
+ *
+ * \returns
+ *	True  : device secrets were set properly.
+ *	False : Failed to set authentication.
+ *
+ * \note
+ * This function need not be called if the protocol is implicitly authenticated
+ * to the cloud e.g. by its cellular network identity.
+ * For the OTT/MQTT protocol, serv_cred is root ca.
+ * For SMSNAS protocol, this API is just a stub and does nothing.
+ */
+bool cc_set_remote_credentials(const uint8_t *serv_cred, uint32_t serv_len);
 
 /**
  * \brief

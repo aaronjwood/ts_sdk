@@ -35,8 +35,13 @@
 		return false; \
 } while(0)
 
-#define PROTO_SET_AUTH(d_id) do { \
-        if (ott_set_auth((d_id)) != PROTO_OK) \
+#define PROTO_SET_OWN_AUTH(d_id, d_id_sz, d_sec, d_sec_sz) do { \
+        if (ott_set_own_auth((d_id), (d_id_sz), (d_sec), (d_sec_sz)) != PROTO_OK) \
+		return false; \
+} while(0)
+
+#define PROTO_SET_REMOTE_AUTH(serv_cert, cert_len) do { \
+        if (ott_set_remote_auth((serv_cert), (cert_len)) != PROTO_OK) \
 		return false; \
 } while(0)
 
@@ -123,7 +128,18 @@
         smsnas_maintenance((poll_due), (cur_ts)); \
 } while(0)
 
-#define PROTO_SET_AUTH(d_id)
+#define PROTO_SET_OWN_AUTH(d_id, d_id_sz, d_sec, d_sec_sz) do { \
+        (void)(d_id); \
+        (void)(d_id_sz); \
+        (void)(d_sec); \
+        (void)(d_sec_sz); \
+} while(0)
+
+#define PROTO_SET_REMOTE_AUTH(serv_cert, cert_len) do { \
+        (void)(serv_cert); \
+        (void)(cert_len); \
+} while(0)
+
 #define PROTO_SET_POLLING(new_value) (void)((new_value))
 
 #elif defined (MQTT_PROTOCOL)
@@ -140,8 +156,13 @@
 		return false; \
 } while(0)
 
-#define PROTO_SET_AUTH(d_id) do { \
-        if (mqtt_set_auth((d_id)) != PROTO_OK) \
+#define PROTO_SET_OWN_AUTH(d_id, d_id_sz, d_sec, d_sec_sz) do { \
+        if (mqtt_set_own_auth((d_id), (d_id_sz), (d_sec), (d_sec_sz)) != PROTO_OK) \
+		return false; \
+} while(0)
+
+#define PROTO_SET_REMOTE_AUTH(serv_cert, cert_len) do { \
+        if (mqtt_set_remote_auth((serv_cert), (cert_len)) != PROTO_OK) \
 		return false; \
 } while(0)
 

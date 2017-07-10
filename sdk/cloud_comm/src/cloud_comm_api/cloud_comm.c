@@ -162,9 +162,16 @@ bool cc_set_destination(const char *dest)
 	return true;
 }
 
-bool cc_set_auth_credentials(const auth_creds *creds)
+bool cc_set_own_auth_credentials(const uint8_t *client_cred, uint32_t cred_len,
+	const uint8_t *client_key, uint32_t key_len)
 {
-	PROTO_SET_AUTH(creds);
+	PROTO_SET_OWN_AUTH(client_cred, cred_len, client_key, key_len);
+	return true;
+}
+
+bool cc_set_remote_credentials(const uint8_t *serv_cred, uint32_t serv_len)
+{
+	PROTO_SET_REMOTE_AUTH(serv_cred, serv_len);
 	return true;
 }
 

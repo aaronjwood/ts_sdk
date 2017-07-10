@@ -164,12 +164,47 @@ static int write_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 	return nbytes;
 }
 
+static bool init_own_certs(const uint8_t *cli_cert, uint32_t cert_len,
+			const uint8_t *cli_key, uint32_t key_len)
+{
+	/* Load the client certificate */
+	if (mbedtls_x509_crt_parse_der(&cl_cert, cli_cert, cert_len) < 0) {
+		cleanup_mbedtls();
+		return false;
+	}
+
+	/* Load the client key */
+	if (mbedtls_pk_parse_key(&cl_key, cli_key, key_len, NULL, 0) != 0) {
+		cleanup_mbedtls();
+		return false;
+	}
+
+	if (mbedtls_ssl_conf_own_cert(&conf, &cl_cert, &cl_key) != 0) {
+		cleanup_mbedtls();
+		return false;
+	}
+	return true;
+}
+
+static bool init_remote_certs(const uint8_t *serv_cert, uint32_t cert_len)
+{
+	/* Load the CA root certificate */
+	if (mbedtls_x509_crt_parse_der(&cacert, serv_cert, cert_len) < 0) {
+		cleanup_mbedtls();
+		return false;
+	}
+
+	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
+	return true;
+}
+
 static void mqtt_reset_state(void)
 {
 	session.send_cb = NULL;
 	session.send_svc_id = CC_SERVICE_BASIC;
 	session.conn_valid = false;
-	session.auth_valid = false;
+	session.own_auth_valid = false;
+	session.remote_auth_valid = false;
         session.host_valid = false;
 }
 
@@ -183,6 +218,45 @@ static void mqtt_init_state(void)
 proto_result mqtt_protocol_init(void)
 {
 	mqtt_init_state();
+
+#ifdef MBEDTLS_DEBUG_C
+	mbedtls_debug_set_threshold(1);
+#endif
+
+	mbedtls_net_init(&ctx);
+	net.mqttread = read_fn;
+	net.mqttwrite = write_fn;
+
+	/* Initialize TLS structures */
+	mbedtls_ssl_init(&ssl);
+	mbedtls_ssl_config_init(&conf);
+	mbedtls_x509_crt_init(&cacert);
+	mbedtls_x509_crt_init(&cl_cert);
+	mbedtls_pk_init(&cl_key);
+	mbedtls_ctr_drbg_init(&ctr_drbg);
+
+	/* Seed the RNG */
+	mbedtls_entropy_init(&entropy);
+	if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
+			(const unsigned char *)pers, strlen(pers)) != 0) {
+		cleanup_mbedtls();
+		return false;
+	}
+
+	/* Set up the TLS structures */
+	if (mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT,
+				MBEDTLS_SSL_TRANSPORT_STREAM,
+				MBEDTLS_SSL_PRESET_DEFAULT) != 0) {
+		cleanup_mbedtls();
+		return false;
+	}
+
+	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
+	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
+
+#ifdef MBEDTLS_DEBUG_C
+	mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
+#endif
 	return PROTO_OK;
 }
 
@@ -213,7 +287,8 @@ static int mqtt_net_connect()
 		goto exit_func;
 	}
 
-	mbedtls_ssl_set_bio(&ssl, &ctx, mbedtls_net_send, mbedtls_net_recv, NULL);
+	mbedtls_ssl_set_bio(&ssl, &ctx, mbedtls_net_send,
+			mbedtls_net_recv, NULL);
 
 	/* Perform TLS handshake */
 	ret = mbedtls_ssl_handshake(&ssl);
@@ -326,91 +401,12 @@ static bool mqtt_client_and_topic_init(void)
 	return true;
 }
 
-static bool init_tls(const auth_creds *creds)
+static bool __mqtt_net_connect(bool flag, bool cred_flag)
 {
-#ifdef MBEDTLS_DEBUG_C
-	mbedtls_debug_set_threshold(3);
-#endif
-        /* Initialize TLS structures */
-	mbedtls_ssl_init(&ssl);
-	mbedtls_ssl_config_init(&conf);
-	mbedtls_x509_crt_init(&cacert);
-	mbedtls_x509_crt_init(&cl_cert);
-	mbedtls_pk_init(&cl_key);
-	mbedtls_ctr_drbg_init(&ctr_drbg);
-
-	/* Seed the RNG */
-	mbedtls_entropy_init(&entropy);
-	if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
-				(const unsigned char *)pers, strlen(pers)) != 0) {
-		cleanup_mbedtls();
-		return false;
-	}
-
-	/* Load the CA root certificate */
-	if (mbedtls_x509_crt_parse_der(&cacert, creds->serv_cert,
-					 creds->serv_cert_len) < 0) {
-		cleanup_mbedtls();
-		return false;
-	}
-
-	/* Load the client certificate */
-	if (mbedtls_x509_crt_parse_der(&cl_cert, creds->cl_cert,
-					 creds->cl_cert_len) < 0) {
-		cleanup_mbedtls();
-		return false;
-	}
-
-	/* Load the client key */
-	if (mbedtls_pk_parse_key(&cl_key, creds->cl_key, creds->cl_key_len,
-			NULL, 0) != 0) {
-		cleanup_mbedtls();
-		return false;
-	}
-
-	/* Set up the TLS structures */
-	if (mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT,
-				MBEDTLS_SSL_TRANSPORT_STREAM,
-				MBEDTLS_SSL_PRESET_DEFAULT) != 0) {
-		cleanup_mbedtls();
-		return false;
-	}
-
-	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
-	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
-
-#ifdef MBEDTLS_DEBUG_C
-	mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
-#endif
-
-	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
-	if (mbedtls_ssl_conf_own_cert(&conf, &cl_cert, &cl_key) != 0) {
-		cleanup_mbedtls();
-		return false;
-	}
-	return true;
-}
-
-static bool mqtt_net_init(const auth_creds *creds)
-{
-        mbedtls_net_init(&ctx);
-        if (!init_tls(creds))
-		return false;
-	net.mqttread = read_fn;
-	net.mqttwrite = write_fn;
-        return true;
-}
-
-static bool __mqtt_net_connect(bool flag, const auth_creds *creds)
-{
-        if (!session.conn_valid && flag) {
-                if (!mqtt_net_init(creds)) {
-                        dbg_printf("%s:%d:net init failed\n", __func__, __LINE__);
-                        return false;
-                }
+        if (!session.conn_valid && flag && cred_flag) {
 		int ret = mqtt_net_connect();
 		if (ret == -1) {
-        		dbg_printf("%s:%d:Error in SSL handshake\n",
+        		dbg_printf("%s:%d: Error in SSL handshake\n",
                                 __func__, __LINE__);
                         return false;
                 }
@@ -426,17 +422,34 @@ static bool __mqtt_net_connect(bool flag, const auth_creds *creds)
         return true;
 }
 
-proto_result mqtt_set_auth(const auth_creds *creds)
+proto_result mqtt_set_own_auth(const uint8_t *cli_cert, uint32_t cert_len,
+			const uint8_t *cli_key, uint32_t key_len)
 {
-	if (creds == NULL)
+	if ((cert_len == 0) || (key_len == 0))
 		RETURN_ERROR("credentials is null", PROTO_INV_PARAM);
-	if ((creds->serv_cert == NULL) || (creds->cl_cert == NULL) ||
-                (creds->cl_key == NULL))
-		RETURN_ERROR("certs is null", PROTO_INV_PARAM);
+	if ((cli_cert == NULL) || (cli_key == NULL))
+		RETURN_ERROR("certs are null", PROTO_INV_PARAM);
 
-	session.auth_valid = true;
-        if (!__mqtt_net_connect(session.host_valid, creds))
-                RETURN_ERROR("remote connect failed", PROTO_ERROR);
+	if (!init_own_certs(cli_cert, cert_len, cli_key, key_len))
+                RETURN_ERROR("Own certs initialization failed", PROTO_INV_PARAM);
+	session.own_auth_valid = true;
+
+	if (!__mqtt_net_connect(session.host_valid, session.remote_auth_valid))
+	                RETURN_ERROR("remote connect failed", PROTO_ERROR);
+	return PROTO_OK;
+}
+
+proto_result mqtt_set_remote_auth(const uint8_t *serv_creds, uint32_t cert_len)
+{
+	if ((serv_creds == NULL) || (cert_len == 0))
+		RETURN_ERROR("root ca not valid", PROTO_INV_PARAM);
+
+	if (!init_remote_certs(serv_creds, cert_len))
+                RETURN_ERROR("ca certs initialization failed", PROTO_INV_PARAM);
+	session.remote_auth_valid = true;
+
+	if (!__mqtt_net_connect(session.host_valid, session.own_auth_valid))
+	                RETURN_ERROR("remote connect failed", PROTO_ERROR);
 	return PROTO_OK;
 }
 
@@ -462,8 +475,11 @@ proto_result mqtt_set_destination(const char *dest)
 	strncpy(session.port, delimiter + 1, plen);
         session.port[plen] = '\0';
         session.host_valid = true;
-        //if (!__mqtt_net_connect(session.auth_valid))
-        //        RETURN_ERROR("remote connect failed", PROTO_ERROR);
+        if (!__mqtt_net_connect(session.remote_auth_valid,
+		session.own_auth_valid))
+		RETURN_ERROR("remote connect failed", PROTO_ERROR);
+	PRINTF("Remote ost is: %s\n", session.host);
+	PRINTF("Remote port is: %s\n", session.port);
 	return PROTO_OK;
 }
 
@@ -487,8 +503,8 @@ static proto_result initialize_send(const void *buf, uint32_t sz,
 	if (!session.host_valid)
 		RETURN_ERROR("mqtt_set_destination needs to be called first",
 			PROTO_ERROR);
-	if (!session.auth_valid)
-		RETURN_ERROR("mqtt_set_auth needs to be called first",
+	if (!session.remote_auth_valid || !session.own_auth_valid)
+		RETURN_ERROR("mqtt authorization APIs need to be called first",
 			PROTO_ERROR);
 	if (!session.conn_valid)
 		RETURN_ERROR("No active connection", PROTO_ERROR);
