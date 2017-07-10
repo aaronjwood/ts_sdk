@@ -1,9 +1,9 @@
 /**
- * \file sys.h
+ * \file utils.h
  *
- * \brief APIs to address platform related init and other utillities
+ * \brief Helper utility APIs, may be optional for some platforms
  *
- * \copyright Copyright (C) 2016, 2017 Verizon. All rights reserved.
+ * \copyright Copyright (C) 2017 Verizon. All rights reserved.
  *
  *
  */
@@ -19,7 +19,7 @@
  * \param[in] len:	 buffer length.
  * \param[in] interface: Optional null terminated string describing the interface
  *                       to fetch the device id, for example eth0 for raspberry
- *                       pi devices which fetches mac address for the unique
+ *                       pi devices which fetches mac address as the unique
  *                       device id.
  *
  */
