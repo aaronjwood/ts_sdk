@@ -16,35 +16,11 @@
 #include "cc_basic_service.h"
 #include "cc_control_service.h"
 #include "dbg.h"
+#include "protocol_init.h"
 
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
 CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 
-/* Enable this macro to test concatenated sms send */
-/*#define CONCAT_SMS*/
-
-#if defined (OTT_PROTOCOL)
-#define REMOTE_HOST	"iwk.ott.thingspace.verizon.com:443"
-#define STAT_SZ_BYTES	10
-#include "dev_creds.h"
-/* Certificate that is used with the OTT services */
-#include "verizon_ott_ca.h"
-
-#elif defined (SMSNAS_PROTOCOL)
-#define REMOTE_HOST	"+12345678912"
-#if defined (CONCAT_SMS)
-/* Approximate large size to send concatnated size */
-#define STAT_SZ_BYTES	500
-#define FIRST_SEG_SZ	130
-#define SEC_SEG_SZ	134
-#define THIRD_SEG_SZ	134
-#define FOURTH_SEG_SZ	(STAT_SZ_BYTES - (FIRST_SEG_SZ + SEC_SEG_SZ + THIRD_SEG_SZ))
-#else
-#define STAT_SZ_BYTES	10
-#endif
-#else
-#error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
-#endif
 
 static uint8_t status[STAT_SZ_BYTES];
 static cc_data_sz send_data_sz = sizeof(status);
@@ -70,7 +46,7 @@ static void receive_completed(cc_buffer_desc *buf)
 	dbg_printf("\t\t\t");
 	dbg_printf("Received Update Message: \n");
 	for (cc_data_sz i = 0; i < sz; i++)
-		dbg_printf("\t\t\t\t[Byte %u]: 0x%x, ", i, recvd[i]);
+		dbg_printf("\t[Byte %u]: 0x%x\n", i, recvd[i]);
 	dbg_printf("\n");
 	/*
 	 * For this example, replace the status message with
@@ -187,7 +163,6 @@ int main(int argc, char *argv[])
 	sys_init();
 	dbg_module_init();
 	dbg_printf("Begin:\n");
-
 	dbg_printf("Initializing communications module\n");
 	ASSERT(cc_init(ctrl_cb));
 
@@ -199,11 +174,11 @@ int main(int argc, char *argv[])
 	ASSERT(cc_set_destination(REMOTE_HOST));
 
 	dbg_printf("Setting device authentiation credentials\n");
-	ASSERT(cc_set_own_auth_credentials(d_ID, sizeof(d_ID),
-				d_sec, sizeof(d_sec)));
+	ASSERT(cc_set_own_auth_credentials(cl_cred, CL_CRED_SZ,
+				cl_sec_key, CL_SEC_KEY_SZ));
 
 	dbg_printf("Setting remote side authentiation credentials\n");
-	ASSERT(cc_set_remote_credentials(cacert_der, sizeof(cacert_der)));
+	ASSERT(cc_set_remote_credentials(cacert, CA_CRED_SZ));
 
 	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
 	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
