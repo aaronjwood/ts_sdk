@@ -154,7 +154,7 @@ void mqtt_maintenance(void);
  * Parameters:
  *
  */
-void mqtt_initiate_quit();
+void mqtt_initiate_quit(void);
 
 /*
  * Retrieve the binary data pointer from the received message
