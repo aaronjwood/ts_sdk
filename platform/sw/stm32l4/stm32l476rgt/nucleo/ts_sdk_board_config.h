@@ -5,8 +5,8 @@
  * \details This file sets which UART pins to use to communicate with the modem,
  * IRQ priorities and any other peripherals needed by the SDK. \n
  *
- * Target board : Nucleo-F429ZI \n
- * Target MCU   : STM32F429ZIT
+ * Target board : Nucleo-L476RG \n
+ * Target MCU   : STM32L476RGT
  */
 #ifndef TS_SDK_BOARD_CONFIG_H
 #define TS_SDK_BOARD_CONFIG_H

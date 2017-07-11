@@ -3,13 +3,17 @@
  * mappings.
  * \copyright Copyright (c) 2017 Verizon. All rights reserved.
  * \details \n
- * Target board : Nucleo-L415RGT \n
+ * Target board : Nucleo-L476RG \n
  * Target MCU   : STM32L476RGT
  */
 #ifndef BOARD_CONFIG_H
 #define BOARD_CONFIG_H
 
 /* If the MCU runs on an external clock / crystal, define its frequency */
+/* 
+ * This EXT_CLK_FREQ_HZ is irrelevant for this board (Nucleo-L476RG) because 
+ * it uses an internal RC based clock
+ */
 #define EXT_CLK_FREQ_HZ		((uint32_t)8000000)
 
 /* Pin and peripheral configuration for the debug UART */
