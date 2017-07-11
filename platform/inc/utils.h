@@ -21,7 +21,7 @@
  *                       to fetch the device id, for example eth0 for raspberry
  *                       pi devices which fetches mac address as the unique
  *                       device id.
- *
+ * \return    True if success and id contains valid value or false otherwise.
  */
 bool utils_get_device_id(char *id, uint8_t len, char *interface);
 
@@ -32,6 +32,7 @@ bool utils_get_device_id(char *id, uint8_t len, char *interface);
  * \param[in] interface: Optional null terminated string describing the interface
  *                       to fetch the device id, for example eth0 for raspberry
  *                       pi devices.
+ * \return    True if success and ipaddr contains valid value or false otherwise.
  */
 bool utils_get_ip_addr(char *ipaddr, uint8_t len, char *interface);
 
