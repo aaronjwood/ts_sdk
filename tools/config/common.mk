@@ -1,18 +1,4 @@
 # Copyright(C) 2016,2017 Verizon. All rights reserved.
-
-CHIPSET_FAMILY ?= $(CHIPSET_FAMILY)
-CHIPSET_MCU ?= $(CHIPSET_MCU)
-DEV_BOARD ?= $(DEV_BOARD)
-# Defines which modem to use. Currently only the ublox toby201 is supported.
-MODEM_TARGET ?= toby201
-
-# Defines which cloud protocol to use. Valid options are:
-# OTT_PROTOCOL
-# SMSNAS_PROTOCOL
-# NO_PROTOCOL
-# Override on the command line with: make PROTOCOL=<option>
-PROTOCOL ?= OTT_PROTOCOL
-
 # Debug and optimization flags
 # Comment this out to disable LTO and enable debug
 #LTOFLAG = -flto
