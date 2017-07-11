@@ -5,7 +5,7 @@
 # xnucleo-iks01a1 examples .By default, the Makefile assumes 'bmp180'
 # as the project This means that 'make' is equivalent to
 # 'make PROJ_NAME=bmp180'
-# 
+#
 
 ifneq (build,$(notdir $(CURDIR)))
 # If not invoked in the build directory, change to that directory and
@@ -14,11 +14,14 @@ include $(MK_HELPER_PATH)/build_in_subdir.mk
 else
 
 
-#PROJ_NAME ?= bmp180
-PROJ_NAME ?=xnucleo-iks01a1
+PROJ_NAME ?= bmp180
+#PROJ_NAME ?=xnucleo-iks01a1
 
-# Define this macro to turn off debug messages globally.
-DBG_MACRO = #-DNO_DEBUG
+# Comment out this macro if application supported sensor are connected to the board
+SIMU_SENSOR = -DSIMULATE_SENSOR
+
+# uncomment NO_DEBUG to turn off debug messages globally.
+DBG_MACRO = $(SIMU_SENSOR) #-DNO_DEBUG
 
 # Use 'vpath' to search specific directories for library and user sources
 vpath %.c $(SRCDIR)/$(PROJ_NAME): \
@@ -29,7 +32,7 @@ APP_INC = -I $(SRCDIR)/include
 
 # User application sources
 APP_SRC = $(wildcard $(SRCDIR)/*.c)
-APP_SRC += $(wildcard $(SRCDIR)/$(PROJ_NAME)/*_$(CHIPSET_FAMILY).c)
+APP_SRC += $(wildcard $(SRCDIR)/$(PROJ_NAME)/*.c)
 
 # Sources are built without debug info and optimized for size.
 # Use DBG_LIB_SRC to compile a subset of the sources with the

@@ -9,9 +9,11 @@
  */
 
 #include <stdbool.h>
+#include <string.h>
 #include "i2c_hal.h"
 
 #include "sensor_interface.h"
+#include "board_interface.h"
 #include "sys.h"
 #include "dbg.h"
 
@@ -52,6 +54,7 @@ enum sensors {
 static uint8_t hts_init1 = 0x85;
 /* ONE_SHOT bit */
 static uint8_t hts_init2 = 0x01;
+
 
 #define LSM6DS0_ADDR		0x6b
 #define LSM_XLIN_SZ		0x02
@@ -148,6 +151,9 @@ static bool init_sensors(void)
 
 bool si_init(void)
 {
+#ifdef SIMULATE_SENSOR
+	return true;
+#endif
 	/* Initialize the I2C bus on the processor */
 	i2c_handle =  i2c_init(PB8, PB9);
 
@@ -166,6 +172,12 @@ bool si_read_calib(uint8_t idx, uint16_t max_sz, array_t *data)
 	if (max_sz < HTS221_CALIB_SZ)
 		return false;
 	data->sz = HTS221_CALIB_SZ;
+
+#ifdef SIMULATE_SENSOR
+		for (uint8_t i = 0; i < data->sz; i++)
+			memcpy(data->bytes + i, &i, 1);
+		return true;
+#endif
 	i2c_dest_addr.slave = HTS221_ADDR;
 	i2c_dest_addr.reg = HTS_CALIB;
 
@@ -207,6 +219,12 @@ static bool read_hts221(uint16_t max_sz, array_t *data)
 	if (max_sz < HTS_TEMP_SZ + HTS_HUMIDITY_SZ)
 		return false;
 	data->sz = HTS_TEMP_SZ + HTS_HUMIDITY_SZ;
+
+#ifdef SIMULATE_SENSOR
+		for (uint8_t i = 0; i < data->sz; i++)
+			memcpy(data->bytes + i, &i, 1);
+		return true;
+#endif
 	EOE(read_until_matched_byte(HTS221_ADDR, HTS_STATUS_REG, 0x01, 0x01));
 	i2c_dest_addr.slave = HTS221_ADDR;
 	i2c_dest_addr.reg = HTS_TEMP_OUT_L;
@@ -230,6 +248,13 @@ static bool read_lsm6ds0(uint16_t max_sz, array_t *data)
 		return false;
 	data->sz = LSM_XLIN_SZ + LSM_YLIN_SZ + LSM_ZLIN_SZ + LSM_XA_SZ +
 		LSM_YA_SZ + LSM_ZA_SZ;
+
+#ifdef SIMULATE_SENSOR
+		for (uint8_t i = 0; i < data->sz; i++)
+			memcpy(data->bytes + i, &i, 1);
+		return true;
+#endif
+
 	i2c_dest_addr.slave = LSM6DS0_ADDR;
 	i2c_dest_addr.reg = LSM_OUT_X_XL;
 	EOE(i2c_read(i2c_handle, i2c_dest_addr, LSM_XLIN_SZ, data->bytes));
@@ -262,6 +287,13 @@ static bool read_lps25hb(uint16_t max_sz, array_t *data)
 	if (max_sz < LPS_PRES_SZ + LPS_TEMP_SZ)
 		return false;
 	data->sz = LPS_PRES_SZ + LPS_TEMP_SZ;
+
+#ifdef SIMULATE_SENSOR
+		for (uint8_t i = 0; i < data->sz; i++)
+			memcpy(data->bytes + i, &i, 1);
+		return true;
+#endif
+
 	i2c_dest_addr.slave = LPS25HB_ADDR;
 	i2c_dest_addr.reg = LPS_CTRL_REG1;
 	EOE(i2c_write(i2c_handle, i2c_dest_addr, 1 ,  &lps_action[0]));
@@ -285,6 +317,11 @@ static bool read_lis3mdl(uint16_t max_sz, array_t *data)
 	if (max_sz < LIS_DATA_SZ)
 		return false;
 	data->sz = LIS_DATA_SZ;
+#ifdef SIMULATE_SENSOR
+	for (uint8_t i = 0; i < data->sz; i++)
+		memcpy(data->bytes + i, &i, 1);
+	return true;
+#endif
 	EOE(read_until_matched_byte(LIS3MDL_ADDR, LIS_STATUS_REG, 0x04, 0x04));
 	i2c_dest_addr.slave = LIS3MDL_ADDR;
 	i2c_dest_addr.reg = 0x80 | LIS_OUT_X_L;
@@ -296,6 +333,7 @@ bool si_read_data(uint8_t idx, uint16_t max_sz, array_t *data)
 {
 	if (idx > NUM_SENSORS - 1)
 		return false;
+
 	switch (idx) {
 	case HTS221:
 		EOE(read_hts221(max_sz, data));
