@@ -25,7 +25,7 @@
 }
 
 const pin_map_t uart_tx_map[] = {
-	{PA3, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART2},
+	{PA2, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART2},
 	{PC4, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
 	{PB10, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
 	{PA9, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1},
@@ -38,7 +38,7 @@ const pin_map_t uart_tx_map[] = {
 };
 
 const pin_map_t uart_rx_map[] = {
-	{PA2, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART2},
+	{PA3, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART2},
 	{PC5, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
 	{PB11, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART3},
 	{PA10, DEFAULT_UART_PIN_CONF, AF7, (periph_t)USART1},

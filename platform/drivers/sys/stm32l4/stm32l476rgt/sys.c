@@ -49,7 +49,7 @@ static void SystemClock_Config(void)
 	RCC_OscInitTypeDef RCC_OscInitStruct;
 
 	/*
-	 * Enable HSE Oscillator and activate PLL with HSE as source.
+	 * Enable HSI Oscillator, select it as PLL source and finally activate the PLL.
 	 */
 	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
 	RCC_OscInitStruct.HSEState = RCC_HSI_ON;
