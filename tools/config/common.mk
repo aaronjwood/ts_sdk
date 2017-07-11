@@ -40,7 +40,8 @@ else ifeq ($(CHIPSET_FAMILY),stm32l4)
 include $(MK_HELPER_PATH)/stm32l4_buildenv.mk
 else ifeq ($(CHIPSET_FAMILY),osx)
 include $(MK_HELPER_PATH)/osx_buildenv.mk
-else ifeq ($(DEV_BOARD),raspberry_pi3)
+else ifeq ($(CHIPSET_FAMILY),)
+ifeq ($(DEV_BOARD),raspberry_pi3)
 include $(MK_HELPER_PATH)/raspberry_pi3_buildenv.mk
 else
 $(error "Makefile must define valid DEV_BOARD variable")
