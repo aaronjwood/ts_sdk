@@ -422,6 +422,33 @@ int mbedtls_net_set_block( mbedtls_net_context *ctx )
 #endif
 }
 
+static void sig_handler(int sig)
+{
+
+}
+
+static int set_async_io( mbedtls_net_context *ctx )
+{
+    if ( !ctx )
+        return -1;
+    struct sigaction sa;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sa.sa_handler = sig_handler;
+
+    if( sigaction(SIGIO, &sa, NULL) == -1 ) {
+        printf("%s:%d: Setting signal handler failed\n",
+                __func__, __LINE__);
+        return -1;
+    }
+    if ( fcntl(ctx->fd, F_SETOWN, getpid()) == -1 ) {
+        printf("%s:%d: fcntl failed for ownership\n", __func__, __LINE__);
+        return -1;
+    }
+    return( fcntl( ctx->fd, F_SETFL, fcntl( ctx->fd, F_GETFL )
+        | O_ASYNC | O_NONBLOCK ) );
+}
+
 int mbedtls_net_set_nonblock( mbedtls_net_context *ctx )
 {
 #if ( defined(_WIN32) || defined(_WIN32_WCE) ) && !defined(EFIX64) && \
@@ -429,7 +456,8 @@ int mbedtls_net_set_nonblock( mbedtls_net_context *ctx )
     u_long n = 1;
     return( ioctlsocket( ctx->fd, FIONBIO, &n ) );
 #else
-    return( fcntl( ctx->fd, F_SETFL, fcntl( ctx->fd, F_GETFL ) | O_NONBLOCK ) );
+
+    return( set_async_io( ctx ) );
 #endif
 }
 
