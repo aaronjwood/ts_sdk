@@ -155,7 +155,6 @@ static int write_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 		int ret = mbedtls_ssl_write(&ssl, b + nbytes, len - nbytes);
 		if (ret < 0 && ret != MBEDTLS_ERR_SSL_WANT_READ &&
 				ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-                        printf("%s:%d: ret :%d\n", __func__, __LINE__, ret);
 			mbedtls_ssl_session_reset(&ssl);
 			return -1;
 		}
@@ -206,7 +205,7 @@ static void mqtt_reset_state(void)
 	session.conn_valid = false;
 	session.own_auth_valid = false;
 	session.remote_auth_valid = false;
-        session.host_valid = false;
+	session.host_valid = false;
 }
 
 static void mqtt_init_state(void)
