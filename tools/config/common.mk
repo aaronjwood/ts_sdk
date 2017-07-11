@@ -22,6 +22,8 @@ INC += $(APP_INC)
 # Selecting platform according to CHIPSET_FAMILY
 ifeq ($(CHIPSET_FAMILY),stm32f4)
 include $(MK_HELPER_PATH)/stm32f4_buildenv.mk
+else ifeq ($(CHIPSET_FAMILY),stm32l4)
+include $(MK_HELPER_PATH)/stm32l4_buildenv.mk
 else ifeq ($(CHIPSET_FAMILY),osx)
 include $(MK_HELPER_PATH)/osx_buildenv.mk
 else ifeq ($(CHIPSET_FAMILY),)

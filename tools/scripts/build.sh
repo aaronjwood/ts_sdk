@@ -24,6 +24,12 @@ BRANCH_NAME=
 
 EXIT_CODE=
 
+if [ $CHIPSET_FAMILY = 'stm32l4' ]; then
+	CHIPSET_HAL_DIR="$PROJ_ROOT/targets/stmicro/chipset/stm32l4/chipset_hal"
+	CHIPSET_ROOT="$PROJ_ROOT/targets/stmicro/chipset/stm32l4"
+	CHIPSET_STM32L4_BRANCH="stm32l4_chipset"
+fi
+
 usage()
 {
 	cat << EOF
@@ -210,6 +216,33 @@ fi
 check_config
 check_docker_images_config
 
+checkout_chipset_hal()
+{
+	if [ $CHIPSET_FAMILY = 'stm32l4' ]; then
+		if [ ! -d $CHIPSET_HAL_DIR ]; then
+			echo "Checking out chipset halfiles, takes approx 90 seconds..."
+			BRANCH_NAME=$CHIPSET_STM32L4_BRANCH
+			cd $CHIPSET_ROOT && git clone https://github.com/verizonlabs/chipset_hal.git
+			EXIT_CODE=$?
+			error_exit "chipset_hal images clone failed" "true" $EXIT_CODE
+			
+			echo "Checking out $BRANCH_NAME branch ..."
+			cd chipset_hal && git checkout $BRANCH_NAME
+			EXIT_CODE=$?
+			error_exit "git checkout failed" "true" $EXIT_CODE
+			
+			tar -xjf STM32Cube_FW_L4_V1.8.0.tar.bz2	
+			EXIT_CODE=$?
+			error_exit "Untarring of chipset hal image is failed" "true" $EXIT_CODE
+				
+			rm STM32Cube_FW_L4_V1.8.0.tar.bz2	
+			cd $PROJ_ROOT
+		else
+			echo "chipset_hal fodler is already existing"
+		fi
+	fi
+}
+
 build_chipset_library()
 {
 	docker build -t $CHIPSET_IMAGE_NAME -f $1 $PROJ_ROOT
@@ -296,6 +329,7 @@ if [ "$1" = "chipset" ]; then
 	fi
 	shift
 	check_for_file "$1"
+	checkout_chipset_hal "$@"
 	build_chipset_library "$@"
 elif [ "$1" = "app" ]; then
 	if [ -z "$2" ]; then
