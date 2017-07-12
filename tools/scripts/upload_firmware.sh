@@ -68,7 +68,7 @@ upload_firmware_ocd()
 				-c reset -c shutdown
 	elif [ "$CHIPSET_FAMILY" == "stm32l4" ]; then
 		echo "File to upload on stm32l4 board: $FIRMWARE"
-			$UPLOADER -f $TOOLS_ROOT/stm32l4/board/st_nucleo_l476.cfg \
+			$UPLOADER -f $TOOLS_ROOT/stm32l4/board/st_nucleo_l476rg.cfg \
 				-c init -c "reset halt" \
 				-c "flash write_image erase $FIRMWARE" \
 				-c reset -c shutdown

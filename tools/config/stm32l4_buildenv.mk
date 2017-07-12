@@ -8,7 +8,7 @@
 STMSDK_HEADER_ROOT = $(CHIPSET_BUILDENV)
 
 GCC_ROOT = /ts_sdk_bldenv/toolchain/gcc-arm-none-eabi-5_4-2016q2
-STM32_LIB_COMMON = $(STMSDK_HEADER_ROOT)
+STM32_LIB_COMMON = $(STMSDK_HEADER_ROOT)/chipset_hal
 
 # Source paths
 STM32_PLIB = $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/STM32L4xx_HAL_Driver/Src
@@ -25,7 +25,7 @@ export CC OBJDUMP OBJCOPY SIZE
 ARCHFLAGS = -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
 ifeq ($(CHIPSET_MCU),stm32l476rgt)
 	MDEF = -DSTM32L476xx
-	LDSCRIPT = -T $(STM32_LIB_COMMON)/STM32L476RGTx_FLASH.ld
+	LDSCRIPT = -T $(STMSDK_HEADER_ROOT)/STM32L476RGTx_FLASH.ld
 else
 	$(error "$(CHIPSET_MCU) chipset is not supported")
 
@@ -44,6 +44,8 @@ CHIPSET_INC += -I $(GCC_ROOT)/include
 
 CHIPSET_LDFLAGS = -L /build/$(CHIPSET_FAMILY)/
 export CHIPSET_LDFLAGS
+
+FW_EXEC = firmware_$(PROTOCOL)_$(DEV_BOARD).elf
 
 # The following invokes an unused sections garbage collector
 NOSYSLIB =  -Wl,--gc-sections -Wl,--as-needed --specs=nosys.specs --specs=nano.specs
