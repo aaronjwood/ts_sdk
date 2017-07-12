@@ -53,6 +53,7 @@ Description:
 
 Example Usage:
 source $SCRIPT_NAME chipset_family=<value> mcu=<> dev_board=<> modem=<> protocol=<>
+gps_chipset=<>
 
 Short Cut Settings: This sets sdk default for chipset family, mcu, board and modem
 except transport protocol

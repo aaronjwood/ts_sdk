@@ -14,6 +14,7 @@
 #define GPS_SEND_TIMEOUT_MS     2000
 #define GPS_RCV_TIMEOUT_MS      5000
 
+typedef uint16_t buf_sz;
 static periph_t uart;
 static volatile bool received_gps_text;
 static uint8_t gps_text[GPS_RX_BUFFER_SIZE];

@@ -41,8 +41,6 @@ struct parsed_nmea_t {
 	uint8_t satellites;
 };
 
-typedef uint16_t buf_sz;
-
 /**
  * \brief Initialize the GPS module
  * \details Configure and initialize the required drivers for GPS
