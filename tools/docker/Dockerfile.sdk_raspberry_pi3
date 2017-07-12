@@ -1,4 +1,4 @@
-FROM thingservice.verizon.com:5000/dpatel/ubuntu:arm_toolchain
+FROM raspi_base:latest
 RUN mkdir -p ts_sdk
 COPY sdk /ts_sdk/sdk
 COPY platform /ts_sdk/platform

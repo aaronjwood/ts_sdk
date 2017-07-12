@@ -60,12 +60,20 @@ upload_firmware_ocd()
 {
 	if ! [ -f $FIRMWARE ]; then
 		echo "Provide valid firmware executable file"
+	elif [ "$CHIPSET_FAMILY" == "stm32f4" ]; then
+		echo "File to upload on stm32f4 board: $FIRMWARE"
+			$UPLOADER -f $TOOLS_ROOT/stm32f4/board/st_nucleo_f4.cfg \
+				-c init -c "reset halt" \
+				-c "flash write_image erase $FIRMWARE" \
+				-c reset -c shutdown
+	elif [ "$CHIPSET_FAMILY" == "stm32l4" ]; then
+		echo "File to upload on stm32l4 board: $FIRMWARE"
+			$UPLOADER -f $TOOLS_ROOT/stm32l4/board/st_nucleo_l476.cfg \
+				-c init -c "reset halt" \
+				-c "flash write_image erase $FIRMWARE" \
+				-c reset -c shutdown
 	else
-		echo "File to upload: $FIRMWARE"
-		$UPLOADER -f $TOOLS_ROOT/stm32f4/board/st_nucleo_f4.cfg \
-			-c init -c "reset halt" \
-			-c "flash write_image erase $FIRMWARE" \
-			-c reset -c shutdown
+		echo "Unsupported chipset family board"	
 	fi
 }
 

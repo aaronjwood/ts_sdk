@@ -218,7 +218,7 @@ embedded GCC toolchain. Details of this toolchain are as follows:
 
 To make the build process easier, a Docker container with the toolchain is
 provided via Dockerhub. The actual build command is issued via scripts. For
-information on how to invoke the scripts, please refer to Section 5.2.
+information on how to invoke the scripts, please refer to Section 5.3.
 
 
 5.1 Protocol specific configurations
@@ -339,10 +339,10 @@ Steps to build:
         Note: User still need to modify CC, AR and RANLIB variable in
         sdk/<sdk_name>/Makefile to point to correct toolchain
 2) tools/scripts/build.sh install_sdk <absolute path to install>
-        For OTT_PROTOCOL, it also installs mbedtls related static libraries
-        Note: This also installs platform dependent headers at <path>/platform_inc
-        for end user to provide similar APIs and variables that sdk library depends
-        on.
+	For OTT_PROTOCOL and MQTT_PROTOCOL, it also installs mbedtls related
+	static libraries Note: This also installs platform dependent headers at
+	<path>/platform_inc for end user to provide similar APIs and variables
+	that sdk library depends on.
 
 6. Creating a new user application
 -----------------------------------
@@ -372,7 +372,7 @@ detail usage.
         o DEV_BOARD      : development board
         o CHIPSET_FAMILY : micro controller family
         o CHIPSET_MCU    : micro controller or application processor
-        o PROTOCOL       : OTT_PROTOCOL, SMSNAS_PROTOCOL, NO_PROTOCOL
+        o PROTOCOL       : OTT_PROTOCOL, SMSNAS_PROTOCOL, MQTT_PROTOCOL, NO_PROTOCOL
         o MODEM_TARGET   : modem
 
 Use the following command to build the user application (assuming current
