@@ -49,6 +49,8 @@ typedef struct {
 	parity_t parity;	/**< Type of parity */
 	uint8_t stop_bits;	/**< Number of stop bits : Either '1' or '2' */
 	uint32_t priority;	/**< Interrupt priority of the UART's IRQ Handler */
+	bool hw_flow_ctrl;	/**< Hardware flow control enable/disable control parameter */
+	bool irq;		/**< IRQ enable/disable control parameter */
 } uart_config;
 
 /**

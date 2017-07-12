@@ -8,14 +8,15 @@
 #define CHECK_HANDLE(hdl, retval)	do { \
 	if ((hdl) == NO_PERIPH) \
 		return retval; \
-} while(0)
+} while (0)
 
 #define _CAT(a, ...)	a ## __VA_ARGS__
 #define CAT(a, ...)	_CAT(a, __VA_ARGS__)
 
 /*
- * Table mapping UARTs / USARTs peripherals to their IDs. The format of the table
- * is: ID, followed by the corresponding UART / USART peripheral.
+ * Table mapping UARTs / USARTs peripherals to their IDs.
+ * The format of the table is:
+ * ID, followed by the corresponding UART / USART peripheral.
  */
 #define UART_TABLE(X) \
 	X(U1, USART1) \
@@ -104,7 +105,7 @@ static bool validate_config(const uart_config *config)
 }
 
 static bool init_peripheral(periph_t hdl, const uart_config *config,
-		bool hw_flow_ctrl, pin_name_t tx, pin_name_t rx)
+				 pin_name_t tx, pin_name_t rx)
 {
 	enum uart_id uid = convert_hdl_to_id(hdl);
 
@@ -141,7 +142,7 @@ static bool init_peripheral(periph_t hdl, const uart_config *config,
 		: UART_MODE_TX_RX;
 
 	uart_stm32_handle[uid].Init.HwFlowCtl =
-		hw_flow_ctrl ? UART_HWCONTROL_RTS_CTS : UART_HWCONTROL_NONE;
+		config->hw_flow_ctrl ? UART_HWCONTROL_RTS_CTS : UART_HWCONTROL_NONE;
 
 	/*
 	 * Choose oversampling by 16 to increase tolerance of the receiver to
@@ -154,12 +155,16 @@ static bool init_peripheral(periph_t hdl, const uart_config *config,
 	/* Enable Error Interrupts: (Frame error, noise error, overrun error) */
 	SET_BIT(uart_instance->CR3, USART_CR3_EIE);
 
-	/* Enable the UART Parity Error and Data Register not empty Interrupts */
+	/* Enable the UART Parity Error
+	 * and Data Register not empty Interrupts */
 	SET_BIT(uart_instance->CR1, USART_CR1_PEIE | USART_CR1_RXNEIE);
 
-	if (rx != NC) {
-		HAL_NVIC_SetPriority(irq_vec[uid], MODEM_UART_IRQ_PRIORITY, 0);
-		HAL_NVIC_EnableIRQ(irq_vec[uid]);
+	if (config->irq) {
+		if (rx != NC) {
+			HAL_NVIC_SetPriority(irq_vec[uid],
+			 MODEM_UART_IRQ_PRIORITY, 0);
+			HAL_NVIC_EnableIRQ(irq_vec[uid]);
+		}
 	}
 	uart_usage[uid] = true;
 	return true;
@@ -204,7 +209,7 @@ static periph_t find_common_periph(const struct uart_pins *pins)
 	if (pins->x != NC) \
 		if (!pp_peripheral_pin_init(pins->x, uart_##x##_map)) \
 			return NO_PERIPH; \
-} while(0)
+} while (0)
 
 periph_t uart_init(const struct uart_pins *pins, const uart_config *config)
 {
@@ -214,9 +219,6 @@ periph_t uart_init(const struct uart_pins *pins, const uart_config *config)
 	/* Make sure at least one of RX / TX is specified */
 	if (pins->tx == NC && pins->rx == NC)
 		return NO_PERIPH;
-
-	/* Determine if hardware flow control should be enabled */
-	bool hw_fl_ctrl = pins->rts != NC && pins->cts != NC;
 
 	/* Find a common peripheral among the pins */
 	periph_t periph = find_common_periph(pins);
@@ -230,7 +232,7 @@ periph_t uart_init(const struct uart_pins *pins, const uart_config *config)
 	PIN_INIT_RET_ON_ERROR(cts);
 
 	/* Initialize the peripheral itself */
-	return init_peripheral(periph, config, hw_fl_ctrl, pins->tx, pins->rx) ?
+	return init_peripheral(periph, config, pins->tx, pins->rx) ?
 		periph : NO_PERIPH;
 }
 

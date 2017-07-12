@@ -29,6 +29,10 @@ export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 # NO_PROTOCOL
 #PROTOCOL="OTT_PROTOCOL"
 
+# Defines which GPS chip to use. Currently only neo-6m is supported
+# for CHIPSET_MCU = stm32f415rgt.
+# GPS_CHIPSET="neo-6m"
+
 usage()
 {
 	cat << EOF
@@ -81,6 +85,8 @@ Usage:  source $SCRIPT_NAME Options
 	protocol: Cloud data transport protocol. Valid values are OTT_PROTOCOL,
 	SMSNAS_PROTOCOL and NO_PROTOCOL
 
+	gps_chipset: Name of the GPS chipset. Currently only neo-6m value is supported.
+
 	Note: All the options must be present, there are no default values
 
 EOF
@@ -105,10 +111,6 @@ process_app_args()
 	
 	done
 
-         if [ -z "$GPS_CHIPSET" ]; then      
-	         export GPS_CHIPSET="neo-6m"
-                 echo "GPS CHIPSET has been set value:" $GPS_CHIPSET
-        fi
 }
 
 clear_env()
@@ -143,7 +145,6 @@ exp_sdk_defaults()
 	export CHIPSET_MCU="stm32f429zit"
 	export DEV_BOARD="nucleo"
 	export MODEM_TARGET="toby201"
-	export GPS_CHIPSET="neo-6m"
 	if ! [ -z "$1" ]; then
 		key=$(echo $1 | cut -f1 -d=)
 		value=$(echo $1 | cut -f2 -d=)
