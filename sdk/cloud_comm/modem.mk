@@ -29,8 +29,11 @@ endif
 
 # All TCP currently uses "TCP over AT commands" for TLS.
 # Provide the network abstraction module used by the TLS library.
+# Only relevant if the vendor library "mbedtls" is included.
 ifeq ($(MODEM_PROTOCOL),tcp)
+ifneq (,$(findstring mbedtls,$(VENDOR_LIB_DIRS)))
 MODEM_SRC += net_mbedtls_at.c
+endif
 endif
 
 ifeq ($(MODEM_PROTOCOL),sms)

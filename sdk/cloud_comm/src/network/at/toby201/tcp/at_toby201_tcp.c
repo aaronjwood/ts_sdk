@@ -17,6 +17,13 @@
 #include "dbg.h"
 
 /*
+ * Delay between successive commands in milisecond, datasheet recommends atleast
+ * 20mS
+ */
+#define AT_COMM_DELAY_MS	20
+#define CHECK_MODEM_DELAY	5000	/* In ms, polling for modem */
+
+/*
  * Intermediate buffer to hold data from uart buffer when disconnect string
  * is detected fully, disconnect string is from the dl mode
  */
@@ -363,7 +370,7 @@ bool at_init()
         dl.dl_buf.ridx= 0;
         dl.dis_state = DIS_IDLE;
 
-	bool res = at_core_init(at_uart_callback, urc_callback);
+	bool res = at_core_init(at_uart_callback, urc_callback, AT_COMM_DELAY_MS);
 	CHECK_SUCCESS(res, true, false);
 
         state = IDLE;

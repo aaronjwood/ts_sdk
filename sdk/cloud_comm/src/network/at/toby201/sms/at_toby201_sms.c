@@ -7,6 +7,13 @@
 #include "at_toby201_sms_command.h"
 #include "sys.h"
 
+/*
+ * Delay between successive commands in milisecond, datasheet recommends atleast
+ * 20mS
+ */
+#define AT_COMM_DELAY_MS		20
+#define CHECK_MODEM_DELAY		5000	/* In ms, polling for modem */
+
 #define MAX_TRIES_MODEM_CONFIG	3		/* Retries at configuring modem */
 #define NET_REG_TIMEOUT_SEC	180000		/* Network registration timeout */
 #define CTRL_Z			0x1A		/* Ctrl + Z character code */
@@ -196,7 +203,7 @@ bool at_init(void)
 	msg.buf = buf;
 	msg.addr = addr;
 
-	if (!at_core_init(uart_cb, urc_cb))
+	if (!at_core_init(uart_cb, urc_cb, AT_COMM_DELAY_MS))
 		return false;
 
 	at_ret_code res = at_core_modem_reset();

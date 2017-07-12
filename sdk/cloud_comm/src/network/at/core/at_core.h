@@ -24,12 +24,6 @@ typedef enum at_return_codes {
 } at_ret_code;
 
 #if defined (MODEM_TOBY201) || defined (MODEM_SQMONARCH)
-/*
- * Delay between successive commands in milisecond, datasheet recommends atleast
- * 20mS
- */
-#define AT_COMM_DELAY_MS	20
-#define CHECK_MODEM_DELAY	5000	/* in mili seconds, polling for modem */
 #endif
 
 #define MAX_RSP_LINE		2	/* Some command send response plus OK */
@@ -150,12 +144,15 @@ typedef void (*at_urc_callback)(const char *urc);
  * Parameters:
  * 	rx_cb  - A pointer to the serial data receive callback
  * 	urc_cb - A pointer to the URC handler
+ * 	d_ms   - Minimum wait time in ms between two successive AT commands
  *
  * Returns:
  * 	True  - The AT core module was successfully initialized
  * 	False - There was an error initializing the module
+ *
+ * Note: This routine must be called before all other routines in this module.
  */
-bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb);
+bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb, uint32_t d_ms);
 
 /*
  * Reset the modem.

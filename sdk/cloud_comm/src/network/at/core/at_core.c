@@ -4,11 +4,9 @@
 #include <stdio.h>
 #include "sys.h"
 #include "at_core.h"
+#include "at_modem.h"
 #include "ts_sdk_board_config.h"
 
-#if defined (MODEM_TOBY201) || defined (MODEM_SQMONARCH)
-#define MODEM_RESET_DELAY		25000 /* In milli seconds */
-#define RESET_PULSE_WIDTH_MS		3000  /* Toby-L2 data sheet Section 4.2.9 */
 #define AT_UART_TX_WAIT_MS		10000
 #define IDLE_CHARS			10
 
@@ -18,8 +16,8 @@
  * totality
  */
 #define RSP_BUF_DELAY			2000 /* In mili seconds */
-#endif
 
+static uint32_t at_comm_delay_ms;
 static const char *rsp_header = "\r\n";
 static const char *rsp_trailer = "\r\n";
 static const char *err_str = "\r\nERROR\r\n";
@@ -36,165 +34,6 @@ static volatile at_core_state state;
 static volatile bool process_rsp;
 static at_rx_callback serial_rx_callback;
 static at_urc_callback urc_callback;
-
-enum modem_core_commands {
-	MODEM_OK,	/* Simple modem check command, i.e. AT */
-	ECHO_OFF,	/* Turn off echoing AT commands given to the modem */
-	CME_CONF,	/* Change the error output format to numerical */
-	MODEM_RESET,	/* Command to reset the modem */
-	SIM_READY,	/* Check if the SIM is present */
-	EPS_REG_QUERY,	/* Query EPS registration */
-	EPS_URC_SET,	/* Set the EPS registration URC */
-#ifdef MODEM_TOBY201
-	ExPS_REG_QUERY,	/* Query extended packet switched network registration */
-	ExPS_URC_SET,	/* Set the extended packet switched network reg URC */
-#endif
-	MODEM_CORE_END	/* End-of-commands marker */
-};
-
-typedef enum at_core_urc {
-	EPS_STAT_URC,
-#ifdef MODEM_TOBY201
-	ExPS_STAT_URC,
-#endif
-	NUM_URCS
-} at_core_urc;
-
-static const char *at_urcs[NUM_URCS] = {
-	[EPS_STAT_URC] = "\r\n+CEREG: ",
-#ifdef MODEM_TOBY201
-	[ExPS_STAT_URC] = "\r\n+UREG: "
-#endif
-};
-
-static const at_command_desc modem_core[MODEM_CORE_END] = {
-        [MODEM_OK] = {
-                .comm = "at\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "at\r\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
-        [ECHO_OFF] = {
-                .comm = "ate0\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "ate0\r\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\nERROR\r\n",
-                .comm_timeout = 100
-        },
-        [CME_CONF] = {
-                .comm = "at+cmee=1\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
-        [SIM_READY] = {
-                .comm = "at+cpin?\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+CPIN: READY\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 15000
-        },
-        [EPS_REG_QUERY] = {
-                .comm = "at+cereg?\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+CEREG: 1,1\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
-        [EPS_URC_SET] = {
-                .comm = "at+cereg=1\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
-#ifdef MODEM_TOBY201
-        [ExPS_REG_QUERY] = {
-                .comm = "at+ureg?\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+UREG: 1,7\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
-        [ExPS_URC_SET] = {
-                .comm = "at+ureg=1\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
-#endif
-        [MODEM_RESET] = {
-                /*
-		 * Response will be processed in __at_modem_reset_comm
-                 * function
-                 */
-#ifdef MODEM_TOBY201
-                .comm = "at+cfun=16\r",
-#elif MODEM_SQMONARCH
-		.comm = "at^reset\r",
-#endif
-                .err = NULL,
-                .comm_timeout = 7000
-        }
-};
 
 /* Handle to the UART peripheral connecting the modem and the MCU */
 static periph_t uart;
@@ -366,7 +205,7 @@ at_ret_code at_core_wcmd(const at_command_desc *desc, bool read_line)
 	uint16_t wanted;
 	/*
 	 * Temporary wanted bytes and buffer needed when reading method is not
-	 * by the line, maximum is 3 as write prompt response is \r\n@
+	 * by the line, maximum is 3 as write prompt response is \r\n@ or \r\n>
 	 */
 	uint8_t tmp_want = 0;
 	char temp_buf[4];
@@ -493,8 +332,8 @@ done:
 	state.proc_rsp = false;
 	state.waiting_resp = false;
 
-	/* Recommeded to wait at least 20ms before proceeding */
-	sys_delay(AT_COMM_DELAY_MS);
+	/* Wait for a given amount of time before executing next command */
+	sys_delay(at_comm_delay_ms);
 
 	/* check to see if we have urcs while command was executing
 	 * if result was wrong response, chances are that we are out of sync
@@ -503,35 +342,6 @@ done:
 	at_core_cleanup();
 	DEBUG_V1("%s: result: %d\n", __func__, result);
 	return result;
-}
-
-static at_ret_code __at_process_netw_urc(const char *urc, at_core_urc u_code)
-{
-	if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) != 0)
-		return AT_FAILURE;
-
-	uint8_t last_char = strlen(at_urcs[u_code]);
-	uint8_t net_stat = urc[last_char] - '0';
-	DEBUG_V0("%s: Net stat (%u): %u\n", __func__, u_code, net_stat);
-	switch (u_code) {
-	case EPS_STAT_URC:
-		if (net_stat == 0 || net_stat == 3 || net_stat == 4)
-			DEBUG_V0("%s: EPS network reg lost\n", __func__);
-		else
-			DEBUG_V0("%s: Registered to EPS network\n", __func__);
-		break;
-#ifdef MODEM_TOBY201
-	case ExPS_STAT_URC:
-		if (net_stat == 0)
-			DEBUG_V0("%s: Extended PS network reg lost\n", __func__);
-		else
-			DEBUG_V0("%s: Registered to extended PS network\n", __func__);
-		break;
-#endif
-	default:
-		return AT_FAILURE;
-	}
-	return AT_SUCCESS;
 }
 
 void at_core_process_urc(bool mode)
@@ -550,16 +360,14 @@ void at_core_process_urc(bool mode)
 		}
 		DEBUG_V0("%s: looking to process urc: %s\n", __func__, urc);
 
-		/* Process the network URCs within the core module */
-		if (__at_process_netw_urc(urc, EPS_STAT_URC) == AT_SUCCESS)
+		/* Process the network / modem specific URCs first */
+		if (at_modem_process_urc(urc))
 			continue;
 
-#ifdef MODEM_TOBY201
-		if (__at_process_netw_urc(urc, ExPS_STAT_URC) == AT_SUCCESS)
-			continue;
-#endif
-
+		/* Process communication URCs next */
 		urc_callback(urc);
+
+		/* XXX: Unprocessed URCs arrive here */
 	}
 	if (mode)
 		state.proc_urc = false;
@@ -627,7 +435,7 @@ static at_ret_code __at_modem_reset_comm(void)
 done:
 	state.waiting_resp = false;
 	state.proc_rsp = false;
-	sys_delay(AT_COMM_DELAY_MS);
+	sys_delay(at_comm_delay_ms);
 	/* check to see if we have urcs while command was executing
 	*/
 	DEBUG_V1("%s: Processing URCS outside call back\n", __func__);
@@ -637,50 +445,16 @@ done:
 
 at_ret_code at_core_modem_reset(void)
 {
-	at_ret_code result = __at_modem_reset_comm();
-	if (result != AT_SUCCESS) {
+	//at_ret_code result = __at_modem_reset_comm();
+	//if (result != AT_SUCCESS) {
+	if (!at_modem_sw_reset()) {
 		DEBUG_V0("%s: Trying hardware reset\n", __func__);
-		sys_reset_modem(RESET_PULSE_WIDTH_MS);
+		at_modem_hw_reset();
 	}
 
-	/* sending at command right after reset command succeeds which is not
-	 * desirable, wait here for few seconds before we send at command to
-	 * poll for modem
-	 */
-	sys_delay(3000);
-	uint32_t start = sys_get_tick_ms();
-	uint32_t end;
-	result = AT_FAILURE;
-	while (result != AT_SUCCESS) {
-		end = sys_get_tick_ms();
-		if ((end - start) > MODEM_RESET_DELAY) {
-			DEBUG_V0("%s: timed out\n", __func__);
-			return result;
-		}
-		result =  at_core_wcmd(&modem_core[MODEM_OK], false);
-		sys_delay(CHECK_MODEM_DELAY);
-	}
-
-	/* Switch off TX echo */
-	result = at_core_wcmd(&modem_core[ECHO_OFF], false);
-	CHECK_SUCCESS(result, AT_SUCCESS, result);
-
-	/* Check if the SIM card is present */
-	result = at_core_wcmd(&modem_core[SIM_READY], true);
-	CHECK_SUCCESS(result, AT_SUCCESS, result);
-
-	/* Set error format to numerical */
-	result = at_core_wcmd(&modem_core[CME_CONF], true);
-	CHECK_SUCCESS(result, AT_SUCCESS, result);
-
-#ifdef MODEM_TOBY201
-	/* Enable the Extended Packet Switched network registration URC */
-	result = at_core_wcmd(&modem_core[ExPS_URC_SET], true);
-	CHECK_SUCCESS(result, AT_SUCCESS, result);
-#endif
-
-	/* Enable the EPS network registration URC */
-	result = at_core_wcmd(&modem_core[EPS_URC_SET], true);
+	at_ret_code result = AT_FAILURE;
+	if (at_modem_init())
+		result = AT_SUCCESS;
 
 	return result;
 }
@@ -716,13 +490,14 @@ static void at_core_uart_rx_callback(callback_event ev)
 	}
 }
 
-bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb)
+bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb, uint32_t d_ms)
 {
 	CHECK_NULL(rx_cb, false);
 	serial_rx_callback = rx_cb;
 	CHECK_NULL(urc_cb, false);
 	urc_callback = urc_cb;
 
+	at_comm_delay_ms = d_ms;
 	const struct uart_pins pins = {
 		.tx = MODEM_UART_TX_PIN,
 		.rx = MODEM_UART_RX_PIN,
@@ -765,15 +540,5 @@ int at_core_read(uint8_t *buf, buf_sz sz)
 
 bool at_core_query_netw_reg(void)
 {
-	at_ret_code res = at_core_wcmd(&modem_core[EPS_REG_QUERY], true);
-	if (res != AT_SUCCESS)
-		return false;
-
-#ifdef MODEM_TOBY201
-	res = at_core_wcmd(&modem_core[ExPS_REG_QUERY], true);
-	if (res != AT_SUCCESS)
-		return false;
-#endif
-
-	return true;
+	return at_modem_query_network();
 }
