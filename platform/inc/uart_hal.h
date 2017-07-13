@@ -2,8 +2,9 @@
  * \file uart_hal.h
  * \copyright Copyright (c) 2017 Verizon. All rights reserved.
  * \brief Hardware abstraction layer for UART
- * \details This header defines a platform independent API to read and write over
- * the UART port. All sending operations are blocking while data is received
+ * \details This header defines a platform independent API
+ * to read and write over the UART port. All sending operations
+ * are blocking while data is received
  * byte-by-byte via a receive callback.
  */
 #ifndef UART_HAL_H
@@ -39,8 +40,8 @@ typedef enum {
 
 /**
  * \brief Type defining the UART configuration.
- * \details Acceptable values for the following fields are hardware / implementation
- * dependent.
+ * \details Acceptable values for the following fields are
+ * hardware / implementation dependent.
  */
 typedef struct {
 	uint32_t baud;		/**< Baud rate in bits per second */
@@ -48,6 +49,8 @@ typedef struct {
 	parity_t parity;	/**< Type of parity */
 	uint8_t stop_bits;	/**< Number of stop bits : Either '1' or '2' */
 	uint32_t priority;	/**< Interrupt priority of the UART's IRQ Handler */
+	bool hw_flow_ctrl;	/**< Hardware flow control enable/disable control parameter */
+	bool irq;		/**< IRQ enable/disable control parameter */
 } uart_config;
 
 /**
@@ -60,7 +63,7 @@ typedef struct {
  * to transmit data or set a receive callback. \n
  * On initialization, IRQs are enabled by default unless uart_pins.rx is 'NC'.
  *
- * \param[in] pins Structure that contains names of the pins to use for the UART.
+ * \param[in] pins Structure that contains names of the pins to use for the UART
  * \param[in] config Defines the configuration of the UART peripheral.
  *
  * \returns Handle to UART peripheral. \ref NO_PERIPH is returned if the
@@ -97,6 +100,26 @@ void uart_set_rx_char_cb(periph_t hdl, uart_rx_char_cb cb);
  * \pre \ref uart_init must be called to retrieve a valid handle.
  */
 bool uart_tx(periph_t hdl, uint8_t *data, uint16_t size, uint16_t timeout_ms);
+
+/**
+ * \brief Receive data over the UART.
+ * \details This is a blocking receive. In case the receiver blocks the flow via
+ * hardware flow control, the call will block for at most 'timeout_ms'
+ * milliseconds.
+ *
+ * \param[in] hdl Handle of the UART peripheral to read.
+ * \param[in] data Pointer of the buffer to receive the data.
+ * \param[in] size Number of bytes in buffer to receive the data.
+ * \param[in] timeout_ms Total number of milliseconds to wait before giving up
+ * in case of a busy channel.
+ *
+ * \retval true Data was received successfully.
+ * \retval false Receive aborted due to timeout or null pointer was provided for
+ * the data.
+ *
+ * \pre \ref uart_init must be called to retrieve a valid handle.
+ */
+bool uart_rx(periph_t hdl, uint8_t *data, uint16_t size, uint16_t timeout_ms);
 
 /**
  * \brief Call the IRQ handler of the UART peripheral instance.
