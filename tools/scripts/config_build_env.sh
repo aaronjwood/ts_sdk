@@ -20,12 +20,18 @@ export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 #CHIPSET_MCU="stm32f429zit"
 #DEV_BOARD="nucleo"
 
+# Example stmicro stm32l4 chipset and development board related parameters
+#CHIPSET_FAMILY="stm32l4"
+#CHIPSET_MCU="stm32l476rgt"
+#DEV_BOARD="nucleo"
+
 # Defines which modem to use. Currently only the ublox toby201 is supported.
 #MODEM_TARGET="toby201"
 
 # Defines which cloud protocol to use. Valid options are:
 # OTT_PROTOCOL
 # SMSNAS_PROTOCOL
+# MQTT_PROTOCOL
 # NO_PROTOCOL
 #PROTOCOL="OTT_PROTOCOL"
 
@@ -81,10 +87,10 @@ Usage:  source $SCRIPT_NAME Options
 
 	dev_board: Name of the development board
 
-	modem: LTE modem target, only toby201 value supported
+	modem: LTE modem target, only "toby201" and "none" value supported
 
 	protocol: Cloud data transport protocol. Valid values are OTT_PROTOCOL,
-	SMSNAS_PROTOCOL and NO_PROTOCOL
+	SMSNAS_PROTOCOL, MQTT_PROTOCOL and NO_PROTOCOL
 
 	gps_chipset: Name of the GPS chipset. Currently only neo-6m value is supported.
 
@@ -94,8 +100,30 @@ EOF
 	return 0
 }
 
+clear_sdk_chip_env()
+{
+	unset CHIPSET_FAMILY
+	unset CHIPSET_MCU
+	unset DEV_BOARD
+	unset MODEM_TARGET
+	unset PROTOCOL
+}
+
+clear_env()
+{
+	clear_sdk_chip_env
+	unset PROJ_ROOT
+	unset PLATFORM_HAL_ROOT
+	unset SDK_ROOT
+	unset MK_HELPER_PATH
+	unset SDK_APP_ROOT
+	unset GPS_CHIPSET
+
+}
+
 process_app_args()
 {
+	clear_sdk_chip_env
 	for ARGUMENT in "$@"
 	do
 		key=$(echo $ARGUMENT | cut -f1 -d=)
@@ -111,22 +139,6 @@ process_app_args()
 		esac
 	
 	done
-
-}
-
-clear_env()
-{
-	unset CHIPSET_FAMILY
-	unset CHIPSET_MCU
-	unset DEV_BOARD
-	unset MODEM_TARGET
-	unset PROTOCOL
-	unset PROJ_ROOT
-	unset PLATFORM_HAL_ROOT
-	unset SDK_ROOT
-	unset MK_HELPER_PATH
-	unset SDK_APP_ROOT
-	unset GPS_CHIPSET
 
 }
 

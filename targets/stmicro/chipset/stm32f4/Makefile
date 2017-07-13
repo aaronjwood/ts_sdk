@@ -20,7 +20,7 @@ else ifeq ($(CHIPSET_MCU),stm32f429zit)
 	DEV_BOARD="nucleo"
 endif
 HSEVALUE= $(shell grep  "EXT_CLK_FREQ_HZ" $(CHIPSET_BUILDENV)/$(CHIPSET_MCU)/$(DEV_BOARD)/board_config.h | cut -f3 -d"	")
-CHIPSET_HSECLK = -DHSEVALUE='$(HSEVALUE)'
+CHIPSET_HSECLK = -DHSE_VALUE='$(HSEVALUE)'
 
 
 # Define this macro to turn off debug messages globally.

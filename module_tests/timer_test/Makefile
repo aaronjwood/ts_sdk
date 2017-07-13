@@ -7,6 +7,12 @@ ifneq (build,$(notdir $(CURDIR)))
 include $(MK_HELPER_PATH)/build_in_subdir.mk
 else
 
+override PROTOCOL = NO_PROTOCOL
+override MODEM_PROTOCOL = none
+override MODEM_TARGET = none
+CLOUD_COMM_SRC =
+SERVICES_SRC =
+
 # Define this macro to turn off debug messages globally.
 DBG_MACRO = #-DNO_DEBUG
 

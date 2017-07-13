@@ -37,6 +37,7 @@ vpath %.c $(PROTOCOLS_SRC_ROOT)/$(PROTOCOL_DIR):
 # OTT and MQTT require the mbed TLS library
 ifeq ($(PROTOCOL),$(filter $(PROTOCOL),OTT_PROTOCOL MQTT_PROTOCOL))
 VENDOR_INC += -I $(SDK_ROOT)/vendor/mbedtls/include
+VENDOR_INC += -DMBEDTLS_CONFIG_FILE="\"mbedtls/config_$(DEV_BOARD).h\""
 VENDOR_LIB_DIRS += mbedtls
 VENDOR_LIB_FLAGS += -L. -lmbedtls -lmbedx509 -lmbedcrypto
 endif
@@ -49,4 +50,9 @@ VENDOR_INC += -DMQTTCLIENT_PLATFORM_HEADER=paho_mqtt_port.h
 VENDOR_INC += -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTPacket/src
 VENDOR_LIB_DIRS += paho_mqtt
 VENDOR_LIB_FLAGS += -L. -lpahomqtt
+
+# add cjson dependency
+VENDOR_INC += -I $(SDK_ROOT)/vendor/cJSON/
+VENDOR_LIB_DIRS += cJSON
+VENDOR_LIB_FLAGS += -L. -lcjson
 endif

@@ -28,7 +28,7 @@ ifeq ($(CHIPSET_MCU),stm32f415rgt)
 	LDSCRIPT = -T $(STM32_LIB_COMMON)/STM32F415RGTx_FLASH.ld
 else ifeq ($(CHIPSET_MCU), stm32f429zit)
 	MDEF = -DSTM32F429xx
-	LDSCRIPT = -T $(STM32_LIB_COMMON)/STM32F429ZITx_FLASH.ld 
+	LDSCRIPT = -T $(STM32_LIB_COMMON)/STM32F429ZITx_FLASH.ld
 else
 	$(error "$(CHIPSET_MCU) chipset is not supported")
 
@@ -49,6 +49,7 @@ CHIPSET_INC += -I $(GCC_ROOT)/include
 CHIPSET_LDFLAGS = -L /build/$(CHIPSET_FAMILY)/
 export CHIPSET_LDFLAGS
 
+FW_EXEC = firmware_$(PROTOCOL)_$(DEV_BOARD).elf
+
 # The following invokes an unused sections garbage collector
 NOSYSLIB =  -Wl,--gc-sections -Wl,--as-needed --specs=nosys.specs --specs=nano.specs
-

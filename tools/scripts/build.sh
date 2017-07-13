@@ -13,6 +13,23 @@ SCRIPT="tools/scripts/$SCRIPT_NAME"
 CHIPSET_IMAGE_NAME="${CHIPSET_MCU}_buildenv"
 TS_SDK_IMAGE_NAME="ts_sdk"
 
+RASPI_BASE_IMG="raspi_base"
+RPI_IMGID=$(docker images -q $RASPI_BASE_IMG)
+RPI_BRANCH="raspberrypi3_image"
+STM_BASE_IMG="vzlabs/ubuntu"
+STM_IMGID=$(docker images -q $STM_BASE_IMG)
+ST_BRANCH="stm32f4_images"
+
+BRANCH_NAME=
+
+EXIT_CODE=
+
+if [ $CHIPSET_FAMILY = 'stm32l4' ]; then
+	CHIPSET_HAL_DIR="$PROJ_ROOT/targets/stmicro/chipset/stm32l4/chipset_hal"
+	CHIPSET_ROOT="$PROJ_ROOT/targets/stmicro/chipset/stm32l4"
+	CHIPSET_STM32L4_BRANCH="stm32l4_chipset"
+fi
+
 usage()
 {
 	cat << EOF
@@ -40,14 +57,16 @@ setup necessary build environment.
 Example Usage:
 
 To build chipset sdk:
-tools/scripts/build.sh chipset tools/docker/Dockerfile.stm32f4_dockerhub
+tools/scripts/build.sh chipset tools/docker/Dockerfile.chipset_stm32f4
 Produces output at <repo>/build/$CHIPSET_FAMILY, later application can mount this
-directory for its container.
+directory for its container and hence the chipset_env parameters should be /build/<CHIPSET_FAMILY>
+when compiling application if it depends on the chipset build environment.
 
 To build Application:
-tools/scripts/build.sh app tools/docker/Dockerfile.sdk_dockerhub \
+tools/scripts/build.sh app tools/docker/Dockerfile.sdk_stm32f \
 tools/docker/Dockerfile.apps app_dir=sensor_examples chipset_env=/build/stm32f4 PROJ_NAME=bmp180
-Where PROJ_NAME is application specific option which is optional.
+Where PROJ_NAME is application specific option which is optional, chipset_env may be
+optional as well depending on the platform or devboard used.
 
 To build Module tests (module_tests directory examples)
 tools/scripts/build.sh app tools/docker/Dockerfile.sdk_dockerhub \
@@ -69,6 +88,66 @@ EOF
 	exit 1
 }
 
+error_exit()
+{
+	if [ "$2" = "true" ]; then
+		if ! [ "$3" -eq 0 ]; then
+			echo "$1" 1>&2
+			exit 1
+		fi
+	else
+		echo "$1" 1>&2
+		exit 1
+	fi
+
+}
+
+checkout_git()
+{
+	echo "Checking out $BRANCH_NAME for the first time, this may take few minutes..#######"
+
+	if [ -d del ]; then
+		rm -rf del
+	fi
+
+	mkdir del && cd del && git clone https://github.com/verizonlabs/docker_images.git
+	EXIT_CODE=$?
+	error_exit "docker images clone failed" "true" $EXIT_CODE
+
+	cd docker_images && git checkout $BRANCH_NAME
+	docker load --input *.tar
+	EXIT_CODE=$?
+	error_exit "Loading docker image failed" "true" $EXIT_CODE
+
+	rm -rf $PROJ_ROOT/del
+	EXIT_CODE=0
+	cd $PROJ_ROOT
+}
+
+check_docker_images_config()
+{
+	BRANCH_NAME=
+	LFS_SUPPORT=$(which git-lfs)
+	if [ -z "$LFS_SUPPORT" ]; then
+		error_exit "Install github large file support, follow https://git-lfs.github.com/" "false"
+	fi
+	if [ "$DEV_BOARD" = "raspberry_pi3" ]; then
+		if [ -z "$RPI_IMGID" ]; then
+			BRANCH_NAME=$RPI_BRANCH
+		fi
+	elif [ "$DEV_BOARD" = "nucleo" ] || [ "$DEV_BOARD" = "beduin" ]; then
+		if [ -z "$STM_IMGID" ]; then
+			BRANCH_NAME=$ST_BRANCH
+		fi
+	else
+		error_exit "Select valid DEV_BOARD" "false"
+	fi
+
+	if ! [ -z "$BRANCH_NAME" ]; then
+		checkout_git
+	fi
+}
+
 check_config()
 {
 	local flag="false"
@@ -86,8 +165,7 @@ check_config()
 	fi
 
 	if [ $flag = "true" ]; then
-		echo "Run tools/scripts/config_build_env.sh help to setup environment"
-		exit 1
+		error_exit "Run tools/scripts/config_build_env.sh help to setup environment" "false"
 	fi
 
 }
@@ -136,6 +214,34 @@ if [ "$1" = "help" ] || [ -z "$1" ]; then
 fi
 
 check_config
+check_docker_images_config
+
+checkout_chipset_hal()
+{
+	if [ $CHIPSET_FAMILY = 'stm32l4' ]; then
+		if [ ! -d $CHIPSET_HAL_DIR ]; then
+			echo "Checking out chipset halfiles, takes approx 90 seconds..."
+			BRANCH_NAME=$CHIPSET_STM32L4_BRANCH
+			cd $CHIPSET_ROOT && git clone https://github.com/verizonlabs/chipset_hal.git
+			EXIT_CODE=$?
+			error_exit "chipset_hal images clone failed" "true" $EXIT_CODE
+			
+			echo "Checking out $BRANCH_NAME branch ..."
+			cd chipset_hal && git checkout $BRANCH_NAME
+			EXIT_CODE=$?
+			error_exit "git checkout failed" "true" $EXIT_CODE
+			
+			tar -xjf STM32Cube_FW_L4_V1.8.0.tar.bz2	
+			EXIT_CODE=$?
+			error_exit "Untarring of chipset hal image is failed" "true" $EXIT_CODE
+				
+			rm STM32Cube_FW_L4_V1.8.0.tar.bz2	
+			cd $PROJ_ROOT
+		else
+			echo "chipset_hal fodler is already existing"
+		fi
+	fi
+}
 
 build_chipset_library()
 {
@@ -182,11 +288,6 @@ build_app()
 		usage
 	fi
 
-	if [ -z "$CHIPSET_BUILDENV" ]; then
-		echo "Provide chipset_env parameter"
-		usage
-	fi
-
 	echo "Project root: $PROJ_ROOT"
 	echo "SDK root: $SDK_ROOT"
 	echo "Application directory to build: $APP_NAME"
@@ -229,6 +330,7 @@ if [ "$1" = "chipset" ]; then
 	fi
 	shift
 	check_for_file "$1"
+	checkout_chipset_hal "$@"
 	build_chipset_library "$@"
 elif [ "$1" = "app" ]; then
 	if [ -z "$2" ]; then

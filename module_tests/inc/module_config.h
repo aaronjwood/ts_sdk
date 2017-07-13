@@ -27,7 +27,13 @@
 /* Other module configs */
 
 /* GPIO pin connected to an LED to verify the GPIO test */
+#if defined(stm32l476rgt)
+#define GPIO_LED_PIN		PA5
+#elif defined(stm32f429zit)
 #define GPIO_LED_PIN		PB14
+#else
+#error "define valid board options from stm32l476rgt or stm32f429zit"
+#endif
 
 /* xnucleo-iks01a1 hts221 sensor registers and values */
 #define I2C_SCL                 PB8   /* I2C Serial clock pin */
