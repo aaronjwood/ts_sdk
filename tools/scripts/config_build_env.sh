@@ -107,6 +107,7 @@ clear_sdk_chip_env()
 	unset DEV_BOARD
 	unset MODEM_TARGET
 	unset PROTOCOL
+	unset GPS_CHIPSET
 }
 
 clear_env()
@@ -117,7 +118,6 @@ clear_env()
 	unset SDK_ROOT
 	unset MK_HELPER_PATH
 	unset SDK_APP_ROOT
-	unset GPS_CHIPSET
 
 }
 

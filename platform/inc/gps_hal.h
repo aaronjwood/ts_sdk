@@ -56,7 +56,7 @@ bool gps_module_init();
  * \detail Receive and parse NMEA and store the parsed
  * values in the received structure format.
  *
- * \param[in] parsedNMEA  parsed values will be stored in this.
+ * \param[out] parsedNMEA  parsed values will be stored in this.
  *
  * \retval true NMEA is received successfully.
  * \retval false NMEA is not received successfully.
