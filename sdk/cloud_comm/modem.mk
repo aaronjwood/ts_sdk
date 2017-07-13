@@ -42,6 +42,8 @@ MODEM_INC += -I $(MODEM_SRC_ROOT)/at/smscodec
 endif
 endif
 
+MODEM_SRC += at_modem.c
+
 #
 # Support for specific modems.
 #
@@ -63,4 +65,5 @@ endif
 vpath %.c  $(MODEM_SRC_ROOT): \
 	$(MODEM_SRC_ROOT)/at/core: \
 	$(MODEM_SRC_ROOT)/at/smscodec: \
-	$(MODEM_SRC_ROOT)/$(MODEM_DIR):
+	$(MODEM_SRC_ROOT)/$(MODEM_DIR): \
+	$(MODEM_SRC_ROOT)/at/$(MODEM_TARGET):
