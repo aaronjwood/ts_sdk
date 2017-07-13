@@ -459,35 +459,6 @@ static char *gps_last_NMEA(void)
 	return (char *)sentenceBuffer;
 }
 
-/**
- * \brief Wait for a perticular string in received number of NMEA
- *
- * \param[in] wait string for which its waiting
- * \param[in] max number of NMEA
- *
- * \retval true wait string was found within max NMEA
- * \retval false wait string was not found within max NMEA
- */
-bool gps_wait_for_sentence(const char *wait4me, uint8_t max)
-{
-	char str[20];
-	uint8_t i = 0;
-
-	while (i < max) {
-
-		if (gps_new_NMEA_received()) {
-			char *nmea = gps_last_NMEA();
-			strncpy(str, nmea, 20);
-			str[19] = 0;
-			i++;
-
-		if (strstr(str, wait4me))
-			return true;
-		}
-	}
-	return false;
-}
-
 bool gps_module_init()
 {
 	/* Configure UART for GPS */
@@ -557,6 +528,9 @@ bool gps_module_init()
 
 bool gps_receive(struct parsed_nmea_t *parsedNEMA)
 {
+	if (!parsedNEMA)
+		return false;
+
 	if (gps_new_NMEA_received() == true) {
 
 		/* Parse the new NMEA received
