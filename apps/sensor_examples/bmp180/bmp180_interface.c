@@ -2,7 +2,6 @@
 
 /* Sensor module for the BMP180 temperature and pressure sensor */
 #include <stdbool.h>
-#include <string.h>
 #include "i2c_hal.h"
 #include "sensor_interface.h"
 #include "board_interface.h"
@@ -56,7 +55,7 @@ bool si_read_calib(uint8_t idx, uint16_t max_sz, array_t *data)
 	data->sz = CALIB_SZ;
 #ifdef SIMULATE_SENSOR
 		for (uint8_t i = 0; i < data->sz; i++)
-			memcpy(data->bytes + i, &i, 1);
+			data->bytes[i] = i;
 		return true;
 #endif
 	i2c_dest_addr.slave = BMP180_ADDR;
@@ -92,7 +91,7 @@ bool si_read_data(uint8_t idx, uint16_t max_sz, array_t *data)
 	data->sz = PRES_SZ + TEMP_SZ;
 #ifdef SIMULATE_SENSOR
 		for (uint8_t i = 0; i < data->sz; i++)
-			memcpy(data->bytes + i, &i, 1);
+			data->bytes[i] = i;
 		return true;
 #endif
 	i2c_dest_addr.slave = BMP180_ADDR;

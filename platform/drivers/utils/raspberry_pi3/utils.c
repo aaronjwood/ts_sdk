@@ -17,7 +17,7 @@
 
 #include "dbg.h"
 
-bool utils_get_mac_addr(char *id, uint8_t len, char *interface)
+static bool utils_get_mac_addr(char *id, uint8_t len, char *interface)
 {
         uint8_t macadd[6];
         int fd;

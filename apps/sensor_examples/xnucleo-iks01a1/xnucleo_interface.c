@@ -9,7 +9,6 @@
  */
 
 #include <stdbool.h>
-#include <string.h>
 #include "i2c_hal.h"
 
 #include "sensor_interface.h"
@@ -175,7 +174,7 @@ bool si_read_calib(uint8_t idx, uint16_t max_sz, array_t *data)
 
 #ifdef SIMULATE_SENSOR
 		for (uint8_t i = 0; i < data->sz; i++)
-			memcpy(data->bytes + i, &i, 1);
+			data->bytes[i] = i;
 		return true;
 #endif
 	i2c_dest_addr.slave = HTS221_ADDR;
@@ -222,7 +221,7 @@ static bool read_hts221(uint16_t max_sz, array_t *data)
 
 #ifdef SIMULATE_SENSOR
 		for (uint8_t i = 0; i < data->sz; i++)
-			memcpy(data->bytes + i, &i, 1);
+			data->bytes[i] = i;
 		return true;
 #endif
 	EOE(read_until_matched_byte(HTS221_ADDR, HTS_STATUS_REG, 0x01, 0x01));
@@ -251,7 +250,7 @@ static bool read_lsm6ds0(uint16_t max_sz, array_t *data)
 
 #ifdef SIMULATE_SENSOR
 		for (uint8_t i = 0; i < data->sz; i++)
-			memcpy(data->bytes + i, &i, 1);
+			data->bytes[i] = i;
 		return true;
 #endif
 
@@ -290,7 +289,7 @@ static bool read_lps25hb(uint16_t max_sz, array_t *data)
 
 #ifdef SIMULATE_SENSOR
 		for (uint8_t i = 0; i < data->sz; i++)
-			memcpy(data->bytes + i, &i, 1);
+			data->bytes[i] = i;
 		return true;
 #endif
 
@@ -319,7 +318,7 @@ static bool read_lis3mdl(uint16_t max_sz, array_t *data)
 	data->sz = LIS_DATA_SZ;
 #ifdef SIMULATE_SENSOR
 	for (uint8_t i = 0; i < data->sz; i++)
-		memcpy(data->bytes + i, &i, 1);
+		data->bytes[i] = i;
 	return true;
 #endif
 	EOE(read_until_matched_byte(LIS3MDL_ADDR, LIS_STATUS_REG, 0x04, 0x04));
