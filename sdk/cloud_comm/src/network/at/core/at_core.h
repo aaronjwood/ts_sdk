@@ -306,4 +306,28 @@ bool at_core_is_proc_rsp(void);
  * 	False - The modem is not correctly registered to the network
  */
 bool at_core_query_netw_reg(void);
+
+/**
+ * \brief Retreieve the IMEI of the modem as a NULL terminated string.
+ * \details The IMEI string retrieved is guaranteed to be 16 bytes long (15
+ * digits + 1 terminating NULL byte).
+ *
+ * \param[out] imei NULL terminated string containing the IMEI of the modem.
+ *
+ * \retval true IMEI retrieved successfully
+ * \retval false IMEI retrieval failed
+ */
+bool at_core_get_imei(char *imei);
+
+/**
+ * \brief Retrieve the signal strength as a NULL terminated string.
+ * \details The string is expected to be at most 10 bytes long (9 bytes
+ * describing the signal strength + 1 terminating NULL byte).
+ *
+ * \param[out] NULL terminated string containing the signal strength.
+ *
+ * \retval true Signal strength retrieved successfully
+ * \retval false Failed to retrieve signal strength
+ */
+bool at_core_get_ss(char *ss);
 #endif /* at_core.h */

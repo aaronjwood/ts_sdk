@@ -223,6 +223,15 @@ at_ret_code at_core_wcmd(const at_command_desc *desc, bool read_line)
 	for(uint8_t i = 0; i < ARRAY_SIZE(desc->rsp_desc); i++) {
 		if (!desc->rsp_desc[i].rsp)
 			continue;
+
+		size_t comm_sz = strlen(comm);
+		size_t rsp_sz = strlen(desc->rsp_desc[i].rsp);
+		size_t exrsp_sz = rsp_sz + comm_sz;
+		char exrsp[comm_sz + rsp_sz + 1];
+		memset(exrsp, 0, comm_sz + rsp_sz + 1);
+		strncpy(exrsp, comm, comm_sz);
+		strncat(exrsp, desc->rsp_desc[i].rsp, rsp_sz);
+
 		if (read_line) {
 			read_bytes = uart_util_line_avail(rsp_header, rsp_trailer);
 			/*
@@ -252,10 +261,10 @@ at_ret_code at_core_wcmd(const at_command_desc *desc, bool read_line)
 					&timeout);
 			if (result != AT_SUCCESS)
 				break;
-			if (strncmp(temp_buf, desc->rsp_desc[i].rsp,
-						tmp_want) == 0)
+			if (strncmp(temp_buf, desc->rsp_desc[i].rsp, tmp_want) == 0)
 				wanted = strlen(desc->rsp_desc[i].rsp) - tmp_want;
-
+			else if(strncmp(temp_buf, exrsp, tmp_want) == 0)
+				wanted = exrsp_sz - tmp_want;
 			else {
 				if (strncmp(temp_buf, err_str, tmp_want) == 0)
 					wanted = strlen(err_str) - tmp_want;
@@ -302,9 +311,8 @@ at_ret_code at_core_wcmd(const at_command_desc *desc, bool read_line)
 		int rd_b = uart_util_read((uint8_t *)rsp_buf + tmp_want,
 				read_bytes - tmp_want);
 		if (rd_b == (read_bytes - tmp_want)) {
-			if (strncmp(rsp_buf, desc->rsp_desc[i].rsp,
-						strlen(desc->rsp_desc[i].rsp))
-					!= 0) {
+			if (strncmp(rsp_buf, desc->rsp_desc[i].rsp, rsp_sz) != 0
+			&& strncmp(rsp_buf, exrsp, exrsp_sz) != 0) {
 				DEBUG_V0("%s: Error rsp for command:%s\n",
 						__func__, comm);
 				result = __at_handle_error_rsp(rsp_buf,
@@ -378,6 +386,7 @@ void at_core_process_urc(bool mode)
  * setting of the echo in the modem, where if echo is on it sends
  * command plus OK or OK otherwise as a response.
  */
+#if 0
 static at_ret_code __at_modem_reset_comm(void)
 {
 	at_ret_code result = AT_FAILURE;
@@ -442,6 +451,7 @@ done:
 	at_core_cleanup();
 	return result;
 }
+#endif
 
 at_ret_code at_core_modem_reset(void)
 {

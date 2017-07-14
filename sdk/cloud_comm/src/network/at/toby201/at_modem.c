@@ -1,5 +1,7 @@
 /* Copyright (C) 2017 Verizon. All rights reserved. */
 
+#include <stdio.h>
+#include <string.h>
 #include "at_core.h"
 #include "at_modem.h"
 #include "sys.h"
@@ -8,7 +10,6 @@
  * Delay between successive commands in milisecond, datasheet recommends atleast
  * 20mS
  */
-#define AT_COMM_DELAY_MS		20
 #define MODEM_RESET_DELAY		25000	/* In milli seconds */
 #define RESET_PULSE_WIDTH_MS		3000	/* Toby-L2 data sheet Section 4.2.9 */
 #define CHECK_MODEM_DELAY		5000	/* In ms, polling for modem */
@@ -150,11 +151,14 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                 .comm_timeout = 100
         },
         [MODEM_RESET] = {
-                /*
-		 * Response will be processed in __at_modem_reset_comm
-                 * function
-                 */
                 .comm = "at+cfun=16\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
                 .err = NULL,
                 .comm_timeout = 7000
         }
@@ -167,7 +171,8 @@ void at_modem_hw_reset(void)
 
 bool at_modem_sw_reset(void)
 {
-	return false;
+	return at_core_wcmd(&modem_core[MODEM_RESET], false) == AT_SUCCESS ?
+		true : false;
 }
 
 bool at_modem_init(void)
@@ -179,7 +184,7 @@ bool at_modem_init(void)
 	sys_delay(3000);
 	uint32_t start = sys_get_tick_ms();
 	uint32_t end;
-	result = AT_FAILURE;
+	at_ret_code result = AT_FAILURE;
 	while (result != AT_SUCCESS) {
 		end = sys_get_tick_ms();
 		if ((end - start) > MODEM_RESET_DELAY) {
@@ -191,7 +196,7 @@ bool at_modem_init(void)
 	}
 
 	/* Switch off TX echo */
-	at_ret_code result = at_core_wcmd(&modem_core[ECHO_OFF], false);
+	result = at_core_wcmd(&modem_core[ECHO_OFF], false);
 	CHECK_SUCCESS(result, AT_SUCCESS, false);
 
 	/* Check if the SIM card is present */
