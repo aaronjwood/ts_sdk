@@ -5,44 +5,9 @@
 #include <stdbool.h>
 #include "utils.h"
 #include "oem_hal.h"
+#include "oem_defs.h"
 
-enum device_profile_index {
-        BBV,
-        BID,
-        DID,
-        ICCID,
-        IMEI,
-        IMSI,
-        KEV,
-        LNG,
-        LPO
-        MNF,
-        MOD,
-        CHIP,
-        NFC,
-        NLP,
-        OSV,
-        RTD,
-        SCRS,
-        SCRT,
-        SGPS,
-        TZ,
-        DEV_PROF_END
-};
-
-enum ram_profile_index {
-        AVRAM,
-        FRRAM,
-        TLRAM,
-        RAM_PROF_END
-};
-
-enum ipaddr_profile_index {
-        IP,
-        IP_PROF_END
-};
-
-oem_char_t g_chrt_device_info[DEV_PROF_END] = {
+static oem_char_t g_chrt_device_info[DEV_PROF_END] = {
         [BBV] = {
                 "BBV",
                 "Baseband Version",
@@ -145,7 +110,7 @@ oem_char_t g_chrt_device_info[DEV_PROF_END] = {
         },
 };
 
-oem_char_t g_chrt_ipaddr[IP_PROF_END] = {
+static oem_char_t g_chrt_ipaddr[IP_PROF_END] = {
         [IP] = {
                 "RU0I41",
                 "rmnet_usb0_IPV4_1",
@@ -153,7 +118,7 @@ oem_char_t g_chrt_ipaddr[IP_PROF_END] = {
         },
 };
 
-oem_char_t g_chrt_ram[RAM_PROF_END] = {
+static oem_char_t g_chrt_ram[RAM_PROF_END] = {
         [AVRAM] = {
                 "AVRAM",
                 "RAM Available",
@@ -171,7 +136,7 @@ oem_char_t g_chrt_ram[RAM_PROF_END] = {
         },
 };
 
-oem_profile_t oem_prof_data[NUM_PROF] = {
+static oem_profile_t oem_prof_data[NUM_PROF] = {
         [DEVINFO_INDEX] = {
                 "DINF",
                 "DeviceInfo",
@@ -196,9 +161,9 @@ oem_profile_t oem_prof_data[NUM_PROF] = {
 
 };
 
-int no_of_oem_profiles = (sizeof(oem_prof_data) / sizeof(oem_profile_t));
+static int no_of_oem_profiles = (sizeof(oem_prof_data) / sizeof(oem_profile_t));
 
-oem_hash_table_t oem_hash_table[OEM_HASH_BUCKET_SIZE][OEM_HASH_CHAIN_SIZE] = {0};
+static oem_hash_table_t oem_hash_table[HASH_BUCKET_SIZE][HASH_CHAIN_SIZE] = {0};
 
 
 /**
@@ -244,10 +209,10 @@ void ts_oem_insert_node_to_hash_table(int key, int16_t grp_indx, int16_t chr_ind
   if(i < OEM_HASH_CHAIN_SIZE) {
     if(chr_indx != EFAILURE) {
       if(acronym_flag)
-        oem_hash_table[key][i].oem_chr_name = oem_prof_data[grp_indx].oem_characteristic[chr_indx].oem_chr_acronym_name;
+        oem_hash_table[key][i].oem_chr_name = oem_prof_data[grp_indx].oem_char[chr_indx].oem_chr_acronym_name;
       else
         oem_hash_table[key][i].oem_chr_name =
-            oem_prof_data[grp_indx].oem_characteristic[chr_indx].oem_chr_complete_name;
+            oem_prof_data[grp_indx].oem_char[chr_indx].chr_full_name;
     } else {
       if(acronym_flag)
         oem_hash_table[key][i].oem_chr_name = oem_prof_data[grp_indx].oem_grp_acronym_name;
@@ -294,181 +259,109 @@ void ts_oem_create_hash_table_for_oem_profiles()
 
   for(i = 0; i <= IPADDR_PROFILE_INDEX; i++) {
     for(j = 0; j < oem_prof_data[i].chr_count; j++) {
-      key = ts_oem_hash_function(oem_prof_data[i].oem_characteristic[j].oem_chr_acronym_name);
+      key = ts_oem_hash_function(oem_prof_data[i].oem_char[j].oem_chr_acronym_name);
       ts_oem_insert_node_to_hash_table(key, i, j, true);
-      key = ts_oem_hash_function(oem_prof_data[i].oem_characteristic[j].oem_chr_complete_name);
+      key = ts_oem_hash_function(oem_prof_data[i].oem_char[j].chr_full_name);
       ts_oem_insert_node_to_hash_table(key, i, j, false);
     }
   }
 }
 
-static bool init_device_profile()
+static void init_device_profile(void)
 {
-  int i = 0;
-  uint8_t* value_buf = NULL;
-//  int32_t chip_set_id = 0;
-  char* start = NULL;
-  char* end = NULL;
-  int16_t time_zone = 0, kernel_version_len = 0;
-  int current_buff_size;
-#ifdef QAPI_TXM_MODULE
-  TXM_MODULE_MANAGER_VERSION_ID
-#endif
+        int i = 0;
+        uint8_t *value_buf = NULL;
+        char *start = NULL;
+        char *end = NULL;
+        int16_t time_zone = 0, kernel_version_len = 0;
+        int val_size;
+        char na[] = "N/A";
+        bool failed = false;
 
-  current_buff_size = sizeof(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value);
-  for(i = 0; i < oem_prof_data[DEVICE_PROFILE_INDEX].chr_count; i++) {
-    if(!(strcmp(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].oem_chr_complete_name, "IMEI")) ||
-        !(strcmp(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].oem_chr_complete_name, "Device ID"))) {
-      value_buf = ts_param_get_device_serial_number();
-      if(NULL != value_buf) {
-        memset(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, 0, current_buff_size);
-        memscpy(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, current_buff_size, value_buf,
-            strlen((char*)value_buf));
+        for(i = 0; i < oem_prof_data[DEVINFO_INDEX].chr_count; i++) {
+                char *char_name =
+                        oem_prof_data[DEVINFO_INDEX].oem_char[i].chr_full_name;
+                char *cur_value = oem_prof_data[DEVINFO_INDEX].oem_char[i].value;
+                val_size = sizeof(cur_value);
+                memset(cur_value, 0, val_size);
 
-      }
-    } else if(!strcmp(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].oem_chr_complete_name, "IMSI")) {
-      value_buf = ts_param_get_imsi_frm_uim();
-      if(NULL != value_buf) {
-        memset(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, 0, current_buff_size);
-        memscpy(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, current_buff_size, value_buf,
-            strlen((char*)value_buf));
+                if (!(strcmp(char_name, "IMEI")) ||
+                !(strcmp(char_name, "Device ID")) ||
+                !(strcmp(char_name, "IMSI"))) {
+                        if (!utils_get_device_id(cur_value, val_size, NET_INTFC))
+                                failed = true;
+                } else if (!strcmp(char_name, "OS Version")) {
+                        if (!utils_get_os_version(cur_value, val_size))
+                                failed = true;
+                } else if (!strcmp(char_name, "Manufacturer")) {
+                        if (!utils_get_manufacturer(cur_value, val_size))
+                                failed = true;
+                } else if (!strcmp(char_name, "Model")) {
+                        if (!utils_get_dev_model(cur_value, val_size))
+                                failed = true;
+                } else if (!strcmp(char_name, "ICCID")) {
+                        if (!utils_get_iccid(cur_value, val_size))
+                                failed = true;
+                } else if (!strcmp(char_name, "Time Zone")) {
+                        if (!utils_get_time_zone(cur_value, val_size))
+                                failed = true;
+                } else if (!strcmp(char_name, "Last Power On")) {
+                        if (!utils_get_uptime(cur_value, val_size))
+                                failed = true;
+                } else if (!strcmp(char_name, "Chipset")) {
+                        if (!utils_get_chipset(cur_value, val_size))
+                                failed = true;
+                } else if (!strcmp(char_name, "Kernel Version") ||
+                        !strcmp(char_name, "Build ID")) {
+                        if (!utils_get_kernel_version(cur_value, val_size))
+                                failed = true;
+                } else
+                        strncpy(cur_value, na, strlen(na));
 
-      }
-    } else if(!strcmp(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].oem_chr_complete_name, "Build ID")) {
-      value_buf = ts_param_get_device_modem_build_id();
-      if(NULL != value_buf) {
-        memset(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, 0, current_buff_size);
-        memscpy(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, current_buff_size, value_buf,
-            strlen((char*)value_buf));
-
-      }
-    } else if(!strcmp(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].oem_chr_complete_name, "OS Version")) {
-      value_buf = ts_param_get_device_sw_version();
-      if(NULL != value_buf) {
-        memset(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, 0, current_buff_size);
-        memscpy(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, current_buff_size, value_buf,
-            strlen((char*)value_buf));
-
-      }
-    } else if(!strcmp(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].oem_chr_complete_name, "Manufacturer")) {
-      value_buf = ts_param_get_device_manufacturer();
-      if(NULL != value_buf) {
-        memset(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, 0, current_buff_size);
-        memscpy(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, current_buff_size, value_buf,
-            strlen((char*)value_buf));
-
-      }
-    } else if(!strcmp(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].oem_chr_complete_name, "Model")) {
-      value_buf = ts_param_get_device_model_number();
-      if(NULL != value_buf) {
-        memset(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, 0, current_buff_size);
-        memscpy(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, current_buff_size, value_buf,
-            strlen((char*)value_buf));
-
-      }
-    } else if(!strcmp(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].oem_chr_complete_name, "ICCID")) {
-      value_buf = ts_param_get_iccid_frm_physical_slot();
-      if(NULL != value_buf) {
-        memset(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, 0, current_buff_size);
-        memscpy(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, current_buff_size, value_buf,
-            strlen((char*)value_buf));
-
-      }
-    } else if(!strcmp(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].oem_chr_complete_name, "Time Zone")) {
-      time_zone = ts_param_nas_get_network_time();
-	  if(time_zone != EFAILURE){
-      TS_LOG_INFO("Thingspace : Time zone from NAS :%d hr :%d  min :%d\n", time_zone,time_zone/60,time_zone%60);
-
-	  if(time_zone > 0)
-      snprintf(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, current_buff_size, "-%02d:%02d",
-          (time_zone / 60), (time_zone < 0? (-1 * (time_zone%60)):(time_zone%60)));
-	   else
-      snprintf(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, current_buff_size, "%02d:%02d",
-          (time_zone / 60), (time_zone < 0? (-1 * (time_zone%60)):(time_zone%60)));
-	  }
-   }
-
-   else if(!strcmp(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].oem_chr_complete_name, "Last Power On" ) ) {
-      value_buf = ts_param_get_last_power_on_time();
-      if (NULL != value_buf) {
-        memset(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, 0, current_buff_size);
-        memscpy(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, current_buff_size, value_buf,
-            strlen((char*)value_buf));
-      }
-	  }
-
-    else if(!strcmp(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].oem_chr_complete_name, "Chipset")) {
-	  value_buf = ts_param_get_device_chip_id();
-      if(NULL != value_buf) {
-      strlcpy(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value, (const char *)value_buf,
-        sizeof(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[i].current_value));
-     }
-	}
-
-  }
-  memset(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[6].current_value, 0, current_buff_size);
-#ifdef QAPI_TXM_MODULE
-   start = strstr(_txm_module_manager_version_id, "*");
-#else
-   start = strstr(_tx_version_id, "*") ;
-#endif
-    if(start != NULL)
-    {
-      end = strstr((start + 1), "*");
-      if(end != NULL) {
-        kernel_version_len = end - start;
-        memscpy(oem_prof_data[DEVICE_PROFILE_INDEX].oem_characteristic[6].current_value, current_buff_size, (start + 1),
-            (kernel_version_len - 1));
-      }
-    }
+                if (failed) {
+                        strncpy(cur_value, na, strlen(na));
+                        failed = false;
+                }
+        } /* For loop ends */
 }
 
-static bool init_ram_profile()
+static void init_ram_profile(void)
 {
 
         uint32_t free_ram = 0;
         uint32_t avail_ram = 0;
         if (!utils_get_ram_info(&free_ram, &avail_ram))
-                return false;
+                return;
 
-        size_t val_sz = sizeof(oem_prof_data[RAM_INDEX].oem_char[0].value);
+        size_t val_sz = sizeof(oem_prof_data[RAM_INDEX].oem_char[AVRAM].value);
 
-        memset(oem_prof_data[RAM_INDEX].oem_char[0].value, 0, val_sz);
-        snprintf(oem_prof_data[RAM_INDEX].oem_char[0].value, val_sz,
+        memset(oem_prof_data[RAM_INDEX].oem_char[AVRAM].value, 0, val_sz);
+        snprintf(oem_prof_data[RAM_INDEX].oem_char[AVRAM].value, val_sz,
                 "%u", avail_ram);
 
-        val_sz = sizeof(oem_prof_data[RAM_INDEX].oem_char[1].value);
-        memset(oem_prof_data[RAM_INDEX].oem_char[1].value, 0, val_sz);
+        val_sz = sizeof(oem_prof_data[RAM_INDEX].oem_char[FRRAM].value);
+        memset(oem_prof_data[RAM_INDEX].oem_char[FRRAM].value, 0, val_sz);
 
-        snprintf(oem_prof_data[RAM_INDEX].oem_char[1].value, val_sz,
+        snprintf(oem_prof_data[RAM_INDEX].oem_char[FRRAM].value, val_sz,
                 "%u", free_ram);
 
-        val_sz = sizeof(oem_prof_data[RAM_INDEX].oem_char[2].value);
+        val_sz = sizeof(oem_prof_data[RAM_INDEX].oem_char[TLRAM].value);
 
-        memset(oem_prof_data[RAM_INDEX].oem_char[2].value, 0, val_sz);
+        memset(oem_prof_data[RAM_INDEX].oem_char[TLRAM].value, 0, val_sz);
 
-        snprintf(oem_prof_data[RAM_INDEX].oem_char[2].value, val_sz,
+        snprintf(oem_prof_data[RAM_INDEX].oem_char[TLRAM].value, val_sz,
                 "%u", free_ram + avail_ram);
-        return true;
-
 }
 
-static bool init_ipaddr_profile()
+static void init_ipaddr_profile()
 {
-        char ipaddr[IP_BUF_SIZE] = { 0 };
-        int ipcount = 0;
-        size_t val_sz = 0;
-
-        val_sz = sizeof(oem_prof_data[IPADDR_INDEX].oem_char[0].value);
-
-        if !(utils_get_ip_addr(ipaddr, IP_BUF_SIZE, "eth0"))
-                return false;
-
-        char *value = oem_prof_data[IPADDR_INDEX].oem_char[0].value;
-        memset(oem_prof_data[IPADDR_INDEX].oem_char[0].value, 0, val_sz);
-        memcpy(oem_prof_data[IPADDR_INDEX].oem_char[0].value, val_sz,
-                ipaddr, strlen(ipaddr));
-        return true;
+        int val_sz = sizeof(oem_prof_data[IPADDR_INDEX].oem_char[IP].value);
+        memset(oem_prof_data[IPADDR_INDEX].oem_char[IP].value, 0, val_sz);
+        if !(utils_get_ip_addr(oem_prof_data[IPADDR_INDEX].oem_char[IP].value,
+                val_sz, NET_INTFC)) {
+                strncpy(oem_prof_data[IPADDR_INDEX].oem_char[IP].value, "N/A",
+                        strlen("N/A"));
+        }
 }
 
 void ts_oem_update_profiles_info(int16_t grp_indx)
@@ -487,12 +380,9 @@ void ts_oem_update_profiles_info(int16_t grp_indx)
   }
 }
 
-bool oem_init()
+void oem_init(void)
 {
-        /* Initialize device profile characteristics */
         init_device_profile();
-        /* Initialize the ram profile characateristics */
         init_ram_profile();
-        /* Initialize the IPADDR profile characteristics */
         init_ipaddr_profile();
 }

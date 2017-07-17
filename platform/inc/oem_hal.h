@@ -11,15 +11,7 @@
 #ifndef __OEM_HAL
 #define __OEM_HAL
 
-
-#define MAX_MCC_SIZE  3
-#define MAX_MNC_SIZE  2
-
-#define OEM_HASH_BUCKET_SIZE  128
-#define OEM_HASH_CHAIN_SIZE   5
 #define MAX_BUF_SIZE  100
-#define IP_BUF_SIZE   18
-
 
 typedef void (*oem_update_profile)(void);
 
@@ -70,7 +62,7 @@ void ts_oem_insert_node_to_hash_table(int key, int16_t grp_indx, int16_t chr_ind
 #include <stdint.h>
 
  /**
-  * \brief       Initializes oem profiles
+  * \brief       Initializes oem profiles.
   */
 void oem_init(void);
 
@@ -105,10 +97,6 @@ uint32_t sys_sleep_ms(uint32_t sleep_ms);
  */
 void sys_reset_modem(uint16_t pulse_width_ms);
 
-/**
- * \brief	data synchronous barrier
- */
-void dsb(void);
 
 #endif
 
