@@ -48,7 +48,7 @@ bool si_init(void)
 
 bool si_read_calib(uint8_t idx, uint16_t max_sz, array_t *data)
 {
-	if (!data)
+	if (!data || !data->bytes)
 		return false;
 	if (idx > NUM_SENSORS - 1)
 		return false;
@@ -85,7 +85,7 @@ bool si_read_data(uint8_t idx, uint16_t max_sz, array_t *data)
 {
 	if (idx > NUM_SENSORS - 1)
 		return false;
-	if (!data)
+	if (!data || !data->bytes)
 		return false;
 	/* Read temperature and pressure off the BMP180 sensor */
 	uint8_t temp_cmd = TEMP_CTL;

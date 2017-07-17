@@ -80,7 +80,7 @@ static void basic_service_cb(cc_event event, uint32_t value, void *ptr)
 	else if (event == CC_EVT_RCVD_OVERFLOW)
 		handle_buf_overflow();
 	else if (event == CC_EVT_RCVD_WRONG_MSG)
-		dbg_printf("\t\t\tWrong message recieved\n");
+		dbg_printf("\t\t\tWrong message received\n");
 	else
 		dbg_printf("\t\t\tUnexpected event received: %d\n", event);
 }

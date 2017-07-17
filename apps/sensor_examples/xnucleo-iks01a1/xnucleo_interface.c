@@ -170,7 +170,7 @@ bool si_read_calib(uint8_t idx, uint16_t max_sz, array_t *data)
 		return false;
 	if (max_sz < HTS221_CALIB_SZ)
 		return false;
-	if (!data)
+	if (!data || !data->bytes)
 		return false;
 	data->sz = HTS221_CALIB_SZ;
 
@@ -217,7 +217,7 @@ static bool read_until_matched_byte(uint8_t dev, uint8_t reg,
 
 static bool read_hts221(uint16_t max_sz, array_t *data)
 {
-	if (!data)
+	if (!data || !data->bytes)
 		return false;
 	if (max_sz < HTS_TEMP_SZ + HTS_HUMIDITY_SZ)
 		return false;
@@ -253,9 +253,9 @@ static bool read_lsm6ds0(uint16_t max_sz, array_t *data)
 		LSM_YA_SZ + LSM_ZA_SZ;
 
 #ifdef SIMULATE_SENSOR
-		for (uint8_t i = 0; i < data->sz; i++)
-			data->bytes[i] = i;
-		return true;
+	for (uint8_t i = 0; i < data->sz; i++)
+		data->bytes[i] = i;
+	return true;
 #endif
 
 	i2c_dest_addr.slave = LSM6DS0_ADDR;
@@ -292,9 +292,9 @@ static bool read_lps25hb(uint16_t max_sz, array_t *data)
 	data->sz = LPS_PRES_SZ + LPS_TEMP_SZ;
 
 #ifdef SIMULATE_SENSOR
-		for (uint8_t i = 0; i < data->sz; i++)
-			data->bytes[i] = i;
-		return true;
+	for (uint8_t i = 0; i < data->sz; i++)
+		data->bytes[i] = i;
+	return true;
 #endif
 
 	i2c_dest_addr.slave = LPS25HB_ADDR;
@@ -334,7 +334,7 @@ static bool read_lis3mdl(uint16_t max_sz, array_t *data)
 
 bool si_read_data(uint8_t idx, uint16_t max_sz, array_t *data)
 {
-	if (!data)
+	if (!data || !data->bytes)
 		return false;
 	if (idx > NUM_SENSORS - 1)
 		return false;
