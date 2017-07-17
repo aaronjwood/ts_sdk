@@ -52,7 +52,7 @@ static bool tim5_init(uint32_t period, uint32_t priority, uint32_t base_freq,
 	CHECK_RET_AND_TYPECAST(data, false);
 	__HAL_RCC_TIM5_CLK_ENABLE();
 	tm->timer_handle->Instance = TIM5;
-	tm->timer_handle->Init.Prescaler = (SystemCoreClock / 2 / base_freq)\
+	tm->timer_handle->Init.Prescaler = (SystemCoreClock / base_freq)\
 	 - 1;
 	tm->timer_handle->Init.CounterMode = TIM_COUNTERMODE_UP;
 	/* It will not start until first call to sys_sleep function */
@@ -72,7 +72,7 @@ static bool tim2_init(uint32_t period, uint32_t priority, uint32_t base_freq,
 	CHECK_RET_AND_TYPECAST(data, false);
 	__HAL_RCC_TIM2_CLK_ENABLE();
 	tm->timer_handle->Instance = TIM2;
-	tm->timer_handle->Init.Prescaler = (SystemCoreClock / 2 / base_freq)\
+	tm->timer_handle->Init.Prescaler = (SystemCoreClock / base_freq)\
 	 - 1;
 	tm->timer_handle->Init.CounterMode = TIM_COUNTERMODE_UP;
 	tm->timer_handle->Init.Period = period;
