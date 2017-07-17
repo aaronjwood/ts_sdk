@@ -5,15 +5,51 @@
 #ifndef TS_SDK_MODEM_CONFIG_H
 #define TS_SDK_MODEM_CONFIG_H
 
-/*
- * Only the CAT-M SIM card is allowed on this modem
- */
-#define CAT_M			0
+#if defined (STM32F429xx)	/* XXX: Delete later */
+#ifdef nucleo
+/* Pin and peripheral configuration for UART connecting modem and MCU */
+#define MODEM_UART_TX_PIN	PD5
+#define MODEM_UART_RX_PIN	PD6
+#define MODEM_UART_RTS_PIN	NC
+#define MODEM_UART_CTS_PIN	NC
+#define MODEM_HW_RESET_PIN	PD2
+#define MODEM_HW_PWREN_PIN	PD2
+#define MODEM_UART_BAUD_RATE	115200
+#define MODEM_UART_DATA_WIDTH	8
+#define MODEM_UART_PARITY	NONE
+#define MODEM_UART_STOP_BITS	1
 
-/*
- * The SIM_TYPE macro can be used to specialize the configuration for a given
- * scenario.
- */
-#define SIM_TYPE		CAT_M
+/* UART and timer IRQ priorities - UART must have higher priority than timer */
+#define MODEM_UART_IRQ_PRIORITY	5
+#define IDL_TIM_IRQ_PRIORITY	6
 
-#endif
+/* Timer ID */
+#define MODEM_UART_IDLE_TIMER	TIMER2
+#endif	/* BOARD */
+
+#elif defined (STM32L476xx)
+#ifdef nucleo
+/* Pin and peripheral configuration for UART connecting modem and MCU */
+#define MODEM_UART_TX_PIN	PD5
+#define MODEM_UART_RX_PIN	PD6
+#define MODEM_UART_RTS_PIN	NC
+#define MODEM_UART_CTS_PIN	NC
+#define MODEM_HW_RESET_PIN	PD2
+#define MODEM_HW_PWREN_PIN	PD2
+#define MODEM_UART_BAUD_RATE	115200
+#define MODEM_UART_DATA_WIDTH	8
+#define MODEM_UART_PARITY	NONE
+#define MODEM_UART_STOP_BITS	1
+
+/* UART and timer IRQ priorities - UART must have higher priority than timer */
+#define MODEM_UART_IRQ_PRIORITY	5
+#define IDL_TIM_IRQ_PRIORITY	6
+
+/* Timer ID */
+#define MODEM_UART_IDLE_TIMER	TIMER2
+#endif	/* BOARD */
+
+#else
+#error "Must specify chipset and board"
+#endif	/* MCU */
+#endif	/* TS_SDK_MODEM_CONFIG */

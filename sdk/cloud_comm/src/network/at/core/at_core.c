@@ -5,7 +5,7 @@
 #include "sys.h"
 #include "at_core.h"
 #include "at_modem.h"
-#include "ts_sdk_board_config.h"
+#include "ts_sdk_modem_config.h"
 
 #define AT_UART_TX_WAIT_MS		10000
 #define IDLE_CHARS			10
