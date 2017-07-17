@@ -102,6 +102,20 @@ int at_tcp_recv(int s_id, uint8_t *buf, size_t len);
  */
 void at_tcp_close(int s_id);
 
+/**
+ * \brief Retrieve the IP address associated with the modem.
+ * \details If the modem is not connected to the data network, the buffer will
+ * contain only the NULL character. The IP string is guaranteed to contain at
+ * most 15 bytes for the IP address and 1 byte for the terminating NULL character.
+ *
+ * \param[out] ip Pointer to a NULL character buffer to hold the retrieved IP
+ * address. Must be at least 16 bytes long.
+ *
+ * \retval true IP address was successfully retrieved
+ * \retval false Failed to retrieve the IP address
+ */
+bool at_tcp_get_ip(char *ip);
+
 #ifdef __cplusplus
 }
 #endif

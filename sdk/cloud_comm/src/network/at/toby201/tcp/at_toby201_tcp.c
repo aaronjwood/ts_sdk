@@ -841,3 +841,11 @@ void at_tcp_close(int s_id)
 	__at_reset_dl_state();
 	return;
 }
+
+bool at_tcp_get_ip(char *ip)
+{
+	if (ip == NULL)
+		return false;
+	/* TODO: Retrieve IP address using AT+CGPADDR */
+	return true;
+}

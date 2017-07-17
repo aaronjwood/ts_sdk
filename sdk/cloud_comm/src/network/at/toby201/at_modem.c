@@ -11,6 +11,8 @@
 #define MODEM_RESET_DELAY		25000	/* In milli seconds */
 #define RESET_PULSE_WIDTH_MS		3000	/* Toby-L2 data sheet Section 4.2.9 */
 #define CHECK_MODEM_DELAY		5000	/* In ms, polling for modem */
+#define IMEI_LEN			16	/* IMEI length + NULL */
+#define SIG_STR_LEN			11	/* Signal strength length + NULL */
 
 enum modem_core_commands {
 	MODEM_OK,	/* Simple modem check command, i.e. AT */
@@ -22,6 +24,8 @@ enum modem_core_commands {
 	EPS_URC_SET,	/* Set the EPS registration URC */
 	ExPS_REG_QUERY,	/* Query extended packet switched network registration */
 	ExPS_URC_SET,	/* Set the extended packet switched network reg URC */
+	IMEI_QUERY,	/* Query the IMEI of the modem */
+	SIG_STR_QUERY,	/* Query the signal strength */
 	MODEM_CORE_END	/* End-of-commands marker */
 };
 
@@ -35,6 +39,9 @@ static const char *at_urcs[NUM_URCS] = {
 	[EPS_STAT_URC] = "\r\n+CEREG: ",
 	[ExPS_STAT_URC] = "\r\n+UREG: "
 };
+
+static char modem_imei[IMEI_LEN - 1];		/* Store the IMEI */
+static uint8_t sig_str;				/* Store numerical signal strength */
 
 static const at_command_desc modem_core[MODEM_CORE_END] = {
         [MODEM_OK] = {
@@ -159,7 +166,41 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
 		},
                 .err = NULL,
                 .comm_timeout = 7000
-        }
+        },
+	[IMEI_QUERY] = {
+		.comm = "at+cgsn\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n",
+				.rsp_handler = parse_imei,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = NULL,
+		.comm_timeout = 100
+	},
+	[SIG_STR_QUERY] = {
+		.comm = "at+csq\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n+CSQ: ",
+				.rsp_handler = parse_sig_str,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = NULL,
+		.comm_timeout = 100
+	}
 };
 
 void at_modem_hw_reset(void)
@@ -276,4 +317,53 @@ bool at_modem_init(void)
 		return true;
 	}
 	return false;
+}
+
+bool at_modem_get_imei(char *imei)
+{
+	if (imei == NULL)
+		return false;
+	memset(imei, 0, IMEI_LEN);
+
+	if (at_core_wcmd(&modem_core[IMEI_QUERY], true) != AT_SUCCESS)
+		return false;
+
+	for (uint8_t i = 0; i < IMEI_LEN - 1; i++) {
+		if (modem_imei[i] < '0' || modem_imei[i] > '9')
+			return false;
+		imei[i] = modem_imei[i];
+	}
+	imei[IMEI_LEN] = 0x00;
+
+	return true;
+}
+
+static bool decode_sig_str(uint8_t sig_str, char *ss)
+{
+	if (sig_str > 99 || (sig_str > 31 && sig_str < 99))
+		return false;
+
+	if (sig_str == 0)
+		strcpy(ss, "<=-113 dBm");
+	else if (sig_str == 99)
+		strcpy(ss, "SIGUNKWN");
+	else if (sig_str == 31)
+		strcpy(ss, ">=-51 dBm");
+	else
+		snprintf(ss, SIG_STR_LEN - 1, "%d dBm", -113 + sig_str * 2);
+	return true;
+}
+
+bool at_modem_get_ss(char *ss)
+{
+	if (ss == NULL)
+		return false;
+	memset(ss, 0, SIG_STR_LEN);
+
+	if (at_core_wcmd(&modem_core[SIG_STR_QUERY], true) != AT_SUCCESS)
+		return false;
+
+	if (!decode_sig_str(sig_str, ss))
+		return false;
+	return true;
 }

@@ -458,6 +458,15 @@ bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb, uint32_t d_ms)
 	uart_util_reg_callback(at_core_uart_rx_callback);
 	process_rsp = false;
 	at_core_clear_rx();
+
+	char imei[16];
+	res = at_modem_get_imei(imei);
+	DEBUG_V0("IMEI:%s\n", res ? imei : "failed");
+
+	char sig_str[11];
+	res = at_modem_get_ss(sig_str);
+	DEBUG_V0("SIGSTR:%s\n", res ? sig_str : "failed");
+
 	return at_modem_init();
 }
 

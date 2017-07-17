@@ -54,4 +54,31 @@ bool at_modem_query_network(void);
  */
 bool at_modem_process_urc(const char *urc);
 
+/**
+ * \brief Retreieve the IMEI of the modem as a NULL terminated string.
+ * \details The IMEI string retrieved is guaranteed to be 16 bytes long (15
+ * digits + 1 terminating NULL byte). For example: "123456789012345"
+ *
+ * \param[out] imei Pointer to NULL character buffer to hold the retrieved IMEI.
+ * Must be at least 16 bytes long.
+ *
+ * \retval true IMEI retrieved successfully
+ * \retval false IMEI retrieval failed
+ */
+bool at_modem_get_imei(char *imei);
+
+/**
+ * \brief Retrieve the signal strength as a NULL terminated string.
+ * \details The string is expected to be at most 11 bytes long (10 bytes
+ * describing the signal strength + 1 terminating NULL byte). For example:
+ * "<=-113 dBm"
+ *
+ * \param[out] ss Pointer to a NULL character buffer to hold the retrieved signal
+ * strength. Must be at least 11 bytes long. If signal strength is unknown,
+ * "SIGUNKWN" is returned.
+ *
+ * \retval true Signal strength retrieved successfully
+ * \retval false Failed to retrieve signal strength
+ */
+bool at_modem_get_ss(char *ss);
 #endif

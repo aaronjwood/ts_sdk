@@ -18,12 +18,13 @@
 
 static void at_uart_callback(void)
 {
-	/* Code */
+	if (!at_core_is_proc_urc() && !at_core_is_proc_urc())
+		at_core_process_urc(false);
 }
 
 static void urc_callback(const char *urc)
 {
-	/* Code */
+	/* TODO: Process all communications URC */
 }
 
 bool at_init()
@@ -38,21 +39,16 @@ bool at_init()
 	}
 
 	/*
-	 * TODO: Configure modem
+	 * TODO: Configure and activate the PDP context
+	 * TODO: Configure the TCP context
 	 */
 
-	/*
-	 * TODO: Ensure modem is connected and registered to the network
-	 */
 	return true;
 }
 
 int at_tcp_connect(const char *host, const char *port)
 {
-	/*
-	 * TODO: Configure contexts using AT+SQNSCFG and AT+SQNSCFGEXT and then
-	 * dial into the server using AT+SQNSD.
-	 */
+	/* TODO: Dial into the server using AT+SQNSD */
 	return 0;
 }
 
