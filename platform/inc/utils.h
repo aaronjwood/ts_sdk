@@ -15,7 +15,7 @@
 
 /**
  * \brief	Retrieves unique device id i.e. mac address/ imei etc...
- * \param[in] id:	 valid buffer to store retrieved id.
+ * \param[out] id:	 valid buffer to store retrieved id.
  * \param[in] len:	 buffer length.
  * \param[in] interface: Optional null terminated string describing the interface
  *                       to fetch the device id, for example eth0 for raspberry
@@ -23,17 +23,17 @@
  *                       device id.
  * \return    True if success and id contains valid value or false otherwise.
  */
-bool utils_get_device_id(char *id, uint8_t len, char *interface);
+bool utils_get_device_id(char *id, uint8_t len, const char *interface);
 
 /**
  * \brief	Retrieves ip address
- * \param[in] ipaddr:	valid buffer to store retrieved id.
+ * \param[out] ipaddr:	valid buffer to store retrieved id.
  * \param[in] len:	buffer length.
  * \param[in] interface: Optional null terminated string describing the interface
  *                       to fetch the device id, for example eth0 for raspberry
  *                       pi devices.
  * \return    True if success and ipaddr contains valid value or false otherwise.
  */
-bool utils_get_ip_addr(char *ipaddr, uint8_t len, char *interface);
+bool utils_get_ip_addr(char *ipaddr, uint8_t len, const char *interface);
 
 #endif

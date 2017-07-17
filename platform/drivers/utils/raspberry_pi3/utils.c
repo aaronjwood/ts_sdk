@@ -17,7 +17,7 @@
 
 #include "dbg.h"
 
-static bool utils_get_mac_addr(char *id, uint8_t len, char *interface)
+static bool utils_get_mac_addr(char *id, uint8_t len, const char *interface)
 {
         uint8_t macadd[6];
         int fd;
@@ -44,7 +44,7 @@ static bool utils_get_mac_addr(char *id, uint8_t len, char *interface)
         return true;
 }
 
-bool utils_get_ip_addr(char *ipaddr, uint8_t length, char *interface)
+bool utils_get_ip_addr(char *ipaddr, uint8_t length, const char *interface)
 {
         if (!ipaddr || !interface || length == 0) {
                 dbg_printf("%s:%d: invalid parameters\n", __func__, __LINE__);

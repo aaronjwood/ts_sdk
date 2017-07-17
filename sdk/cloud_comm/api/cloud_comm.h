@@ -61,7 +61,7 @@ typedef enum {
 	CC_EVT_CTRL_FACTORY_RST,/**< Protocol asked device to do factory reset*/
 
 	/* Other events are defined by their respective services */
-	CC_EVT_SERVICES_BASE=1024,
+	CC_EVT_SERVICES_BASE = 1024,
 
 } cc_event;
 
@@ -292,7 +292,6 @@ cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
  * \param[in] buf    : Pointer to the cloud communication buffer descriptor
  *                     containing the data to be sent.
  * \param[in] sz     : Size of the data in bytes.
- * \param[in] svc_id : Id of the service that will process this message.
  *
  * \returns
  * 	CC_SEND_FAILED  : Failed to send the message.

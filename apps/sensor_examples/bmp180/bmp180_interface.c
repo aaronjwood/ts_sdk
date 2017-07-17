@@ -48,15 +48,17 @@ bool si_init(void)
 
 bool si_read_calib(uint8_t idx, uint16_t max_sz, array_t *data)
 {
+	if (!data)
+		return false;
 	if (idx > NUM_SENSORS - 1)
 		return false;
 	if (max_sz < CALIB_SZ)
 		return false;
 	data->sz = CALIB_SZ;
 #ifdef SIMULATE_SENSOR
-		for (uint8_t i = 0; i < data->sz; i++)
-			data->bytes[i] = i;
-		return true;
+	for (uint8_t i = 0; i < data->sz; i++)
+		data->bytes[i] = i;
+	return true;
 #endif
 	i2c_dest_addr.slave = BMP180_ADDR;
 	i2c_dest_addr.reg = CALIB_ADDR;
@@ -83,6 +85,8 @@ bool si_read_data(uint8_t idx, uint16_t max_sz, array_t *data)
 {
 	if (idx > NUM_SENSORS - 1)
 		return false;
+	if (!data)
+		return false;
 	/* Read temperature and pressure off the BMP180 sensor */
 	uint8_t temp_cmd = TEMP_CTL;
 	uint8_t pres_cmd = PRES_CTL;
@@ -90,9 +94,9 @@ bool si_read_data(uint8_t idx, uint16_t max_sz, array_t *data)
 		return false;
 	data->sz = PRES_SZ + TEMP_SZ;
 #ifdef SIMULATE_SENSOR
-		for (uint8_t i = 0; i < data->sz; i++)
-			data->bytes[i] = i;
-		return true;
+	for (uint8_t i = 0; i < data->sz; i++)
+		data->bytes[i] = i;
+	return true;
 #endif
 	i2c_dest_addr.slave = BMP180_ADDR;
 	i2c_dest_addr.reg = MEASURE_CTL;
