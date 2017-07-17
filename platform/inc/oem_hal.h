@@ -1,23 +1,4 @@
 /**
- * \file sys.h
- *
- * \brief APIs to get/set OEM related parameters
- *
- * \copyright Copyright (C) 2017 Verizon. All rights reserved.
- *
- *
- */
-
-#ifndef __OEM_HAL
-#define __OEM_HAL
-
-
-/** Hash functions */
-void ts_oem_create_hash_table_for_oem_profiles(void);
-int ts_oem_hash_function(const char *str);
-void ts_oem_insert_node_to_hash_table(int key, int16_t grp_indx, int16_t chr_indx, bool acronym_flag);
-
-/**
  * \file oem_hal.h
  *
  * \brief APIs to retrieve oem related parameters.
@@ -71,6 +52,5 @@ char *oem_get_characteristic_info_in_json(const char *charstc, bool acronym);
  * \param[in] profile    Valid null terminated profile string name.
  */
 void oem_update_profiles_info(const char *profile);
-#endif
 
 #endif
