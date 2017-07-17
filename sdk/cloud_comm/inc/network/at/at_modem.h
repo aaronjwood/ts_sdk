@@ -9,6 +9,12 @@
 #define AT_MODEM_H
 
 /**
+ * \brief Initialize the modem module and associated hardware such as reset pins.
+ * \note This routine must be called before all others in this module.
+ */
+bool at_modem_init(void);
+
+/**
  * \brief Perform a hardware reset of the modem.
  */
 void at_modem_hw_reset(void);
@@ -21,9 +27,10 @@ void at_modem_hw_reset(void);
 bool at_modem_sw_reset(void);
 
 /**
- * \brief Perform any modem specific initializations.
+ * \brief Configure the modem. This involves performing any non-communications
+ * initialization.
  */
-bool at_modem_init(void);
+bool at_modem_configure(void);
 
 /**
  * \brief Query the modem for proper registration with the network.
@@ -38,11 +45,11 @@ bool at_modem_query_network(void);
  * \details This routine should be used to attempt to process URCs that are not
  * handled by the communication layers. For example, SMS and TCP related URCs
  * are processed in the respective modules whereas calls to this routine could
- * handle network related URCs.
+ * handle LTE network connection related URCs.
  *
  * \param[in] urc NULL terminated URC string
  *
- * \retval true If URC was processed successfully and is no longer relevant
+ * \retval true If URC was processed successfully
  * \retval false If URC was not relevant and has not been processed
  */
 bool at_modem_process_urc(const char *urc);

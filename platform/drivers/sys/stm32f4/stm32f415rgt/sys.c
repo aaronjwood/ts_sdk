@@ -2,7 +2,6 @@
 
 #include <stm32f4xx_hal.h>
 #include "dbg.h"
-#include "gpio_hal.h"
 #include "timer_hal.h"
 #include "timer_interface.h"
 #include "board_config.h"
@@ -95,17 +94,6 @@ static void SystemClock_Config(void)
 		raise_err();
 }
 
-static void init_reset_gpio(void)
-{
-	/* XXX: The GPIO pin settings might be different for another modem. */
-	gpio_config_t reset_pins;
-	reset_pins.dir = OUTPUT;
-	reset_pins.pull_mode = OD_NO_PULL;
-	reset_pins.speed = SPEED_HIGH;
-	gpio_init(MODEM_HW_RESET_PIN, &reset_pins);
-	gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
-}
-
 static void enable_level_shifter(void)
 {
 	gpio_config_t init_st;
@@ -147,7 +135,6 @@ void sys_init(void)
 {
 	HAL_Init();
 	SystemClock_Config();
-	init_reset_gpio();
 	/* on the beduin board, the UART level shifter !OE must be enabled
 	 * to talk to the u-blox 201 */
 	enable_level_shifter();
@@ -260,13 +247,6 @@ void UsageFault_Handler(void)
 {
 	while (1)
 		;
-}
-
-void sys_reset_modem(uint16_t pulse_width_ms)
-{
-	gpio_write(MODEM_HW_RESET_PIN, PIN_LOW);
-	sys_delay(pulse_width_ms);
-	gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
 }
 
 void dsb()

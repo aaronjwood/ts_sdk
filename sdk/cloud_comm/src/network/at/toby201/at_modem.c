@@ -5,6 +5,8 @@
 #include "at_core.h"
 #include "at_modem.h"
 #include "sys.h"
+#include "gpio_hal.h"
+#include "ts_sdk_board_config.h"
 
 /*
  * Delay between successive commands in milisecond, datasheet recommends atleast
@@ -166,7 +168,9 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
 
 void at_modem_hw_reset(void)
 {
-	/* Code */
+	gpio_write(MODEM_HW_RESET_PIN, PIN_LOW);
+	sys_delay(RESET_PULSE_WIDTH_MS);
+	gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
 }
 
 bool at_modem_sw_reset(void)
@@ -175,13 +179,9 @@ bool at_modem_sw_reset(void)
 		true : false;
 }
 
-bool at_modem_init(void)
+bool at_modem_configure(void)
 {
-	/* sending at command right after reset command succeeds which is not
-	 * desirable, wait here for few seconds before we send at command to
-	 * poll for modem
-	 */
-	sys_delay(3000);
+	/* Make sure the modem is ready to accept commands */
 	uint32_t start = sys_get_tick_ms();
 	uint32_t end;
 	at_ret_code result = AT_FAILURE;
@@ -191,7 +191,7 @@ bool at_modem_init(void)
 			DEBUG_V0("%s: timed out\n", __func__);
 			return result;
 		}
-		result =  at_core_wcmd(&modem_core[MODEM_OK], false);
+		result = at_core_wcmd(&modem_core[MODEM_OK], false);
 		sys_delay(CHECK_MODEM_DELAY);
 	}
 
@@ -266,5 +266,18 @@ bool at_modem_process_urc(const char *urc)
 	if (process_network_urc(urc, ExPS_STAT_URC))
 		return true;
 
+	return false;
+}
+
+bool at_modem_init(void)
+{
+	gpio_config_t reset_pins;
+	reset_pins.dir = OUTPUT;
+	reset_pins.pull_mode = OD_NO_PULL;
+	reset_pins.speed = SPEED_HIGH;
+	if (gpio_init(MODEM_HW_RESET_PIN, &reset_pins)) {
+		gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
+		return true;
+	}
 	return false;
 }

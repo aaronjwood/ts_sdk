@@ -381,92 +381,20 @@ void at_core_process_urc(bool mode)
 		state.proc_urc = false;
 }
 
-/*
- * Resetting modem is a special case where its response depends on the previous
- * setting of the echo in the modem, where if echo is on it sends
- * command plus OK or OK otherwise as a response.
- */
-#if 0
-static at_ret_code __at_modem_reset_comm(void)
-{
-	at_ret_code result = AT_FAILURE;
-
-	const at_command_desc *desc = &modem_core[MODEM_RESET];
-	char *comm = desc->comm;
-	uint32_t timeout = desc->comm_timeout;
-	uint16_t wanted;
-	char *rsp = "\r\nOK\r\n";
-	char alt_rsp[strlen(comm) + strlen(rsp) + 1];
-	char *temp_rsp = NULL;
-	strcpy(alt_rsp, comm);
-	strcat(alt_rsp, rsp);
-
-	int max_bytes = (strlen(rsp) > strlen(alt_rsp)) ?
-		strlen(rsp):strlen(alt_rsp);
-
-	char rsp_buf[max_bytes + 1];
-	rsp_buf[max_bytes] = 0x0;
-
-	result = __at_comm_send_and_wait_rsp(comm, strlen(comm), &timeout);
-	if (result != AT_SUCCESS)
-		goto done;
-
-	state.proc_rsp = true;
-	/* read for /r/nO or at+ */
-	wanted = 3;
-	result = __at_uart_waited_read(rsp_buf, wanted, &timeout);
-	if (result != AT_SUCCESS)
-		goto done;
-
-	if (strncmp(rsp_buf, rsp, wanted) == 0) {
-		temp_rsp = rsp + wanted;
-		wanted = strlen(rsp) - wanted;
-	} else if (strncmp(rsp_buf, alt_rsp, wanted) == 0) {
-		temp_rsp = alt_rsp + wanted;
-		wanted = strlen(alt_rsp) - wanted;
-	} else {
-		result = AT_FAILURE;
-		DEBUG_V0("%s: wrong resp\n", __func__);
-		sys_delay(RSP_BUF_DELAY);
-		__at_dump_buffer(NULL, 0);
-		goto done;
-	}
-
-	result = __at_uart_waited_read(rsp_buf, wanted, &timeout);
-	if (result != AT_SUCCESS)
-		goto done;
-	if (strncmp(rsp_buf, temp_rsp, wanted) != 0) {
-		DEBUG_V0("%s: Unlikely comparison error\n", __func__);
-		result = AT_FAILURE;
-	} else
-		result = AT_SUCCESS;
-
-done:
-	state.waiting_resp = false;
-	state.proc_rsp = false;
-	sys_delay(at_comm_delay_ms);
-	/* check to see if we have urcs while command was executing
-	*/
-	DEBUG_V1("%s: Processing URCS outside call back\n", __func__);
-	at_core_cleanup();
-	return result;
-}
-#endif
-
 at_ret_code at_core_modem_reset(void)
 {
-	//at_ret_code result = __at_modem_reset_comm();
-	//if (result != AT_SUCCESS) {
 	if (!at_modem_sw_reset()) {
 		DEBUG_V0("%s: Trying hardware reset\n", __func__);
 		at_modem_hw_reset();
 	}
 
-	at_ret_code result = AT_FAILURE;
-	if (at_modem_init())
-		result = AT_SUCCESS;
+	/* sending at command right after reset command succeeds which is not
+	 * desirable, wait here for few seconds before we send at command to
+	 * poll for modem
+	 */
+	sys_delay(3000);
 
-	return result;
+	return at_modem_configure() ? AT_SUCCESS : AT_FAILURE;
 }
 
 bool at_core_is_proc_urc(void)
@@ -530,7 +458,7 @@ bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb, uint32_t d_ms)
 	uart_util_reg_callback(at_core_uart_rx_callback);
 	process_rsp = false;
 	at_core_clear_rx();
-	return true;
+	return at_modem_init();
 }
 
 int at_core_find_pattern(int start_idx, const uint8_t *pattern, buf_sz nlen)
