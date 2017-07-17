@@ -6,12 +6,8 @@
 #include "at_modem.h"
 #include "sys.h"
 #include "gpio_hal.h"
-#include "ts_sdk_board_config.h"
+#include "ts_sdk_modem_config.h"
 
-/*
- * Delay between successive commands in milisecond, datasheet recommends atleast
- * 20mS
- */
 #define MODEM_RESET_DELAY		25000	/* In milli seconds */
 #define RESET_PULSE_WIDTH_MS		3000	/* Toby-L2 data sheet Section 4.2.9 */
 #define CHECK_MODEM_DELAY		5000	/* In ms, polling for modem */
@@ -29,11 +25,11 @@ enum modem_core_commands {
 	MODEM_CORE_END	/* End-of-commands marker */
 };
 
-typedef enum at_core_urc {
+enum at_urc {
 	EPS_STAT_URC,
 	ExPS_STAT_URC,
 	NUM_URCS
-} at_core_urc;
+};
 
 static const char *at_urcs[NUM_URCS] = {
 	[EPS_STAT_URC] = "\r\n+CEREG: ",
@@ -231,7 +227,7 @@ bool at_modem_query_network(void)
 	return true;
 }
 
-static bool process_network_urc(const char *urc, at_core_urc u_code)
+static bool process_network_urc(const char *urc, enum at_urc u_code)
 {
 	if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) != 0)
 		return false;
