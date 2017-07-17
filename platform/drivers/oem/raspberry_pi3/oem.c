@@ -6,265 +6,101 @@
 #include "utils.h"
 #include "oem_hal.h"
 #include "oem_defs.h"
+#include "dbg.h"
+#include "cJSON.h"
 
-static oem_char_t g_chrt_device_info[DEV_PROF_END] = {
-        [BBV] = {
-                "BBV",
-                "Baseband Version",
-                "N/A"
-        },
-        [BID] = {
-                "BID",
-                "Build ID",
-                "N/A"
-        },
-        [DID] = {
-                "DID",
-                "Device ID",
-                "N/A"
-        },
-        [ICCID] = {
-                "ICCID",
-                "ICCID",
-                "N/A"
-        },
-        [IMEI] = {
-                "IMEI",
-                "IMEI",
-                "N/A"
-        },
-        [IMSI] = {
-                "IMSI",
-                "IMSI",
-                "N/A"
-        },
-        [KEV] = {
-                "KEV",
-                "Kernel Version",
-                "N/A"
-        },
-        [LNG] = {
-                "LNG",
-                "Language",
-                "N/A"
-        },
-        [LPO] = {
-                "LPO",
-                "Last Power On",
-                "N/A"
-        },
-        [MNF] = {
-                "MNF",
-                "Manufacturer",
-                "N/A"
-        },
-        [MOD] = {
-                "MOD",
-                "Model",
-                "N/A"
-        },
-        [CHIP] = {
-                "CHIP",
-                "Chipset",
-                "N/A"
-        },
-        [NFC] = {
-                "NFC",
-                "NFC",
-                "N/A"
-        },
-        [NLP] = {
-                "NLP",
-                "Network Location Provider",
-                "N/A"
-        },
-        [OSV] = {
-                "OSV",
-                "OS Version",
-                "N/A"
-        },
-        [RTD] = {
-                "RTD",
-                "Rooted",
-                "N/A"
-        },
-        [SCRS] = {
-                "SCRS",
-                "Screen Size",
-                "N/A"
-        },
-        [SCRT] = {
-                "SCRT",
-                "Screen Timeout",
-                "N/A"
-        },
-        [SGPS] = {
-                "SGPS",
-                "Standalone GPS",
-                "N/A"
-        },
-        [TZ] = {
-                "TZ",
-                "Time Zone",
-                "N/A"
-        },
-};
+static uint16_t num_profiles = (sizeof(oem_prof_data) /
+                                        sizeof(oem_profile_t));
+static oem_hash_table_t hash_table[HASH_BUCKET_SIZE][HASH_CHAIN_SIZE] = {0};
 
-static oem_char_t g_chrt_ipaddr[IP_PROF_END] = {
-        [IP] = {
-                "RU0I41",
-                "rmnet_usb0_IPV4_1",
-                "N/A"
-        },
-};
-
-static oem_char_t g_chrt_ram[RAM_PROF_END] = {
-        [AVRAM] = {
-                "AVRAM",
-                "RAM Available",
-                "N/A"
-        },
-        [FRRAM] = {
-                "FRRAM",
-                "RAM Free",
-                "N/A"
-        },
-        [TLRAM] = {
-                "TLRAM",
-                "RAM Total",
-                "N/A"
-        },
-};
-
-static oem_profile_t oem_prof_data[NUM_PROF] = {
-        [DEVINFO_INDEX] = {
-                "DINF",
-                "DeviceInfo",
-                g_chrt_device_info,
-                sizeof(g_chrt_device_info) / sizeof(oem_char_t),
-                NULL
-        },
-        [IPADDR_INDEX] = {
-                "IPADDR",
-                "IP Address",
-                g_chrt_OEM_Ipaddr,
-                sizeof(g_chrt_ipaddr) / sizeof(oem_char_t),
-                ts_oem_init_ipaddr_profile
-        },
-        [RAM_INDEX] = {
-                "RAM",
-                "RAM",
-                g_chrt_ram,
-                sizeof(g_chrt_ram) / sizeof(oem_char_t),
-                NULL
-        },
-
-};
-
-static int no_of_oem_profiles = (sizeof(oem_prof_data) / sizeof(oem_profile_t));
-
-static oem_hash_table_t oem_hash_table[HASH_BUCKET_SIZE][HASH_CHAIN_SIZE] = {0};
-
-
-/**
- * @func int ts_sdk_oem_hash_function(const char *str)
- * @brief API will generate the hash key for the given string
- * @param str pointer points to string
- * @return hash_key if success else EFAILURE
+/* The function was adapted from Compilers: Principles, Techniques, and
+ * Tools (Reading, MA: Addison-Wesley,1986)
  */
-int ts_oem_hash_function(const char *str)
+static int hash_function(const char *key)
 {
-  unsigned int long long hash_key = 0;
-  int i = 0;
-  int hash_const = 31;
-  if(NULL == str)
-    return EFAILURE;
-
-  for(i = 0; str[i] != '\0'; i++)
-  {
-    hash_key = hash_key * hash_const + str[i];
-  }
-  return (hash_key % OEM_HASH_BUCKET_SIZE);
+        if (!key)
+                return INVALID;
+        const char *ptr = key;
+        unsigned int val = 0;
+        while (*ptr != '\0') {
+                unsigned int tmp;
+                val = (val << 4) + (*ptr);
+                tmp = val & 0xf0000000;
+                if (tmp) {
+                        val = val ^ (tmp >> 24);
+                        val = val ^ tmp;
+                }
+                ptr++;
+        }
+        printf("Calculated has value: %d\n", val);
+        return (val % HASH_BUCKET_SIZE);
 
 }
 
-/**
- * @Func ts_oem_insert_node_to_hash_table
- * @brief API will insert the node into hash table
- * @param key - index to insert the node
- * @param grp_indx - group index of the oem profile
- * @param chr_indx - characteristic index of the oem profile
- * @param acronym_flag - indicates wheather it is acronym for complete name
- * @return
- */
-void ts_oem_insert_node_to_hash_table(int key, int16_t grp_indx, int16_t chr_indx, bool acronym_flag)
+static void insert_to_hash_table(int key, int gid, int cid, bool acronym_flag)
 {
-  int i = 0;
-  if((grp_indx == EFAILURE) && (key == EFAILURE))
-    return;
-  for(i = 0; i < OEM_HASH_CHAIN_SIZE; i++) {
-    if(oem_hash_table[key][i].oem_chr_name == NULL)
-      break;
-  }
-  if(i < OEM_HASH_CHAIN_SIZE) {
-    if(chr_indx != EFAILURE) {
-      if(acronym_flag)
-        oem_hash_table[key][i].oem_chr_name = oem_prof_data[grp_indx].oem_char[chr_indx].oem_chr_acronym_name;
-      else
-        oem_hash_table[key][i].oem_chr_name =
-            oem_prof_data[grp_indx].oem_char[chr_indx].chr_full_name;
-    } else {
-      if(acronym_flag)
-        oem_hash_table[key][i].oem_chr_name = oem_prof_data[grp_indx].oem_grp_acronym_name;
-      else
-        oem_hash_table[key][i].oem_chr_name = oem_prof_data[grp_indx].oem_group_complete_name;
-    }
+        if ((gid == INVALID) && (key == INVALID))
+                return;
+        for (int i = 0; i < OEM_HASH_CHAIN_SIZE; i++) {
+                if (hash_table[key][i].oem_chr_name == NULL)
+                        break;
+        }
+        char *char_name = NULL;
+        char *prof_name = NULL;
+        if (cid != INVALID) {
+                if (acronym_flag)
+                        char_name =
+                                oem_prof_data[gid].oem_char[cid].chr_short_name;
+                else
+                        char_name =
+                                oem_prof_data[gid].oem_char[cid].chr_full_name;
+        }
+        if (acronym_flag)
+                prof_name = oem_prof_data[gid].chr_short_name;
+        else
+                prof_name = oem_prof_data[gid].chr_full_name;
 
-    oem_hash_table[key][i].grp_indx = grp_indx;
-    oem_hash_table[key][i].chr_indx = chr_indx;
-  }
-  else
-    TS_LOG_DEBUG("Hash table congestion, need to increase the *OEM_HASH_CHAIN_SIZE* \n");
+        if (i < OEM_HASH_CHAIN_SIZE) {
+                if (cid != INVALID)
+                        hash_table[key][i].oem_chr_name = char_name;
+                else
+                        hash_table[key][i].oem_chr_name = prof_name;
+                hash_table[key][i].grp_indx = gid;
+                hash_table[key][i].chr_indx = cid;
+        } else
+                dbg_printf("%s:%d: Hash table congestion,
+                        increase the OEM_HASH_CHAIN_SIZE\n", __func__, __LINE__);
 
-  return;
+        return;
 }
-/**
- * @Func void ts_oem_create_hash_table_for_oem_profiles()
- * @brief API will create the hash table for all OEM Profiles
- * @param void
- * @return void
- */
-void ts_oem_create_hash_table_for_oem_profiles()
+
+static void create_hash_table_for_profiles(void)
 {
-  int i, j;
-  int key = 0;
-  for(i = 0; i < OEM_HASH_BUCKET_SIZE; i++)
-  {
-    for(j = 0; j < OEM_HASH_CHAIN_SIZE; j++)
-      oem_hash_table[i][j].oem_chr_name = NULL;
-  }
+        unsigned int key = 0;
 
-  /** loop to store the OEM group profiles into hash table */
-  for(i = 0; i < no_of_oem_profiles; i++) {
-    key = ts_oem_hash_function(oem_prof_data[i].oem_grp_acronym_name);
-    /*Oem Group will not have characterisitic index */
-    ts_oem_insert_node_to_hash_table(key, i, EFAILURE, true);
+        /** loop to store the OEM group profiles into hash table */
+        for (uint16_t i = 0; i < num_profiles; i++) {
+                key = hash_function(oem_prof_data[i].chr_short_name);
+                /*Oem Group will not have characterisitic index */
+                insert_to_hash_table(key, i, INVALID, true);
 
-    key = ts_oem_hash_function(oem_prof_data[i].oem_group_complete_name);
-    /*Oem Group will not have characterisitic index */
-    ts_oem_insert_node_to_hash_table(key, i, EFAILURE, false);
-  }
+                key = hash_function(oem_prof_data[i].chr_full_name);
+                /*Oem Group will not have characterisitic index */
+                insert_to_hash_table(key, i, INVALID, false);
+        }
 
-  /** Loop to store the OEM characteristics into hash table */
+        /** Loop to store the OEM characteristics into hash table */
 
-  for(i = 0; i <= IPADDR_PROFILE_INDEX; i++) {
-    for(j = 0; j < oem_prof_data[i].chr_count; j++) {
-      key = ts_oem_hash_function(oem_prof_data[i].oem_char[j].oem_chr_acronym_name);
-      ts_oem_insert_node_to_hash_table(key, i, j, true);
-      key = ts_oem_hash_function(oem_prof_data[i].oem_char[j].chr_full_name);
-      ts_oem_insert_node_to_hash_table(key, i, j, false);
-    }
-  }
+        for (int i = 0; i < no_of_oem_profiles; i++) {
+                for (int j = 0; j < oem_prof_data[i].chr_count; j++) {
+                        key = hash_function(
+                                oem_prof_data[i].oem_char[j].chr_short_name);
+                        insert_to_hash_table(key, i, j, true);
+                        key = hash_function(
+                                oem_prof_data[i].oem_char[j].chr_full_name);
+                        insert_to_hash_table(key, i, j, false);
+                }
+        }
 }
 
 static void init_device_profile(void)
@@ -353,7 +189,7 @@ static void init_ram_profile(void)
                 "%u", free_ram + avail_ram);
 }
 
-static void init_ipaddr_profile()
+static void init_ipaddr_profile(void)
 {
         int val_sz = sizeof(oem_prof_data[IPADDR_INDEX].oem_char[IP].value);
         memset(oem_prof_data[IPADDR_INDEX].oem_char[IP].value, 0, val_sz);
@@ -364,25 +200,121 @@ static void init_ipaddr_profile()
         }
 }
 
-void ts_oem_update_profiles_info(int16_t grp_indx)
-{
-  int i = 0;
-  if(EFAILURE == grp_indx)
-  {
-    for(i = 0; i < no_of_oem_profiles; i++)
-    {
-      if(NULL != oem_prof_data[i].update_prof)
-        oem_prof_data[i].update_prof();
-    }
-  } else {
-    if(NULL != oem_prof_data[grp_indx].update_prof)
-      oem_prof_data[grp_indx].update_prof();
-  }
-}
-
 void oem_init(void)
 {
         init_device_profile();
         init_ram_profile();
         init_ipaddr_profile();
+        create_hash_table_for_profiles();
+}
+
+uint16_t oem_get_num_of_profiles(void)
+{
+        return num_profiles;
+}
+
+char *oem_get_profile_info_in_json(const char *profile, bool acronym)
+{
+        if (!profile)
+                return NULL;
+        int hash_val = hash_function(profile);
+        if (hash_val < 0)
+                return NULL;
+        int index = INVALID;
+        for (int i = 0; i < HASH_CHAIN_SIZE; i++) {
+                if (hash_table[hash_val][i].oem_chr_name != NULL) {
+                        if (!strcmp(oem_hash_table[hash_val][i].oem_chr_name,
+                                profile)) {
+                                index = i;
+                                break;
+                        }
+                }
+        }
+        if (index == INVALID)
+                return NULL;
+        int pro_id = oem_hash_table[hash_val][index].grp_indx;
+        if (pro_id >= NUM_PROF)
+                return NULL;
+
+        cJSON *payload = cJSON_CreateObject();
+        cJSON *item = cJSON_CreateObject();
+        if (!payload && !item)
+                return NULL;
+
+        char *prof_name = NULL;
+        char *char_name = NULL;
+        if (acronym)
+                prof_name = oem_prof_data[pro_id].grp_short_name;
+        else
+                prof_name = oem_prof_data[pro_id].grp_full_name;
+
+        cJSON_AddItemToObject(payload, prof_name, item);
+        for (int i = 0; i < oem_prof_data[pro_id].chr_count; i++) {
+                if (acronym)
+                        char_name =
+                                oem_prof_data[pro_id].oem_char[i].chr_short_name;
+                else
+                        char_name =
+                                oem_prof_data[pro_id].oem_char[i].chr_full_name;
+
+                cJSON_AddItemToObject(item, char_name,
+                        cJSON_CreateString(oem_prof_data[pro_id].oem_char[i].value));
+        }
+        char *msg = cJSON_PrintUnformatted(payload);
+        cJSON_Delete(payload);
+        return msg;
+}
+
+char *oem_get_characteristic_info_in_json(const char *charstc, bool acronym)
+{
+        if (!charstc)
+                return NULL;
+
+        int hash_val = hash_function(charstc);
+        if (hash_val < 0)
+                return NULL;
+        int index = INVALID;
+        for (int i = 0; i < HASH_CHAIN_SIZE; i++) {
+                if (hash_table[hash_val][i].oem_chr_name != NULL) {
+                        if (!strcmp(oem_hash_table[hash_val][i].oem_chr_name,
+                                charstc)) {
+                                index = i;
+                                break;
+                        }
+                }
+        }
+        if (index == INVALID)
+                return NULL;
+        int pro_id = oem_hash_table[hash_val][index].grp_indx;
+        int char_id = oem_hash_table[hash_val][index].chr_indx;
+        if (pro_id >= NUM_PROF)
+                return NULL;
+
+        cJSON *payload = cJSON_CreateObject();
+        char *char_name = NULL;
+
+        if (acronym)
+                char_name =
+                        oem_prof_data[pro_id].oem_char[char_id].chr_short_name;
+        else
+                char_name = oem_prof_data[pro_id].oem_char[char_id].chr_full_name;
+
+        cJSON_AddItemToObject(payload, char_name,
+                cJSON_CreateString(oem_prof_data[pro_id].oem_char[char_id].value));
+
+        char *msg = cJSON_PrintUnformatted(payload);
+        cJSON_Delete(payload);
+        return msg;
+}
+
+void oem_update_profiles_info(int grp_indx)
+{
+        if (grp_indx < 0) {
+                for(int i = 0; i < num_profiles; i++) {
+                        if (oem_prof_data[i].update_prof)
+                                oem_prof_data[i].update_prof();
+                }
+        } else
+                if (oem_prof_data[grp_indx].update_prof)
+                        oem_prof_data[grp_indx].update_prof();
 }

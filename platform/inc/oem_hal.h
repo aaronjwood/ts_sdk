@@ -11,36 +11,6 @@
 #ifndef __OEM_HAL
 #define __OEM_HAL
 
-#define MAX_BUF_SIZE  100
-
-typedef void (*oem_update_profile)(void);
-
-typedef struct {
-        const char *oem_chr_name;
-        int16_t  grp_indx;
-        int16_t chr_indx;
-} oem_hash_table_t;
-
-typedef struct {
-        const char *chr_short_name;
-        const char *chr_full_name;
-        char value[MAX_BUF_SIZE];
-} oem_char_t;
-
-typedef struct {
-        const char *grp_short_name;
-        const char *grp_full_name;
-        oem_char_t *oem_char;
-        uint32_t chr_count;
-        oem_update_profile update_prof;
-} oem_profile_t;
-
-enum oem_profiles_index {
-        DEVINFO_INDEX,
-        IPADDR_INDEX,
-        RAM_INDEX,
-        NUM_PROF
-};
 
 /** Hash functions */
 void ts_oem_create_hash_table_for_oem_profiles(void);
@@ -73,31 +43,34 @@ void oem_init(void);
  * \return      Number of profiles or 0 otherwise.
  *
  */
-uint8_t oem_get_total_profile_count(void);
+uint16_t oem_get_num_of_profiles(void);
 
 /**
- * \brief       Provides sleep functionality. It will return on any event i.e.
- *              hardware interrupts or system events.
+ * \brief       Retreives profile and its characterisitics in json format.
  *
- * \param[in] sleep_ms    sleep time value in miliseconds
- * \returns
- * 	0 if sleep was completed uninterrupted or remaining sleep time in milli
- *      seconds.
- * \note
- * This function stops SysTick timer before going into sleep and resumes it
- * right after wake up for all STM32 MCUs.
+ * \param[in] profile    Valid null terminated profile string name.
+ * \param[in] acronym    If true use short form name of the profiles and its
+                         characterisitics, full names otherwise.
+ * \returns              JSON formatted message or NULL if fails.
  */
-uint32_t sys_sleep_ms(uint32_t sleep_ms);
+char *oem_get_profile_info_in_json(const char *profile, bool acronym);
 
 /**
- * \brief	Reset the modem through hardware means
- * \param[in] pulse_width_ms	Width of the pulse (in ms) needed to reset the modem
- * \note	This will abruptly reset the modem without saving the current
- * parameters to NVM and without properly detaching from the network.
+ * \brief       Retreives specific characterisitic in json format.
+ *
+ * \param[in] charstc    Valid null terminated characterisitic string name.
+ * \param[in] acronym    If true use short form name of characterisitic,
+                         full names otherwise.
+ * \returns              JSON formatted message or NULL if fails.
  */
-void sys_reset_modem(uint16_t pulse_width_ms);
+char *oem_get_characteristic_info_in_json(const char *charstc, bool acronym);
 
-
+/**
+ * \brief       updates profile with latest values.
+ *
+ * \param[in] profile    Valid null terminated profile string name.
+ */
+void oem_update_profiles_info(const char *profile);
 #endif
 
 #endif
