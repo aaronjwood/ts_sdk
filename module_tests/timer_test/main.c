@@ -27,7 +27,6 @@ int main()
 	slept_till = sys_sleep_ms(sleep_interval);
 	timer_end_tick = sys_get_tick_ms();
 
-
 	while (1) {
 		if (slept_till) {
 			dbg_printf("Interrupted: Slept till %"PRIu32" msec.\n"\

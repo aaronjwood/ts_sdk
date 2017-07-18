@@ -8,8 +8,8 @@
 #include <unistd.h>
 #include <errno.h>
 
-#define MS_NS_MULT	1000000
-#define MS_SEC_MULT     1000
+#define MS_NS_MULT	     1000000
+#define MS_SEC_MULT          1000
 
 void sys_init(void)
 {

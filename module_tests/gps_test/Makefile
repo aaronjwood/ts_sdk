@@ -1,4 +1,4 @@
-# Copyright(C) 2016, 2017 Verizon. All rights reserved.
+# Copyright(C) 2017 Verizon. All rights reserved.
 
 # Makefile for the device side application API test program.
 ifneq (build,$(notdir $(CURDIR)))
@@ -24,6 +24,8 @@ APP_SRC = $(wildcard $(SRCDIR)/*.c)
 # debug flag enabled
 # Eg: DBG_LIB_SRC = stm32l0xx_hal_uart.c stm32l0xx_hal_uart_ex.c
 DBG_LIB_SRC =
+
+LDFLAGS += -u _printf_float
 
 # Common and per-platform Makefile variables
 include $(MK_HELPER_PATH)/common.mk

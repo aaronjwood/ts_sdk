@@ -35,6 +35,10 @@ export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 # NO_PROTOCOL
 #PROTOCOL="OTT_PROTOCOL"
 
+# Defines which GPS chip to use. Currently only neo-6m is supported
+# for CHIPSET_MCU = stm32f415rgt.
+# GPS_CHIPSET="neo-6m"
+
 usage()
 {
 	cat << EOF
@@ -55,6 +59,7 @@ Description:
 
 Example Usage:
 source $SCRIPT_NAME chipset_family=<value> mcu=<> dev_board=<> modem=<> protocol=<>
+gps_chipset=<>
 
 Short Cut Settings: This sets sdk default for chipset family, mcu, board and modem
 except transport protocol
@@ -87,6 +92,8 @@ Usage:  source $SCRIPT_NAME Options
 	protocol: Cloud data transport protocol. Valid values are OTT_PROTOCOL,
 	SMSNAS_PROTOCOL, MQTT_PROTOCOL and NO_PROTOCOL
 
+	gps_chipset: Name of the GPS chipset. Currently only neo-6m value is supported.
+
 	Note: All the options must be present, there are no default values
 
 EOF
@@ -100,6 +107,7 @@ clear_sdk_chip_env()
 	unset DEV_BOARD
 	unset MODEM_TARGET
 	unset PROTOCOL
+	unset GPS_CHIPSET
 }
 
 clear_env()
@@ -126,9 +134,12 @@ process_app_args()
 			dev_board)	DEV_BOARD="$value";;
 			modem)		MODEM_TARGET="$value";;
 			protocol)	PROTOCOL="$value";;
+			gps_chipset)    GPS_CHIPSET="$value";;	
 			*)		usage;;
 		esac
+	
 	done
+
 }
 
 print_env()
@@ -138,6 +149,7 @@ print_env()
 	echo "Dev board/kit = $DEV_BOARD"
 	echo "Modem target = $MODEM_TARGET"
 	echo "Cloud transport protocol = $PROTOCOL"
+	echo "GPS Chipset = $GPS_CHIPSET"
 }
 
 exp_sdk_defaults()
@@ -186,3 +198,4 @@ export CHIPSET_MCU=$CHIPSET_MCU
 export DEV_BOARD=$DEV_BOARD
 export MODEM_TARGET=$MODEM_TARGET
 export PROTOCOL=$PROTOCOL
+export GPS_CHIPSET=$GPS_CHIPSET

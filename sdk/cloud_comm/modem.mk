@@ -5,10 +5,12 @@
 
 ifeq ($(PROTOCOL),OTT_PROTOCOL)
 MODEM_PROTOCOL = tcp
+NET_OS = at
 else ifeq ($(PROTOCOL),SMSNAS_PROTOCOL)
 MODEM_PROTOCOL = sms
 else ifeq ($(PROTOCOL),MQTT_PROTOCOL)
 MODEM_PROTOCOL = tcp
+NET_OS = linux
 else ifeq ($(PROTOCOL),NO_PROTOCOL)
 # Some lower-level test programs bypass the protocol layer.
 # They may need to set MODEM_PROTOCOL and other variables.
@@ -27,16 +29,15 @@ MODEM_INC += -I $(MODEM_INC_ROOT)
 MODEM_INC += -I $(MODEM_SRC_ROOT)/at -I $(MODEM_SRC_ROOT)/at/core
 endif
 
-# All TCP currently uses "TCP over AT commands" for TLS.
-# Provide the network abstraction module used by the TLS library.
-ifeq ($(MODEM_PROTOCOL),tcp)
-MODEM_SRC += net_mbedtls_at.c
-endif
-
 ifeq ($(MODEM_PROTOCOL),sms)
 MODEM_SRC += smscodec.c
 MODEM_INC += -I $(MODEM_SRC_ROOT)/at/smscodec
 endif
+endif
+
+# Provide the network abstraction module used by the TLS library.
+ifeq ($(MODEM_PROTOCOL),tcp)
+MODEM_SRC += net_mbedtls_$(NET_OS).c
 endif
 
 #

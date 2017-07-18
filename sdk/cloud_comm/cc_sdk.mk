@@ -16,12 +16,6 @@ SDK_INC += -I $(SDK_ROOT)/api
 SDK_INC += -I $(SDK_ROOT)/inc
 SDK_INC += -I $(SDK_ROOT)/inc/services
 
-# Header files for certificates
-SDK_INC += -I $(SDK_ROOT)/inc/certs
-
-# Header files for device credentials
-SDK_INC += -I $(SDK_ROOT)/inc/dev_creds
-
 # Header files for vendor libraries
 SDK_INC += $(VENDOR_INC)
 
