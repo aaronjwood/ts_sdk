@@ -39,7 +39,9 @@ static int hash_function(const char *key)
 
 static void insert_to_hash_table(int key, int gid, int cid, bool acronym_flag)
 {
-        if ((gid == INVALID) && (key == INVALID))
+        if (gid == INVALID)
+                return;
+        if (key == INVALID)
                 return;
         for (int i = 0; i < OEM_HASH_CHAIN_SIZE; i++) {
                 if (hash_table[key][i].oem_chr_name == NULL)
@@ -76,9 +78,8 @@ static void insert_to_hash_table(int key, int gid, int cid, bool acronym_flag)
 
 static void create_hash_table_for_profiles(void)
 {
-        unsigned int key = 0;
-
-        /** loop to store the OEM group profiles into hash table */
+        int key = 0;
+        /* loop to store the OEM group profiles into hash table */
         for (uint16_t i = 0; i < num_profiles; i++) {
                 key = hash_function(oem_prof_data[i].chr_short_name);
                 /*Oem Group will not have characterisitic index */
@@ -89,8 +90,7 @@ static void create_hash_table_for_profiles(void)
                 insert_to_hash_table(key, i, INVALID, false);
         }
 
-        /** Loop to store the OEM characteristics into hash table */
-
+        /* Loop to store the OEM characteristics into hash table */
         for (int i = 0; i < no_of_oem_profiles; i++) {
                 for (int j = 0; j < oem_prof_data[i].chr_count; j++) {
                         key = hash_function(
