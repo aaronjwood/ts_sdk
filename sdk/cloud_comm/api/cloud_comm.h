@@ -50,6 +50,9 @@ typedef enum {
 
 	/* Incoming message events: */
 	CC_EVT_RCVD_MSG,	/**< Received a message from the cloud */
+	/**< Received a bad message from the cloud indicating out of protocol
+	 spec messages */
+	CC_EVT_RCVD_WRONG_MSG,
 	CC_EVT_RCVD_MSG_HIGHPRIO, /**< Received high priority message. */
 	CC_EVT_RCVD_OVERFLOW,   /**< Received message too big for buffer. */
 
@@ -58,7 +61,7 @@ typedef enum {
 	CC_EVT_CTRL_FACTORY_RST,/**< Protocol asked device to do factory reset*/
 
 	/* Other events are defined by their respective services */
-	CC_EVT_SERVICES_BASE=1024,
+	CC_EVT_SERVICES_BASE = 1024,
 
 } cc_event;
 
@@ -173,22 +176,46 @@ bool cc_set_destination(const char *dest);
  * this must be called at least once before attempting to communicate with the
  * cloud.
  *
- * \param[in] d_id     : Pointer to a unique device ID.
- * \param[in] d_id_sz  : size of the d_id
- * \param[in] d_sec    : Pointer to the buffer holding the device secret.
- * \param[in] d_sec_sz : Size of the device secret in bytes.
+ * \param[in] client_cred : Pointer to a device credentials.
+ * \param[in] cred_len   : Size of the client_cred in bytes.
+ * \param[in] client_key : Pointer to the buffer holding the device secret key.
+ * \param[in] key_len : Size of the device secret in bytes.
  *
  * \returns
  *	True  : device secrets were set properly.
- *	False : Failed to set authentication due to wrong parameters.
+ *	False : Failed to set authentication.
  *
  * \note
  * This function need not be called if the protocol is implicitly authenticated
  * to the cloud e.g. by its cellular network identity.
- * For the OTT protocol, both the id and secret must be supplied.
+ * For the OTT protocol, client_cred is device id and client_key is secret.
+ * For MQTT protocol, client_cred and client_key are own certificates.
+ * For SMSNAS protocol, this API is just a stub and does nothing.
  */
-bool cc_set_auth_credentials(const uint8_t *d_id, uint32_t d_id_sz,
- 				const uint8_t *d_sec, uint32_t d_sec_sz);
+bool cc_set_own_auth_credentials(const uint8_t *client_cred, uint32_t cred_len,
+	const uint8_t *client_key, uint32_t key_len);
+
+/**
+ * \brief
+ * Sets remote authorization credentials which will be used to authenticate the
+ * remote side while initiating cloud communication. If required by the protocol,
+ * this must be called at least once before attempting to communicate with the
+ * cloud.
+ *
+ * \param[in] serv_cred : Pointer to a serv_cred/remote side credentials
+ * \param[in] serv_len   : Size of the serv_cred in bytes.
+ *
+ * \returns
+ *	True  : device secrets were set properly.
+ *	False : Failed to set authentication.
+ *
+ * \note
+ * This function need not be called if the protocol is implicitly authenticated
+ * to the cloud e.g. by its cellular network identity.
+ * For the OTT/MQTT protocol, serv_cred is root ca.
+ * For SMSNAS protocol, this API is just a stub and does nothing.
+ */
+bool cc_set_remote_credentials(const uint8_t *serv_cred, uint32_t serv_len);
 
 /**
  * \brief
@@ -250,11 +277,36 @@ cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf,
  *                        cloud.
  *
  * The data is sent using the selected protocol to the specified service.
- * A send is said to be active when it is waiting for a response from the
- * cloud services. Only one send can be active at a time.
+ *
+ * \note
+ * For MQTT protocol this sends message as a part of command response and svc_id
+ * field will be ignored. For other protocols, it is svc_id service message.
  */
 cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
 					cc_data_sz sz, cc_service_id svc_id);
+
+/**
+ * \brief
+ * Send a status message to the cloud.
+ *
+ * \param[in] buf    : Pointer to the cloud communication buffer descriptor
+ *                     containing the data to be sent.
+ * \param[in] sz     : Size of the data in bytes.
+ *
+ * \returns
+ * 	CC_SEND_FAILED  : Failed to send the message.
+ * 	CC_SEND_BUSY    : A send is in progress.
+ * 	CC_SEND_SUCCESS : Message was sent, waiting for a response from the
+ *                        cloud.
+ *
+ * The data is sent using the selected protocol to the specified service.
+ *
+ * \note
+ * For MQTT protocol this sends message to onboard topic, mqtt message generally
+ * contains device info, app data etc...For other protocols, it is
+ * basic service message.
+ */
+cc_send_result cc_send_status_msg_to_cloud(cc_buffer_desc *buf, cc_data_sz sz);
 
 /**
  * \brief

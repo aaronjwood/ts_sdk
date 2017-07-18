@@ -6,7 +6,7 @@ MQTTPacketINCPATH := MQTTPacket/src
 MQTTClientSRC := MQTTClient-C/src/MQTTClient.c
 MQTTClientINCPATH := MQTTClient-C/src
 PLATFORM_HDR := paho_mqtt_port.h
-PLATFORM_INCPATH := $(PROJ_ROOT)/sdk/cloud_comm/inc/protocols/mqtt_protocol
+PLATFORM_INCPATH := $(PROJ_ROOT)/sdk/cloud_comm/src/protocols/mqtt_protocol
 
 BUILD_DIR := build
 

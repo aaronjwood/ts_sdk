@@ -25,6 +25,8 @@ export ARCHFLAGS
 CHIPSET_INC =
 
 CHIPSET_LDFLAGS = -lrt
+CHIPSET_CFLAGS = --sysroot=/ts_sdk_bldenv/toolchain/arm-linux-gnueabihf/libc
 export CHIPSET_LDFLAGS
+export CHIPSET_CFLAGS
 
 FW_EXEC = firmware
