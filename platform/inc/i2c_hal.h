@@ -31,13 +31,14 @@ typedef struct {
  *
  * \param[in] scl I2C peripheral's clock pin
  * \param[in] sda I2C peripheral's data pin
+ * \param[in] I2C timeout duration in milli seconds
  *
  * \returns Handle to I2C peripheral. If \b scl and \b sda cannot be configured,
  * \ref NO_PERIPH is returned. Possible causes can be:
- * 	\arg At least one of the pins is already being used.
- * 	\arg Pins do not connect to the same I2C peripheral.
+ * \arg At least one of the pins is already being used.
+ * \arg Pins do not connect to the same I2C peripheral.
  */
-periph_t i2c_init(pin_name_t scl, pin_name_t sda);
+periph_t i2c_init(pin_name_t scl, pin_name_t sda, uint32_t timeout_ms);
 
 /**
  * \brief Read bytes from the I2C peripheral.

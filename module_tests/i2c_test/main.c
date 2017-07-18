@@ -5,7 +5,6 @@
 #include "i2c_hal.h"
 #include "module_config.h"
 
-
 struct array_t {
 	uint8_t sz;      /* Number of bytes contained in the data buffer */
 	uint8_t *bytes;  /* Pointer to the data buffer */
@@ -23,12 +22,11 @@ int main()
 	uint8_t value = CTRL_REG_VAL;
 	dbg_printf("Begin:\n");
 
-	periph_t i2c_handle =  i2c_init(I2C_SCL, I2C_SDA);
+	periph_t i2c_handle =  i2c_init(I2C_SCL, I2C_SDA, 0);
 	ASSERT(!(i2c_handle == NO_PERIPH));
 
 	i2c_dest_addr.slave = SLAVE_ADDR;
 	i2c_dest_addr.reg = CTRL_REG ;
-
 	while (1) {
 		dbg_printf("writing value of 0x%2x in to the register\n",\
 								 value);
