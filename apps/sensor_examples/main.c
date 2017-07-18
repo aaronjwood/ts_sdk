@@ -14,22 +14,13 @@
 #include "cc_basic_service.h"
 #include "cc_control_service.h"
 #include "dbg.h"
-#include "dev_creds.h"
+#include "protocol_init.h"
 #include "sensor_interface.h"
 
-#define SEND_DATA_SZ	22
-#define RESEND_CALIB	0x42		/* Resend calibration command */
+#define RESEND_CALIB   0x42
 
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
 CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
-
-#if defined (OTT_PROTOCOL)
-#define REMOTE_HOST	"iwk.ott.thingspace.verizon.com:443"
-#elif defined (SMSNAS_PROTOCOL)
-#define REMOTE_HOST	"+12345678"
-#else
-#error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
-#endif
 
 static bool resend_calibration;		/* Set if RESEND command was received */
 
@@ -88,6 +79,8 @@ static void basic_service_cb(cc_event event, uint32_t value, void *ptr)
 
 	else if (event == CC_EVT_RCVD_OVERFLOW)
 		handle_buf_overflow();
+	else if (event == CC_EVT_RCVD_WRONG_MSG)
+		dbg_printf("\t\t\tWrong message received\n");
 	else
 		dbg_printf("\t\t\tUnexpected event received: %d\n", event);
 }
@@ -166,9 +159,12 @@ int main(int argc, char *argv[])
 
 	dbg_printf("Setting remote host and port\n");
 	ASSERT(cc_set_destination(REMOTE_HOST));
+
 	dbg_printf("Setting device authentiation credentials\n");
-	ASSERT(cc_set_auth_credentials(d_ID, sizeof(d_ID),
-					d_sec, sizeof(d_sec)));
+	ASSERT(cc_set_own_auth_credentials(cl_cred, CL_CRED_SZ,
+				cl_sec_key, CL_SEC_KEY_SZ));
+	dbg_printf("Setting remote side authentiation credentials\n");
+	ASSERT(cc_set_remote_credentials(cacert, CA_CRED_SZ));
 
 	dbg_printf("Make a receive buffer available\n");
 	ASSERT(cc_set_recv_buffer(&recv_buffer) == CC_RECV_SUCCESS);

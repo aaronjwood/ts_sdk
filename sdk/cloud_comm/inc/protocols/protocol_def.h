@@ -4,11 +4,14 @@
 #define __PROTOCOL_DEF
 
 #include <stdint.h>
+#include <stdlib.h>
 
 #if defined (OTT_PROTOCOL)
 #include "ott_limits.h"
 #elif defined (SMSNAS_PROTOCOL)
 #include "smsnas_limits.h"
+#elif defined (MQTT_PROTOCOL)
+#include "mqtt_limits.h"
 #else
 #error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
 #endif
@@ -35,12 +38,17 @@ typedef enum {
 	PROTO_RCVD_ACK,		/* Received an ACK for the last message sent */
 	PROTO_RCVD_NACK,	/* Received a NACK for the last message sent */
 	PROTO_SEND_TIMEOUT,	/* Timed out waiting for a response */
+	PROTO_SEND_FAILED,	/* Sending message failed */
 
 	/* Incoming message events: */
 	/* Insufficient memory to store received message */
 	PROTO_RCVD_MEM_OVRFL,
-	PROTO_RCVD_QUIT,	/* Received quit (i.e. session termination) */
-	PROTO_RCVD_MSG          /* Received a message from the cloud */
+	/* Received quit (i.e. session termination) */
+	PROTO_RCVD_QUIT,
+	/* Received message out of protocol spec or defines */
+	PROTO_RCVD_WRONG_MSG,
+	/* Received a message from the cloud */
+	PROTO_RCVD_MSG
 } proto_event;
 
 typedef uint16_t proto_pl_sz; /* type representing total payload size */
@@ -51,6 +59,8 @@ typedef uint8_t proto_service_id;
  * Pointer to a callback routine. The callback accepts a buffer, its size,
  * an event from the source of the callback explaining why it was invoked,
  * and the service id of the service that should process the event.
+ * Note: Some protocols do not support service id concept in which case it should
+ * be ingnored.
  */
 typedef void (*proto_callback)(const void *buf, uint32_t sz,
 			       proto_event event, proto_service_id svc_id);

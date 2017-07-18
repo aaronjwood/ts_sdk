@@ -73,6 +73,9 @@ static struct {				/* Store authentication data */
 	bool auth_valid;		/* true if dev_id and dev_sec contains
 					 * valid information
 					 */
+	bool serv_auth_valid;		/* Server side verification credentials
+					 * valid
+					 */
 	uint8_t dev_ID[OTT_UUID_SZ];	/* 16 byte Device ID */
 	uint8_t d_sec[OTT_DEV_SC_SZ];	/* Device secret */
 } auth;

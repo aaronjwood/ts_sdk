@@ -47,8 +47,24 @@ proto_result ott_protocol_init(void);
  * 	PROTO_INV_PARAM : Passed parameters are not valid.
  * Note: This API must be called before any communication with the cloud.
  */
- proto_result ott_set_auth(const uint8_t *d_id, uint32_t d_id_sz,
-                         const uint8_t *d_sec, uint32_t d_sec_sz);
+proto_result ott_set_own_auth(const uint8_t *d_id, uint32_t d_id_sz,
+        const uint8_t *d_sec, uint32_t d_sec_sz);
+
+/*
+ * Initialize the OTT Protocol module with root ca credential which
+ * will be needed in all future communications with the cloud serivices to verify
+ * remote endpoint.
+ * Parameters:
+ * 	serv_cert : Pointer to a server certificate.
+ *      cert_len  : Size in bytes of serv_cert
+ *
+ *
+ * Returns:
+ * 	PROTO_OK    : Setting authorization credentials was successful.
+ * 	PROTO_INV_PARAM : Passed parameters are not valid.
+ * Note: This API must be called before any communication with the cloud.
+ */
+proto_result ott_set_remote_auth(const uint8_t *serv_cert, uint32_t cert_len);
 
 /*
  * Retrieves polling interval in milliseconds

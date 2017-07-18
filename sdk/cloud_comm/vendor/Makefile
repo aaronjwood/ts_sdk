@@ -7,7 +7,7 @@ VENDOR_ROOT=$(PROJ_ROOT)/sdk/cloud_comm/vendor
 mbedtls:
 	@echo "[Building mbedtls libraries.]"
 	$(MAKE) -C $(VENDOR_ROOT)/mbedtls \
-		CFLAGS='-O2 $(LTOFLAG) $(INC) $(ARCHFLAGS) $(MDEF) \
+		CFLAGS='-O2 $(CHIPSET_CFLAGS) $(LTOFLAG) $(INC) $(ARCHFLAGS) $(MDEF) \
 		-fdata-sections -ffunction-sections' \
 		lib
 	cp $(VENDOR_ROOT)/mbedtls/library/libmbedcrypto.a $(SRCDIR)/build
@@ -17,7 +17,7 @@ mbedtls:
 paho_mqtt:
 	@echo "[Building the Paho MQTT library.]"
 	$(MAKE) -C $(VENDOR_ROOT)/paho_mqtt -f Makefile.static \
-		CC='$(CC)' AR='$(AR)' CFLAGS='-O2 $(ARCHFLAGS)'
+		CC='$(CC)' AR='$(AR)' CFLAGS='$(CHIPSET_CFLAGS) -O2 $(ARCHFLAGS)'
 	cp $(VENDOR_ROOT)/paho_mqtt/build/libpahomqtt.a $(SRCDIR)/build
 
 cJSON:

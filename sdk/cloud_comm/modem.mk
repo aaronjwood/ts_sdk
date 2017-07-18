@@ -5,10 +5,12 @@
 
 ifeq ($(PROTOCOL),OTT_PROTOCOL)
 MODEM_PROTOCOL = tcp
+NET_OS = at
 else ifeq ($(PROTOCOL),SMSNAS_PROTOCOL)
 MODEM_PROTOCOL = sms
 else ifeq ($(PROTOCOL),MQTT_PROTOCOL)
 MODEM_PROTOCOL = tcp
+NET_OS = linux
 else ifeq ($(PROTOCOL),NO_PROTOCOL)
 # Some lower-level test programs bypass the protocol layer.
 # They may need to set MODEM_PROTOCOL and other variables.
@@ -22,7 +24,7 @@ MODEM_SRC_ROOT = $(SDK_ROOT)/src/network
 ifneq ($(MODEM_TARGET),none)
 # Currently, all modems supporting TCP and SMS do so via AT commands.
 ifeq ($(MODEM_PROTOCOL),$(filter $(MODEM_PROTOCOL),tcp sms))
-MODEM_SRC += at_core.c uart_util.c
+MODEM_SRC += at_core.c uart_util.c at_modem.c
 MODEM_INC += -I $(MODEM_INC_ROOT)
 MODEM_INC += -I $(MODEM_SRC_ROOT)/at -I $(MODEM_SRC_ROOT)/at/core
 endif
@@ -32,7 +34,7 @@ endif
 # Only relevant if the vendor library "mbedtls" is included.
 ifeq ($(MODEM_PROTOCOL),tcp)
 ifneq (,$(findstring mbedtls,$(VENDOR_LIB_DIRS)))
-MODEM_SRC += net_mbedtls_at.c
+MODEM_SRC += net_mbedtls_$(NET_OS).c
 endif
 endif
 
@@ -41,8 +43,6 @@ MODEM_SRC += smscodec.c
 MODEM_INC += -I $(MODEM_SRC_ROOT)/at/smscodec
 endif
 endif
-
-MODEM_SRC += at_modem.c
 
 #
 # Support for specific modems.

@@ -2,9 +2,9 @@
 
 /* Sensor module for the BMP180 temperature and pressure sensor */
 #include <stdbool.h>
-
 #include "i2c_hal.h"
 #include "sensor_interface.h"
+#include "board_interface.h"
 #include "sys.h"
 #include "dbg.h"
 
@@ -34,6 +34,9 @@ i2c_addr_t i2c_dest_addr;
 
 bool si_init(void)
 {
+#ifdef SIMULATE_SENSOR
+	return true;
+#endif
 	/* Initialize the I2C bus on the processor */
 	i2c_handle =  i2c_init(PB8, PB9);
 
@@ -45,11 +48,18 @@ bool si_init(void)
 
 bool si_read_calib(uint8_t idx, uint16_t max_sz, array_t *data)
 {
+	if (!data || !data->bytes)
+		return false;
 	if (idx > NUM_SENSORS - 1)
 		return false;
 	if (max_sz < CALIB_SZ)
 		return false;
 	data->sz = CALIB_SZ;
+#ifdef SIMULATE_SENSOR
+	for (uint8_t i = 0; i < data->sz; i++)
+		data->bytes[i] = i;
+	return true;
+#endif
 	i2c_dest_addr.slave = BMP180_ADDR;
 	i2c_dest_addr.reg = CALIB_ADDR;
 	EOE(i2c_read(i2c_handle, i2c_dest_addr, data->sz,  data->bytes));
@@ -75,12 +85,19 @@ bool si_read_data(uint8_t idx, uint16_t max_sz, array_t *data)
 {
 	if (idx > NUM_SENSORS - 1)
 		return false;
+	if (!data || !data->bytes)
+		return false;
 	/* Read temperature and pressure off the BMP180 sensor */
 	uint8_t temp_cmd = TEMP_CTL;
 	uint8_t pres_cmd = PRES_CTL;
 	if (max_sz < (PRES_SZ + TEMP_SZ))
 		return false;
 	data->sz = PRES_SZ + TEMP_SZ;
+#ifdef SIMULATE_SENSOR
+	for (uint8_t i = 0; i < data->sz; i++)
+		data->bytes[i] = i;
+	return true;
+#endif
 	i2c_dest_addr.slave = BMP180_ADDR;
 	i2c_dest_addr.reg = MEASURE_CTL;
 	EOE(i2c_write(i2c_handle, i2c_dest_addr, 1 ,  &temp_cmd));
