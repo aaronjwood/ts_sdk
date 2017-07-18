@@ -50,7 +50,9 @@ char *oem_get_profile_info_in_json(const char *profile, bool acronym);
 char *oem_get_characteristic_info_in_json(const char *charstc, bool acronym);
 
 /**
- * \brief       updates/refreshes profile with latest values.
+ * \brief       updates/refreshes profile with latest values. This is useful
+ *              especially for the profiles with dynamic characterisitic, like
+ *              network signal strength etc...
  *
  * \param[in] profile    Valid null terminated profile string name. If null, it
  *                       will refresh all the profiles available.

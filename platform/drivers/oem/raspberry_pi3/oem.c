@@ -10,8 +10,6 @@
 #include "dbg.h"
 #include "cJSON.h"
 
-static void init_ipaddr_profile(void);
-
 static oem_profile_t oem_prof_data[NUM_PROF] = {
         [DEVINFO_INDEX] = {
                 "DINF",
@@ -25,7 +23,7 @@ static oem_profile_t oem_prof_data[NUM_PROF] = {
                 "IP Address",
                 g_chrt_ipaddr,
                 sizeof(g_chrt_ipaddr) / sizeof(oem_char_t),
-                init_ipaddr_profile
+                NULL
         },
         [RAM_INDEX] = {
                 "RAM",

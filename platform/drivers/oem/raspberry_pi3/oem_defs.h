@@ -1,4 +1,5 @@
 /* Copyright(C) 2017 Verizon. All rights reserved. */
+
 #include <stdint.h>
 
 #define MAX_BUF_SIZE    100
