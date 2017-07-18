@@ -8,14 +8,13 @@
 #include "gpio_hal.h"
 #include "ts_sdk_modem_config.h"
 
-#define MODEM_RESET_DELAY		25000	/* In milli seconds */
-#define CHECK_MODEM_DELAY		5000	/* In ms, polling for modem */
-
 #define PWR_EN_DELAY_MS			1000
 #define RESET_N_DELAY_MS		1000
 
 #define IMEI_LEN			16	/* IMEI length + NULL */
 #define SIG_STR_LEN			11	/* Signal strength length + NULL */
+
+#define STABLE_TIMEOUT_MS		5000	/* Wait until modem fully restarts */
 
 enum modem_core_commands {
 	MODEM_OK,	/* Simple modem check command, i.e. AT */
@@ -31,15 +30,25 @@ enum modem_core_commands {
 
 enum at_urc {
 	EPS_STAT_URC,
+	SYS_START_URC,
+	SIM_WAIT_URC1,
+	SIM_WAIT_URC2,
+	SIM_READY_URC,
 	NUM_URCS
 };
 
 static const char *at_urcs[NUM_URCS] = {
 	[EPS_STAT_URC] = "\r\n+CEREG: ",
+	[SYS_START_URC] = "\r\n+SYSSTART\r\n",
+	[SIM_WAIT_URC1] = "\r\n+IMSSTATE: SIMSTORE,WAIT_SIM\r\n",
+	[SIM_WAIT_URC2] = "\r\n+IMSSTATE: SIMSTORE,WAIT_STORE\r\n",
+	[SIM_READY_URC] = "\r\n+IMSSTATE: SIMSTORE,READY\r\n"
 };
 
-static char modem_imei[IMEI_LEN - 1];		/* Store the IMEI */
-static uint8_t sig_str;				/* Store numerical signal strength */
+static char modem_imei[IMEI_LEN - 1];	/* Store the IMEI */
+static uint8_t sig_str;			/* Store numerical signal strength */
+static bool sys_res_stable;		/* True when system is stable after restart*/
+
 
 static void parse_imei(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data)
@@ -202,13 +211,26 @@ static bool process_urc(const char *urc, enum at_urc u_code)
 
 	uint8_t last_char = strlen(at_urcs[u_code]);
 	uint8_t net_stat = urc[last_char] - '0';
-	DEBUG_V0("%s: Net stat (%u): %u\n", __func__, u_code, net_stat);
 	switch (u_code) {
 	case EPS_STAT_URC:
+		DEBUG_V0("%s: Net stat (%u): %u\n", __func__, u_code, net_stat);
 		if (net_stat == 0 || net_stat == 3 || net_stat == 4)
 			DEBUG_V0("%s: EPS network reg lost\n", __func__);
 		else
 			DEBUG_V0("%s: Registered to EPS network\n", __func__);
+		break;
+	case SYS_START_URC:
+		DEBUG_V0("%s: Power On\n", __func__);
+		break;
+	case SIM_WAIT_URC1:
+		DEBUG_V0("%s: Wait for SIM\n", __func__);
+		break;
+	case SIM_WAIT_URC2:
+		DEBUG_V0("%s: Wait for STORE\n", __func__);
+		break;
+	case SIM_READY_URC:
+		DEBUG_V0("%s: Sys Ready\n", __func__);
+		sys_res_stable = true;
 		break;
 	default:
 		return false;
@@ -219,6 +241,14 @@ static bool process_urc(const char *urc, enum at_urc u_code)
 bool at_modem_process_urc(const char *urc)
 {
 	if (process_urc(urc, EPS_STAT_URC))
+		return true;
+	if (process_urc(urc, SYS_START_URC))
+		return true;
+	if (process_urc(urc, SIM_WAIT_URC1))
+		return true;
+	if (process_urc(urc, SIM_WAIT_URC2))
+		return true;
+	if (process_urc(urc, SIM_READY_URC))
 		return true;
 	return false;
 }
@@ -231,22 +261,8 @@ bool at_modem_query_network(void)
 
 bool at_modem_configure(void)
 {
-	/* Make sure the modem is ready to accept commands */
-	uint32_t start = sys_get_tick_ms();
-	uint32_t end;
-	at_ret_code result = AT_FAILURE;
-	while (result != AT_SUCCESS) {
-		end = sys_get_tick_ms();
-		if ((end - start) > MODEM_RESET_DELAY) {
-			DEBUG_V0("%s: timed out\n", __func__);
-			return result;
-		}
-		result = at_core_wcmd(&modem_core[MODEM_OK], false);
-		sys_delay(CHECK_MODEM_DELAY);
-	}
-
 	/* Check if the SIM card is present */
-	result = at_core_wcmd(&modem_core[SIM_READY], true);
+	at_ret_code result = at_core_wcmd(&modem_core[SIM_READY], true);
 	CHECK_SUCCESS(result, AT_SUCCESS, false);
 
 	/* Set error format to numerical */
@@ -260,21 +276,49 @@ bool at_modem_configure(void)
 	return true;
 }
 
+static bool wait_for_clean_restart(uint32_t timeout_ms)
+{
+	uint32_t start = sys_get_tick_ms();
+	while (!sys_res_stable) {
+		uint32_t now = sys_get_tick_ms();
+		if (now - start > timeout_ms) {
+			DEBUG_V0("%s: timed out waiting for a clean reset\n",
+					__func__);
+			return false;
+		}
+	}
+	return true;
+}
+
 bool at_modem_sw_reset(void)
 {
-	return at_core_wcmd(&modem_core[MODEM_RESET], false) == AT_SUCCESS ?
-		true : false;
+	sys_res_stable = false;
+	at_ret_code res = at_core_wcmd(&modem_core[MODEM_RESET], false);
+	if (res == AT_SUCCESS) {
+		/* Block until modem is stable or timeout */
+		if (!wait_for_clean_restart(STABLE_TIMEOUT_MS)) {
+			sys_res_stable = true;
+			return false;
+		}
+		return true;
+	}
+	sys_res_stable = true;
+	return false;
 }
 
 void at_modem_hw_reset(void)
 {
+	sys_res_stable = false;
 	gpio_write(MODEM_HW_RESET_PIN, PIN_LOW);
+	sys_delay(RESET_N_DELAY_MS);
 	gpio_write(MODEM_HW_PWREN_PIN, PIN_LOW);
-
 	sys_delay(PWR_EN_DELAY_MS);
 	gpio_write(MODEM_HW_PWREN_PIN, PIN_HIGH);
 	sys_delay(RESET_N_DELAY_MS);
 	gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
+
+	/* Block until modem is stable or timeout */
+	wait_for_clean_restart(STABLE_TIMEOUT_MS);
 }
 
 bool at_modem_init(void)
@@ -290,16 +334,12 @@ bool at_modem_init(void)
 	/* Power enable pin */
 	if (!gpio_init(MODEM_HW_PWREN_PIN, &lte_pin_config))
 		return false;
-	else
-		gpio_write(MODEM_HW_PWREN_PIN, PIN_HIGH);
-
-	sys_delay(RESET_N_DELAY_MS);
 
 	/* LTE reset pin */
 	if (!gpio_init(MODEM_HW_RESET_PIN, &lte_pin_config))
 		return false;
-	else
-		gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
+
+	at_modem_hw_reset();
 
 	return true;
 }

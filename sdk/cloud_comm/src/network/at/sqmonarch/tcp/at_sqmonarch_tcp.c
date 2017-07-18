@@ -8,6 +8,8 @@
 #include "dbg.h"
 #include "at_core.h"
 #include "at_tcp.h"
+#include "at_modem.h"
+#include "ts_sdk_modem_config.h"
 #include "at_sqmonarch_tcp_command.h"
 
 /*
@@ -29,12 +31,20 @@ static void urc_callback(const char *urc)
 
 bool at_init()
 {
-	bool ires = at_core_init(at_uart_callback, urc_callback, AT_COMM_DELAY_MS);
-	CHECK_SUCCESS(ires, true, false);
+	/* XXX: Call at_core_emu_hwflctrl() here, before at_core_init() */
+	if (!at_core_emu_hwflctrl(MODEM_EMULATED_RTS, MODEM_EMULATED_CTS))
+		return false;
 
-	at_ret_code res = at_core_modem_reset();
-	if (res != AT_SUCCESS) {
-		dbg_printf("%s: modem reset failed (%d)\n", __func__, res);
+	if (!at_core_init(at_uart_callback, urc_callback, AT_COMM_DELAY_MS))
+		return false;
+
+	/*
+	 * The Sequans Monarch does a system restart as part of the power up
+	 * sequence (essentially a hardware reset) and does not require an
+	 * additional restart here. However, the modem does need to be configured.
+	 */
+	if (!at_modem_configure()) {
+		dbg_printf("%s: failed to configure modem\n", __func__);
 		return false;
 	}
 
