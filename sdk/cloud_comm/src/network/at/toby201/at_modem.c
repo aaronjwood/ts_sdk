@@ -43,6 +43,32 @@ static const char *at_urcs[NUM_URCS] = {
 static char modem_imei[IMEI_LEN - 1];		/* Store the IMEI */
 static uint8_t sig_str;				/* Store numerical signal strength */
 
+static void parse_imei(void *rcv_rsp, int rcv_rsp_len,
+		const char *stored_rsp, void *data)
+{
+	sys_delay(5);	/* Precaution to ensure the IMEI has been received */
+	/* Skip the CR LF in the beginning of the response */
+	rcv_rsp += strlen(stored_rsp);
+	memcpy(modem_imei, rcv_rsp, IMEI_LEN - 1);
+}
+
+static void parse_sig_str(void *rcv_rsp, int rcv_rsp_len,
+		const char *stored_rsp, void *data)
+{
+	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
+	sys_delay(10);	/* Precaution to ensure the signal strength has been received */
+	uint8_t i = 0;
+	sig_str = 0;
+	while (rcv_bytes[i] != ',') {
+		if (rcv_bytes[i] < '0' || rcv_bytes[i] > '9') {
+			sig_str = 0xFF;
+			return;
+		}
+		sig_str = sig_str * 10 + rcv_bytes[i] - '0';
+		i++;
+	}
+}
+
 static const at_command_desc modem_core[MODEM_CORE_END] = {
         [MODEM_OK] = {
                 .comm = "at\r",
@@ -203,21 +229,15 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
 	}
 };
 
-void at_modem_hw_reset(void)
+static bool wait_for_clean_restart(uint32_t timeout_ms)
 {
-	gpio_write(MODEM_HW_RESET_PIN, PIN_LOW);
-	sys_delay(RESET_PULSE_WIDTH_MS);
-	gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
-}
+	/*
+	 * Sending at command right after reset command succeeds which is not
+	 * desirable, wait here for few seconds before we send at command to
+	 * poll for modem
+	 */
+	sys_delay(3000);
 
-bool at_modem_sw_reset(void)
-{
-	return at_core_wcmd(&modem_core[MODEM_RESET], false) == AT_SUCCESS ?
-		true : false;
-}
-
-bool at_modem_configure(void)
-{
 	/* Make sure the modem is ready to accept commands */
 	uint32_t start = sys_get_tick_ms();
 	uint32_t end;
@@ -226,14 +246,38 @@ bool at_modem_configure(void)
 		end = sys_get_tick_ms();
 		if ((end - start) > MODEM_RESET_DELAY) {
 			DEBUG_V0("%s: timed out\n", __func__);
-			return result;
+			return false;
 		}
 		result = at_core_wcmd(&modem_core[MODEM_OK], false);
 		sys_delay(CHECK_MODEM_DELAY);
 	}
+	return true;
+}
 
+void at_modem_hw_reset(void)
+{
+	gpio_write(MODEM_HW_RESET_PIN, PIN_LOW);
+	sys_delay(RESET_PULSE_WIDTH_MS);
+	gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
+
+	wait_for_clean_restart(MODEM_RESET_DELAY);
+}
+
+bool at_modem_sw_reset(void)
+{
+	at_ret_code res = at_core_wcmd(&modem_core[MODEM_RESET], false);
+	if (res == AT_SUCCESS) {
+		if (!wait_for_clean_restart(MODEM_RESET_DELAY))
+			return false;
+		return true;
+	}
+	return false;
+}
+
+bool at_modem_configure(void)
+{
 	/* Switch off TX echo */
-	result = at_core_wcmd(&modem_core[ECHO_OFF], false);
+	at_ret_code result = at_core_wcmd(&modem_core[ECHO_OFF], false);
 	CHECK_SUCCESS(result, AT_SUCCESS, false);
 
 	/* Check if the SIM card is present */
@@ -312,11 +356,11 @@ bool at_modem_init(void)
 	reset_pins.dir = OUTPUT;
 	reset_pins.pull_mode = OD_NO_PULL;
 	reset_pins.speed = SPEED_HIGH;
-	if (gpio_init(MODEM_HW_RESET_PIN, &reset_pins)) {
-		gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
-		return true;
-	}
-	return false;
+	if (!gpio_init(MODEM_HW_RESET_PIN, &reset_pins))
+		return false;
+	gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
+
+	return true;
 }
 
 bool at_modem_get_imei(char *imei)
