@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "sys.h"
+#include "gpio_hal.h"
 #include "at_core.h"
 #include "at_modem.h"
 #include "ts_sdk_modem_config.h"
@@ -17,6 +18,8 @@
  */
 #define RSP_BUF_DELAY			2000 /* In mili seconds */
 
+static pin_name_t m_rts = NC;
+static pin_name_t m_cts = NC;
 static uint32_t at_comm_delay_ms;
 static const char *rsp_header = "\r\n";
 static const char *rsp_trailer = "\r\n";
@@ -162,9 +165,25 @@ static at_ret_code __at_uart_waited_read(char *buf, buf_sz wanted,
         return AT_SUCCESS;
 }
 
+#define CTS_TIMEOUT_MS			1500
 bool at_core_write(uint8_t *buf, uint16_t len)
 {
-	return uart_tx(uart, buf, len, AT_UART_TX_WAIT_MS);
+	if (m_rts != NC && m_cts != NC) {
+		gpio_write(m_rts, PIN_LOW);
+		uint32_t start = sys_get_tick_ms();
+		while (gpio_read(m_cts) == PIN_HIGH) {
+			uint32_t now = sys_get_tick_ms();
+			if (now - start > CTS_TIMEOUT_MS)
+				return false;
+		}
+	}
+
+	bool res = uart_tx(uart, buf, len, AT_UART_TX_WAIT_MS);
+
+	if (m_rts != NC && m_cts != NC)
+		gpio_write(m_rts, PIN_HIGH);
+
+	return res;
 }
 
 void at_core_clear_rx(void)
@@ -376,6 +395,7 @@ void at_core_process_urc(bool mode)
 		urc_callback(urc);
 
 		/* XXX: Unprocessed URCs arrive here */
+		DEBUG_V0("%s: urc unprocessed\n", __func__);
 	}
 	if (mode)
 		state.proc_urc = false;
@@ -387,12 +407,6 @@ at_ret_code at_core_modem_reset(void)
 		DEBUG_V0("%s: Trying hardware reset\n", __func__);
 		at_modem_hw_reset();
 	}
-
-	/* sending at command right after reset command succeeds which is not
-	 * desirable, wait here for few seconds before we send at command to
-	 * poll for modem
-	 */
-	sys_delay(3000);
 
 	return at_modem_configure() ? AT_SUCCESS : AT_FAILURE;
 }
@@ -459,15 +473,20 @@ bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb, uint32_t d_ms)
 	process_rsp = false;
 	at_core_clear_rx();
 
+	if (!at_modem_init())
+		return false;
+
+	/* Query IMEI and signal strength */
 	char imei[16];
 	res = at_modem_get_imei(imei);
 	DEBUG_V0("IMEI:%s\n", res ? imei : "failed");
 
+	/* XXX: Signal strength might show up as unknown right after start up */
 	char sig_str[11];
 	res = at_modem_get_ss(sig_str);
 	DEBUG_V0("SIGSTR:%s\n", res ? sig_str : "failed");
 
-	return at_modem_init();
+	return true;
 }
 
 int at_core_find_pattern(int start_idx, const uint8_t *pattern, buf_sz nlen)
@@ -488,4 +507,30 @@ int at_core_read(uint8_t *buf, buf_sz sz)
 bool at_core_query_netw_reg(void)
 {
 	return at_modem_query_network();
+}
+
+bool at_core_emu_hwflctrl(pin_name_t rts, pin_name_t cts)
+{
+	if (rts == NC || cts == NC)
+		return false;
+
+	m_rts = rts;
+	m_cts = cts;
+
+	gpio_config_t flctrl_pins = {
+		.dir = OUTPUT,
+		.pull_mode = PP_NO_PULL,
+		.speed = SPEED_HIGH
+	};
+
+	if (!gpio_init(m_rts, &flctrl_pins))
+		return false;
+
+	gpio_write(m_rts, PIN_HIGH);
+
+	flctrl_pins.dir = INPUT;
+	if (!gpio_init(m_cts, &flctrl_pins))
+		return false;
+
+	return true;
 }
