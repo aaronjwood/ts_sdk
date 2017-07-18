@@ -19,6 +19,12 @@ typedef struct {
         oem_update_profile update_prof;
 } oem_profile_t;
 
+typedef struct {
+        const char *oem_chr_name;
+        int grp_indx;
+        int chr_indx;
+} oem_hash_table_t;
+
 enum oem_profiles_index {
         DEVINFO_INDEX,
         IPADDR_INDEX,
@@ -62,17 +68,13 @@ enum ipaddr_profile_index {
         IP_PROF_END
 };
 
-/* Hashing size, this really depends on the how many profiles it has,
- */
-
-#define HASH_BUCKET_SZ  48
+/* Hashing size, this really depends on the how many profiles it has */
+#define HASH_BUCKET_SZ  (NUM_PROF * 2)
 #define HASH_CHAIN_SZ   5
 
-typedef struct {
-        const char *oem_chr_name;
-        int16_t  grp_indx;
-        int16_t chr_indx;
-} oem_hash_table_t;
+/* Hashing size, this really depends on the how many characterisitic it has */
+#define CHAR_BUCKET_SZ  ((DEV_PROF_END + RAM_PROF_END + IP_PROF_END) * 2)
+#define CHAR_CHAIN_SZ   8
 
 #define IP_BUF_SZ       18
 #define DEV_ID_SZ       14
