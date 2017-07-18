@@ -35,7 +35,7 @@ enum device_profile_index {
         IMSI,
         KEV,
         LNG,
-        LPO
+        LPO,
         MNF,
         MOD,
         CHIP,
@@ -206,29 +206,4 @@ static oem_char_t g_chrt_ram[RAM_PROF_END] = {
                 "RAM Total",
                 "N/A"
         },
-};
-
-static oem_profile_t oem_prof_data[NUM_PROF] = {
-        [DEVINFO_INDEX] = {
-                "DINF",
-                "DeviceInfo",
-                g_chrt_device_info,
-                sizeof(g_chrt_device_info) / sizeof(oem_char_t),
-                NULL
-        },
-        [IPADDR_INDEX] = {
-                "IPADDR",
-                "IP Address",
-                g_chrt_OEM_Ipaddr,
-                sizeof(g_chrt_ipaddr) / sizeof(oem_char_t),
-                init_ipaddr_profile
-        },
-        [RAM_INDEX] = {
-                "RAM",
-                "RAM",
-                g_chrt_ram,
-                sizeof(g_chrt_ram) / sizeof(oem_char_t),
-                NULL
-        },
-
 };

@@ -3,15 +3,43 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include "utils.h"
 #include "oem_hal.h"
 #include "oem_defs.h"
 #include "dbg.h"
 #include "cJSON.h"
 
+static void init_ipaddr_profile(void);
+
+static oem_profile_t oem_prof_data[NUM_PROF] = {
+        [DEVINFO_INDEX] = {
+                "DINF",
+                "DeviceInfo",
+                g_chrt_device_info,
+                sizeof(g_chrt_device_info) / sizeof(oem_char_t),
+                NULL
+        },
+        [IPADDR_INDEX] = {
+                "IPADDR",
+                "IP Address",
+                g_chrt_ipaddr,
+                sizeof(g_chrt_ipaddr) / sizeof(oem_char_t),
+                init_ipaddr_profile
+        },
+        [RAM_INDEX] = {
+                "RAM",
+                "RAM",
+                g_chrt_ram,
+                sizeof(g_chrt_ram) / sizeof(oem_char_t),
+                NULL
+        },
+
+};
+
 static uint16_t num_profiles = (sizeof(oem_prof_data) /
                                         sizeof(oem_profile_t));
-static oem_hash_table_t hash_table[HASH_BUCKET_SIZE][HASH_CHAIN_SIZE] = {0};
+static oem_hash_table_t hash_table[HASH_BUCKET_SZ][HASH_CHAIN_SZ];
 
 /* The function was adapted from Compilers: Principles, Techniques, and
  * Tools (Reading, MA: Addison-Wesley,1986)
@@ -33,7 +61,7 @@ static int hash_function(const char *key)
                 ptr++;
         }
         printf("Calculated has value: %d\n", val);
-        return (val % HASH_BUCKET_SIZE);
+        return (val % HASH_BUCKET_SZ);
 
 }
 
@@ -43,12 +71,15 @@ static void insert_to_hash_table(int key, int gid, int cid, bool acronym_flag)
                 return;
         if (key == INVALID)
                 return;
-        for (int i = 0; i < OEM_HASH_CHAIN_SIZE; i++) {
-                if (hash_table[key][i].oem_chr_name == NULL)
+        int index = INVALID;
+        for (int i = 0; i < HASH_CHAIN_SZ; i++) {
+                if (hash_table[key][i].oem_chr_name == NULL) {
+                        index = i;
                         break;
+                }
         }
-        char *char_name = NULL;
-        char *prof_name = NULL;
+        const char *char_name = NULL;
+        const char *prof_name = NULL;
         if (cid != INVALID) {
                 if (acronym_flag)
                         char_name =
@@ -58,20 +89,20 @@ static void insert_to_hash_table(int key, int gid, int cid, bool acronym_flag)
                                 oem_prof_data[gid].oem_char[cid].chr_full_name;
         }
         if (acronym_flag)
-                prof_name = oem_prof_data[gid].chr_short_name;
+                prof_name = oem_prof_data[gid].grp_short_name;
         else
-                prof_name = oem_prof_data[gid].chr_full_name;
+                prof_name = oem_prof_data[gid].grp_full_name;
 
-        if (i < OEM_HASH_CHAIN_SIZE) {
+        if ((index < HASH_CHAIN_SZ) && (index != INVALID)) {
                 if (cid != INVALID)
-                        hash_table[key][i].oem_chr_name = char_name;
+                        hash_table[key][index].oem_chr_name = char_name;
                 else
-                        hash_table[key][i].oem_chr_name = prof_name;
+                        hash_table[key][index].oem_chr_name = prof_name;
                 hash_table[key][i].grp_indx = gid;
                 hash_table[key][i].chr_indx = cid;
         } else
-                dbg_printf("%s:%d: Hash table congestion,
-                        increase the OEM_HASH_CHAIN_SIZE\n", __func__, __LINE__);
+                dbg_printf("%s:%d: Hash table congestion, "
+                        "increase the HASH_CHAIN_SZ\n", __func__, __LINE__);
 
         return;
 }
@@ -166,9 +197,8 @@ static void init_ram_profile(void)
 
         uint32_t free_ram = 0;
         uint32_t avail_ram = 0;
-        if (!utils_get_ram_info(&free_ram, &avail_ram))
-                return;
 
+        utils_get_ram_info(&free_ram, &avail_ram);
         size_t val_sz = sizeof(oem_prof_data[RAM_INDEX].oem_char[AVRAM].value);
 
         memset(oem_prof_data[RAM_INDEX].oem_char[AVRAM].value, 0, val_sz);
@@ -202,6 +232,7 @@ static void init_ipaddr_profile(void)
 
 void oem_init(void)
 {
+        memset(hash_table, 0, sizeof(hash_table));
         init_device_profile();
         init_ram_profile();
         init_ipaddr_profile();
@@ -221,7 +252,7 @@ char *oem_get_profile_info_in_json(const char *profile, bool acronym)
         if (hash_val < 0)
                 return NULL;
         int index = INVALID;
-        for (int i = 0; i < HASH_CHAIN_SIZE; i++) {
+        for (int i = 0; i < HASH_CHAIN_SZ; i++) {
                 if (hash_table[hash_val][i].oem_chr_name != NULL) {
                         if (!strcmp(oem_hash_table[hash_val][i].oem_chr_name,
                                 profile)) {
@@ -241,8 +272,8 @@ char *oem_get_profile_info_in_json(const char *profile, bool acronym)
         if (!payload && !item)
                 return NULL;
 
-        char *prof_name = NULL;
-        char *char_name = NULL;
+        const char *prof_name = NULL;
+        const char *char_name = NULL;
         if (acronym)
                 prof_name = oem_prof_data[pro_id].grp_short_name;
         else
@@ -274,7 +305,7 @@ char *oem_get_characteristic_info_in_json(const char *charstc, bool acronym)
         if (hash_val < 0)
                 return NULL;
         int index = INVALID;
-        for (int i = 0; i < HASH_CHAIN_SIZE; i++) {
+        for (int i = 0; i < HASH_CHAIN_SZ; i++) {
                 if (hash_table[hash_val][i].oem_chr_name != NULL) {
                         if (!strcmp(oem_hash_table[hash_val][i].oem_chr_name,
                                 charstc)) {
@@ -291,7 +322,7 @@ char *oem_get_characteristic_info_in_json(const char *charstc, bool acronym)
                 return NULL;
 
         cJSON *payload = cJSON_CreateObject();
-        char *char_name = NULL;
+        const char *char_name = NULL;
 
         if (acronym)
                 char_name =

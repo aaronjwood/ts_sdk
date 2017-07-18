@@ -5,8 +5,11 @@
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
-/* IP address and mac address related includes */
+#include <sys/sysinfo.h>
+#include <sys/utsname.h>
+#include <time.h>
 
+/* IP address and mac address related includes */
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
@@ -75,7 +78,7 @@ bool utils_get_ip_addr(char *ipaddr, uint8_t length, const char *interface)
                                         __func__, __LINE__, gai_strerror(s));
                                 return false;
                         }
-                        strncpy(ipaddr, host, length);
+                        snprintf(ipaddr, length, "%s", host);
                         freeifaddrs(ifaddr);
                         return true;
                 }
@@ -90,4 +93,101 @@ bool utils_get_device_id(char *id, uint8_t len, char *interface)
         if (!id || !interface || len == 0)
                 return false;
         return utils_get_mac_addr(id, len, interface);
+}
+
+void utils_get_ram_info(uint32_t *free_ram, uint32_t *avail_ram)
+{
+        if (!free_ram || !avail_ram)
+                return;
+        *free_ram = 0;
+        *avail_ram = 0;
+        struct sysinfo mem_info;
+        sysinfo(&mem_info);
+        *free_ram = mem_info.freeram;
+        *avail_ram = mem_info.totalram - mem_info.freeram;
+}
+
+bool utils_get_os_version(char *value, uint32_t len)
+{
+        if (!value || (len == 0))
+                return false;
+        struct utsname u;
+        uname(&u);
+        snprintf(value, len, "%s", u.sysname);
+        return true;
+}
+
+bool utils_get_kernel_version(char *value, uint32_t len)
+{
+        if (!value || (len == 0))
+                return false;
+        struct utsname u;
+        uname(&u);
+        snprintf(value, len, "%s", u.release);
+        return true;
+}
+
+bool utils_get_manufacturer(char *value, uint32_t len)
+{
+        if (!value || (len == 0))
+                return false;
+        snprintf(value, len, "%s", "raspberry pi");
+        return true;
+}
+
+bool utils_get_dev_model(char *value, uint32_t len)
+{
+        if (!value || (len == 0))
+                return false;
+        snprintf(value, len, "%s", "raspberry pi 3");
+        return true;
+}
+
+bool utils_get_chipset(char *value, uint32_t len)
+{
+        if (!value || (len == 0))
+                return false;
+        snprintf(value, len, "%s", "Broadcom BCM2837");
+        return true;
+}
+
+bool utils_get_iccid(char *value, uint32_t len)
+{
+        return false;
+}
+
+bool utils_get_time_zone(char *value, uint32_t len)
+{
+        if (!value || (len == 0))
+                return false;
+        time_t rawtime;
+        struct tm *timeinfo;
+
+        if (time(&rawtime) < 0)
+                return false;
+        timeinfo = localtime(&rawtime);
+        if (!timeinfo)
+                return false;
+        snprintf(value, len, "%s", asctime(timeinfo));
+
+        char *pos;
+        if ((pos = strchr(value, '\n')) != NULL)
+                *pos = '\0';
+        return true;
+}
+
+bool utils_get_uptime(char *value, uint32_t len)
+{
+        if (!value || (len == 0))
+                return false;
+        const long minute = 60;
+        const long hour = minute * 60;
+        const long day = hour * 24;
+
+        struct sysinfo si;
+        sysinfo(&si);
+        snprintf(value, len, "%ld:%02ld:%02ld:%02ld", si.uptime / day,
+                (si.uptime % day) / hour, (si.uptime % hour) / minute,
+                si.uptime % minute);
+        return true;
 }
