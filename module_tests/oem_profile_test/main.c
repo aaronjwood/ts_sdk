@@ -26,5 +26,12 @@ int main(void)
 	temp = oem_get_characteristic_info_in_json("Kernel Version", false);
 	dbg_printf("%s\n", temp);
 	free(temp);
+
+	/* Get everything */
+	temp = oem_get_all_profile_info_in_json(false);
+	dbg_printf("%s\n", temp);
+	printf("Total Size: %d\n", strlen(temp));
+	
+	free(temp);
 	return 0;
 }

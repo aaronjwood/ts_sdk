@@ -339,6 +339,43 @@ char *oem_get_profile_info_in_json(const char *profile, bool acronym)
         return msg;
 }
 
+char *oem_get_all_profile_info_in_json(bool acronym)
+{
+
+        cJSON *payload = cJSON_CreateObject();
+        if (!payload)
+                return NULL;
+        const char *prof_name = NULL;
+        const char *char_name = NULL;
+        for (int i = 0; i < num_profiles; i++) {
+                cJSON *item = cJSON_CreateObject();
+                if (!item) {
+                        cJSON_Delete(payload);
+                        return NULL;
+                }
+                if (acronym)
+                        prof_name = oem_prof_data[i].grp_short_name;
+                else
+                        prof_name = oem_prof_data[i].grp_full_name;
+                cJSON_AddItemToObject(payload, prof_name, item);
+
+                for (int j = 0; j < oem_prof_data[i].chr_count; j++) {
+                        if (acronym)
+                                char_name =
+                                oem_prof_data[i].oem_char[j].chr_short_name;
+                        else
+                                char_name =
+                                oem_prof_data[i].oem_char[j].chr_full_name;
+
+                        cJSON_AddItemToObject(item, char_name,
+                        cJSON_CreateString(oem_prof_data[i].oem_char[j].value));
+                }
+        }
+        char *msg = cJSON_PrintUnformatted(payload);
+        cJSON_Delete(payload);
+        return msg;
+}
+
 char *oem_get_characteristic_info_in_json(const char *charstc, bool acronym)
 {
         if (!charstc)
