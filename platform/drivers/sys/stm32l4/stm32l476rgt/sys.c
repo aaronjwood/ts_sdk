@@ -49,7 +49,8 @@ static void SystemClock_Config(void)
 	RCC_OscInitTypeDef RCC_OscInitStruct;
 
 	/*
-	 * Enable HSI Oscillator, select it as PLL source and finally activate the PLL.
+	 * Enable HSI Oscillator, select it as PLL source
+	 * and finally activate the PLL.
 	 */
 	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
 	RCC_OscInitStruct.HSEState = RCC_HSI_ON;
@@ -103,9 +104,9 @@ static void tim5_cb(void)
 /* Set up timer module 5 (TIM5) to facilitate sleep functionality */
 static bool tim5_module_init(void)
 {
-	/* Timer 5's prescaler is fed by APB clock which is 84MHz, setting
+	/* Timer 5's prescaler is fed by APB clock which is 80MHz, setting
 	 * precaler to highest divider possible to make generate counter clock
-	 * 84MHz / 42000 = base_frequency = 2KHz = 0.5mS
+	 * 80MHz / 40000 = base_frequency = 2KHz = 0.5mS
 	 * Minumum resolution = 0.5mS
 	 * Maximum resolution = 0.5mS * Auto Reload register (Period) value
 	 */

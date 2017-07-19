@@ -96,19 +96,6 @@ static bool idle_timer_init(void)
 	/*
 	 * Initialize the timer (TIM2) to have a period equal to the time it
 	 * takes to receive a character at the current baud rate.
-	 * TIM2's clock source is connected to APB1. According to the TRM,
-	 * this source needs to be multiplied by 2 if the APB1 prescaler is not
-	 * 1 (it's 4 in our case). Therefore effectively, the clock source for
-	 * Nucleo board TIM2 is:
-	 * APB1 x 2 = (SystemCoreClock / 4) * 2 = SystemCoreClock / 2 = 90 MHz.
-	 * The base frequency of the timer's clock is chosen as 1 MHz (time
-	 * period of 1 microsecond).
-	 * Therefore, prescaler = (90 MHz / 1 MHz) - 1  = 89.
-	 * For Beduin board TIM2 is:
-	 * APB1 x 2 = (SystemCoreClock / 4) * 2 = SystemCoreClock / 2 = 84 MHz.
-	 * The base frequency of the timer's clock is chosen as 1 MHz (time
-	 * period of 1 microsecond).
-	 * Therefore, prescaler = (84 MHz / 1 MHz) - 1  = 83.
 	 * The clock is set to restart every 70us (value of 'Period' member)
 	 * which is how much time it takes to receive a character on a 115200
 	 * bps UART.
