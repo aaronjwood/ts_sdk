@@ -395,7 +395,6 @@ void at_core_process_urc(bool mode)
 		urc_callback(urc);
 
 		/* XXX: Unprocessed URCs arrive here */
-		DEBUG_V0("%s: urc unprocessed\n", __func__);
 	}
 	if (mode)
 		state.proc_urc = false;
@@ -461,7 +460,9 @@ bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb, uint32_t d_ms)
 		.data_width = MODEM_UART_DATA_WIDTH,
 		.parity = MODEM_UART_PARITY,
 		.stop_bits = MODEM_UART_STOP_BITS,
-		.priority = MODEM_UART_IRQ_PRIORITY
+		.priority = MODEM_UART_IRQ_PRIORITY,
+		.hw_flow_ctrl = false,
+		.irq = true
 	};
 	uart = uart_init(&pins, &config);
 	if (uart == NO_PERIPH)

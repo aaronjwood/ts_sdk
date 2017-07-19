@@ -62,7 +62,7 @@
 
 
 /* Modem communicaations port settings */
-#if defined (STM32F429xx)
+#if defined (stm32f429zit)
 #ifdef nucleo
 /* Pin and peripheral configuration for UART connecting modem and MCU */
 #define MODEM_UART_TX_PIN	PD5
@@ -83,7 +83,7 @@
 #define MODEM_UART_IDLE_TIMER	TIMER2
 #endif	/* BOARD */
 
-#elif defined (STM32F415xx)
+#elif defined (stm32f415rgt)
 #ifdef beduin
 /* Pin and peripheral configuration for UART connecting modem and MCU */
 #define MODEM_UART_TX_PIN	PB10
