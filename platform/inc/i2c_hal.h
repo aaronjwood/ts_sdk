@@ -12,7 +12,7 @@
 
 #include <stdint.h>
 #include "port_pin_api.h"
-
+	
 /**
  * \brief Defines an I2C address.
  * \details This type stores the slave's 7-bit address along with the address of
@@ -31,8 +31,9 @@ typedef struct {
  *
  * \param[in] scl I2C peripheral's clock pin
  * \param[in] sda I2C peripheral's data pin
- * \param[in] I2C timeout duration in milli seconds
- *
+ * \param[in] I2C timeout duration in milli seconds - if value of zero is passed,
+ *  timeout_ms will take the I2C_TIMEOUT_MS macro value
+ 
  * \returns Handle to I2C peripheral. If \b scl and \b sda cannot be configured,
  * \ref NO_PERIPH is returned. Possible causes can be:
  * \arg At least one of the pins is already being used.

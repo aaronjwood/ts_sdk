@@ -20,9 +20,10 @@ int main()
 	data.bytes = a;
 	data.sz = DATA_SIZE;
 	uint8_t value = CTRL_REG_VAL;
+	uint32_t timeout_ms = 0;
 	dbg_printf("Begin:\n");
 
-	periph_t i2c_handle =  i2c_init(I2C_SCL, I2C_SDA, 0);
+	periph_t i2c_handle =  i2c_init(I2C_SCL, I2C_SDA, timeout_ms);
 	ASSERT(!(i2c_handle == NO_PERIPH));
 
 	i2c_dest_addr.slave = SLAVE_ADDR;
