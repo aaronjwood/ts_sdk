@@ -53,8 +53,6 @@ static bool sys_res_stable;		/* True when system is stable after restart*/
 static void parse_imei(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data)
 {
-	sys_delay(5);	/* Precaution to ensure the IMEI has been received */
-	/* Skip the CR LF in the beginning of the response */
 	rcv_rsp += strlen(stored_rsp);
 	memcpy(modem_imei, rcv_rsp, IMEI_LEN - 1);
 }
@@ -63,7 +61,6 @@ static void parse_sig_str(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data)
 {
 	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
-	sys_delay(10);	/* Precaution to ensure the signal strength has been received */
 	uint8_t i = 0;
 	sig_str = 0;
 	while (rcv_bytes[i] != ',') {
@@ -358,7 +355,6 @@ bool at_modem_get_imei(char *imei)
 			return false;
 		imei[i] = modem_imei[i];
 	}
-	imei[IMEI_LEN] = 0x00;
 
 	return true;
 }
