@@ -26,7 +26,6 @@
 #define I2C_TIMEOUT		2000	/* 2000ms timeout for I2C response */
 periph_t  i2c_handle;
 i2c_addr_t i2c_dest_addr;
-
 #define READ_MATCH_TIMEOUT	1000   /* 1000ms timeout - read until matched*/
 
 enum sensors {
@@ -150,11 +149,12 @@ static bool init_sensors(void)
 
 bool si_init(void)
 {
+	uint32_t timeout_ms = 0;
 #ifdef SIMULATE_SENSOR
 	return true;
 #endif
 	/* Initialize the I2C bus on the processor */
-	i2c_handle =  i2c_init(PB8, PB9);
+	i2c_handle =  i2c_init(I2C_SCL, I2C_SDA, timeout_ms);
 
 	if (i2c_handle != NO_PERIPH)
 		return init_sensors();

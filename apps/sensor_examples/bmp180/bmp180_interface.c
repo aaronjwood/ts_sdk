@@ -34,11 +34,12 @@ i2c_addr_t i2c_dest_addr;
 
 bool si_init(void)
 {
+	uint32_t timeout_ms = 0;
 #ifdef SIMULATE_SENSOR
 	return true;
 #endif
 	/* Initialize the I2C bus on the processor */
-	i2c_handle =  i2c_init(PB8, PB9);
+	i2c_handle =  i2c_init(I2C_SCL, I2C_SDA, timeout_ms);
 
 	if (i2c_handle == NO_PERIPH)
 		return false;
