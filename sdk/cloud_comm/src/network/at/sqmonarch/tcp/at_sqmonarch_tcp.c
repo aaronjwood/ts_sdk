@@ -24,7 +24,13 @@
 
 static char modem_ip_addr[IP_ADDR_LEN];
 
-static bool connected;
+static volatile struct __attribute__((packed)) {
+	uint8_t connected : 1;		/* True when connected to the server */
+	uint8_t receiving : 1;		/* True while receiving data on the UART */
+	uint8_t flag_peer_close : 1;	/* True: Closed by peer, False: Closed by us */
+	buf_sz unread;			/* Store the amount of unread data */
+	buf_sz wanted_bytes;		/* Amount of data being sent by +SQNSRING */
+} tcp_state;
 
 static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data)
@@ -36,6 +42,18 @@ static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
 		i++;
 	}
 }
+
+#if 0
+static void attempt_sqsring_retrieval(void)
+{
+	if (tcp_state.receiving) {
+		if (at_core_rx_available() >= tcp_state.wanted_bytes) {
+			tcp_state.wanted_bytes = 0;
+			tcp_state.receiving = false;
+		}
+	}
+}
+#endif
 
 static void at_uart_callback(void)
 {
@@ -50,8 +68,10 @@ static bool process_urc(const char *urc, enum at_urc u_code)
 
 	switch (u_code) {
 	case TCP_CLOSED:
-		connected = false;
-		DEBUG_V0("%s: TCP conn closed\n", __func__);
+		tcp_state.connected = false;
+		tcp_state.receiving = false;
+		tcp_state.flag_peer_close = true;
+		DEBUG_V0("%s: TCP conn closed by peer\n", __func__);
 		break;
 	/* TODO: Process +SQNSRING URC - See SMS code for hints */
 	default:
@@ -70,7 +90,10 @@ static void urc_callback(const char *urc)
 
 bool at_init()
 {
-	connected = false;
+	tcp_state.connected = false;
+	tcp_state.receiving = false;
+	tcp_state.flag_peer_close = false;
+	tcp_state.unread = 0;
 
 	/* XXX: Call at_core_emu_hwflctrl() here, before at_core_init() */
 	if (!at_core_emu_hwflctrl(MODEM_EMULATED_RTS, MODEM_EMULATED_CTS))
@@ -108,15 +131,21 @@ bool at_init()
 
 int at_tcp_connect(const char *host, const char *port)
 {
-	if (connected)
+	if (tcp_state.connected)
 		return AT_CONNECT_FAILED;
+
 	char cmd[MAX_TCP_CMD_LEN];
 	at_command_desc *desc = &tcp_commands[SOCK_DIAL];
 	snprintf(cmd, MAX_TCP_CMD_LEN, desc->comm_sketch, port, host);
 	desc->comm = cmd;
 	if (at_core_wcmd(desc, true) != AT_SUCCESS)
 		return AT_CONNECT_FAILED;
-	connected = true;
+
+	tcp_state.connected = true;
+	tcp_state.receiving = false;
+	tcp_state.flag_peer_close = false;
+	tcp_state.unread = 0;
+
 	DEBUG_V0("%s: socket("MODEM_SOCK_ID") created\n", __func__);
 	const char sock_id[] = MODEM_SOCK_ID;
 	return sock_id[0] - '0';
@@ -124,27 +153,85 @@ int at_tcp_connect(const char *host, const char *port)
 
 int at_tcp_send(int s_id, const uint8_t *buf, size_t len)
 {
+	const char sock_id[] = MODEM_SOCK_ID;
+	if (s_id != sock_id[0] - '0' || len == 0 || buf == NULL)
+		return AT_TCP_INVALID_PARA;
+	if (!tcp_state.connected)
+		return AT_TCP_SEND_FAIL;
 	/* TODO: Send data in chunks of 1500 bytes using AT+SQNSSEND=1 */
 	return 0;
 }
 
 int at_read_available(int s_id)
 {
-	return 0;
+	const char sock_id[] = MODEM_SOCK_ID;
+	if (s_id != sock_id[0] - '0')
+		return AT_TCP_RCV_FAIL;
+	if (!tcp_state.connected) {
+		if (!tcp_state.flag_peer_close)
+			return 0;
+		if (tcp_state.unread > 0)
+			return tcp_state.unread;
+		return AT_TCP_RCV_FAIL;
+	}
+	return tcp_state.unread;
+}
+
+static int attempt_read_socket(uint8_t *buf, size_t len)
+{
+	if (tcp_state.unread > 0) {
+		int avail = at_core_rx_available();
+		if (avail >= len) {
+			int rdb = at_core_read(buf, len);
+			if (rdb < 0)
+				return AT_TCP_RCV_FAIL;
+			tcp_state.unread -= rdb;
+			return rdb;
+		}
+	}
+	errno = EAGAIN;
+	return AT_TCP_RCV_FAIL;
+}
+
+static int attempt_read_inter_buf(uint8_t *buf, size_t len)
+{
+	if (tcp_state.unread > 0) {
+		int rdb = at_core_read(buf, len);
+		if (rdb < 0)
+			return AT_TCP_RCV_FAIL;
+		tcp_state.unread -= rdb;
+		return rdb;
+	}
+	return AT_TCP_RCV_FAIL;
 }
 
 int at_tcp_recv(int s_id, uint8_t *buf, size_t len)
 {
-	/* TODO: Read internal UART buffer */
-	return 0;
+	const char sock_id[] = MODEM_SOCK_ID;
+	if (s_id != sock_id[0] - '0' || buf == NULL)
+		return AT_TCP_INVALID_PARA;
+
+	if (len == 0)
+		return 0;
+
+	if (!tcp_state.connected) {
+		if (!tcp_state.flag_peer_close)
+			return 0;
+		return attempt_read_inter_buf(buf, len);
+	}
+
+	return attempt_read_socket(buf, len);
 }
 
 void at_tcp_close(int s_id)
 {
-	if (s_id < 0 || !connected)
+	const char sock_id[] = MODEM_SOCK_ID;
+	if (s_id != sock_id[0] - '0' || !tcp_state.connected)
 		return;
 	at_core_wcmd(&tcp_commands[SOCK_CLOSE], true);
-	connected = false;
+	tcp_state.connected = false;
+	tcp_state.receiving = false;
+	tcp_state.flag_peer_close = false;
 }
 
 bool at_tcp_get_ip(char *ip)
