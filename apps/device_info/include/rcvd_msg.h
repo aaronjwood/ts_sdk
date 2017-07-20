@@ -10,7 +10,7 @@
 
 #define NO_UUID         "NO_UUID_DATA"
 #define OK              "OK"
-#define BAS_REQ         "BAD_REQUEST"
+#define BAD_REQ         "BAD_REQUEST"
 #define NO_CMD          "NO_CMD"
 #define MISS_CHAR       "Missing Characteristic"
 #define INV_CHAR        "Invalid Characteristic"
@@ -21,13 +21,13 @@
 #define VALID                   0
 #define MAX_CMD_SIZE            40
 
-typdef struct rsp_t {
+typedef struct rsp_t {
         char *rsp_msg;
         uint32_t rsp_len;
         bool on_board;
         char uuid[MAX_CMD_SIZE];
 } rsp;
 
-rsp *process_rvcd_msg(const char *recvd, uint32_t sz);
+void process_rvcd_msg(const char *recvd, uint32_t sz, rsp *rsp_to_remote);
 
 #endif

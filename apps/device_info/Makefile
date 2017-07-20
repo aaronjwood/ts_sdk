@@ -32,7 +32,6 @@ APP_INC = -I $(SRCDIR)/include
 
 # User application sources
 APP_SRC = $(wildcard $(SRCDIR)/*.c)
-APP_SRC += $(wildcard $(SRCDIR)/$(PROJ_NAME)/*.c)
 
 # Sources are built without debug info and optimized for size.
 # Use DBG_LIB_SRC to compile a subset of the sources with the

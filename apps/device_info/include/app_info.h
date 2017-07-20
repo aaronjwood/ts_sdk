@@ -3,6 +3,11 @@
 #ifndef APP_INFO_H
 #define APP_INFO_H
 
+#define APP_NAME        "device_info"
+#define SERIAL_NUM      "123"
+#define PROF_NAME       "diagnostic_info"
+#define PROF_ID         "456"
+
 #if 0
 typedef struct char_name_t
 {

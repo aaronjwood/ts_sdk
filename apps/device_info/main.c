@@ -14,6 +14,7 @@
 #include "cc_control_service.h"
 #include "dbg.h"
 #include "protocol_init.h"
+#include "rcvd_msg.h"
 
 
 /* Declare the send and receive static buffer this is mandatory step */
@@ -26,6 +27,7 @@ CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 /* Arbitrary long sleep time in milliseconds */
 #define LONG_SLEEP_INT_MS	180000
 
+#if 0
 static void send_with_retry(cc_buffer_desc *b, cc_data_sz s, cc_service_id id)
 {
 	uint8_t retries = 0;
@@ -60,13 +62,20 @@ static uint32_t read_and_send_all_sensor_data(uint64_t cur_ts)
 	last_st_ts = cur_ts;
 	return STATUS_REPORT_INT_MS;
 }
+#endif
 
 static void receive_completed(cc_buffer_desc *buf)
 {
 	cc_data_sz sz = cc_get_receive_data_len(buf, CC_SERVICE_BASIC);
-	const char *recvd = cc_get_recv_buffer_ptr(buf, CC_SERVICE_BASIC);
+	const char *recvd = (const char *)cc_get_recv_buffer_ptr(buf,
+				CC_SERVICE_BASIC);
+	rsp rsp_to_remote;
+	char *rsp_msg = NULL;
 	if (recvd && sz > 0)
-		process_rvcd_msg(recvd, sz);
+		process_rvcd_msg(recvd, sz, &rsp_to_remote);
+	printf("Response created......\n");
+	if (rsp_to_remote.rsp_msg)
+		printf("%s\n", rsp_msg);
 }
 
 static void handle_buf_overflow()

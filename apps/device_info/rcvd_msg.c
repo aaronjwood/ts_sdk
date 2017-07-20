@@ -7,7 +7,13 @@
 #include <string.h>
 #include "dbg.h"
 #include "cJSON.h"
-#include "oem.h"
+#include "oem_hal.h"
+#include "app_info.h"
+#include "rcvd_msg.h"
+#include "utils.h"
+
+#define DEV_ID          16
+#define NET_INTFC       "eth0"
 
 #define DEBUG_PROC_MSG
 #ifdef DEBUG_PROC_MSG
@@ -23,11 +29,18 @@
 #define PRINTF_ERR(...)
 #endif
 
-#define RETURN_ERROR(string, ret) \
+#define RETURN_ERROR_VAL(string, val) \
 	do { \
 		PRINTF_ERR("%s:%d:" #string, __func__, __LINE__); \
 		PRINTF_ERR("\n"); \
-		return (ret); \
+		return (val); \
+	} while (0)
+
+#define RETURN_ERROR(string) \
+	do { \
+		PRINTF_ERR("%s:%d:" #string, __func__, __LINE__); \
+		PRINTF_ERR("\n"); \
+		goto done; \
 	} while (0)
 
 #define MAX_STATUS_MSG_SIZE     120
@@ -38,8 +51,6 @@ typedef struct {
         uint32_t err_code;
         char status_message[MAX_STATUS_MSG_SIZE];
 } cmd_responce_data_t;
-
-static rsp rsp_to_remote;
 
 static void prepare_resp(cmd_responce_data_t *cmd_resp_data, const char *cmd,
                         const char *uuid, uint32_t status_code,
@@ -64,28 +75,29 @@ static const char *create_getopt_payload(bool acronym)
         return oem_get_all_profile_info_in_json(acronym);
 }
 
-static char *fill_otpcmd_resp_msg(cJSON *cname, char *prof,
-                        char *chr_name, cmd_responce_data_t *cmd_resp_data,
+static char *fill_otpcmd_resp_msg(const cJSON *cname, char *prof,
+                        char *char_name, cmd_responce_data_t *cmd_resp_data,
                         bool acronym)
 {
         cJSON *object = NULL;
-        char *payload_obj = NULL;
+        const char *payload_obj = NULL;
         char *msg = NULL;
         bool otp_payload = false;
 
         if (cmd_resp_data == NULL)
-                return NULL;
+                RETURN_ERROR_VAL("response pointer is null", NULL);
+
         object = cJSON_CreateObject();
         if (object == NULL)
-                return NULL;
+                RETURN_ERROR_VAL("creating json object failed", NULL);
 
         if (cmd_resp_data->err_code == MQTT_CMD_STATUS_OK) {
                 oem_update_profiles_info(NULL);
                 if (!char_name && !prof)
-                        payload_obj = create_getopt_payload();
+                        payload_obj = create_getopt_payload(acronym);
                 else if (!char_name)
                         payload_obj = prof;
-                else if (char_name && (!prof_name))
+                else if (char_name && (!prof))
                         payload_obj = char_name;
                 otp_payload = true;
         } else
@@ -93,17 +105,14 @@ static char *fill_otpcmd_resp_msg(cJSON *cname, char *prof,
 
         cJSON *temp = cJSON_CreateString(cmd_resp_data->command);
         if (!temp) {
-                PRINTF("%s:%d: failed\n", __func__, __LINE__);
-                goto done;
+                RETURN_ERROR("failed");
         }
         cJSON_AddItemToObject(object, (acronym == true) ? "UCD" : "unitCommand",
                         temp);
         if (cname) {
                 temp = cJSON_CreateString(cname->valuestring);
-                if (!temp) {
-                        PRINTF("%s:%d: failed\n", __func__, __LINE__);
-                        goto done;
-                }
+                if (!temp)
+                        RETURN_ERROR("failed");
                 cJSON_AddItemToObject(object,
                         (acronym == true) ? "CNAME" : "characteristicsName",
                         temp);
@@ -111,8 +120,7 @@ static char *fill_otpcmd_resp_msg(cJSON *cname, char *prof,
 
         temp = cJSON_CreateString(cmd_resp_data->uuid);
         if (!temp) {
-                PRINTF("%s:%d: failed\n", __func__, __LINE__);
-                goto done;
+                RETURN_ERROR("failed");
         }
         cJSON_AddItemToObject(object,
                 (acronym == true) ? "CUUID" : "commandUUID",
@@ -120,24 +128,21 @@ static char *fill_otpcmd_resp_msg(cJSON *cname, char *prof,
 
         temp = cJSON_CreateString(cmd_resp_data->status_message);
         if (!temp) {
-                PRINTF("%s:%d: failed\n", __func__, __LINE__);
-                goto done;
+                RETURN_ERROR("failed");
         }
         cJSON_AddItemToObject(object, (acronym == true) ? "SMSG" : "statusMsg",
                 temp);
 
         temp = cJSON_CreateNumber((double)cmd_resp_data->err_code);
         if (!temp) {
-                PRINTF("%s:%d: failed\n", __func__, __LINE__);
-                goto done;
+                RETURN_ERROR("failed");
         }
         cJSON_AddItemToObject(object, (acronym == true) ? "SCD" : "statusCode",
                         temp);
         if (otp_payload) {
                 temp = cJSON_CreateString(payload_obj);
                 if (!temp) {
-                        PRINTF("%s:%d: failed\n", __func__, __LINE__);
-                        goto done;
+                        RETURN_ERROR("failed");
                 }
                 cJSON_AddItemToObject(object,
                         (acronym == true) ? "PLD" : "payload", temp);
@@ -154,13 +159,10 @@ static char *prepare_device_info(const cJSON *cname, const char *cmditem,
                         bool acronym, uint32_t *rsp_len)
 {
 
-        bool oem_prof_flag = false;
-        bool oem_char_flag = false;
         char *prof = NULL;
         char *char_name = NULL;
         char *msg = NULL;
         *rsp_len = 0;
-        int i = 0;
 
         if (uuid == NULL) {
                 prepare_resp(cmd_resp_data, NULL, NULL,
@@ -181,7 +183,7 @@ static char *prepare_device_info(const cJSON *cname, const char *cmditem,
                 prepare_resp(cmd_resp_data, NULL, NULL,
                         MQTT_CMD_STATUS_BAD_REQUEST, INV_CHAR);
                 msg = fill_otpcmd_resp_msg(cname, prof, char_name,
-                        cmd_resp_data);
+                        cmd_resp_data, acronym);
         } else if (cname && (prof || char_name)) {
                 msg = fill_otpcmd_resp_msg(cname, prof, char_name,
                                 cmd_resp_data, acronym);
@@ -202,64 +204,57 @@ static char *create_onboard_msg(uint32_t *msg_len)
         char device_id[DEV_ID];
 
         if (!utils_get_device_id(device_id, DEV_ID, NET_INTFC))
-                RETURN_ERROR("device id retreival failed", NULL);
+                RETURN_ERROR_VAL("device id retreival failed", NULL);
 
         object = cJSON_CreateObject();
         if (!object)
-                RETURN_ERROR("creating json object failed", NULL);
+                RETURN_ERROR_VAL("creating json object failed", NULL);
 
         cJSON *temp = cJSON_CreateString(APP_NAME);
         if (!temp) {
-                PRINTF("creating unitname json failed\n");
-                goto error;
+                RETURN_ERROR("failed");
         }
         cJSON_AddItemToObject(object, "unitName", temp);
 
         temp = cJSON_CreateString(device_id);
         if (!temp) {
-                PRINTF("creating unitMacId json failed\n");
-                goto error;
+                RETURN_ERROR("failed");
         }
         cJSON_AddItemToObject(object, "unitMacId", temp);
 
         temp = cJSON_CreateString(SERIAL_NUM);
         if (!temp) {
-                PRINTF("creating serial nunmber failed\n");
-                goto error;
+                RETURN_ERROR("failed");
         }
         cJSON_AddItemToObject(object, "unitSerialNo", temp);
 
         sensor_object = cJSON_CreateObject();
         if (!sensor_object) {
-                PRINTF("creating sensor object failed\n");
-                goto error;
+                RETURN_ERROR("failed");
         }
         cJSON_AddItemToObject(object, "sensor", sensor_object);
 
         temp = cJSON_CreateString(PROF_NAME);
         if (!temp) {
-                PRINTF("creating profile name failed\n");
-                goto error;
+                RETURN_ERROR("failed");
         }
         cJSON_AddItemToObject(sensor_object, "name", temp);
 
 
         temp = cJSON_CreateString(PROF_ID);
         if (!temp) {
-                PRINTF("creating profile id failed\n");
-                goto error;
+                RETURN_ERROR("failed");
         }
-        cJSON_AddItemToObject(sensor_object, "id", temp));
+        cJSON_AddItemToObject(sensor_object, "id", temp);
 
         item = cJSON_CreateArray();
         if (!item) {
-                PRINTF("creating array failed\n");
-                goto error;
+                RETURN_ERROR("failed");
         }
         cJSON_AddItemToObject(sensor_object, "characteristics", item);
         msg = cJSON_PrintUnformatted(object);
         *msg_len = strlen(msg) + 1;
-error:
+done:
         cJSON_Delete(object);
         return msg;
 }
@@ -275,29 +270,25 @@ static char *create_cmd_resp_msg(cmd_responce_data_t *cmd_resp_data, cJSON *pl,
 
         cJSON *temp = cJSON_CreateString(cmd_resp_data->command);
         if (!temp) {
-                PRINTF("creating command json failed\n");
-                goto done;
+                RETURN_ERROR("failed");
         }
         cJSON_AddItemToObject(object, "unitCommand", temp);
 
         temp = cJSON_CreateString(cmd_resp_data->uuid);
         if (!temp) {
-                PRINTF("creating uuid json failed\n");
-                goto done;
+                RETURN_ERROR("failed");
         }
         cJSON_AddItemToObject(object, "commandUUID", temp);
 
         temp = cJSON_CreateString(cmd_resp_data->status_message);
         if (!temp) {
-                PRINTF("creating stat msg json failed\n");
-                goto done;
+                RETURN_ERROR("failed");
         }
         cJSON_AddItemToObject(object, "statusMsg", temp);
 
         temp = cJSON_CreateNumber((double)cmd_resp_data->err_code);
         if (!temp) {
-                PRINTF("creating erro code json failed\n");
-                goto done;
+                RETURN_ERROR("failed");
         }
         cJSON_AddItemToObject(object, "statusCode", temp);
 
@@ -312,8 +303,8 @@ done:
 }
 
 static char *process_server_cmd_msg(const char *msg,
-                                cmd_responce_data_t *cmd_resp_data, char *uuid,
-                                bool *on_board, uint32_t *rsp_len)
+                                cmd_responce_data_t *cmd_resp_data,
+                                rsp *rsp_to_remote)
 {
 
         bool acronym = false;
@@ -321,6 +312,7 @@ static char *process_server_cmd_msg(const char *msg,
         cJSON *cname = NULL;
         cJSON *cmditem = NULL;
         cJSON *uuid = NULL;
+        uint32_t *rsp_len = &(rsp_to_remote->rsp_len);
         *rsp_len = 0;
         object = cJSON_Parse(msg);
 
@@ -336,7 +328,7 @@ static char *process_server_cmd_msg(const char *msg,
                                 PRINTF("%s:%d: rcvd empty json\n",
                                         __func__, __LINE__);
                                 cJSON_Delete(object);
-                                *on_board = true;
+                                rsp_to_remote->on_board = true;
                                 return create_onboard_msg(rsp_len);
                         }
                 }
@@ -348,8 +340,8 @@ static char *process_server_cmd_msg(const char *msg,
                  */
                 prepare_resp(cmd_resp_data, NO_CMD, NO_UUID,
                         MQTT_CMD_STATUS_BAD_REQUEST, BAD_REQ);
-                *on_board = false;
-                snprintf(uuid, MAX_CMD_SIZE, "%s", NO_UUID);
+                rsp_to_remote->on_board = false;
+                snprintf(rsp_to_remote->uuid, MAX_CMD_SIZE, "%s", NO_UUID);
                 return create_cmd_resp_msg(cmd_resp_data, NULL, rsp_len);
         }
 
@@ -369,11 +361,13 @@ static char *process_server_cmd_msg(const char *msg,
                         cname = cJSON_GetObjectItem(object,
                                                 "characteristicsName");
                 cJSON_Delete(object);
-                *on_board = false;
+                rsp_to_remote->on_board = false;
                 if (uuid)
-                        snprintf(uuid, MAX_CMD_SIZE, "%s", uuid->valuestring);
+                        snprintf(rsp_to_remote->uuid, MAX_CMD_SIZE, "%s",
+                                uuid->valuestring);
                 else
-                        snprintf(uuid, MAX_CMD_SIZE, "%s", NO_UUID);
+                        snprintf(rsp_to_remote->uuid, MAX_CMD_SIZE, "%s",
+                                NO_UUID);
 
                 return prepare_device_info(cname, cmditem->valuestring, uuid,
                                 cmd_resp_data, acronym, rsp_len);
@@ -381,27 +375,24 @@ static char *process_server_cmd_msg(const char *msg,
                 prepare_resp(cmd_resp_data, NULL, NULL,
                         MQTT_CMD_STATUS_BAD_REQUEST, WRNG_CMD);
                 cJSON_Delete(object);
-                *on_board = false;
+                rsp_to_remote->on_board = false;
                 if (uuid)
-                        snprintf(uuid, MAX_CMD_SIZE, "%s", uuid->valuestring);
+                        snprintf(rsp_to_remote->uuid, MAX_CMD_SIZE, "%s",
+                                uuid->valuestring);
                 else
-                        snprintf(uuid, MAX_CMD_SIZE, "%s", NO_UUID);
+                        snprintf(rsp_to_remote->uuid, MAX_CMD_SIZE, "%s",
+                                NO_UUID);
                 return create_cmd_resp_msg(cmd_resp_data, NULL, rsp_len);
         }
         *rsp_len = 0;
         return NULL;
 }
 
-rsp *process_rvcd_msg(const char *server_msg, uint32_t sz)
+void process_rvcd_msg(const char *server_msg, uint32_t sz, rsp *rsp_to_remote)
 {
-        char *json_msg = NULL;
         cmd_responce_data_t cmd_resp_data;
-        printf("Message received: %s\n", server_msg);
-        bool onboard = false;
-        rsp_to_remote.rsp_msg = process_server_cmd_msg(server_msg,
-                                                &cmd_resp_data,
-                                                rsp_to_remote.uuid,
-                                                &rsp_to_remote.on_board,
-                                                &rsp_to_remote.rsp_len);
-        return &rsp_to_remote;
+        printf("Message received.......\n");
+        printf("%s\n", server_msg);
+        rsp_to_remote->rsp_msg = process_server_cmd_msg(server_msg,
+                                                &cmd_resp_data, rsp_to_remote);
 }
