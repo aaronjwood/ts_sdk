@@ -25,6 +25,7 @@ typedef struct rsp_t {
         char *rsp_msg;
         uint32_t rsp_len;
         bool on_board;
+        bool valid_rsp;
         char uuid[MAX_CMD_SIZE];
 } rsp;
 

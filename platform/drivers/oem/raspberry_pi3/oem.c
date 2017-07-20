@@ -10,27 +10,31 @@
 #include "dbg.h"
 #include "cJSON.h"
 
+static void init_device_profile(void);
+static void init_ram_profile(void);
+static void init_ipaddr_profile(void);
+
 static oem_profile_t oem_prof_data[NUM_PROF] = {
         [DEVINFO_INDEX] = {
                 "DINF",
                 "DeviceInfo",
                 g_chrt_device_info,
                 sizeof(g_chrt_device_info) / sizeof(oem_char_t),
-                NULL
+                init_device_profile
         },
         [IPADDR_INDEX] = {
                 "IPADDR",
                 "IP Address",
                 g_chrt_ipaddr,
                 sizeof(g_chrt_ipaddr) / sizeof(oem_char_t),
-                NULL
+                init_ipaddr_profile
         },
         [RAM_INDEX] = {
                 "RAM",
                 "RAM",
                 g_chrt_ram,
                 sizeof(g_chrt_ram) / sizeof(oem_char_t),
-                NULL
+                init_ram_profile
         },
 
 };

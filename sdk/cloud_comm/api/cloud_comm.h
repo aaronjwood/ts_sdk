@@ -75,6 +75,11 @@ typedef struct {		/* Cloud communication buffer descriptor */
 	cc_data_sz current_len; /* Total length of rcvd data in buffer,
 				   including protocol overhead */
 	void *buf_ptr;		/* Opaque pointer to the actual data buffer */
+	bool interrupt_ctx;	/* Indication to upper level that this descriptor
+				 * is being processed in interrupt context
+				 * so that upper level can take appropriate action
+				 * and finish its task as soon as possible.
+				 */
 } cc_buffer_desc;
 
 typedef struct cc_service_descriptor cc_service_descriptor;
@@ -269,6 +274,7 @@ cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf,
  *                     containing the data to be sent.
  * \param[in] sz     : Size of the data in bytes.
  * \param[in] svc_id : Id of the service that will process this message.
+ * \param[in] proto_data : Optional protocol specific data or instruction.
  *
  * \returns
  * 	CC_SEND_FAILED  : Failed to send the message.
@@ -281,9 +287,12 @@ cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf,
  * \note
  * For MQTT protocol this sends message as a part of command response and svc_id
  * field will be ignored. For other protocols, it is svc_id service message.
+ * MQTT protocol also utilizes proto_data parameter of the API to set publish
+ * topic mostly during command response, other protocols just ignore this field.
  */
 cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
-					cc_data_sz sz, cc_service_id svc_id);
+					cc_data_sz sz, cc_service_id svc_id,
+					void *proto_data);
 
 /**
  * \brief
@@ -303,7 +312,7 @@ cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
  *
  * \note
  * For MQTT protocol this sends message to onboard topic, mqtt message generally
- * contains device info, app data etc...For other protocols, it is
+ * contains app data, json string etc...For other protocols, it is
  * basic service message.
  */
 cc_send_result cc_send_status_msg_to_cloud(cc_buffer_desc *buf, cc_data_sz sz);

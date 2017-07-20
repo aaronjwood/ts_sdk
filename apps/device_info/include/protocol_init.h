@@ -5,7 +5,7 @@
 
 #if defined (MQTT_PROTOCOL)
 
-#define REMOTE_HOST	"simpm-ea-iwk.thingspace.verizon.com:8883"
+#define REMOTE_HOST	"68.128.212.248:8883"
 #include "client-crt-1801.h"
 #include "client-key-1801.h"
 #include "simpm-ea-iwk-server.h"

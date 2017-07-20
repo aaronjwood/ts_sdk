@@ -286,7 +286,7 @@ static int mqtt_net_connect()
 	 * Set the server identity (hostname) that must be present in its
 	 * certificate CN or SubjectAltName.
 	 */
-	if (mbedtls_ssl_set_hostname(&ssl, session.host) != 0) {
+	if (mbedtls_ssl_set_hostname(&ssl, "simpm.thingspace.verizon.com") != 0) {
 		ret = -1;
 		goto exit_func;
 	}
@@ -362,8 +362,6 @@ static bool reg_pub_sub()
 		device_id);
         snprintf(pub_unit_on_board, sizeof(pub_unit_on_board),
                 MQTT_PUBL_UNIT_ON_BOARD, device_id);
-        snprintf(pub_command_rsp, sizeof(pub_command_rsp),
-                MQTT_PUBL_CMD_RESPONSE, device_id);
         if (MQTTSubscribe(&mclient, sub_command, MQTT_QOS_LVL,
                 mqtt_rcvd_msg) < 0) {
 		dbg_printf("%s:%d: MQTT Subscription failed\n",
@@ -372,7 +370,6 @@ static bool reg_pub_sub()
 	}
 	PRINTF("Subscribed to topic %s successful\n", sub_command);
 	PRINTF("Publication topic %s successful\n", pub_unit_on_board);
-	PRINTF("Publication topic %s successful\n", pub_command_rsp);
 	return true;
 }
 
@@ -535,13 +532,18 @@ static proto_result mqtt_publish_msg(char *topic, const void *buf, uint32_t sz)
 }
 
 proto_result mqtt_send_msg_to_cloud(const void *buf, uint32_t sz,
-				   proto_service_id svc_id, proto_callback cb)
+				   proto_service_id svc_id, proto_callback cb,
+				   char *topic)
 {
 
+	if (!topic)
+		return PROTO_ERROR;
 	(void)svc_id;
 	proto_result res = initialize_send(buf, sz, cb);
 	if (res != PROTO_OK)
 		return res;
+	snprintf(pub_command_rsp, sizeof(pub_command_rsp),
+                MQTT_PUBL_CMD_RESPONSE, topic);
 	res = mqtt_publish_msg(pub_command_rsp, buf, sz);
 	if (res != PROTO_OK)
 		return res;

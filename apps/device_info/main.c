@@ -8,6 +8,7 @@
  * Wherever possible, the program halts with an ASSERT in case the API fails.
  */
 
+#include <string.h>
 #include "sys.h"
 #include "cloud_comm.h"
 #include "cc_basic_service.h"
@@ -24,16 +25,24 @@ CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 /* Number of times to retry sending in case of failure */
 #define MAX_RETRIES	((uint8_t)3)
 
+static rsp rsp_to_remote;
+static cc_data_sz send_sz;
+
 /* Arbitrary long sleep time in milliseconds */
 #define LONG_SLEEP_INT_MS	180000
 
-#if 0
-static void send_with_retry(cc_buffer_desc *b, cc_data_sz s, cc_service_id id)
+
+static void send_with_retry(cc_buffer_desc *b, cc_data_sz s, cc_service_id id,
+				void *pub_topic, bool on_board)
 {
 	uint8_t retries = 0;
 	cc_send_result res;
 	while (retries < MAX_RETRIES) {
-		res = cc_send_svc_msg_to_cloud(b, s, id);
+		if (on_board)
+			res = cc_send_status_msg_to_cloud(b, s);
+		else
+			res = cc_send_svc_msg_to_cloud(b, s, id, pub_topic);
+
 		if (res == CC_SEND_SUCCESS)
 			break;
 		retries++;
@@ -44,38 +53,37 @@ static void send_with_retry(cc_buffer_desc *b, cc_data_sz s, cc_service_id id)
 		dbg_printf("\t%s: Failed to send message.\n", __func__);
 }
 
-static uint32_t read_and_send_all_sensor_data(uint64_t cur_ts)
+static void send_msg()
 {
-	if (last_st_ts != 0) {
-		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS)
-			return last_st_ts + STATUS_REPORT_INT_MS - cur_ts;
-	}
-	dbg_printf("Reading sensor data\n");
-	array_t data;
-	data.bytes = cc_get_send_buffer_ptr(&send_buffer, CC_SERVICE_BASIC);
-	for (uint8_t i = 0; i < si_get_num_sensors(); i++) {
-		ASSERT(si_read_data(i, SEND_DATA_SZ, &data));
-		dbg_printf("\tSensor [%d], ", i);
-		dbg_printf("sending out status message : %d bytes\n", data.sz);
-		send_with_retry(&send_buffer, data.sz, CC_SERVICE_BASIC);
-	}
-	last_st_ts = cur_ts;
-	return STATUS_REPORT_INT_MS;
+	if (!rsp_to_remote.valid_rsp)
+		return;
+	send_with_retry(&send_buffer, send_sz, CC_SERVICE_BASIC,
+			rsp_to_remote.uuid, rsp_to_remote.on_board);
+	rsp_to_remote.valid_rsp = false;
 }
-#endif
 
 static void receive_completed(cc_buffer_desc *buf)
 {
 	cc_data_sz sz = cc_get_receive_data_len(buf, CC_SERVICE_BASIC);
 	const char *recvd = (const char *)cc_get_recv_buffer_ptr(buf,
 				CC_SERVICE_BASIC);
-	rsp rsp_to_remote;
-	char *rsp_msg = NULL;
+	memset(rsp_to_remote.uuid, 0, MAX_CMD_SIZE);
 	if (recvd && sz > 0)
 		process_rvcd_msg(recvd, sz, &rsp_to_remote);
 	printf("Response created......\n");
 	if (rsp_to_remote.rsp_msg)
-		printf("%s\n", rsp_msg);
+		printf("%s\n", rsp_to_remote.rsp_msg);
+	/* Now send this back this response */
+	char *send_rsp = (char *)cc_get_send_buffer_ptr(&send_buffer,
+				CC_SERVICE_BASIC);
+	memset(send_rsp, 0, CC_MAX_SEND_BUF_SZ);
+	cc_data_sz temp = (strlen(rsp_to_remote.rsp_msg) + 1);
+	send_sz = (temp > CC_MAX_SEND_BUF_SZ) ?
+					CC_MAX_SEND_BUF_SZ : temp;
+	memcpy(send_rsp, rsp_to_remote.rsp_msg, send_sz);
+	rsp_to_remote.valid_rsp = true;
+	printf("Sending......\n");
+	printf("%s\n", send_rsp);
 }
 
 static void handle_buf_overflow()
@@ -127,6 +135,7 @@ int main(void)
 	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
 	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
 	uint32_t slept_till = 0;
+	rsp_to_remote.valid_rsp = false;
 
 	sys_init();
 	dbg_module_init();
@@ -155,6 +164,7 @@ int main(void)
 	while (1) {
 		next_wakeup_interval = cc_service_send_receive(
 							sys_get_tick_ms());
+		send_msg();
 		if (next_wakeup_interval == 0) {
 			wake_up_interval = LONG_SLEEP_INT_MS;
 			dbg_printf("Protocol does not required to be called"

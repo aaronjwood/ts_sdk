@@ -29,6 +29,11 @@
 #define PRINTF_ERR(...)
 #endif
 
+#define IN_FUNCTION_AT() \
+	do { \
+		PRINTF("%s:%d:\n", __func__, __LINE__);\
+	} while (0)
+
 #define RETURN_ERROR_VAL(string, val) \
 	do { \
 		PRINTF_ERR("%s:%d:" #string, __func__, __LINE__); \
@@ -79,6 +84,7 @@ static char *fill_otpcmd_resp_msg(const cJSON *cname, char *prof,
                         char *char_name, cmd_responce_data_t *cmd_resp_data,
                         bool acronym)
 {
+
         cJSON *object = NULL;
         const char *payload_obj = NULL;
         char *msg = NULL;
@@ -93,6 +99,7 @@ static char *fill_otpcmd_resp_msg(const cJSON *cname, char *prof,
 
         if (cmd_resp_data->err_code == MQTT_CMD_STATUS_OK) {
                 oem_update_profiles_info(NULL);
+
                 if (!char_name && !prof)
                         payload_obj = create_getopt_payload(acronym);
                 else if (!char_name)
@@ -100,6 +107,7 @@ static char *fill_otpcmd_resp_msg(const cJSON *cname, char *prof,
                 else if (char_name && (!prof))
                         payload_obj = char_name;
                 otp_payload = true;
+
         } else
                 otp_payload = false;
 
@@ -111,8 +119,9 @@ static char *fill_otpcmd_resp_msg(const cJSON *cname, char *prof,
                         temp);
         if (cname) {
                 temp = cJSON_CreateString(cname->valuestring);
-                if (!temp)
+                if (!temp) {
                         RETURN_ERROR("failed");
+                }
                 cJSON_AddItemToObject(object,
                         (acronym == true) ? "CNAME" : "characteristicsName",
                         temp);
@@ -139,8 +148,9 @@ static char *fill_otpcmd_resp_msg(const cJSON *cname, char *prof,
         }
         cJSON_AddItemToObject(object, (acronym == true) ? "SCD" : "statusCode",
                         temp);
+
         if (otp_payload) {
-                temp = cJSON_CreateString(payload_obj);
+                temp = cJSON_CreateRaw(payload_obj);
                 if (!temp) {
                         RETURN_ERROR("failed");
                 }
@@ -158,7 +168,6 @@ static char *prepare_device_info(const cJSON *cname, const char *cmditem,
                         const cJSON *uuid, cmd_responce_data_t *cmd_resp_data,
                         bool acronym, uint32_t *rsp_len)
 {
-
         char *prof = NULL;
         char *char_name = NULL;
         char *msg = NULL;
@@ -173,6 +182,7 @@ static char *prepare_device_info(const cJSON *cname, const char *cmditem,
         }
 
         if (cname) {
+
                 prof = oem_get_profile_info_in_json(cname->valuestring,
                                 acronym);
                 if (!prof)
@@ -180,11 +190,13 @@ static char *prepare_device_info(const cJSON *cname, const char *cmditem,
                                                 cname->valuestring, acronym);
         }
         if (cname && !prof && !char_name) {
+
                 prepare_resp(cmd_resp_data, NULL, NULL,
                         MQTT_CMD_STATUS_BAD_REQUEST, INV_CHAR);
                 msg = fill_otpcmd_resp_msg(cname, prof, char_name,
                         cmd_resp_data, acronym);
         } else if (cname && (prof || char_name)) {
+
                 msg = fill_otpcmd_resp_msg(cname, prof, char_name,
                                 cmd_resp_data, acronym);
         } else
@@ -355,26 +367,26 @@ static char *process_server_cmd_msg(const char *msg,
                 MQTT_CMD_STATUS_OK, OK);
 
         if (!strcmp(cmditem->valuestring, "GetOtp")) {
+
                 if (acronym)
                         cname = cJSON_GetObjectItem(object, "CNAME");
                 else
                         cname = cJSON_GetObjectItem(object,
                                                 "characteristicsName");
-                cJSON_Delete(object);
                 rsp_to_remote->on_board = false;
-                if (uuid)
+                if (uuid) {
                         snprintf(rsp_to_remote->uuid, MAX_CMD_SIZE, "%s",
                                 uuid->valuestring);
-                else
+                } else
                         snprintf(rsp_to_remote->uuid, MAX_CMD_SIZE, "%s",
                                 NO_UUID);
-
-                return prepare_device_info(cname, cmditem->valuestring, uuid,
-                                cmd_resp_data, acronym, rsp_len);
+                char *rsp_dev = prepare_device_info(cname, cmditem->valuestring,
+                        uuid, cmd_resp_data, acronym, rsp_len);
+                cJSON_Delete(object);
+                return rsp_dev;
         } else {
                 prepare_resp(cmd_resp_data, NULL, NULL,
                         MQTT_CMD_STATUS_BAD_REQUEST, WRNG_CMD);
-                cJSON_Delete(object);
                 rsp_to_remote->on_board = false;
                 if (uuid)
                         snprintf(rsp_to_remote->uuid, MAX_CMD_SIZE, "%s",
@@ -382,7 +394,10 @@ static char *process_server_cmd_msg(const char *msg,
                 else
                         snprintf(rsp_to_remote->uuid, MAX_CMD_SIZE, "%s",
                                 NO_UUID);
-                return create_cmd_resp_msg(cmd_resp_data, NULL, rsp_len);
+                char *rsp_dev = create_cmd_resp_msg(cmd_resp_data, NULL,
+                                        rsp_len);
+                cJSON_Delete(object);
+                return rsp_dev;
         }
         *rsp_len = 0;
         return NULL;

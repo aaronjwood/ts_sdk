@@ -191,10 +191,8 @@ static service_dispatch_entry *cc_init_send_msg(cc_buffer_desc *buf,
 	conn_out.buf = NULL;
 	if (!buf || !buf->buf_ptr || sz == 0)
 		return NULL;
-
 	if (!conn_in.recv_in_progress)
 		return NULL;
-
 	service_dispatch_entry *se = lookup_service(svc_id);
 	if (se == NULL)
 		return NULL;
@@ -208,7 +206,8 @@ static service_dispatch_entry *cc_init_send_msg(cc_buffer_desc *buf,
 }
 
 cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
-					cc_data_sz sz, cc_service_id svc_id)
+					cc_data_sz sz, cc_service_id svc_id,
+					void *proto_data)
 {
 	if (conn_out.send_in_progress)
 		return CC_SEND_BUSY;
@@ -216,7 +215,7 @@ cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
 	if (!se)
 		return CC_SEND_FAILED;
 	PROTO_SEND_MSG_TO_CLOUD(buf->buf_ptr, sz + se->descriptor->send_offset,
-				svc_id, cc_send_cb);
+				svc_id, cc_send_cb, proto_data);
 	conn_out.send_in_progress = false;
 	return CC_SEND_SUCCESS;
 }

@@ -110,6 +110,7 @@ proto_result mqtt_set_recv_buffer_cb(void *rcv_buf, uint32_t sz,
  *	sz     : Size of the message in bytes.
  *      svc_id : this parameter will be ignored.
  * 	cb     : Callback to indicate the event related to send activity.
+ *      topic  : Valid null terminated topic string to publish this message.
  *
  * Returns:
  * 	PROTO_OK        : message was sent to the cloud.
@@ -118,7 +119,8 @@ proto_result mqtt_set_recv_buffer_cb(void *rcv_buf, uint32_t sz,
  * 	PROTO_TIMEOUT   : Timed out sending the message. Sending failed.
  */
 proto_result mqtt_send_msg_to_cloud(const void *buf, uint32_t sz,
-				   proto_service_id svc_id, proto_callback cb);
+				   proto_service_id svc_id, proto_callback cb,
+                                   char *topic);
 
 /*
  * Sends a status message to the cloud service. This call is blocking in nature.
