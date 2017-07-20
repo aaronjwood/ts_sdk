@@ -15,6 +15,7 @@ PROTOCOL_INC_DIR = smsnas_protocol
 
 else ifeq ($(PROTOCOL),MQTT_PROTOCOL)
 PROTOCOL_SRC = mqtt_protocol.c
+PROTOCOL_SRC += mqtt_timer_utils.c
 PROTOCOL_DIR = mqtt_protocol
 PROTOCOL_INC_DIR = mqtt_protocol
 
@@ -31,6 +32,7 @@ PROTOCOLS_SRC_ROOT = $(SDK_ROOT)/src/protocols
 
 PROTOCOL_INC += -I $(PROTOCOLS_INC_ROOT)
 PROTOCOL_INC += -I $(PROTOCOLS_INC_ROOT)/$(PROTOCOL_INC_DIR)
+PROTOCOL_INC += -I $(PROTOCOLS_SRC_ROOT)/$(PROTOCOL_DIR)
 
 vpath %.c $(PROTOCOLS_SRC_ROOT)/$(PROTOCOL_DIR):
 

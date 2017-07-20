@@ -24,9 +24,6 @@
 #define MIN_SANE_POLLING_INTERVAL_MS	10000
 #define MAX_SANE_POLLING_INTERVAL_MS (2 * 24 * 60 * 60 * 1000) /* 2 days */
 
-/* Certificate that is used with the OTT services */
-#include "verizon_ott_ca.h"
-
 #define INVOKE_SEND_CALLBACK(_buf, _sz, _evt)	\
 	do { \
 		if (session.send_cb) \
@@ -143,6 +140,7 @@ static void ott_init_state(void)
 	session.pend_ack = false;
 	session.nack_sent = false;
 	auth.auth_valid = false;
+	auth.serv_auth_valid = false;
 }
 
 proto_result ott_protocol_init(void)
@@ -173,15 +171,6 @@ proto_result ott_protocol_init(void)
 		return PROTO_ERROR;
 	}
 
-	/* Load the CA root certificate */
-	ret = mbedtls_x509_crt_parse_der(&cacert,
-	                                 (const unsigned char *)&cacert_der,
-					 sizeof(cacert_der));
-	if (ret < 0) {
-		cleanup_mbedtls();
-		return PROTO_ERROR;
-	}
-
 	/* Set up the TLS structures */
 	ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT,
 				MBEDTLS_SSL_TRANSPORT_STREAM,
@@ -192,7 +181,6 @@ proto_result ott_protocol_init(void)
 	}
 
 	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
-	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
 	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 #ifdef MBEDTLS_DEBUG_C
 	mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
@@ -201,7 +189,7 @@ proto_result ott_protocol_init(void)
 	return PROTO_OK;
 }
 
-proto_result ott_set_auth(const uint8_t *d_id, uint32_t d_id_sz,
+proto_result ott_set_own_auth(const uint8_t *d_id, uint32_t d_id_sz,
                         const uint8_t *d_sec, uint32_t d_sec_sz)
 {
 	if ((d_id == NULL) || (d_id_sz != OTT_UUID_SZ))
@@ -215,6 +203,26 @@ proto_result ott_set_auth(const uint8_t *d_id, uint32_t d_id_sz,
 	memcpy(auth.dev_ID, d_id, d_id_sz);
 	memcpy(auth.d_sec, d_sec, d_sec_sz);
 	auth.auth_valid = true;
+	return PROTO_OK;
+}
+
+proto_result ott_set_remote_auth(const uint8_t *serv_cert, uint32_t cert_len)
+{
+	auth.serv_auth_valid = false;
+	if ((serv_cert == NULL) || (cert_len == 0))
+		return PROTO_INV_PARAM;
+
+	/* Load the CA root certificate */
+	int ret = mbedtls_x509_crt_parse_der(&cacert,
+	                                 (const unsigned char *)serv_cert,
+					 cert_len);
+	if (ret < 0) {
+		cleanup_mbedtls();
+		return PROTO_ERROR;
+	}
+
+	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
+	auth.serv_auth_valid = true;
 	return PROTO_OK;
 }
 
@@ -649,7 +657,7 @@ static proto_result ott_initiate_connection(const char *host, const char *port)
  */
 static proto_result ott_send_auth_to_cloud(c_flags_t c_flags)
 {
-	if (!auth.auth_valid)
+	if (!auth.auth_valid && !auth.serv_auth_valid)
 		return PROTO_ERROR;
 
 	const uint8_t *dev_id = auth.dev_ID;

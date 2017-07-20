@@ -46,6 +46,16 @@ typedef struct timer_private {
 static TIM_HandleTypeDef tim2;
 static TIM_HandleTypeDef tim5;
 
+/*
+ * TIM5's clock source is connected to APB1. According to the TRM,
+ * this source needs to be multiplied by 2 if the APB1 prescaler is
+ * other than 1. (APB1 prescaler is 4 in our case).
+ * Therefore effectively, the clock source for
+ * Beduin board TIM5 is:
+ * APB1 x 2 = (SystemCoreClock / 4) * 2 = 84 MHz.
+ * The base frequency of the timer's clock is chosen as 2 kHz (time
+ * period of .5 msec).
+ */
 static bool tim5_init(uint32_t period, uint32_t priority, uint32_t base_freq,
 			void *data)
 {
@@ -66,6 +76,17 @@ static bool tim5_init(uint32_t period, uint32_t priority, uint32_t base_freq,
 	return true;
 }
 
+/*
+ * TIM2's clock source is connected to APB1. According to the TRM,
+ * this source needs to be multiplied by 2 if the APB1 prescaler is
+ * other than 1. (APB1 prescaler is 4 in our case).
+ * Therefore effectively, the clock source for
+ * Beduin board TIM2 is:
+ * APB1 x 2 = (SystemCoreClock / 4) * 2 = 84 MHz.
+ * The base frequency of the timer's clock is chosen as 1 MHz (time
+ * period of 1 microsecond).
+ * Therefore, prescaler = (84 MHz / 1 MHz) - 1  = 83.
+ */
 static bool tim2_init(uint32_t period, uint32_t priority, uint32_t base_freq,
 			void *data)
 {
