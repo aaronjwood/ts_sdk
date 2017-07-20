@@ -12,7 +12,6 @@
  */
 #define I2C_TIMING	0x00D00E28
 
-
 /*
  * Table mapping I2C peripherals to their IDs. The format of the table
  * is: ID, followed by the corresponding I2C peripheral.
@@ -40,9 +39,10 @@ enum i2c_id {
 	UI		/*Invalid ID */
 };
 
+enum i2c_id iid;
 static I2C_HandleTypeDef i2c_stm32_handle[NUM_I2C];
 static bool i2c_usage[NUM_I2C];
-static uint32_t i2c_timeout_ms;
+static uint32_t i2c_timeout_ms[NUM_I2C];
 
 static enum i2c_id convert_hdl_to_id(periph_t hdl)
 {
@@ -57,11 +57,12 @@ static void enable_clock(const I2C_TypeDef *inst)
 
 static bool init_i2c_peripheral(periph_t hdl)
 {
-	enum i2c_id iid = convert_hdl_to_id(hdl);
+	iid = convert_hdl_to_id(hdl);
 
 	/*Peripheral under usage*/
 	if (i2c_usage[iid])
 		return false;
+
 	I2C_TypeDef *i2c_instance = (I2C_TypeDef *)hdl;
 	enable_clock(i2c_instance);
 
@@ -93,9 +94,9 @@ periph_t i2c_init(pin_name_t scl, pin_name_t sda, uint32_t timeout_ms)
 
 	if ((init_i2c_peripheral(p1)) == true) {
 		if (!timeout_ms)
-			i2c_timeout_ms = I2C_TIMEOUT_MS;
+			i2c_timeout_ms[iid] = I2C_TIMEOUT_MS;
 		else
-			i2c_timeout_ms = timeout_ms;
+			i2c_timeout_ms[iid] = timeout_ms;
 
 		return p1;
 		}
@@ -113,7 +114,7 @@ bool i2c_write(periph_t hdl, i2c_addr_t addr, uint8_t len, const uint8_t *buf)
 
 	if (HAL_I2C_Mem_Write(&i2c_stm32_handle[convert_hdl_to_id(hdl)],\
 		 addr.slave << 1 , addr.reg, I2C_MEMADD_SIZE_8BIT,\
-			 (uint8_t *) buf , len, i2c_timeout_ms) != HAL_OK) {
+		(uint8_t *) buf , len, i2c_timeout_ms[iid]) != HAL_OK) {
 		return false;
 	}
 	return true;
@@ -129,7 +130,7 @@ bool i2c_read(periph_t hdl, i2c_addr_t addr, uint8_t len, uint8_t *buf)
 
 	if (HAL_I2C_Mem_Read(&i2c_stm32_handle[convert_hdl_to_id(hdl)],\
 		 addr.slave << 1 , addr.reg, I2C_MEMADD_SIZE_8BIT, buf ,\
-			 len, i2c_timeout_ms) != HAL_OK){
+			 len, i2c_timeout_ms[iid]) != HAL_OK){
 		return false;
 	}
 	return true;
