@@ -22,6 +22,9 @@
 
 #define IP_ADDR_LEN			16
 
+/* Sequans Monarch supports only 1500 bytes of outgoing data at a time */
+#define MAX_SEND_DATA_LEN		1500
+
 static char modem_ip_addr[IP_ADDR_LEN];
 
 static volatile struct __attribute__((packed)) {
@@ -151,15 +154,59 @@ int at_tcp_connect(const char *host, const char *port)
 	return sock_id[0] - '0';
 }
 
+static bool send_chunk(uint8_t *buf, size_t len)
+{
+	if (len > MAX_SEND_DATA_LEN)
+		return false;
+
+	if (at_core_wcmd(&tcp_commands[SOCK_SEND], false) != AT_SUCCESS)
+		return false;
+
+	if (!at_core_write(buf, len))
+		return false;
+
+	if (at_core_wcmd(&tcp_commands[SOCK_SEND_DATA], true) != AT_SUCCESS)
+		return false;
+
+	return true;
+}
+
 int at_tcp_send(int s_id, const uint8_t *buf, size_t len)
 {
 	const char sock_id[] = MODEM_SOCK_ID;
 	if (s_id != sock_id[0] - '0' || len == 0 || buf == NULL)
 		return AT_TCP_INVALID_PARA;
-	if (!tcp_state.connected)
+
+	if (!tcp_state.connected) {
+		if (!tcp_state.flag_peer_close)
+			return 0;
+		DEBUG_V0("%s: tcp not connected to send\n", __func__);
 		return AT_TCP_SEND_FAIL;
-	/* TODO: Send data in chunks of 1500 bytes using AT+SQNSSEND=1 */
-	return 0;
+	}
+
+	/* Send in chunks of MAX_SEND_DATA_LEN */
+	size_t remaining = len;
+	uint8_t *data = (uint8_t *)buf;
+	while (remaining >= MAX_SEND_DATA_LEN) {
+		if (!tcp_state.connected)
+			return AT_TCP_CONNECT_DROPPED;
+
+		if (!send_chunk(data, MAX_SEND_DATA_LEN))
+			return AT_TCP_SEND_FAIL;
+
+		remaining -= MAX_SEND_DATA_LEN;
+		data += MAX_SEND_DATA_LEN;
+	}
+
+	if (!tcp_state.connected)
+		return AT_TCP_CONNECT_DROPPED;
+
+	if (!send_chunk(data, remaining))
+		return AT_TCP_SEND_FAIL;
+
+	if (!tcp_state.connected)
+		return AT_TCP_CONNECT_DROPPED;
+	return len;
 }
 
 int at_read_available(int s_id)
@@ -177,7 +224,7 @@ int at_read_available(int s_id)
 	return tcp_state.unread;
 }
 
-static int attempt_read_socket(uint8_t *buf, size_t len)
+static int read_socket(uint8_t *buf, size_t len)
 {
 	if (tcp_state.unread > 0) {
 		int avail = at_core_rx_available();
@@ -193,7 +240,7 @@ static int attempt_read_socket(uint8_t *buf, size_t len)
 	return AT_TCP_RCV_FAIL;
 }
 
-static int attempt_read_inter_buf(uint8_t *buf, size_t len)
+static int read_inter_buf(uint8_t *buf, size_t len)
 {
 	if (tcp_state.unread > 0) {
 		int rdb = at_core_read(buf, len);
@@ -202,6 +249,7 @@ static int attempt_read_inter_buf(uint8_t *buf, size_t len)
 		tcp_state.unread -= rdb;
 		return rdb;
 	}
+	DEBUG_V0("%s: tcp not connected to recv\n", __func__);
 	return AT_TCP_RCV_FAIL;
 }
 
@@ -217,10 +265,10 @@ int at_tcp_recv(int s_id, uint8_t *buf, size_t len)
 	if (!tcp_state.connected) {
 		if (!tcp_state.flag_peer_close)
 			return 0;
-		return attempt_read_inter_buf(buf, len);
+		return read_inter_buf(buf, len);
 	}
 
-	return attempt_read_socket(buf, len);
+	return read_socket(buf, len);
 }
 
 void at_tcp_close(int s_id)

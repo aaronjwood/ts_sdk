@@ -18,6 +18,7 @@ enum tcp_command {
 	SOCK_CONF_EXT,	/* Configure extended socket parameters */
 	SOCK_DIAL,	/* Dial into a hostname:port / IP address:port */
 	SOCK_SEND,	/* Send data (up to 1500 bytes) over a TCP socket */
+	SOCK_SEND_DATA,	/* Actual data to send */
 	SOCK_CLOSE,	/* Close the socket */
 	GET_IP_ADDR,	/* Get the IP address */
 	TCP_END
@@ -85,13 +86,25 @@ static at_command_desc tcp_commands[TCP_END] = {
 		.comm = "at+sqnssend="MODEM_SOCK_ID"\r",
 		.rsp_desc = {
 			{
-				.rsp = "\r\n> ",	/* Ctrl+Z (0x1A) to send */
+				.rsp = "\r\n> ",
 				.rsp_handler = NULL,
 				.data = NULL
 			}
 		},
 		.err = "\r\n+CME ERROR: ",
 		.comm_timeout = 5000
+	},
+	[SOCK_SEND_DATA] = {
+		.comm = (char []){0x1A, 0x00},	/* Ctrl+Z (0x1A) to initiate send */
+		.rsp_desc = {
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CME ERROR: ",
+		.comm_timeout = 10000
 	},
 	[SOCK_CLOSE] = {
 		.comm = "at+sqnsh="MODEM_SOCK_ID"\r",
