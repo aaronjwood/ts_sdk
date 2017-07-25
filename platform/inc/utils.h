@@ -60,7 +60,15 @@ bool utils_get_os_version(char *value, uint32_t len);
 bool utils_get_kernel_version(char *value, uint32_t len);
 
 /**
- * \brief	Retrieves current data and time zone information.
+ * \brief	Retrieves current calendar date information.
+ * \param[out] value:	valid buffer to store retrieved null formatted string.
+ * \param[in] len:	buffer length.
+ * \return    True if success and value contains valid value or false otherwise.
+ */
+bool utils_get_local_time(char *value, uint32_t len);
+
+/**
+ * \brief	Retrieves current time zone information.
  * \param[out] value:	valid buffer to store retrieved null formatted string.
  * \param[in] len:	buffer length.
  * \return    True if success and value contains valid value or false otherwise.

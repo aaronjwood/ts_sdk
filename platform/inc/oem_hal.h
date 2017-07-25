@@ -33,30 +33,24 @@ uint16_t oem_get_num_of_profiles(void);
  * \brief       Retreives profile and its characterisitics in json format.
  *
  * \param[in] profile    Valid null terminated profile string name.
- * \param[in] acronym    If true use short form name of the profiles and its
-                         characterisitics, full names otherwise.
  * \returns              JSON formatted message or NULL if fails.
  */
-char *oem_get_profile_info_in_json(const char *profile, bool acronym);
+char *oem_get_profile_info_in_json(const char *profile);
 
 /**
  * \brief       Retreives profile and its characterisitics in json format.
  *
- * \param[in] acronym    If true use short form name of the profiles and its
-                         characterisitics, full names otherwise.
- * \returns              JSON formatted message or NULL if fails.
+ * \returns     JSON formatted message or NULL if fails.
  */
-char *oem_get_all_profile_info_in_json(bool acronym);
+char *oem_get_all_profile_info_in_json();
 
 /**
  * \brief       Retreives specific characterisitic in json format.
  *
  * \param[in] charstc    Valid null terminated characterisitic string name.
- * \param[in] acronym    If true use short form name of characterisitic,
-                         full names otherwise.
  * \returns              JSON formatted message or NULL if fails.
  */
-char *oem_get_characteristic_info_in_json(const char *charstc, bool acronym);
+char *oem_get_characteristic_info_in_json(const char *charstc);
 
 /**
  * \brief       updates/refreshes profile with latest values. This is useful

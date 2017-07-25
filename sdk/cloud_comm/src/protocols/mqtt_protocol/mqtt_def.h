@@ -37,7 +37,12 @@
 #define MQTT_DEVICE_ID_SZ		14
 
 #define SEC_TO_MS		1000
-#define INIT_POLLING_MS		((uint32_t)(MQTT_KEEPALIVE_INT_SEC * SEC_TO_MS))
+
+/* Substracting 5 seconds to account for the call overhead, we do not want
+ * to go past alive interval otherwise remote will disconnect
+ */
+#define INIT_POLLING_MS		((uint32_t)(MQTT_KEEPALIVE_INT_SEC * SEC_TO_MS) \
+					- (5 * SEC_TO_MS))
 #define MQTT_TIMEOUT_MS		1000
 
 /* Defines to enable printing of all the error strings */

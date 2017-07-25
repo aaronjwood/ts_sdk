@@ -527,7 +527,7 @@ static proto_result mqtt_publish_msg(char *topic, const void *buf, uint32_t sz)
 		INVOKE_SEND_CALLBACK(buf, sz, PROTO_SEND_FAILED);
 		RETURN_ERROR("Send failed", PROTO_ERROR);
 	}
-	PRINTF("Published %u size msg on topic: %s\n", sz, topic);
+	PRINTF("Published %u bytes on topic: %s\n", sz, topic);
 	return PROTO_OK;
 }
 

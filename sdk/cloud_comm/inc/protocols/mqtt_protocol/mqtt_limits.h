@@ -11,7 +11,7 @@
 
 
 /* FIXME: This value needs to be discussed */
-#define PROTO_MAX_MSG_SZ		2024
+#define PROTO_MAX_MSG_SZ		1024
 
 #define PROTO_OVERHEAD_SZ		0
 #define PROTO_DATA_SZ                   (PROTO_MAX_MSG_SZ - PROTO_OVERHEAD_SZ)

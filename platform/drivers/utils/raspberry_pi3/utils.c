@@ -43,7 +43,7 @@ static bool utils_get_mac_addr(char *id, uint8_t len, const char *interface)
                 return false;
         }
         snprintf(id, len, "%X%X%X%X%X%X", macadd[0], macadd[1], macadd[2],
-                macadd[3] ,macadd[4] ,macadd[5]);
+                        macadd[3] ,macadd[4] ,macadd[5]);
         return true;
 }
 
@@ -156,7 +156,7 @@ bool utils_get_iccid(char *value, uint32_t len)
         return false;
 }
 
-bool utils_get_time_zone(char *value, uint32_t len)
+bool utils_get_local_time(char *value, uint32_t len)
 {
         if (!value || (len == 0))
                 return false;
@@ -173,6 +173,17 @@ bool utils_get_time_zone(char *value, uint32_t len)
         char *pos;
         if ((pos = strchr(value, '\n')) != NULL)
                 *pos = '\0';
+        return true;
+}
+
+bool utils_get_time_zone(char *value, uint32_t len)
+{
+        if (!value || (len == 0))
+                return false;
+        time_t t = time(NULL);
+        struct tm lt = {0};
+        localtime_r(&t, &lt);
+        snprintf(value, len, "%s", lt.tm_zone);
         return true;
 }
 

@@ -17,13 +17,11 @@ static void init_ipaddr_profile(void);
 static oem_profile_t oem_prof_data[NUM_PROF] = {
         [DEVINFO_INDEX] = {
                 "DINF",
-                "DeviceInfo",
                 g_chrt_device_info,
                 sizeof(g_chrt_device_info) / sizeof(oem_char_t),
                 init_device_profile
         },
         [RAM_INDEX] = {
-                "RAM",
                 "RAM",
                 g_chrt_ram,
                 sizeof(g_chrt_ram) / sizeof(oem_char_t),
@@ -31,21 +29,18 @@ static oem_profile_t oem_prof_data[NUM_PROF] = {
         },
         [NW_INDEX] = {
                 "NW",
-                "Network",
                 g_chrt_network,
                 sizeof(g_chrt_network) / sizeof(oem_char_t),
                 NULL
         },
         [STRG_INDEX] = {
                 "STRG",
-                "Storage",
                 g_chrt_storage,
                 sizeof(g_chrt_storage) / sizeof(oem_char_t),
                 NULL
         },
         [IPADDR_INDEX] = {
                 "IPADDR",
-                "IP Address",
                 g_chrt_ipaddr,
                 sizeof(g_chrt_ipaddr) / sizeof(oem_char_t),
                 init_ipaddr_profile
@@ -80,7 +75,7 @@ static int hash_function(const char *key, int buck_sz)
 
 }
 
-static void insert_to_hash_table(int key, int gid, int cid, bool acronym_flag)
+static void insert_to_hash_table(int key, int gid, int cid)
 {
         if (gid == INVALID)
                 return;
@@ -108,19 +103,9 @@ static void insert_to_hash_table(int key, int gid, int cid, bool acronym_flag)
 
         const char *char_name = NULL;
         const char *prof_name = NULL;
-        if (cid != INVALID) {
-                if (acronym_flag)
-                        char_name =
-                                oem_prof_data[gid].oem_char[cid].chr_short_name;
-                else
-                        char_name =
-                                oem_prof_data[gid].oem_char[cid].chr_full_name;
-        }
-        if (acronym_flag)
-                prof_name = oem_prof_data[gid].grp_short_name;
-        else
-                prof_name = oem_prof_data[gid].grp_full_name;
-
+        if (cid != INVALID)
+                char_name = oem_prof_data[gid].oem_char[cid].chr_short_name;
+        prof_name = oem_prof_data[gid].grp_short_name;
         if ((index < chain_sz) && (index != INVALID)) {
                 if (cid != INVALID) {
                         hash_table_char[key][index].oem_chr_name = char_name;
@@ -145,12 +130,7 @@ static void create_hash_table_for_profiles(void)
                 key = hash_function(oem_prof_data[i].grp_short_name,
                         HASH_BUCKET_SZ);
                 /*Oem Group will not have characterisitic index */
-                insert_to_hash_table(key, i, INVALID, true);
-
-                key = hash_function(oem_prof_data[i].grp_full_name,
-                        HASH_BUCKET_SZ);
-                /*Oem Group will not have characterisitic index */
-                insert_to_hash_table(key, i, INVALID, false);
+                insert_to_hash_table(key, i, INVALID);
         }
 }
 
@@ -163,11 +143,7 @@ static void create_hash_table_for_char(void)
                         key = hash_function(
                                 oem_prof_data[i].oem_char[j].chr_short_name,
                                 CHAR_BUCKET_SZ);
-                        insert_to_hash_table(key, i, j, true);
-                        key = hash_function(
-                                oem_prof_data[i].oem_char[j].chr_full_name,
-                                CHAR_BUCKET_SZ);
-                        insert_to_hash_table(key, i, j, false);
+                        insert_to_hash_table(key, i, j);
                 }
         }
 }
@@ -180,39 +156,39 @@ static void init_device_profile(void)
 
         for(int i = 0; i < oem_prof_data[DEVINFO_INDEX].chr_count; i++) {
                 const char *char_name =
-                        oem_prof_data[DEVINFO_INDEX].oem_char[i].chr_full_name;
+                        oem_prof_data[DEVINFO_INDEX].oem_char[i].chr_short_name;
                 char *cur_value = oem_prof_data[DEVINFO_INDEX].oem_char[i].value;
                 val_size = sizeof(oem_prof_data[DEVINFO_INDEX].oem_char[i].value);
                 memset(cur_value, 0, val_size);
 
                 if (!(strcmp(char_name, "IMEI")) ||
-                !(strcmp(char_name, "Device ID")) ||
+                !(strcmp(char_name, "DID")) ||
                 !(strcmp(char_name, "IMSI"))) {
                         if (!utils_get_device_id(cur_value, val_size, NET_INTFC))
                                 failed = true;
-                } else if (!strcmp(char_name, "OS Version")) {
+                } else if (!strcmp(char_name, "OSV")) {
                         if (!utils_get_os_version(cur_value, val_size))
                                 failed = true;
-                } else if (!strcmp(char_name, "Manufacturer")) {
+                } else if (!strcmp(char_name, "MNF")) {
                         if (!utils_get_manufacturer(cur_value, val_size))
                                 failed = true;
-                } else if (!strcmp(char_name, "Model")) {
+                } else if (!strcmp(char_name, "MOD")) {
                         if (!utils_get_dev_model(cur_value, val_size))
                                 failed = true;
                 } else if (!strcmp(char_name, "ICCID")) {
                         if (!utils_get_iccid(cur_value, val_size))
                                 failed = true;
-                } else if (!strcmp(char_name, "Time Zone")) {
+                } else if (!strcmp(char_name, "TZ")) {
                         if (!utils_get_time_zone(cur_value, val_size))
                                 failed = true;
-                } else if (!strcmp(char_name, "Last Power On")) {
+                } else if (!strcmp(char_name, "LPO")) {
                         if (!utils_get_uptime(cur_value, val_size))
                                 failed = true;
-                } else if (!strcmp(char_name, "Chipset")) {
+                } else if (!strcmp(char_name, "CHIP")) {
                         if (!utils_get_chipset(cur_value, val_size))
                                 failed = true;
-                } else if (!strcmp(char_name, "Kernel Version") ||
-                        !strcmp(char_name, "Build ID")) {
+                } else if (!strcmp(char_name, "KEV") ||
+                        !strcmp(char_name, "BID")) {
                         if (!utils_get_kernel_version(cur_value, val_size))
                                 failed = true;
                 } else
@@ -321,7 +297,7 @@ static int get_profile_idx(const char *profile)
         return idx;
 }
 
-char *oem_get_profile_info_in_json(const char *profile, bool acronym)
+char *oem_get_profile_info_in_json(const char *profile)
 {
         if (!profile)
                 return NULL;
@@ -335,19 +311,10 @@ char *oem_get_profile_info_in_json(const char *profile, bool acronym)
                 return NULL;
         const char *prof_name = NULL;
         const char *char_name = NULL;
-        if (acronym)
-                prof_name = oem_prof_data[pro_id].grp_short_name;
-        else
-                prof_name = oem_prof_data[pro_id].grp_full_name;
+        prof_name = oem_prof_data[pro_id].grp_short_name;
         cJSON_AddItemToObject(payload, prof_name, item);
         for (int i = 0; i < oem_prof_data[pro_id].chr_count; i++) {
-                if (acronym)
-                        char_name =
-                                oem_prof_data[pro_id].oem_char[i].chr_short_name;
-                else
-                        char_name =
-                                oem_prof_data[pro_id].oem_char[i].chr_full_name;
-
+                char_name = oem_prof_data[pro_id].oem_char[i].chr_short_name;
                 cJSON_AddItemToObject(item, char_name,
                         cJSON_CreateString(oem_prof_data[pro_id].oem_char[i].value));
         }
@@ -356,7 +323,7 @@ char *oem_get_profile_info_in_json(const char *profile, bool acronym)
         return msg;
 }
 
-char *oem_get_all_profile_info_in_json(bool acronym)
+char *oem_get_all_profile_info_in_json(void)
 {
 
         cJSON *payload = cJSON_CreateObject();
@@ -370,20 +337,11 @@ char *oem_get_all_profile_info_in_json(bool acronym)
                         cJSON_Delete(payload);
                         return NULL;
                 }
-                if (acronym)
-                        prof_name = oem_prof_data[i].grp_short_name;
-                else
-                        prof_name = oem_prof_data[i].grp_full_name;
+                prof_name = oem_prof_data[i].grp_short_name;
                 cJSON_AddItemToObject(payload, prof_name, item);
 
                 for (int j = 0; j < oem_prof_data[i].chr_count; j++) {
-                        if (acronym)
-                                char_name =
-                                oem_prof_data[i].oem_char[j].chr_short_name;
-                        else
-                                char_name =
-                                oem_prof_data[i].oem_char[j].chr_full_name;
-
+                        char_name = oem_prof_data[i].oem_char[j].chr_short_name;
                         cJSON_AddItemToObject(item, char_name,
                         cJSON_CreateString(oem_prof_data[i].oem_char[j].value));
                 }
@@ -393,7 +351,7 @@ char *oem_get_all_profile_info_in_json(bool acronym)
         return msg;
 }
 
-char *oem_get_characteristic_info_in_json(const char *charstc, bool acronym)
+char *oem_get_characteristic_info_in_json(const char *charstc)
 {
         if (!charstc)
                 return NULL;
@@ -421,12 +379,7 @@ char *oem_get_characteristic_info_in_json(const char *charstc, bool acronym)
         cJSON *payload = cJSON_CreateObject();
         const char *char_name = NULL;
 
-        if (acronym)
-                char_name =
-                        oem_prof_data[pro_id].oem_char[char_id].chr_short_name;
-        else
-                char_name = oem_prof_data[pro_id].oem_char[char_id].chr_full_name;
-
+        char_name = oem_prof_data[pro_id].oem_char[char_id].chr_short_name;
         cJSON_AddItemToObject(payload, char_name,
                 cJSON_CreateString(oem_prof_data[pro_id].oem_char[char_id].value));
 
@@ -444,7 +397,6 @@ void oem_update_profiles_info(const char *profile)
                 }
                 return;
         }
-
         int pro_id = get_profile_idx(profile);
         if (pro_id == INVALID)
                 return;

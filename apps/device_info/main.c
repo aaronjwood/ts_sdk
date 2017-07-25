@@ -1,11 +1,9 @@
 /* Copyright(C) 2017 Verizon. All rights reserved. */
 
-/*
+/* (for mqtt enabled devices only)
  * Example firmware that reports device information when it receives command to
- * do so (for mqtt enabled devices its GetOtp) and also on activation request
+ * do so (GetOtp) and also on activation request
  *
- * To keep the test program simple, error handling is kept to a minimum.
- * Wherever possible, the program halts with an ASSERT in case the API fails.
  */
 
 #include <string.h>
@@ -72,14 +70,11 @@ static void receive_completed(cc_buffer_desc *buf)
 		process_rvcd_msg(recvd, sz, &rsp_to_remote);
 	printf("Response created with size.....: %d\n",
 			strlen(rsp_to_remote.rsp_msg));
-	if (rsp_to_remote.rsp_msg)
-		printf("%s\n", rsp_to_remote.rsp_msg);
 	/* Now send this back this response */
 	char *send_rsp = (char *)cc_get_send_buffer_ptr(&send_buffer,
 				CC_SERVICE_BASIC);
 	memset(send_rsp, 0, CC_MAX_SEND_BUF_SZ);
-	cc_data_sz temp = (strlen(rsp_to_remote.rsp_msg));
-	send_sz = temp;
+	send_sz = strlen(rsp_to_remote.rsp_msg);
 	memcpy(send_rsp, rsp_to_remote.rsp_msg, send_sz);
 	rsp_to_remote.valid_rsp = true;
 	printf("Sending......\n");
@@ -98,8 +93,6 @@ static void handle_buf_overflow()
  */
 static void basic_service_cb(cc_event event, uint32_t value, void *ptr)
 {
-	dbg_printf("\t\t[BASIC CB] Received an event.\n");
-
 	if (event == CC_EVT_RCVD_MSG)
 		receive_completed((cc_buffer_desc *)ptr);
 

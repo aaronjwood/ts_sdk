@@ -27,7 +27,7 @@ typedef struct rsp_t {
         bool on_board;
         bool valid_rsp;
         char uuid[MAX_CMD_SIZE];
-} rsp;
+}rsp;
 
 void process_rvcd_msg(const char *recvd, uint32_t sz, rsp *rsp_to_remote);
 
