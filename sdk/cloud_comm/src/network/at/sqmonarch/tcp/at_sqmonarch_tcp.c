@@ -23,45 +23,91 @@
 #define IP_ADDR_LEN			16
 
 /* Sequans Monarch supports only 1500 bytes of outgoing data at a time */
-#define MAX_SEND_DATA_LEN		1500
+#define MAX_DATA_LEN			1500
+static uint8_t hex_buf[MAX_DATA_LEN * 2];
 
-static char modem_ip_addr[IP_ADDR_LEN];
+#define DATA_TMO_MS			110	/* Timeout to receive MAX_DATA_LEN bytes */
 
 static volatile struct __attribute__((packed)) {
 	uint8_t connected : 1;		/* True when connected to the server */
-	uint8_t receiving : 1;		/* True while receiving data on the UART */
 	uint8_t flag_peer_close : 1;	/* True: Closed by peer, False: Closed by us */
 	buf_sz unread;			/* Store the amount of unread data */
-	buf_sz wanted_bytes;		/* Amount of data being sent by +SQNSRING */
-} tcp_state;
+} tcp_state = {
+	.connected = false,
+	.flag_peer_close = false,
+	.unread = 0,
+};
 
 static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data)
 {
 	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
+	if (rcv_bytes[0] != ',')
+		return;		/* PDP context is probably not active; no IP */
+	rcv_bytes += 2;		/* Skip the ',' and the '"' */
 	uint8_t i = 0;
 	while (rcv_bytes[i] != '"') {
-		modem_ip_addr[i] = rcv_bytes[i];
+		((char *)data)[i] = rcv_bytes[i];
 		i++;
 	}
 }
 
-#if 0
-static void attempt_sqsring_retrieval(void)
+struct recv_opts {
+	size_t len;
+	uint8_t *buf;
+};
+
+#define SZ_OK			(sizeof("\r\nOK\r\n") - 1)
+static void parse_data(void *rcv_rsp, int rcv_rsp_len,
+		const char *stored_rsp, void *data)
 {
-	if (tcp_state.receiving) {
-		if (at_core_rx_available() >= tcp_state.wanted_bytes) {
-			tcp_state.wanted_bytes = 0;
-			tcp_state.receiving = false;
+	/* Header information should have already been discarded */
+
+	struct recv_opts *opts = (struct recv_opts *)data;
+
+	/* Wait until all of the data has been received in the UART */
+	uint32_t start = sys_get_tick_ms();
+	while (at_core_rx_available() < opts->len + SZ_OK) {
+		uint32_t now = sys_get_tick_ms();
+		if (now - start > DATA_TMO_MS) {
+			opts->len = 0;
+			DEBUG_V0("%s: uart tcp data timeout\n", __func__);
+			return;
 		}
 	}
+
+	/* Read only the data into the user supplied buffer */
+	if (at_core_read(opts->buf, opts->len) != opts->len) {
+		opts->len = 0;
+		return;
+	}
+
+	/* Discard the trailing "\r\nOK\r\n" */
+	uint8_t ok_data[6];
+	at_core_read(ok_data, SZ_OK);
 }
-#endif
 
 static void at_uart_callback(void)
 {
 	if (!at_core_is_proc_urc() && !at_core_is_proc_urc())
 		at_core_process_urc(false);
+}
+
+static void process_sqnsring_urc(const char *urc)
+{
+	const char *rbytes = urc + strlen(at_urcs[TCP_RECV]);
+	buf_sz i = 0;
+	buf_sz num_bytes = 0;
+	while (rbytes[i] != '\r') {
+		num_bytes *= 10;
+		num_bytes += (rbytes[i] - '0');
+		i++;
+	}
+	tcp_state.unread += num_bytes;
+	if (tcp_state.unread > MAX_DATA_LEN) {
+		DEBUG_V0("%s: modem buffer overflow\n", __func__);
+		return;
+	}
 }
 
 static bool process_urc(const char *urc, enum at_urc u_code)
@@ -72,11 +118,12 @@ static bool process_urc(const char *urc, enum at_urc u_code)
 	switch (u_code) {
 	case TCP_CLOSED:
 		tcp_state.connected = false;
-		tcp_state.receiving = false;
 		tcp_state.flag_peer_close = true;
 		DEBUG_V0("%s: TCP conn closed by peer\n", __func__);
 		break;
-	/* TODO: Process +SQNSRING URC - See SMS code for hints */
+	case TCP_RECV:
+		process_sqnsring_urc(urc);
+		break;
 	default:
 		return false;
 	}
@@ -88,16 +135,11 @@ static void urc_callback(const char *urc)
 	if (process_urc(urc, TCP_CLOSED))
 		return;
 
-	/* TODO: Process +SQNSRING URC */
+	process_urc(urc, TCP_RECV);
 }
 
 bool at_init()
 {
-	tcp_state.connected = false;
-	tcp_state.receiving = false;
-	tcp_state.flag_peer_close = false;
-	tcp_state.unread = 0;
-
 	/* XXX: Call at_core_emu_hwflctrl() here, before at_core_init() */
 	if (!at_core_emu_hwflctrl(MODEM_EMULATED_RTS, MODEM_EMULATED_CTS))
 		return false;
@@ -145,7 +187,6 @@ int at_tcp_connect(const char *host, const char *port)
 		return AT_CONNECT_FAILED;
 
 	tcp_state.connected = true;
-	tcp_state.receiving = false;
 	tcp_state.flag_peer_close = false;
 	tcp_state.unread = 0;
 
@@ -154,11 +195,9 @@ int at_tcp_connect(const char *host, const char *port)
 	return sock_id[0] - '0';
 }
 
+/* Send the hexadecimal representation of the data */
 static bool send_chunk(uint8_t *buf, size_t len)
 {
-	if (len > MAX_SEND_DATA_LEN)
-		return false;
-
 	if (at_core_wcmd(&tcp_commands[SOCK_SEND], false) != AT_SUCCESS)
 		return false;
 
@@ -171,6 +210,28 @@ static bool send_chunk(uint8_t *buf, size_t len)
 	return true;
 }
 
+/* Get the hex digit representing the lower or upper bits of a byte */
+static char get_hex_digit(bool upper, uint8_t data)
+{
+	uint8_t nibbles = upper ? (data & 0xF0) >> 4 : data & 0x0F;
+	if (nibbles >= 0 && nibbles <= 9)
+		return '0' + nibbles;
+	else if (nibbles >= 0x0A && nibbles <= 0x0F)
+		return 'A' + (nibbles - 10);
+	else
+		return '0';
+}
+
+/* Convert input data from 'src', 'len' bytes long into hex data without delimiters */
+static void convert_to_hex(size_t len, const uint8_t src[], uint8_t hex[])
+{
+	for (size_t i = 0, k = 0; i < len; i++, k += 2) {
+		hex[k] = get_hex_digit(true, src[i]);
+		hex[k + 1] = get_hex_digit(false, src[i]);
+	}
+}
+
+/* Can send only MAX_DATA_LEN bytes at a time */
 int at_tcp_send(int s_id, const uint8_t *buf, size_t len)
 {
 	const char sock_id[] = MODEM_SOCK_ID;
@@ -184,28 +245,14 @@ int at_tcp_send(int s_id, const uint8_t *buf, size_t len)
 		return AT_TCP_SEND_FAIL;
 	}
 
-	/* Send in chunks of MAX_SEND_DATA_LEN */
-	size_t remaining = len;
-	uint8_t *data = (uint8_t *)buf;
-	while (remaining >= MAX_SEND_DATA_LEN) {
-		if (!tcp_state.connected)
-			return AT_TCP_CONNECT_DROPPED;
-
-		if (!send_chunk(data, MAX_SEND_DATA_LEN))
-			return AT_TCP_SEND_FAIL;
-
-		remaining -= MAX_SEND_DATA_LEN;
-		data += MAX_SEND_DATA_LEN;
-	}
-
 	if (!tcp_state.connected)
 		return AT_TCP_CONNECT_DROPPED;
 
-	if (!send_chunk(data, remaining))
+	len = (len > MAX_DATA_LEN) ? MAX_DATA_LEN : len;
+	convert_to_hex(len, buf, hex_buf);
+	if (!send_chunk(hex_buf, len * 2))
 		return AT_TCP_SEND_FAIL;
 
-	if (!tcp_state.connected)
-		return AT_TCP_CONNECT_DROPPED;
 	return len;
 }
 
@@ -214,43 +261,8 @@ int at_read_available(int s_id)
 	const char sock_id[] = MODEM_SOCK_ID;
 	if (s_id != sock_id[0] - '0')
 		return AT_TCP_RCV_FAIL;
-	if (!tcp_state.connected) {
-		if (!tcp_state.flag_peer_close)
-			return 0;
-		if (tcp_state.unread > 0)
-			return tcp_state.unread;
-		return AT_TCP_RCV_FAIL;
-	}
+
 	return tcp_state.unread;
-}
-
-static int read_socket(uint8_t *buf, size_t len)
-{
-	if (tcp_state.unread > 0) {
-		int avail = at_core_rx_available();
-		if (avail >= len) {
-			int rdb = at_core_read(buf, len);
-			if (rdb < 0)
-				return AT_TCP_RCV_FAIL;
-			tcp_state.unread -= rdb;
-			return rdb;
-		}
-	}
-	errno = EAGAIN;
-	return AT_TCP_RCV_FAIL;
-}
-
-static int read_inter_buf(uint8_t *buf, size_t len)
-{
-	if (tcp_state.unread > 0) {
-		int rdb = at_core_read(buf, len);
-		if (rdb < 0)
-			return AT_TCP_RCV_FAIL;
-		tcp_state.unread -= rdb;
-		return rdb;
-	}
-	DEBUG_V0("%s: tcp not connected to recv\n", __func__);
-	return AT_TCP_RCV_FAIL;
 }
 
 int at_tcp_recv(int s_id, uint8_t *buf, size_t len)
@@ -262,23 +274,43 @@ int at_tcp_recv(int s_id, uint8_t *buf, size_t len)
 	if (len == 0)
 		return 0;
 
-	if (!tcp_state.connected) {
-		if (!tcp_state.flag_peer_close)
-			return 0;
-		return read_inter_buf(buf, len);
+	if (tcp_state.unread == 0) {
+		errno = EAGAIN;
+		return AT_TCP_RCV_FAIL;
 	}
 
-	return read_socket(buf, len);
+	char cmd[MAX_TCP_CMD_LEN];
+	at_command_desc *desc = &tcp_commands[SOCK_RECV];
+
+	len = (len > tcp_state.unread) ? tcp_state.unread : len;
+	snprintf(cmd, MAX_TCP_CMD_LEN, desc->comm_sketch, len);
+	desc->comm = cmd;
+
+	desc->rsp_desc[0].data = &(struct recv_opts){len, buf};
+	if (at_core_wcmd(desc, true) != AT_SUCCESS) {
+		return AT_TCP_RCV_FAIL;
+	}
+
+	if (((struct recv_opts *)desc->rsp_desc[0].data)->len != len)
+		return AT_TCP_RCV_FAIL;
+
+	tcp_state.unread -= len;
+	return len;
 }
 
 void at_tcp_close(int s_id)
 {
 	const char sock_id[] = MODEM_SOCK_ID;
-	if (s_id != sock_id[0] - '0' || !tcp_state.connected)
+	if (s_id != sock_id[0] - '0')
 		return;
+	if (!tcp_state.connected) {
+		DEBUG_V0("%s: socket already closed\n", __func__);
+		return;
+	}
+
+	DEBUG_V0("%s: closing tcp socket\n", __func__);
 	at_core_wcmd(&tcp_commands[SOCK_CLOSE], true);
 	tcp_state.connected = false;
-	tcp_state.receiving = false;
 	tcp_state.flag_peer_close = false;
 }
 
@@ -286,12 +318,12 @@ bool at_tcp_get_ip(char *ip)
 {
 	if (ip == NULL)
 		return false;
+	memset(ip, 0, IP_ADDR_LEN);
+	tcp_commands[GET_IP_ADDR].rsp_desc[0].data = ip;
 	if (at_core_wcmd(&tcp_commands[GET_IP_ADDR], true) != AT_SUCCESS)
 		return false;
-	if (modem_ip_addr[0] == 0x00)
+	if (ip[0] == 0x00)
 		return false;
-	memset(ip, 0, IP_ADDR_LEN);
-	strncpy(ip, modem_ip_addr, IP_ADDR_LEN);
 
 	return true;
 }

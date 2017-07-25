@@ -5,10 +5,10 @@
 #include "at_tcp.h"
 #include "sys.h"
 
-const char *host = "httpbin.org";
+const char *host = "example.com";
 const char *port = "80";
 
-#define RECV_BUFFER	64
+#define RECV_BUFFER	500
 #define NUM_RETRIES	5
 #define DELAY_MS	500
 
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
 	dbg_printf("TCP connect done...\n");
 
 	/* step 3: send data */
-	char *send_buf = "GET \\ HTTP\\1.1\r\n";
+	char *send_buf = "GET /index.html HTTP/1.0\r\n\r\n";
 	dbg_printf("Sending data:\n");
 	size_t len = strlen(send_buf);
 	tcp_send(s_id, (uint8_t *)send_buf, len);

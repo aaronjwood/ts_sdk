@@ -20,16 +20,20 @@ enum tcp_command {
 	SOCK_SEND,	/* Send data (up to 1500 bytes) over a TCP socket */
 	SOCK_SEND_DATA,	/* Actual data to send */
 	SOCK_CLOSE,	/* Close the socket */
+	SOCK_RECV,	/* Retrieve data from the socket */
 	GET_IP_ADDR,	/* Get the IP address */
 	TCP_END
 };
 
 static const char *at_urcs[URC_END] = {
 	[TCP_CLOSED] = "\r\n+SQNSH: "MODEM_SOCK_ID"\r\n",
-	[TCP_RECV] = "\r\n+SQNSRING: "MODEM_SOCK_ID","	/* Followed by "length,data" */
+	[TCP_RECV] = "\r\n+SQNSRING: "MODEM_SOCK_ID","	/* Followed by length */
 };
 
 static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
+		const char *stored_rsp, void *data);
+
+static void parse_data(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data);
 
 /* XXX: Data sheet does not specify timeouts. They're arbitrary for now. */
@@ -47,7 +51,7 @@ static at_command_desc tcp_commands[TCP_END] = {
 		.comm_timeout = 5000
 	},
 	[SOCK_CONF] = {
-		.comm = "at+sqnscfg="MODEM_SOCK_ID","MODEM_PDP_CTX",1500,600,600,50\r",
+		.comm = "at+sqnscfg="MODEM_SOCK_ID","MODEM_PDP_CTX",0,600,600,50\r",
 		.rsp_desc = {
 			{
 				.rsp = "\r\nOK\r\n",
@@ -59,7 +63,7 @@ static at_command_desc tcp_commands[TCP_END] = {
 		.comm_timeout = 5000
 	},
 	[SOCK_CONF_EXT] = {
-		.comm = "at+sqnscfgext="MODEM_SOCK_ID",2,0,0,0,0\r",
+		.comm = "at+sqnscfgext="MODEM_SOCK_ID",1,0,0,0,1\r",
 		.rsp_desc = {
 			{
 				.rsp = "\r\nOK\r\n",
@@ -118,11 +122,23 @@ static at_command_desc tcp_commands[TCP_END] = {
 		.err = "\r\n+CME ERROR: ",
 		.comm_timeout = 5000
 	},
+	[SOCK_RECV] = {
+		.comm_sketch = "at+sqnsrecv=1,%d\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n+SQNSRECV: "MODEM_SOCK_ID",",
+				.rsp_handler = parse_data,
+				.data = NULL
+			},
+		},
+		.err = "\r\n+CME ERROR: ",
+		.comm_timeout = 5000
+	},
 	[GET_IP_ADDR] = {
 		.comm = "at+cgpaddr="MODEM_PDP_CTX"\r",
 		.rsp_desc = {
 			{
-				.rsp = "\r\n+CGPADDR: "MODEM_PDP_CTX",\"",
+				.rsp = "\r\n+CGPADDR: "MODEM_PDP_CTX"",
 				.rsp_handler = parse_ip_addr,
 				.data = NULL
 			},
