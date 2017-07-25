@@ -1,24 +1,10 @@
-# Copyright(C) 2016, 2017 Verizon. All rights reserved.
-
-# PROJ_NAME selects which example to build. Depending on the sensor
-# example PROJ_NAME should be changed. Currently we have bmp180 and
-# xnucleo-iks01a1 examples .By default, the Makefile assumes 'bmp180'
-# as the project This means that 'make' is equivalent to
-# 'make PROJ_NAME=bmp180'
-#
+# Copyright(C) 2017 Verizon. All rights reserved.
 
 ifneq (build,$(notdir $(CURDIR)))
 # If not invoked in the build directory, change to that directory and
 # re-invoke the Makefile with SRCDIR set.
 include $(MK_HELPER_PATH)/build_in_subdir.mk
 else
-
-
-PROJ_NAME ?= bmp180
-#PROJ_NAME ?=xnucleo-iks01a1
-
-# Comment out this macro if application supported sensor are connected to the board
-SIMU_SENSOR = -DSIMULATE_SENSOR
 
 # uncomment NO_DEBUG to turn off debug messages globally.
 DBG_MACRO = $(SIMU_SENSOR) #-DNO_DEBUG
