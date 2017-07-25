@@ -23,6 +23,7 @@ MODEM_SRC_ROOT = $(SDK_ROOT)/src/network
 
 ifneq ($(MODEM_TARGET),none)
 # Currently, all modems supporting TCP and SMS do so via AT commands.
+NET_OS = at
 ifeq ($(MODEM_PROTOCOL),$(filter $(MODEM_PROTOCOL),tcp sms))
 MODEM_SRC += at_core.c uart_util.c at_modem.c
 MODEM_INC += -I $(MODEM_INC_ROOT)

@@ -28,6 +28,12 @@ APP_INC =
 # User application sources
 APP_SRC = $(wildcard $(SRCDIR)/*.c)
 
+# Vendor libraries
+VENDOR_INC += -I $(SDK_ROOT)/vendor/mbedtls/include
+VENDOR_INC += -DMBEDTLS_CONFIG_FILE="\"mbedtls/config_$(DEV_BOARD).h\""
+VENDOR_LIB_DIRS += mbedtls
+VENDOR_LIB_FLAGS += -L. -lmbedtls -lmbedx509 -lmbedcrypto
+
 # Library sources are built without debug info and optimized for size.
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the
 # debug flag enabled
