@@ -180,10 +180,9 @@ static char *prepare_device_info(const cJSON *cname, const char *cmditem,
                 prepare_resp(cmd_resp_data, NULL, NULL,
                         MQTT_CMD_STATUS_BAD_REQUEST, INV_CHAR);
                 msg = fill_otpcmd_resp_msg(cname, prof, char_name, cmd_resp_data);
-        } else if (cname && (prof || char_name)) {
-
+        } else if (cname && (prof || char_name))
                 msg = fill_otpcmd_resp_msg(cname, prof, char_name, cmd_resp_data);
-        } else
+        else
                 msg = fill_otpcmd_resp_msg(NULL, NULL, NULL, cmd_resp_data);
         *rsp_len = strlen(msg) + 1;
         return msg;

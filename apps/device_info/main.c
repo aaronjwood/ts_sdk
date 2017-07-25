@@ -14,6 +14,7 @@
 #include "dbg.h"
 #include "protocol_init.h"
 #include "rcvd_msg.h"
+#include "oem_hal.h"
 
 
 /* Declare the send and receive static buffer this is mandatory step */
@@ -132,6 +133,7 @@ int main(void)
 
 	sys_init();
 	dbg_module_init();
+	oem_init();
 	dbg_printf("Begin:\n");
 
 	dbg_printf("Initializing communications module\n");

@@ -75,11 +75,6 @@ typedef struct {		/* Cloud communication buffer descriptor */
 	cc_data_sz current_len; /* Total length of rcvd data in buffer,
 				   including protocol overhead */
 	void *buf_ptr;		/* Opaque pointer to the actual data buffer */
-	bool interrupt_ctx;	/* Indication to upper level that this descriptor
-				 * is being processed in interrupt context
-				 * so that upper level can take appropriate action
-				 * and finish its task as soon as possible.
-				 */
 } cc_buffer_desc;
 
 typedef struct cc_service_descriptor cc_service_descriptor;

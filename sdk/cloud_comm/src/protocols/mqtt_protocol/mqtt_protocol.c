@@ -369,7 +369,6 @@ static bool reg_pub_sub()
 		return false;
 	}
 	PRINTF("Subscribed to topic %s successful\n", sub_command);
-	PRINTF("Publication topic %s successful\n", pub_unit_on_board);
 	return true;
 }
 

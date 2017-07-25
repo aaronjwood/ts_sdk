@@ -13,10 +13,9 @@
 #include <stdint.h>
 
  /**
-  * \brief       Initializes oem profiles.
+  * \brief       Initializes oem profiles with latest value
   * \note
-  * This function needs to be called first before any other APIs. Failed to do
-  * so will result in all the oem profiles value being "N/A".
+  * This function needs to be called first before any other APIs
   */
 void oem_init(void);
 
