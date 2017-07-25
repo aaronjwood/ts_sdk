@@ -29,17 +29,20 @@
 #define DATA_TMO_MS			110	/* Timeout to receive MAX_DATA_LEN bytes */
 
 /* Store the received data into this buffer. at_tcp_read() reads from here. */
-static uint8_t rx_buf[MAX_DATA_LEN];
+#define RING_BUF_SZ			2048
+static uint8_t rx_buf[RING_BUF_SZ];
 
 static volatile struct __attribute__((packed)) {
 	uint8_t connected : 1;		/* True when connected to the server */
 	uint8_t flag_peer_close : 1;	/* True: Closed by peer, False: Closed by us */
-	buf_sz unread;			/* Store the amount of unread data */
+	uint8_t data_mode : 1;		/* True: TCP data being received over UART */
+	buf_sz to_read;			/* Store the amount of URC data to read */
 	rbuf *buf;			/* Handle to ring buffer to store received data */
 } tcp_state = {
 	.connected = false,
 	.flag_peer_close = false,
-	.unread = 0,
+	.data_mode = false,
+	.to_read = 0,
 	.buf = NULL
 };
 
@@ -57,90 +60,111 @@ static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
 	}
 }
 
-struct recv_opts {
-	size_t len;
-	uint8_t *buf;
-};
-
-#define SZ_OK			(sizeof("\r\nOK\r\n") - 1)
-static void parse_data(void *rcv_rsp, int rcv_rsp_len,
-		const char *stored_rsp, void *data)
+/* Parse the length from "+SQNSRING: 1,<length>,<data bytes>". */
+static void process_len(void)
 {
-	/* Header information should have already been discarded */
+	uint8_t data;
+	at_core_read(&data, 1);
+	buf_sz num_bytes = 0;
+	while (data != ',') {		/* Read until the second ',' */
+		num_bytes *= 10;
+		num_bytes += (data - '0');
+		at_core_read(&data, 1);
+	}
+	tcp_state.to_read = num_bytes;
+	DEBUG_V0("%s: rx %d\n", __func__, tcp_state.to_read);
+}
 
-	struct recv_opts *opts = (struct recv_opts *)data;
+static void attempt_buffering_data(void)
+{
+	static bool process_data = false;
+	if (!tcp_state.data_mode)
+		return;
 
-	/* Wait until all of the data has been received in the UART */
-	uint32_t start = sys_get_tick_ms();
-	while (at_core_rx_available() < opts->len + SZ_OK) {
-		uint32_t now = sys_get_tick_ms();
-		if (now - start > DATA_TMO_MS) {
-			opts->len = 0;
-			DEBUG_V0("%s: uart tcp data timeout\n", __func__);
+	/* Parse the length field */
+	if (!process_data) {
+		int p_idx = at_core_find_pattern(UART_BUF_BEGIN,
+				(const uint8_t *)",", 1);
+		if (p_idx < 0 || at_core_rx_available() < 2)
 			return;
-		}
+		process_len();
+		process_data = true;
 	}
 
-	/* Read only the data into the user supplied buffer */
-	if (at_core_read(opts->buf, opts->len) != opts->len) {
-		opts->len = 0;
+	/* Parse the data field if enough data is available (+ CRLF) */
+	if (at_core_rx_available() >= tcp_state.to_read + 2) {
+		uint8_t data;
+		for (buf_sz i = 0; i < tcp_state.to_read; i++) {
+			at_core_read(&data, 1);
+			rbuf_wb(tcp_state.buf, data);
+		}
+		tcp_state.to_read = 0;
+		tcp_state.data_mode = false;
+		process_data = false;
+
+		/* Eat trailing CRLF */
+		at_core_read(&data, 1);
+		at_core_read(&data, 1);
 		return;
 	}
+	return;
+}
 
-	/* Discard the trailing "\r\nOK\r\n" */
-	uint8_t ok_data[6];
-	at_core_read(ok_data, SZ_OK);
+/*
+ * +SQNSRING header, unlike other URCs, is not delimited by CRLF. For now, it is
+ * easiest to retrieve it manually.
+ */
+static void attempt_capture_sqnsring(void)
+{
+	if (tcp_state.data_mode)
+		return;
+
+	const size_t str_len = strlen(at_urcs[TCP_RECV]);
+	if (at_core_find_pattern(UART_BUF_BEGIN,
+				(const uint8_t *)at_urcs[TCP_RECV],
+				str_len) < 0)
+		return;
+
+	char dump[str_len];
+	if (at_core_read((uint8_t *)dump, str_len) != str_len) {
+		DEBUG_V0("%s: read err\n", __func__);
+		return;
+	}
+	dump[str_len] = 0x00;
+	tcp_state.data_mode = true;
+	/* The read buffer now points to the beginning of the length field */
+	attempt_buffering_data();
+	return;
 }
 
 static void at_uart_callback(void)
 {
-	if (!at_core_is_proc_urc() && !at_core_is_proc_urc())
+	attempt_capture_sqnsring();
+	attempt_buffering_data();
+	if (!at_core_is_proc_rsp() && !at_core_is_proc_urc())
 		at_core_process_urc(false);
 }
 
-static void process_sqnsring_urc(const char *urc)
-{
-	const char *rbytes = urc + strlen(at_urcs[TCP_RECV]);
-	buf_sz i = 0;
-	buf_sz num_bytes = 0;
-	while (rbytes[i] != '\r') {
-		num_bytes *= 10;
-		num_bytes += (rbytes[i] - '0');
-		i++;
-	}
-	tcp_state.unread += num_bytes;
-	if (tcp_state.unread > MAX_DATA_LEN) {
-		DEBUG_V0("%s: modem buffer overflow\n", __func__);
-		return;
-	}
-}
-
-static bool process_urc(const char *urc, enum at_urc u_code)
+static void process_urc(const char *urc, enum at_urc u_code)
 {
 	if (strncmp(urc, at_urcs[u_code], strlen(at_urcs[u_code])) != 0)
-		return false;
+		return;
 
 	switch (u_code) {
 	case TCP_CLOSED:
 		tcp_state.connected = false;
 		tcp_state.flag_peer_close = true;
+		tcp_state.data_mode = false;
 		DEBUG_V0("%s: TCP conn closed by peer\n", __func__);
 		break;
-	case TCP_RECV:
-		process_sqnsring_urc(urc);
-		break;
 	default:
-		return false;
+		break;
 	}
-	return true;
 }
 
 static void urc_callback(const char *urc)
 {
-	if (process_urc(urc, TCP_CLOSED))
-		return;
-
-	process_urc(urc, TCP_RECV);
+	process_urc(urc, TCP_CLOSED);
 }
 
 bool at_init()
@@ -172,10 +196,13 @@ bool at_init()
 	res = at_core_wcmd(&tcp_commands[SOCK_CONF_EXT], true);
 	CHECK_SUCCESS(res, AT_SUCCESS, false);
 
+#ifdef DEBUG_AT_LIB
 	char ip_addr[16];
 	bool ip_res = at_tcp_get_ip(ip_addr);
 	DEBUG_V0("IP:%s\n", ip_res ? ip_addr : "failed");
+#endif
 
+	/* Initialize the ring buffer for TCP reads */
 	tcp_state.buf = rbuf_init(sizeof(rx_buf), rx_buf);
 	if (tcp_state.buf == NULL) {
 		DEBUG_V0("%s: failed to initialize receive buffer\n", __func__);
@@ -192,14 +219,15 @@ int at_tcp_connect(const char *host, const char *port)
 
 	char cmd[MAX_TCP_CMD_LEN];
 	at_command_desc *desc = &tcp_commands[SOCK_DIAL];
-	snprintf(cmd, MAX_TCP_CMD_LEN, desc->comm_sketch, port, host);
+	snprintf(cmd, sizeof(cmd), desc->comm_sketch, port, host);
 	desc->comm = cmd;
 	if (at_core_wcmd(desc, true) != AT_SUCCESS)
 		return AT_CONNECT_FAILED;
 
 	tcp_state.connected = true;
 	tcp_state.flag_peer_close = false;
-	tcp_state.unread = 0;
+	tcp_state.data_mode = false;
+	tcp_state.to_read = 0;
 
 	DEBUG_V0("%s: socket("MODEM_SOCK_ID") created\n", __func__);
 	const char sock_id[] = MODEM_SOCK_ID;
@@ -257,7 +285,7 @@ int at_read_available(int s_id)
 	if (s_id != sock_id[0] - '0')
 		return AT_TCP_RCV_FAIL;
 
-	return tcp_state.unread;
+	return rbuf_unread(tcp_state.buf);
 }
 
 int at_tcp_recv(int s_id, uint8_t *buf, size_t len)
@@ -269,27 +297,20 @@ int at_tcp_recv(int s_id, uint8_t *buf, size_t len)
 	if (len == 0)
 		return 0;
 
-	if (tcp_state.unread == 0) {
+	size_t unread = rbuf_unread(tcp_state.buf);
+	if (unread == 0) {
 		errno = EAGAIN;
 		return AT_TCP_RCV_FAIL;
 	}
 
-	char cmd[MAX_TCP_CMD_LEN];
-	at_command_desc *desc = &tcp_commands[SOCK_RECV];
+	len = (len > unread) ? unread : len;
 
-	len = (len > tcp_state.unread) ? tcp_state.unread : len;
-	snprintf(cmd, MAX_TCP_CMD_LEN, desc->comm_sketch, len);
-	desc->comm = cmd;
+	for (size_t i = 0; i < len; i++)
+		if (!rbuf_rb(tcp_state.buf, &buf[i])) {
+			DEBUG_V0("%s: read error\n", __func__);
+			return AT_TCP_RCV_FAIL;
+		}
 
-	desc->rsp_desc[0].data = &(struct recv_opts){len, buf};
-	if (at_core_wcmd(desc, true) != AT_SUCCESS) {
-		return AT_TCP_RCV_FAIL;
-	}
-
-	if (((struct recv_opts *)desc->rsp_desc[0].data)->len != len)
-		return AT_TCP_RCV_FAIL;
-
-	tcp_state.unread -= len;
 	return len;
 }
 
@@ -307,6 +328,7 @@ void at_tcp_close(int s_id)
 	at_core_wcmd(&tcp_commands[SOCK_CLOSE], true);
 	tcp_state.connected = false;
 	tcp_state.flag_peer_close = false;
+	tcp_state.data_mode = false;
 }
 
 bool at_tcp_get_ip(char *ip)
