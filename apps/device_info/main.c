@@ -70,16 +70,16 @@ static void receive_completed(cc_buffer_desc *buf)
 	memset(rsp_to_remote.uuid, 0, MAX_CMD_SIZE);
 	if (recvd && sz > 0)
 		process_rvcd_msg(recvd, sz, &rsp_to_remote);
-	printf("Response created......\n");
+	printf("Response created with size.....: %d\n",
+			strlen(rsp_to_remote.rsp_msg));
 	if (rsp_to_remote.rsp_msg)
 		printf("%s\n", rsp_to_remote.rsp_msg);
 	/* Now send this back this response */
 	char *send_rsp = (char *)cc_get_send_buffer_ptr(&send_buffer,
 				CC_SERVICE_BASIC);
 	memset(send_rsp, 0, CC_MAX_SEND_BUF_SZ);
-	cc_data_sz temp = (strlen(rsp_to_remote.rsp_msg) + 1);
-	send_sz = (temp > CC_MAX_SEND_BUF_SZ) ?
-					CC_MAX_SEND_BUF_SZ : temp;
+	cc_data_sz temp = (strlen(rsp_to_remote.rsp_msg));
+	send_sz = temp;
 	memcpy(send_rsp, rsp_to_remote.rsp_msg, send_sz);
 	rsp_to_remote.valid_rsp = true;
 	printf("Sending......\n");

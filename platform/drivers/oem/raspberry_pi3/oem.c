@@ -22,6 +22,41 @@ static oem_profile_t oem_prof_data[NUM_PROF] = {
                 sizeof(g_chrt_device_info) / sizeof(oem_char_t),
                 init_device_profile
         },
+        [RAM_INDEX] = {
+                "RAM",
+                "RAM",
+                g_chrt_ram,
+                sizeof(g_chrt_ram) / sizeof(oem_char_t),
+                init_ram_profile
+        },
+        [NW_INDEX] = {
+                "NW",
+                "Network",
+                g_chrt_network,
+                sizeof(g_chrt_network) / sizeof(oem_char_t),
+                NULL
+        },
+        [STRG_INDEX] = {
+                "STRG",
+                "Storage",
+                g_chrt_storage,
+                sizeof(g_chrt_storage) / sizeof(oem_char_t),
+                NULL
+        },
+        [BTR_INDEX] = {
+                "BTR",
+                "Battery",
+                g_chrt_battery,
+                sizeof(g_chrt_battery) / sizeof(oem_char_t),
+                NULL
+        },
+        [BT_INDEX] = {
+                "BT",
+                "Bluetooth",
+                g_chrt_bluetooth,
+                sizeof(g_chrt_bluetooth) / sizeof(oem_char_t),
+                NULL
+        },
         [IPADDR_INDEX] = {
                 "IPADDR",
                 "IP Address",
@@ -29,12 +64,12 @@ static oem_profile_t oem_prof_data[NUM_PROF] = {
                 sizeof(g_chrt_ipaddr) / sizeof(oem_char_t),
                 init_ipaddr_profile
         },
-        [RAM_INDEX] = {
-                "RAM",
-                "RAM",
-                g_chrt_ram,
-                sizeof(g_chrt_ram) / sizeof(oem_char_t),
-                init_ram_profile
+        [WIFI_INDEX] = {
+                "WIFI",
+                "WIFI",
+                g_chrt_wifi,
+                sizeof(g_chrt_wifi) / sizeof(oem_char_t),
+                NULL
         },
 
 };

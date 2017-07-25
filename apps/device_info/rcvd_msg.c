@@ -107,7 +107,6 @@ static char *fill_otpcmd_resp_msg(const cJSON *cname, char *prof,
                 else if (char_name && (!prof))
                         payload_obj = char_name;
                 otp_payload = true;
-
         } else
                 otp_payload = false;
 
@@ -190,7 +189,6 @@ static char *prepare_device_info(const cJSON *cname, const char *cmditem,
                                                 cname->valuestring, acronym);
         }
         if (cname && !prof && !char_name) {
-
                 prepare_resp(cmd_resp_data, NULL, NULL,
                         MQTT_CMD_STATUS_BAD_REQUEST, INV_CHAR);
                 msg = fill_otpcmd_resp_msg(cname, prof, char_name,
@@ -278,7 +276,7 @@ static char *create_cmd_resp_msg(cmd_responce_data_t *cmd_resp_data, cJSON *pl,
         char *msg = NULL;
         *rsp_len = 0;
         if (!object)
-                return NULL;
+                RETURN_ERROR_VAL("creating json object failed", NULL);
 
         cJSON *temp = cJSON_CreateString(cmd_resp_data->command);
         if (!temp) {
@@ -319,7 +317,7 @@ static char *process_server_cmd_msg(const char *msg,
                                 rsp *rsp_to_remote)
 {
 
-        bool acronym = false;
+        bool acronym = true;
         cJSON *object = NULL;
         cJSON *cname = NULL;
         cJSON *cmditem = NULL;
@@ -333,7 +331,7 @@ static char *process_server_cmd_msg(const char *msg,
                 if (!cmditem) {
                         cmditem = cJSON_GetObjectItem(object, "UCD");
                         if (cmditem != NULL) {
-                                acronym = true;
+                                /*acronym = true;*/
                                 PRINTF("%s:%d: short JSON rcvd\n",
                                         __func__, __LINE__);
                         } else {
@@ -357,9 +355,8 @@ static char *process_server_cmd_msg(const char *msg,
                 return create_cmd_resp_msg(cmd_resp_data, NULL, rsp_len);
         }
 
-        if (acronym == true)
-                uuid = cJSON_GetObjectItem(object, "CUUID");
-        else
+        uuid = cJSON_GetObjectItem(object, "CUUID");
+        if (!uuid)
                 uuid = cJSON_GetObjectItem(object, "commandUUID");
 
         prepare_resp(cmd_resp_data, cmditem->valuestring,
@@ -368,9 +365,8 @@ static char *process_server_cmd_msg(const char *msg,
 
         if (!strcmp(cmditem->valuestring, "GetOtp")) {
 
-                if (acronym)
-                        cname = cJSON_GetObjectItem(object, "CNAME");
-                else
+                cname = cJSON_GetObjectItem(object, "CNAME");
+                if (!cname)
                         cname = cJSON_GetObjectItem(object,
                                                 "characteristicsName");
                 rsp_to_remote->on_board = false;

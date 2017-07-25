@@ -49,7 +49,7 @@
 #endif
 
 /* Enables displaying major milestones achieved in flow */
-/*#define DEBUG_MSG*/
+#define DEBUG_MSG
 #ifdef DEBUG_MSG
 #define PRINTF(...)	printf(__VA_ARGS__)
 #else

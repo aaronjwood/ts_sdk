@@ -86,7 +86,8 @@ static void cc_send_cb(const void *buf, uint32_t sz, proto_event event,
 		ev = CC_EVT_SEND_TIMEOUT;
 		break;
 	default:
-		dbg_printf("%s:%d: Unknown Send Event\n", __func__, __LINE__);
+		dbg_printf("%s:%d: Unknown Send Event :%d\n", __func__,
+				__LINE__, event);
 		break;
 	}
 	dispatch_event_to_service(svc_id, conn_out.buf, ev);
