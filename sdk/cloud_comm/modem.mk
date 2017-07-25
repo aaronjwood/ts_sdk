@@ -54,6 +54,7 @@ MODEM_DIR += at/$(MODEM_TARGET)/$(MODEM_PROTOCOL)
 else ifeq ($(MODEM_TARGET),sqmonarch)
 MODEM = MODEM_SQMONARCH
 MODEM_SRC += at_sqmonarch_$(MODEM_PROTOCOL).c
+MODEM_SRC += rbuf.c
 MODEM_DIR += at/$(MODEM_TARGET)/$(MODEM_PROTOCOL)
 else ifeq ($(MODEM_TARGET),none)
 # Special case for some tests using native networking

@@ -11,6 +11,7 @@
 #include "at_modem.h"
 #include "ts_sdk_modem_config.h"
 #include "at_sqmonarch_tcp_command.h"
+#include "rbuf.h"
 
 #define MAX_TCP_CMD_LEN			64
 
@@ -24,18 +25,22 @@
 
 /* Sequans Monarch supports only 1500 bytes of outgoing data at a time */
 #define MAX_DATA_LEN			1500
-static uint8_t hex_buf[MAX_DATA_LEN * 2];
 
 #define DATA_TMO_MS			110	/* Timeout to receive MAX_DATA_LEN bytes */
+
+/* Store the received data into this buffer. at_tcp_read() reads from here. */
+static uint8_t rx_buf[MAX_DATA_LEN];
 
 static volatile struct __attribute__((packed)) {
 	uint8_t connected : 1;		/* True when connected to the server */
 	uint8_t flag_peer_close : 1;	/* True: Closed by peer, False: Closed by us */
 	buf_sz unread;			/* Store the amount of unread data */
+	rbuf *buf;			/* Handle to ring buffer to store received data */
 } tcp_state = {
 	.connected = false,
 	.flag_peer_close = false,
 	.unread = 0,
+	.buf = NULL
 };
 
 static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
@@ -171,6 +176,12 @@ bool at_init()
 	bool ip_res = at_tcp_get_ip(ip_addr);
 	DEBUG_V0("IP:%s\n", ip_res ? ip_addr : "failed");
 
+	tcp_state.buf = rbuf_init(sizeof(rx_buf), rx_buf);
+	if (tcp_state.buf == NULL) {
+		DEBUG_V0("%s: failed to initialize receive buffer\n", __func__);
+		return false;
+	}
+
 	return true;
 }
 
@@ -196,39 +207,24 @@ int at_tcp_connect(const char *host, const char *port)
 }
 
 /* Send the hexadecimal representation of the data */
-static bool send_chunk(uint8_t *buf, size_t len)
+static bool send_chunk_as_hex(const uint8_t buf[], size_t len)
 {
 	if (at_core_wcmd(&tcp_commands[SOCK_SEND], false) != AT_SUCCESS)
 		return false;
 
-	if (!at_core_write(buf, len))
-		return false;
+	static const uint8_t to_hex_lut[] = "0123456789ABCDEF";
+	uint8_t hex_data[2];
+	for (size_t i = 0; i < len; i++) {
+		hex_data[0] = to_hex_lut[(buf[i] & 0xF0) >> 4];
+		hex_data[1] = to_hex_lut[buf[i] & 0x0F];
+		if (!at_core_write((uint8_t *)hex_data, sizeof(hex_data)))
+			return false;
+	}
 
 	if (at_core_wcmd(&tcp_commands[SOCK_SEND_DATA], true) != AT_SUCCESS)
 		return false;
 
 	return true;
-}
-
-/* Get the hex digit representing the lower or upper bits of a byte */
-static char get_hex_digit(bool upper, uint8_t data)
-{
-	uint8_t nibbles = upper ? (data & 0xF0) >> 4 : data & 0x0F;
-	if (nibbles >= 0 && nibbles <= 9)
-		return '0' + nibbles;
-	else if (nibbles >= 0x0A && nibbles <= 0x0F)
-		return 'A' + (nibbles - 10);
-	else
-		return '0';
-}
-
-/* Convert input data from 'src', 'len' bytes long into hex data without delimiters */
-static void convert_to_hex(size_t len, const uint8_t src[], uint8_t hex[])
-{
-	for (size_t i = 0, k = 0; i < len; i++, k += 2) {
-		hex[k] = get_hex_digit(true, src[i]);
-		hex[k + 1] = get_hex_digit(false, src[i]);
-	}
 }
 
 /* Can send only MAX_DATA_LEN bytes at a time */
@@ -249,8 +245,7 @@ int at_tcp_send(int s_id, const uint8_t *buf, size_t len)
 		return AT_TCP_CONNECT_DROPPED;
 
 	len = (len > MAX_DATA_LEN) ? MAX_DATA_LEN : len;
-	convert_to_hex(len, buf, hex_buf);
-	if (!send_chunk(hex_buf, len * 2))
+	if (!send_chunk_as_hex(buf, len))
 		return AT_TCP_SEND_FAIL;
 
 	return len;
