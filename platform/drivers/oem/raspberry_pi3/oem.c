@@ -43,20 +43,6 @@ static oem_profile_t oem_prof_data[NUM_PROF] = {
                 sizeof(g_chrt_storage) / sizeof(oem_char_t),
                 NULL
         },
-        [BTR_INDEX] = {
-                "BTR",
-                "Battery",
-                g_chrt_battery,
-                sizeof(g_chrt_battery) / sizeof(oem_char_t),
-                NULL
-        },
-        [BT_INDEX] = {
-                "BT",
-                "Bluetooth",
-                g_chrt_bluetooth,
-                sizeof(g_chrt_bluetooth) / sizeof(oem_char_t),
-                NULL
-        },
         [IPADDR_INDEX] = {
                 "IPADDR",
                 "IP Address",
@@ -64,14 +50,6 @@ static oem_profile_t oem_prof_data[NUM_PROF] = {
                 sizeof(g_chrt_ipaddr) / sizeof(oem_char_t),
                 init_ipaddr_profile
         },
-        [WIFI_INDEX] = {
-                "WIFI",
-                "WIFI",
-                g_chrt_wifi,
-                sizeof(g_chrt_wifi) / sizeof(oem_char_t),
-                NULL
-        },
-
 };
 
 static uint16_t num_profiles = (sizeof(oem_prof_data) /
