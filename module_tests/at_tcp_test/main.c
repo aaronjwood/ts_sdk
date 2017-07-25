@@ -77,7 +77,7 @@ static void tcp_rcv(int s_id)
 			continue;
 		}
 		read_buf[bytes] = 0x0;
-		printf("%s", (char *)read_buf);
+		printf("\nRecv:\n%s\n", (char *)read_buf);
 	}
 }
 
