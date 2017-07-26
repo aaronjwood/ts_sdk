@@ -259,20 +259,18 @@ void uart_irq_handler(periph_t hdl)
 		return;
 
 	USART_TypeDef *uart_instance = (USART_TypeDef *)hdl;
-#if 0
-	uint32_t uart_sr_reg = uart_instance->CR1;
-	uint32_t err_flags = uart_sr_reg & (uint32_t)(USART_SR_PE | USART_SR_FE
-			| USART_SR_ORE | USART_SR_NE);
+	uint32_t uart_sr_reg = uart_instance->ISR;
+	uint32_t err_flags = uart_sr_reg & (uint32_t)(USART_ISR_PE | USART_ISR_FE
+			| USART_ISR_ORE | USART_ISR_NE);
 
 	/* If any errors, clear it by reading the RX data register. */
 	if (err_flags) {
-		volatile uint8_t data = uart_instance->DR;
+		volatile uint8_t data = uart_instance->RDR;
 		UNUSED(data);
 		return;
 	}
 
-#endif
-	uint8_t data = uart_instance->CR1;
+	uint8_t data = uart_instance->RDR;
 	rx_char_cb[uid](data);
 }
 
