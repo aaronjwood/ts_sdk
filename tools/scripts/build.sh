@@ -13,6 +13,9 @@ SCRIPT="tools/scripts/$SCRIPT_NAME"
 CHIPSET_IMAGE_NAME="${CHIPSET_MCU}_buildenv"
 TS_SDK_IMAGE_NAME="ts_sdk"
 
+# this is used when creating tssdk client library
+TS_SDK_CLIENT_IMAGE_NAME="ts_sdk_client"
+
 RASPI_BASE_IMG="raspi_base"
 RPI_IMGID=$(docker images -q $RASPI_BASE_IMG)
 RPI_BRANCH="raspberrypi3_image"
@@ -37,12 +40,9 @@ Usage: 1) $SCRIPT_NAME chipset <docker file relative path including file>
        2) $SCRIPT_NAME app <relative path including file to sdk dockerfile> \
 <relative path including file to app dockerfile> app_dir=<app directory name> chipset_env=<absolute path> \
 [Optional application options in key=value pair]
-       3) $SCRIPT_NAME install_sdk <absolute destination path>
-       compiles and installs libsdk.a at the given path along with headers
-       Note: Based on protocol selected it will also compile mbedtls and install
-       compiled library at the given path. User needs to also provide APIs and
-       other platform related variables similar to as found in <install path>/platform_inc
-       headers to resolve missing dependent symbols.
+       3) $SCRIPT_NAME create_sdk_client <relative path with filename to docker file>
+       compiles and installs libsdk.a at ./build directory with include and lib
+       folders containing necessary headers and library libsdk.a
 
 Notes:
 
@@ -174,7 +174,7 @@ check_for_file()
 {
 	if ! [ -f $1 ]; then
 		echo "Specify dockerfile name along with the relative path"
-		usage
+		exit 1
 	fi
 }
 
@@ -285,7 +285,7 @@ build_app()
 
 	if [ -z "$APP_NAME" ]; then
 		echo "Provide app_dir parameter"
-		usage
+		exit 1
 	fi
 
 	echo "Project root: $PROJ_ROOT"
@@ -305,17 +305,22 @@ build_app()
 	exit 0
 }
 
-install_sdk()
+create_sdk_client()
 {
 	if [ -z "$1" ]; then
-		echo "Provide absolute path to install sdk"
-		usage
-	fi
-	cd $SDK_ROOT && make INSTALL_PATH=$1 clean && make INSTALL_PATH=$1 all && make clean
-	if ! [ $? -eq 0 ]; then
-		echo "Installing sdk failed..."
+		echo "Specify relative path including dockerfile name.."
 		exit 1
 	fi
+	docker build -t $TS_SDK_CLIENT_IMAGE_NAME -f $1 $PROJ_ROOT
+	docker run -e PROTOCOL=$PROTOCOL \
+		-e CHIPSET_FAMILY=$CHIPSET_FAMILY -e CHIPSET_MCU=$CHIPSET_MCU \
+		-e DEV_BOARD=$DEV_BOARD -e MODEM_TARGET=$MODEM_TARGET \
+		-e GPS_CHIPSET=$GPS_CHIPSET $CHIPSET_BUILDENV \
+		-v $MOUNT_DIR:/build/sdk_client $TS_SDK_CLIENT_IMAGE_NAME
+	check_build $TS_SDK_CLIENT_IMAGE_NAME
+	echo "Build was successful..."
+	cleanup_docker_images $TS_SDK_CLIENT_IMAGE_NAME
+	exit 0
 }
 
 if [ "$#" -eq "0" ]; then
@@ -326,7 +331,7 @@ fi
 if [ "$1" = "chipset" ]; then
 	if [ -z "$2" ]; then
 		echo "Specify relative path including dockerfile name.."
-		usage
+		exit 1
 	fi
 	shift
 	check_for_file "$1"
@@ -335,15 +340,15 @@ if [ "$1" = "chipset" ]; then
 elif [ "$1" = "app" ]; then
 	if [ -z "$2" ]; then
 		echo "Specify relative path including dockerfile name.."
-		usage
+		exit 1
 	fi
 	shift
 	check_for_file "$1"
 	check_for_file "$2"
 	build_app "$@"
-elif [ "$1" = "install_sdk" ]; then
+elif [ "$1" = "create_sdk_client" ]; then
 	shift
-	install_sdk "$@"
+	create_sdk_client "$@"
 else
 	usage
 fi

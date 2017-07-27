@@ -338,8 +338,8 @@ static void mqtt_rcvd_msg(MessageData *md)
 		dbg_printf("%s: %d: buffer overflow detected\n",
 				__func__, __LINE__);
 		dbg_printf("%s:%d, rcvd payload len %d is greater then "
-			"rcv buffer sz %u\n", __func__, __LINE__, m->payloadlen,
-			session.rcv_sz);
+			"rcv buffer sz %"PRIu32"\n", __func__, __LINE__,
+			m->payloadlen, session.rcv_sz);
 		INVOKE_RECV_CALLBACK(session.rcv_buf, m->payloadlen,
 			PROTO_RCVD_MEM_OVRFL, CC_SERVICE_BASIC);
 		return;
@@ -526,7 +526,7 @@ static proto_result mqtt_publish_msg(char *topic, const void *buf, uint32_t sz)
 		INVOKE_SEND_CALLBACK(buf, sz, PROTO_SEND_FAILED);
 		RETURN_ERROR("Send failed", PROTO_ERROR);
 	}
-	PRINTF("Published %u bytes on topic: %s\n", sz, topic);
+	PRINTF("Published %"PRIu32" bytes on topic: %s\n", sz, topic);
 	return PROTO_OK;
 }
 

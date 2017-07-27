@@ -14,7 +14,8 @@ LD = $(GCC_ROOT)/bin/arm-linux-gnueabihf-ld
 OBJDUMP = $(GCC_ROOT)/bin/arm-linux-gnueabihf-objdump
 OBJCOPY = $(GCC_ROOT)/bin/arm-linux-gnueabihf-objcopy
 SIZE = $(GCC_ROOT)/bin/arm-linux-gnueabihf-size
-export CC AR LD OBJDUMP OBJCOPY SIZE
+RANLIB = $(GCC_ROOT)/bin/arm-linux-gnueabihf-ranlib
+export CC AR LD OBJDUMP OBJCOPY SIZE RANLIB
 
 # Machine specific compiler, assembler settings and Linker script
 ARCHFLAGS =
