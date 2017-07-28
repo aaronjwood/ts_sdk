@@ -25,7 +25,6 @@ bool __dbg_module_init(void)
 		.data_width = DEBUG_UART_DATA_WIDTH,
 		.parity = DEBUG_UART_PARITY,
 		.stop_bits = DEBUG_UART_STOP_BITS,
-		.hw_flow_ctrl = false,
 		.irq = false
 	};
 	uart = uart_init(&pins, &config);
