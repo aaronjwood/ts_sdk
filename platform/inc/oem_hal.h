@@ -41,7 +41,7 @@ char *oem_get_profile_info_in_json(const char *profile);
  *
  * \returns     JSON formatted message or NULL if fails.
  */
-char *oem_get_all_profile_info_in_json();
+char *oem_get_all_profile_info_in_json(void);
 
 /**
  * \brief       Retreives specific characterisitic in json format.

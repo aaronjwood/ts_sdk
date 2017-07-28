@@ -34,59 +34,59 @@ enum oem_profiles_index {
 };
 
 enum device_profile_index {
-        BBV,
-        BID,
-        DID,
+        BBV, /* Baseband chip version */
+        BID, /* Firmware build id */
+        DID, /* device id */
         ICCID,
         IMEI,
         IMSI,
-        KEV,
-        LNG,
-        LPO,
-        MNF,
-        MOD,
-        CHIP,
+        KEV, /* Kernel version */
+        LNG, /* Language */
+        LPO, /* Last power on */
+        MNF, /* Board Manufacturer */
+        MOD, /* Model */
+        CHIP, /* chipset */
         NFC,
-        NLP,
-        OSV,
-        RTD,
-        SCRS,
-        SCRT,
-        SGPS,
-        TZ,
+        NLP, /* Network Location Provider */
+        OSV, /* OS Version */
+        RTD, /* Rooted */
+        SCRS, /* Screen Size */
+        SCRT, /* Screen Timeout */
+        SGPS, /* Standalone GPS */
+        TZ, /* Time Zone */
         DEV_PROF_END
 };
 
 enum ram_profile_index {
-        AVRAM,
-        FRRAM,
-        TLRAM,
+        AVRAM, /* Available RAM */
+        FRRAM, /* Free RAM */
+        TLRAM, /* Total RAM */
         RAM_PROF_END
 };
 
 enum net_profile_index {
-        XSIS,
-        GSIS,
-        G4SIS,
-        BSID,
-        CST,
-        CTP,
-        ISCC,
-        MCC,
-        MNC,
-        NWT,
-        NWID,
-        RMN,
-        SIMST,
-        SST,
-        SID,
+        XSIS, /* 1x Signal Strength */
+        GSIS, /* 3G Signal Strength */
+        G4SIS, /* 4G Signal Strength */
+        BSID, /* Base Station ID */
+        CST, /* Call State */
+        CTP, /* Connection Type */
+        ISCC, /* ISO Country Code */
+        MCC, /* MCC */
+        MNC, /* MNC */
+        NWT, /* Network Typ */
+        NWID, /* Network ID */
+        RMN, /* Roaming */
+        SIMST, /* SIM State */
+        SST, /* Service State */
+        SID, /* System ID */
         NW_PROF_END
 };
 
 enum storage_profile_index {
-        AVST,
-        FRST,
-        TLST,
+        AVST, /* Available storage */
+        FRST, /* Free Storage */
+        TLST, /* Total Storage */
         STRG_PROF_END
 };
 

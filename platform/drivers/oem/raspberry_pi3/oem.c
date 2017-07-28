@@ -118,8 +118,6 @@ static void insert_to_hash_table(int key, int gid, int cid)
         } else
                 dbg_printf("%s:%d: Hash table congestion, "
                         "increase the HASH_CHAIN_SZ\n", __func__, __LINE__);
-
-        return;
 }
 
 static void create_hash_table_for_profiles(void)
