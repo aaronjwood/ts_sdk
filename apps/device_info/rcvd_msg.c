@@ -63,15 +63,16 @@ static void prepare_resp(cmd_responce_data_t *cmd_resp_data, const char *cmd,
 {
         if (cmd_resp_data != NULL) {
                 if (cmd != NULL)
-                        strncpy(cmd_resp_data->command, cmd,
-                                sizeof(cmd_resp_data->command));
+			snprintf(cmd_resp_data->command,
+				sizeof(cmd_resp_data->command), "%s", cmd);
                 if (uuid != NULL)
-                        strncpy(cmd_resp_data->uuid, uuid,
-                                sizeof(cmd_resp_data->uuid));
+			snprintf(cmd_resp_data->uuid,
+				sizeof(cmd_resp_data->uuid), "%s", uuid);
                 cmd_resp_data->err_code = status_code;
                 if (status_message != NULL)
-                        strncpy(cmd_resp_data->status_message, status_message,
-                                sizeof(cmd_resp_data->status_message));
+			snprintf(cmd_resp_data->status_message,
+				sizeof(cmd_resp_data->status_message), "%s",
+				status_message);
         }
 }
 
