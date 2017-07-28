@@ -38,6 +38,7 @@ enum i2c_id {
 
 static I2C_HandleTypeDef i2c_stm32_handle[NUM_I2C];
 static bool i2c_usage[NUM_I2C];
+static uint32_t i2c_timeout_ms[NUM_I2C];
 
 static enum i2c_id convert_hdl_to_id(periph_t hdl)
 {
@@ -74,7 +75,7 @@ static bool init_i2c_peripheral(periph_t hdl)
 	return true;
 }
 
-periph_t i2c_init(pin_name_t scl, pin_name_t sda)
+periph_t i2c_init(pin_name_t scl, pin_name_t sda, uint32_t timeout_ms)
 {
 	/* Mapping scl, sda pins */
 	periph_t p1, p2;
@@ -87,8 +88,15 @@ periph_t i2c_init(pin_name_t scl, pin_name_t sda)
 			!pp_peripheral_pin_init(sda, i2c_sda_map))
 		return NO_PERIPH;
 
-	if ((init_i2c_peripheral(p1)) == true)
+	if ((init_i2c_peripheral(p1)) == true) {
+		enum i2c_id iid = convert_hdl_to_id(p1);
+		if (!timeout_ms)
+			i2c_timeout_ms[iid] = I2C_TIMEOUT_MS;
+		else
+			i2c_timeout_ms[iid] = timeout_ms;
+
 		return p1;
+		}
 	else
 		return NO_PERIPH;
 }
@@ -101,10 +109,12 @@ bool i2c_write(periph_t hdl, i2c_addr_t addr, uint8_t len, const uint8_t *buf)
 	if (hdl == NO_PERIPH)
 		return false;
 
+	enum i2c_id iid = convert_hdl_to_id(hdl);
 	if (HAL_I2C_Mem_Write(&i2c_stm32_handle[convert_hdl_to_id(hdl)],\
 		 addr.slave << 1 , addr.reg, I2C_MEMADD_SIZE_8BIT,\
-			 (uint8_t *) buf , len, I2C_TIMEOUT_MS) != HAL_OK)
+		(uint8_t *) buf , len, i2c_timeout_ms[iid]) != HAL_OK) {
 		return false;
+	}
 	return true;
 }
 
@@ -116,10 +126,12 @@ bool i2c_read(periph_t hdl, i2c_addr_t addr, uint8_t len, uint8_t *buf)
 	if (hdl == NO_PERIPH)
 		return false;
 
+	enum i2c_id iid = convert_hdl_to_id(hdl);
 	if (HAL_I2C_Mem_Read(&i2c_stm32_handle[convert_hdl_to_id(hdl)],\
 		 addr.slave << 1 , addr.reg, I2C_MEMADD_SIZE_8BIT, buf ,\
-			 len, I2C_TIMEOUT_MS) != HAL_OK)
+			 len, i2c_timeout_ms[iid]) != HAL_OK){
 		return false;
+	}
 	return true;
 }
 

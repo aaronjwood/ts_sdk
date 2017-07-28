@@ -46,13 +46,23 @@ typedef struct timer_private {
 static TIM_HandleTypeDef tim2;
 static TIM_HandleTypeDef tim5;
 
+/*
+ * TIM5's clock source is connected to APB1. According to the TRM,
+ * this source needs to be multiplied by 2 if the APB1 prescaler is
+ * other than 1. (APB1 prescaler is 1 in our case).
+ * Therefore effectively, the clock source for
+ * STML476 Nucleo board TIM5 is:
+ * APB1 x 1 = SystemCoreClock = 80 MHz.
+ * The base frequency of the timer's clock is chosen as 2 kHz (time
+ * period of .5 msec).
+ */
 static bool tim5_init(uint32_t period, uint32_t priority, uint32_t base_freq,
 			void *data)
 {
 	CHECK_RET_AND_TYPECAST(data, false);
 	__HAL_RCC_TIM5_CLK_ENABLE();
 	tm->timer_handle->Instance = TIM5;
-	tm->timer_handle->Init.Prescaler = (SystemCoreClock / 2 / base_freq)\
+	tm->timer_handle->Init.Prescaler = (SystemCoreClock / base_freq)\
 	 - 1;
 	tm->timer_handle->Init.CounterMode = TIM_COUNTERMODE_UP;
 	/* It will not start until first call to sys_sleep function */
@@ -66,13 +76,24 @@ static bool tim5_init(uint32_t period, uint32_t priority, uint32_t base_freq,
 	return true;
 }
 
+/*
+ * TIM2's clock source is connected to APB1. According to the TRM,
+ * this source needs to be multiplied by 2 if the APB1 prescaler is
+ * other than 1. (APB1 prescaler is 1 in our case).
+ * Therefore effectively, the clock source for
+ * STML476 Nucleo board TIM2 is:
+ * APB1 x 1 = SystemCoreClock = 80 MHz.
+ * The base frequency of the timer's clock is chosen as 1 MHz (time
+ * period of 1 microsecond).
+ * Therefore, prescaler = (80 MHz / 1 MHz) - 1  = 79.
+ */
 static bool tim2_init(uint32_t period, uint32_t priority, uint32_t base_freq,
 			void *data)
 {
 	CHECK_RET_AND_TYPECAST(data, false);
 	__HAL_RCC_TIM2_CLK_ENABLE();
 	tm->timer_handle->Instance = TIM2;
-	tm->timer_handle->Init.Prescaler = (SystemCoreClock / 2 / base_freq)\
+	tm->timer_handle->Init.Prescaler = (SystemCoreClock / base_freq)\
 	 - 1;
 	tm->timer_handle->Init.CounterMode = TIM_COUNTERMODE_UP;
 	tm->timer_handle->Init.Period = period;

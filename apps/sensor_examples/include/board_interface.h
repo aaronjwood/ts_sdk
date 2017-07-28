@@ -9,4 +9,7 @@
 #define PB9	0
 #endif
 
+#define I2C_SCL		PB8   /* I2C Serial clock pin */
+#define I2C_SDA		PB9   /* I2C Serial data pin */
+
 #endif
