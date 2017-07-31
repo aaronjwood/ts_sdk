@@ -10,6 +10,7 @@ export PROJ_ROOT=$PROJ_ROOT
 export PLATFORM_HAL_ROOT=$PROJ_ROOT/platform
 export SDK_ROOT=$PROJ_ROOT/sdk/$SDK
 export SDK_APP_ROOT=$PROJ_ROOT/apps
+export TARGET_ROOT=$PROJ_ROOT/targets
 
 # make build utility makefile fragement to help gather all the object codes into
 # application/build directory
@@ -46,10 +47,11 @@ Description:
 	Script to prepare environment for various application build process using
 	this sdk. Generated environment variables will exported so that make and
 	docker can use them in the build process. Script exports PROJ_ROOT,
-	SDK_ROOT, SDK_APP_ROOT, PLATFORM_HAL_ROOT and MK_HELPER_PATH as a default,
-	where PROJ_ROOT is root of the repository,
+	SDK_ROOT, SDK_APP_ROOT, TARGET_ROOT, PLATFORM_HAL_ROOT and MK_HELPER_PATH
+	as a default, where PROJ_ROOT is root of the repository,
 	SDK_ROOT is the root of the SDK, SDK_APP_ROOT is the apps directory
 	PLATFORM_HAL_ROOT is the platform layer root,
+	TARGET_ROOT is where chipset related source resides,
 	MK_HELPER_PATH is path to tools/config to find various makefile helpers.
 
 	Note: This script needs to be sourced both in host and docker container before
@@ -116,6 +118,7 @@ clear_env()
 	unset PROJ_ROOT
 	unset PLATFORM_HAL_ROOT
 	unset SDK_ROOT
+	unset TARGET_ROOT
 	unset MK_HELPER_PATH
 	unset SDK_APP_ROOT
 
@@ -134,10 +137,10 @@ process_app_args()
 			dev_board)	DEV_BOARD="$value";;
 			modem)		MODEM_TARGET="$value";;
 			protocol)	PROTOCOL="$value";;
-			gps_chipset)    GPS_CHIPSET="$value";;	
+			gps_chipset)    GPS_CHIPSET="$value";;
 			*)		usage;;
 		esac
-	
+
 	done
 
 }

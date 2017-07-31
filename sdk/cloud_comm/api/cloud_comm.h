@@ -269,6 +269,7 @@ cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf,
  *                     containing the data to be sent.
  * \param[in] sz     : Size of the data in bytes.
  * \param[in] svc_id : Id of the service that will process this message.
+ * \param[in] proto_data : Optional protocol specific data or instruction.
  *
  * \returns
  * 	CC_SEND_FAILED  : Failed to send the message.
@@ -280,10 +281,14 @@ cc_data_sz cc_get_receive_data_len(const cc_buffer_desc *buf,
  *
  * \note
  * For MQTT protocol this sends message as a part of command response and svc_id
- * field will be ignored. For other protocols, it is svc_id service message.
+ * field will be always be CC_SERVICE_BASIC.
+ * For other protocols, it is svc_id service message.
+ * MQTT protocol also utilizes proto_data parameter of the API to set publish
+ * topic mostly during command response, other protocols just ignore this field.
  */
 cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
-					cc_data_sz sz, cc_service_id svc_id);
+					cc_data_sz sz, cc_service_id svc_id,
+					void *proto_data);
 
 /**
  * \brief
@@ -303,7 +308,7 @@ cc_send_result cc_send_svc_msg_to_cloud(cc_buffer_desc *buf,
  *
  * \note
  * For MQTT protocol this sends message to onboard topic, mqtt message generally
- * contains device info, app data etc...For other protocols, it is
+ * contains app data, json string etc...For other protocols, it is
  * basic service message.
  */
 cc_send_result cc_send_status_msg_to_cloud(cc_buffer_desc *buf, cc_data_sz sz);
@@ -347,7 +352,9 @@ cc_set_recv_result cc_set_recv_buffer(cc_buffer_desc *buf);
  * the connection to the cloud and the transactions on it. The CC
  * API does not have an internal timer to work with. Instead, this function
  * performs any pending activities and indicates when it next needs to be called
- * to service a time based event.
+ * to service a time based event. On any receive and send event, it is mandatory
+ * to call this API right after servising that event and it should not be called
+ * from any send and receive callbacks.
  */
 uint32_t cc_service_send_receive(uint64_t cur_ts);
 
@@ -356,7 +363,7 @@ uint32_t cc_service_send_receive(uint64_t cur_ts);
  * Acknowledge the last message received from the cloud services.
  * \note
  * The exact behavior is protocol-dependent, but applications must always call
- * this function or cc_nack_msg
+ * this function or cc_nack_msg, For MQTT protocol, this does nothing
  */
 void cc_ack_msg(void);
 
@@ -366,7 +373,7 @@ void cc_ack_msg(void);
  * services.
  * \note
  * The exact behavior is protocol-dependent, but applications must always call
- * this function or cc_ack_msg
+ * this function or cc_ack_msg. For MQTT protocol, this does nothing
  */
 void cc_nak_msg(void);
 
