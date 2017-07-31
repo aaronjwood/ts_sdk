@@ -15,6 +15,7 @@ Table of contents:
         5.1 Protocol specific configurations
                 5.1.1 OTT protocol
                 5.1.2 SMSNAS protocol
+                5.1.3 MQTT protocol
         5.2 Modem configuration
         5.3 Building and Uploading the SDK with the user application
         5.4 Building the SDK into a static library
@@ -63,13 +64,22 @@ TOBY-L201.
 The following targets are supported by the SDK:
         o MCU: STM32F429ZIT
           Family: ARM Cortex M4
-          Boards: NUCLEO-F429ZIT ARM development board
+          Boards: NUCLEO ARM development board
+        o MCU: STM32F415RGT
+          Family: ARM Cortex M4
+          Boards: Beduin - Verizon development board
+        o Boards: Raspberry Pi 3 ARM development board
+        o MCU: STM32L476RGT
+          Family: ARM Cortex M4
+          Boards: NUCLEO ARM development board
+
 
 
 2.2 Supported proprietary protocols
 ------------------------------------
         o Over-the-top (OTT) - uses TCP/IP as low level transport
         o SMSNAS - uses SMS as low level transport
+        o MQTT - uses TCP/IP as low level transport
 
 
 3. Repository layout
@@ -95,10 +105,13 @@ build                                   Directory to house all the build artifac
 build/<app>                             Build artifacts of the App
 build/<chipset_family>                  Build artifacts of the chipset
                                         i.e. header, library, source code etc...
-
 ---------------------------------------
 TS-SDK source repository:
 ---------------------------------------
+ts_sdk/build/sdk_client/<dev boatd>     Build artifacts sdk client, includes, APIs
+                                        and static library of the sdk for a given
+                                        platform and MCU
+
 ts_sdk/build/<app_name>                 Created after successful build by the
                                         Docker container to place all the
                                         application related object files and
@@ -106,22 +119,13 @@ ts_sdk/build/<app_name>                 Created after successful build by the
                                         upload firmware to target platform.
 
 ts_sdk/Documents                        Contains detailed description of the SDK
-                                        and its platform APIs.
+                                        and its platform APIs and platform HAL
+                                        APIs
 
 ts_sdk/module_tests                     Contains various test programs for SDK
                                         components such as UART, AT layer etc.
 
 ts_sdk/apps                             Applications using the TS SDK
-
-ts_sdk/apps/cc_test/src                 Source code for the cc_test app
-
-ts_sdk/apps/cc_test/build               Build result directory for the cc_test
-                                        application. All files produced by the
-                                        build must go under here.
-
-ts_sdk/apps/<others>/src                Source code for other applications.
-
-ts_sdk/apps/<others>/inc                Header files for other applications.
 
 ts_sdk/tools                            Any general files needed to perform the
                                         build process or do work in the source
@@ -141,21 +145,14 @@ ts_sdk/sdk                              Source code and related files that
                                         provide the API and communication path
                                         for ThingSpace SDK.
 
-ts_sdk/sdk/<sdk_name>/src               SDK source code files.
+ts_sdk/sdk/cloud_comm/src               SDK source code files.
 
-ts_sdk/sdk/<sdk_name>/inc               Header files shared across all of the
+ts_sdk/sdk/cloud_comm/inc               Header files shared across all of the
                                         TS SDK source files (excluding those
                                         that define the user API)
 
 ts_sdk/sdk/<sdk_name>/api               Header files consumed by the application
                                         in order to use the SDK.
-
-ts_sdk/config_files                     Any configuration files which must be
-                                        available when an application using the
-                                        SDK is executing. The build might
-                                        process these into a different form
-                                        depending on the target e.g. a firmware
-                                        image with no filesystem.
 
 ts_sdk/sdk/<sdk_name>/vendor            Externally provided components required
                                         by the SDK on one or more platforms.
@@ -170,6 +167,13 @@ ts_sdk/sdk/<sdk_name>/vendor/<TLS library>      TLS library (e.g. mbedtls)
 ts_sdk/sdk/<sdk_name>/vendor/<MQTT library>     MQTT library (e.g. mosquitto)
 
 ts_sdk/sdk/<sdk_name>/vendor/<json library>     JSON library (e.g. cJSON)
+
+ts_sdk/config_files                     Any configuration files which must be
+                                        available when an application using the
+                                        SDK is executing. The build might
+                                        process these into a different form
+                                        depending on the target e.g. a firmware
+                                        image with no filesystem.
 
 ts_sdk/platform                         Files required to allow the SDK and it
                                         sample applications to be portable
@@ -208,14 +212,8 @@ Thingspace services etc. For a detailed description on using the script refer to
 the script's help:
 thingspace-client-api.sh help
 
-
 5. Building the SDK
 --------------------
-By default, the TS SDK and accompanying examples are built using the ARM
-embedded GCC toolchain. Details of this toolchain are as follows:
-        o Version: gcc-arm-none-eabi-5_4-2016q2
-        o Link to binaries: https://launchpad.net/gcc-arm-embedded/+download
-
 To make the build process easier, a Docker container with the toolchain is
 provided via Dockerhub. The actual build command is issued via scripts. For
 information on how to invoke the scripts, please refer to Section 5.3.
@@ -230,51 +228,12 @@ steps for all supported protocol/transport combinations.
 
 5.1.1 OTT protocol
 -------------------
-The OTT protocol has two configuration components.
+The OTT protocol has two configuration components, mbedTLS and device credentials
 
 Configuring mbedTLS
 --------------------
-There is a script added to vendor/mbedtls: vz_configure_mbedtls
-It is intended to capture the changes needed to customize mbed TLS to the
-minimum set of features that will allow the sample applications to communicate
-with the Verizon cloud services.
-
-The script will edit:
-        vendor/mbedtls/include/mbedtls/config.h.original
-
-to produce the desired configuration in:
-        vendor/mbedtls/include/mbedtls/config.h
-
-That version of config.h is checked into the repository.
-
-The script currently has options to enable/disable certain library features,
-which allows the library to be customized for test/experimental purposes:
-
-$ ./vz_configure_mbedtls help
-Usage:
-    vz_configure_mbedtls [help] [debug] [no-net] [full-msgs] [no-hwrng]
-
-debug     - will enable debug messages in the library, especially for TLS
-            errors. Makes the code much bigger but otherwise it's hard to
-            tell why something fails.
-
-no-net    - disables the mbed TLS OS networking module. Set this when building
-            for the "network over modem" library.
-
-
-full-msgs - support full-sized TLS messages as defined in the RFC.
-            (by default we know that the largest OTT message is much smaller).
-
-no-hwrng  - Disable using the device hardware random number generator.
-            Set this to use the Linux/OSX /dev/random sources instead.
-
-heap-prof - Use a custom allocator to record maximum heap used.
-
-To build the mbedtls_test program to run on OSX (i.e. by setting
-CHIPSET_FAMILY = osx in mbedtls_test/Makefile), you need to configure the library
-as:
-
-        ./vz_configure_mbedtls full-msgs no-hwrng
+There is a separate configutation file config_<dev_board>.h in mbedtls/include
+directory for each supported platform, user is free to modify it as needed.
 
 
 Configuring device credentials
@@ -284,14 +243,18 @@ create an OTT device. This will retrieve a device ID and device secret. These
 two are collectively termed device credentials and are used to authenticate the
 device when it tries to communicate with Thingspace. Before building the SDK and
 accompanying examples, the user must use the 'C compatible' forms of the device
-credentials to populate the corresponding entries in:
-ts_sdk/sdk/cloud_comm/inc/dev_creds/dev_creds.h
+credentials to populate the corresponding header files:
+refer ts_sdk/apps/sensor_examples/include/dev_creds.h
 
 
 5.1.2 SMSNAS protocol
 ----------------------
 No additional configuration is needed to build the TS SDK for the SMSNAS protocol.
 
+
+5.1.3 MQTT protocol
+--------------------
+It uses mbedTLS for encryption over tcp/ip and paho mqtt as a low level libraries
 
 5.2 Modem configuration
 ------------------------
@@ -329,20 +292,17 @@ this approach.
 The purpose of this build target is to allow the application to use the
 TS SDK without imposing restrictions on the user's source tree and build process.
 This process builds libsdk.a and installs all the necessary headers to provided
-destination.
+at ts_sdk/build/sdk_client/<dev_board>.
 
 Steps to build:
 1) run source tools/scripts/config_build_env.sh [options]
         This step configures SDK and exports necessary variables used by SDK
         build process. help option can give detail usage information about above
         script.
-        Note: User still need to modify CC, AR and RANLIB variable in
-        sdk/<sdk_name>/Makefile to point to correct toolchain
-2) tools/scripts/build.sh install_sdk <absolute path to install>
-	For OTT_PROTOCOL and MQTT_PROTOCOL, it also installs mbedtls related
-	static libraries Note: This also installs platform dependent headers at
-	<path>/platform_inc for end user to provide similar APIs and variables
-	that sdk library depends on.
+2) tools/scripts/build.sh create_sdk_client <./tools/docker/docker file>
+	It creates library and include directories at above given build location
+        end users then need to copy generated sdk client to their environment to
+        compile user provided sample applications
 
 6. Creating a new user application
 -----------------------------------
@@ -357,10 +317,10 @@ apps/
   +- header and source directories/files
 
 Makefile should provide APP_SRC for source files, vpath to search for the
-APP_SRC and APP_INC for application headers. Applicaton should also include *.mk
-from sdk/<sdk_name>/*.mk and platform/*.mk (depends if platform is supported by
-SDK).  Some make helpers are provided at tools/config/*.mk, look for common.mk
-for the example.  Example code in apps/<app_dir> provides example Makefile and
+APP_SRC and APP_INC for application headers. After that app make file must
+include tools/config/common.mk which include all other sdk and platform related
+configurable components/modules automatically.
+Example code in apps/<app_dir> provides example Makefile and
 application implementation.
 
 Before building application, user needs to run "source
