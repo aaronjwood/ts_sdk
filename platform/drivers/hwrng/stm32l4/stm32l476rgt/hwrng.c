@@ -10,6 +10,10 @@ static uint32_t last_num;
 void HAL_RNG_MspInit(RNG_HandleTypeDef *hrng)
 {
 	__HAL_RCC_RNG_CLK_ENABLE();
+	RCC_PeriphCLKInitTypeDef  PeriphClkInitStruct;
+	PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RNG;
+	PeriphClkInitStruct.RngClockSelection = RCC_RNGCLKSOURCE_PLL;
+	HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct);
 }
 
 void HAL_RNG_MspDeInit(RNG_HandleTypeDef *hrng)
