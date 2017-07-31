@@ -37,6 +37,7 @@
 #define MQTT_DEVICE_ID_SZ		14
 
 #define SEC_TO_MS		1000
+
 #define INIT_POLLING_MS		((uint32_t)(MQTT_KEEPALIVE_INT_SEC * SEC_TO_MS))
 #define MQTT_TIMEOUT_MS		1000
 
@@ -49,7 +50,7 @@
 #endif
 
 /* Enables displaying major milestones achieved in flow */
-/*#define DEBUG_MSG*/
+#define DEBUG_MSG
 #ifdef DEBUG_MSG
 #define PRINTF(...)	printf(__VA_ARGS__)
 #else

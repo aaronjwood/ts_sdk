@@ -1,0 +1,2 @@
+Sample application sends device diagnostic data to thingspace. This app
+is only meant for mqtt protocol

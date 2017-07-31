@@ -52,7 +52,8 @@
         ott_initiate_quit((send_nack)); \
 } while(0)
 
-#define PROTO_SEND_MSG_TO_CLOUD(msg, sz, svc_id, cb) do {		\
+#define PROTO_SEND_MSG_TO_CLOUD(msg, sz, svc_id, cb, data) do {		\
+                (void)data; \
 		if (ott_send_msg_to_cloud((msg), (sz), (svc_id), \
 					  (cc_send_cb)) != PROTO_OK) {	\
 		reset_conn_states(); \
@@ -100,7 +101,8 @@
 
 #define PROTO_INITIATE_QUIT(send_nack)
 
-#define PROTO_SEND_MSG_TO_CLOUD(msg, sz, svc_id, cb) do {		\
+#define PROTO_SEND_MSG_TO_CLOUD(msg, sz, svc_id, cb, data) do {		\
+                (void)data; \
 		if (smsnas_send_msg_to_cloud((msg), (sz), (svc_id), \
 					  (cc_send_cb)) != PROTO_OK) {	\
 		reset_conn_states(); \
@@ -171,9 +173,9 @@
 
 #define PROTO_INITIATE_QUIT(send_nack)
 
-#define PROTO_SEND_MSG_TO_CLOUD(msg, sz, svc_id, cb) do {		\
+#define PROTO_SEND_MSG_TO_CLOUD(msg, sz, svc_id, cb, topic) do {		\
 		if (mqtt_send_msg_to_cloud((msg), (sz), (svc_id), \
-					  (cc_send_cb)) != PROTO_OK) {	\
+					  (cc_send_cb), topic) != PROTO_OK) {	\
 		         reset_conn_states(); \
 		         return CC_SEND_FAILED; \
                  } \

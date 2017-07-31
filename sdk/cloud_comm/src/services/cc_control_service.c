@@ -126,7 +126,7 @@ cc_send_result cc_ctrl_resend_init_config(void)
 	hdr->msg_type = CTRL_MSG_REQUEST_RESEND_INIT;
 
 	return cc_send_svc_msg_to_cloud(&control_send_buf, sizeof(*hdr),
-					CC_SERVICE_CONTROL);
+					CC_SERVICE_CONTROL, NULL);
 #else
 	return CC_SEND_SUCCESS;
 #endif
