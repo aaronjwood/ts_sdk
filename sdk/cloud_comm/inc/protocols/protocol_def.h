@@ -13,7 +13,7 @@
 #elif defined (MQTT_PROTOCOL)
 #include "mqtt_limits.h"
 #else
-#error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
+#error "define valid protocol options from OTT_PROTOCOL, MQTT_PROTOCOL or SMSNAS_PROTOCOL"
 #endif
 
 /* Superset of the protocol API execution results, depending on the protocols

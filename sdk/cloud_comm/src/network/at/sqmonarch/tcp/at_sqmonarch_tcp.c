@@ -13,7 +13,7 @@
 #include "at_sqmonarch_tcp_command.h"
 #include "rbuf.h"
 
-#define MAX_TCP_CMD_LEN			64
+#define MAX_TCP_CMD_LEN			70
 
 /*
  * Delay between successive commands in milisecond, datasheet recommends atleast
