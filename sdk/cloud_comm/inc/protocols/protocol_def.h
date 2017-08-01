@@ -90,8 +90,8 @@ extern uint32_t network_time_ms;
 } while(0)
 
 #define PROTO_TIME_PROFILE_END(label) do { \
-	dbg_printf("["label":%u]", sys_get_tick_ms() - proto_begin); \
-	dbg_printf(" [NETW:%u]\n", network_time_ms); \
+	dbg_printf("["label":%"PRIu64"]", sys_get_tick_ms() - proto_begin); \
+	dbg_printf(" [NETW:%"PRIu32"]\n", network_time_ms); \
 } while(0)
 
 #else
@@ -100,7 +100,7 @@ extern uint32_t network_time_ms;
 	proto_begin = sys_get_tick_ms()
 
 #define PROTO_TIME_PROFILE_END(label) \
-	dbg_printf("["label":%u]\n", sys_get_tick_ms() - proto_begin)
+	dbg_printf("["label":%"PRIu64"]\n", sys_get_tick_ms() - proto_begin)
 
 #endif	/* PROTO_EXPLICIT_NETWORK_TIME */
 

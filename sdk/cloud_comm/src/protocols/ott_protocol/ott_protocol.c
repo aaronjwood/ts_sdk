@@ -48,6 +48,21 @@ static void my_debug(void *ctx, int level,
 }
 #endif
 
+#ifdef CALC_TLS_OVRHD_BYTES
+extern bool ovrhd_profile_flag;
+extern uint32_t num_bytes_recvd;
+extern uint32_t num_bytes_sent;
+#define START_CALC_OVRHD_BYTES()	ovrhd_profile_flag = true
+#define STOP_CALC_OVRHD_BYTES()		ovrhd_profile_flag = false
+#define PRINT_OVRHD_SENT()		dbg_printf("OVS:%"PRIu32"\n", num_bytes_sent);
+#define PRINT_OVRHD_RECVD()		dbg_printf("OVR:%"PRIu32"\n", num_bytes_recvd);
+#else
+#define START_CALC_OVRHD_BYTES()
+#define STOP_CALC_OVRHD_BYTES()
+#define PRINT_OVRHD_SENT()
+#define PRINT_OVRHD_RECVD()
+#endif	/* CALC_TLS_OVRHD_BYTES */
+
 #ifdef PROTO_HEAP_PROFILE
 #include <stdlib.h>
 #include <inttypes.h>
@@ -591,6 +606,7 @@ static bool recv_resp_within_timeout(uint32_t timeout, bool invoke_send_cb)
 
 static proto_result ott_initiate_connection(const char *host, const char *port)
 {
+	START_CALC_OVRHD_BYTES();
 	PROTO_TIME_PROFILE_BEGIN();
 	if (host == NULL || port == NULL)
 		return PROTO_INV_PARAM;
@@ -644,6 +660,9 @@ static proto_result ott_initiate_connection(const char *host, const char *port)
 	}
 
 	PROTO_TIME_PROFILE_END("IC");
+	STOP_CALC_OVRHD_BYTES();
+	PRINT_OVRHD_SENT();
+	PRINT_OVRHD_RECVD();
 	return PROTO_OK;
 }
 

@@ -25,7 +25,7 @@ bool ovrhd_profile_flag;
 uint32_t num_bytes_recvd;
 uint32_t num_bytes_sent;
 #define INIT_COUNTERS()		do { \
-	ovrhd_profile_flag = false;
+	ovrhd_profile_flag = false; \
 	num_bytes_recvd = 0; \
 	num_bytes_sent = 0; \
 } while (0)
