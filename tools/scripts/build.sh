@@ -238,7 +238,7 @@ checkout_chipset_hal()
 			rm STM32Cube_FW_L4_V1.8.0.tar.bz2
 			cd $PROJ_ROOT
 		else
-			echo "chipset_hal fodler is already existing"
+			echo "chipset_hal folder is already existing"
 		fi
 	fi
 }
