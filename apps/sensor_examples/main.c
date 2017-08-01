@@ -100,7 +100,7 @@ static void send_with_retry(cc_buffer_desc *b, cc_data_sz s, cc_service_id id)
 	uint8_t retries = 0;
 	cc_send_result res;
 	while (retries < MAX_RETRIES) {
-		res = cc_send_svc_msg_to_cloud(b, s, id);
+		res = cc_send_svc_msg_to_cloud(b, s, id, NULL);
 		if (res == CC_SEND_SUCCESS)
 			break;
 		retries++;

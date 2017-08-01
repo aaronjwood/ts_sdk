@@ -9,7 +9,7 @@
 
 #include "i2c_hal.h"
 
-periph_t i2c_init(pin_name_t scl, pin_name_t sda)
+periph_t i2c_init(pin_name_t scl, pin_name_t sda, uint32_t timeout_ms)
 {
 	return NO_PERIPH;
 }

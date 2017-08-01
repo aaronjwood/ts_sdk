@@ -262,3 +262,8 @@ void mbedtls_net_free(mbedtls_net_context *ctx)
 	ctx->fd = -1;
 	NET_TIME_PROFILE_END();
 }
+
+int mbedtls_net_set_nonblock( mbedtls_net_context *ctx )
+{
+    return 0;
+}
