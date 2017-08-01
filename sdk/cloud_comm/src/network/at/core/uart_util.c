@@ -183,6 +183,8 @@ int uart_util_find_pattern(int start_idx, const uint8_t *pattern, buf_sz nlen)
 {
 	if ((start_idx >= UART_BUF_SIZE) || (!pattern) || (nlen == 0))
 		return UART_BUF_INV_PARAM;
+	if (rx.num_unread == 0)
+		return UART_BUF_NOT_FOUND;
 	if (start_idx == UART_BUF_BEGIN)
 		start_idx = rx.ridx;
 	return find_substr_in_ring_buffer(start_idx, pattern, nlen);

@@ -7,11 +7,17 @@
 #include <stdbool.h>
 #include "protocol_def.h"
 
+#ifdef MODEM_SQMONARCH
+#define RECV_TIMEOUT_MS		30000
+#define TIMEOUT_MS		20000
+#else
 #define RECV_TIMEOUT_MS		5000
+#define TIMEOUT_MS		5000
+#endif
+
 #define MULT			1000
 #define INIT_POLLING_MS		((uint32_t)15000)
 #define VERSION_BYTE		((uint8_t)0x01)
-#define TIMEOUT_MS		5000
 
 #define OTT_UUID_SZ             16 /* unique device id size in bytes */
 #define OTT_DEV_SC_SZ		32 /* device secret size in bytes */
