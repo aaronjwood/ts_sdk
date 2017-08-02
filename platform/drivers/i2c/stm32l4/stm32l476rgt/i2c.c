@@ -75,6 +75,7 @@ static bool init_i2c_peripheral(periph_t hdl)
 		return false;
 
 	i2c_usage[iid] = true;
+
 	return true;
 }
 
@@ -114,7 +115,7 @@ bool i2c_write(periph_t hdl, i2c_addr_t addr, uint8_t len, const uint8_t *buf)
 
 	enum i2c_id iid = convert_hdl_to_id(hdl);
 	if (HAL_I2C_Mem_Write(&i2c_stm32_handle[convert_hdl_to_id(hdl)],\
-		 addr.slave << 1 , addr.reg, I2C_MEMADD_SIZE_8BIT,\
+		addr.slave << 1 , addr.reg, I2C_MEMADD_SIZE_8BIT,\
 		(uint8_t *) buf , len, i2c_timeout_ms[iid]) != HAL_OK) {
 		return false;
 	}
@@ -131,8 +132,8 @@ bool i2c_read(periph_t hdl, i2c_addr_t addr, uint8_t len, uint8_t *buf)
 
 	enum i2c_id iid = convert_hdl_to_id(hdl);
 	if (HAL_I2C_Mem_Read(&i2c_stm32_handle[convert_hdl_to_id(hdl)],\
-		 addr.slave << 1 , addr.reg, I2C_MEMADD_SIZE_8BIT, buf ,\
-			 len, i2c_timeout_ms[iid]) != HAL_OK){
+		addr.slave << 1 , addr.reg, I2C_MEMADD_SIZE_8BIT, buf ,\
+		len, i2c_timeout_ms[iid]) != HAL_OK) {
 		return false;
 	}
 	return true;
@@ -142,3 +143,39 @@ void i2c_pwr(periph_t hdl, bool state)
 {
 	/* XXX: Stub for now */
 }
+
+bool i2c_master_write(periph_t hdl, uint8_t addr, uint8_t len,
+			const uint8_t *buf)
+{
+	if ((!buf) || (len == 0))
+		return false;
+
+	if (hdl == NO_PERIPH)
+		return false;
+
+	enum i2c_id iid = convert_hdl_to_id(hdl);
+	if (HAL_I2C_Master_Transmit(&i2c_stm32_handle[convert_hdl_to_id(hdl)],\
+		addr << 1 , (uint8_t *) buf,\
+		len, i2c_timeout_ms[iid]) != HAL_OK) {
+		return false;
+	}
+	return true;
+}
+
+bool i2c_master_read(periph_t hdl, uint8_t addr, uint8_t len, uint8_t *buf)
+{
+	if ((!buf) || (len == 0))
+		return false;
+
+	if (hdl == NO_PERIPH)
+		return false;
+
+	enum i2c_id iid = convert_hdl_to_id(hdl);
+	if (HAL_I2C_Master_Receive(&i2c_stm32_handle[convert_hdl_to_id(hdl)],\
+		addr << 1 , buf,\
+		len, i2c_timeout_ms[iid]) != HAL_OK) {
+		return false;
+	}
+	return true;
+}
+

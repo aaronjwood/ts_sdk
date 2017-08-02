@@ -12,7 +12,7 @@
 
 #include <stdint.h>
 #include "port_pin_api.h"
-	
+
 /**
  * \brief Defines an I2C address.
  * \details This type stores the slave's 7-bit address along with the address of
@@ -33,7 +33,7 @@ typedef struct {
  * \param[in] sda I2C peripheral's data pin
  * \param[in] I2C timeout duration in milli seconds - if value of zero is passed,
  *  timeout_ms will take the I2C_TIMEOUT_MS macro value
- 
+ *
  * \returns Handle to I2C peripheral. If \b scl and \b sda cannot be configured,
  * \ref NO_PERIPH is returned. Possible causes can be:
  * \arg At least one of the pins is already being used.
@@ -87,4 +87,41 @@ bool i2c_write(periph_t hdl, i2c_addr_t addr, uint8_t len, const uint8_t *buf);
  * \pre \ref i2c_init must be called to retrieve a valid handle.
  */
 void i2c_pwr(periph_t hdl, bool state);
+
+/**
+ * \brief Read bytes from the I2C peripheral.
+ * \details This routine performs a blocking read on the I2C peripheral
+ * referenced by the handle. It can read a maximum of 255 bytes of data from the
+ * slave on the I2C bus. Each byte on this bus is 8-bits wide.
+ *
+ * \param[in] hdl Handle of the I2C peripheral to be read.
+ * \param[in] addr Destination address on the I2C bus.
+ * \param[in] len Length of the data to read into the buffer.
+ * \param[out] buf Pointer to the buffer that stores the data read in.
+ *
+ * \retval true Data was successfully read from the I2C bus
+ * \retval false Failed to read data into the buffer
+ *
+ * \pre \ref i2c_init must be called to retrieve a valid handle.
+ */
+bool i2c_master_read(periph_t hdl, uint8_t addr, uint8_t len, uint8_t *buf);
+
+/**
+ * \brief Write bytes to the I2C peripheral.
+ * \details This routine performs a blocking write on the I2C peripheral
+ * referenced by the handle. It can write a maximum of 255 bytes of data to the
+ * slave on the I2C bus. Each byte on this bus is 8-bits wide.
+ *
+ * \param[in] hdl Handle of the I2C peripheral to be written to.
+ * \param[in] addr Destination address on the I2C bus.
+ * \param[in] len Length of the data contained in the write buffer.
+ * \param[in] buf Pointer to the buffer that stores the data to be written.
+ *
+ * \retval true Data was successfully written to the I2C bus
+ * \retval false Failed to write data onto the bus
+ *
+ * \pre \ref i2c_init must be called to retrieve a valid handle.
+ */
+bool i2c_master_write(periph_t hdl, uint8_t addr, uint8_t len, const uint8_t *buf);
+
 #endif
