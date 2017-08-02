@@ -150,8 +150,7 @@ typedef void (*at_urc_callback)(const char *urc);
  * 	True  - The AT core module was successfully initialized
  * 	False - There was an error initializing the module
  *
- * Note: This routine must be called before all other routines in this module
- * except for at_core_emu_hwflctrl().
+ * Note: This routine must be called before all other routines in this module.
  */
 bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb, uint32_t d_ms);
 
@@ -169,26 +168,6 @@ bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb, uint32_t d_ms);
  * 	AT_WRONG_RSP   - Received a wrong response from the modem during reset
  */
 at_ret_code at_core_modem_reset(void);
-
-/*
- * Emulate hardware flow control through software by populating the RTS and CTS
- * pins. Both pins must be used or left unused. Calling this routine is optional.
- *
- * XXX: Functionality introduced to accommodate the Belmont board on the Nucleo-
- * L476 board since true hardware flow control is not accessible after snapping
- * the modem board on to the Nucleo. Attempt to remove this routine in the future.
- *
- * Parameters:
- * 	rts - GPIO pin to be used as RTS
- * 	cts - GPIO pin to be used as CTS
- *
- * Returns:
- * 	true  - If the operation succeeded
- * 	false - Unable to initialize emulated hardware flow control
- *
- * Note: This routine must be called before at_core_init()
- */
-bool at_core_emu_hwflctrl(pin_name_t rts, pin_name_t cts);
 
 /*
  * Write a set of bytes into the UART connecting the MCU and the modem.

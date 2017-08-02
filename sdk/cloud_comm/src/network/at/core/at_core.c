@@ -441,6 +441,32 @@ static void at_core_uart_rx_callback(callback_event ev)
 	}
 }
 
+static bool emu_hwflctrl(pin_name_t rts, pin_name_t cts)
+{
+	if (rts == NC || cts == NC)
+		return false;
+
+	m_rts = rts;
+	m_cts = cts;
+
+	gpio_config_t flctrl_pins = {
+		.dir = OUTPUT,
+		.pull_mode = PP_NO_PULL,
+		.speed = SPEED_HIGH
+	};
+
+	if (!gpio_init(m_rts, &flctrl_pins))
+		return false;
+
+	gpio_write(m_rts, PIN_HIGH);
+
+	flctrl_pins.dir = INPUT;
+	if (!gpio_init(m_cts, &flctrl_pins))
+		return false;
+
+	return true;
+}
+
 bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb, uint32_t d_ms)
 {
 	CHECK_NULL(rx_cb, false);
@@ -448,6 +474,10 @@ bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb, uint32_t d_ms)
 	CHECK_NULL(urc_cb, false);
 	urc_callback = urc_cb;
 
+#if defined(MODEM_EMULATED_CTS) && defined(MODEM_EMULATED_RTS)
+	if (!emu_hwflctrl(MODEM_EMULATED_RTS, MODEM_EMULATED_CTS))
+		return false;
+#endif
 	at_comm_delay_ms = d_ms;
 	const struct uart_pins pins = {
 		.tx = MODEM_UART_TX_PIN,
@@ -507,30 +537,4 @@ int at_core_read(uint8_t *buf, buf_sz sz)
 bool at_core_query_netw_reg(void)
 {
 	return at_modem_query_network();
-}
-
-bool at_core_emu_hwflctrl(pin_name_t rts, pin_name_t cts)
-{
-	if (rts == NC || cts == NC)
-		return false;
-
-	m_rts = rts;
-	m_cts = cts;
-
-	gpio_config_t flctrl_pins = {
-		.dir = OUTPUT,
-		.pull_mode = PP_NO_PULL,
-		.speed = SPEED_HIGH
-	};
-
-	if (!gpio_init(m_rts, &flctrl_pins))
-		return false;
-
-	gpio_write(m_rts, PIN_HIGH);
-
-	flctrl_pins.dir = INPUT;
-	if (!gpio_init(m_cts, &flctrl_pins))
-		return false;
-
-	return true;
 }

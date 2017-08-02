@@ -107,10 +107,6 @@ static void urc_callback(const char *urc)
 
 bool at_init()
 {
-	/* XXX: Call at_core_emu_hwflctrl() here, before at_core_init() */
-	if (!at_core_emu_hwflctrl(MODEM_EMULATED_RTS, MODEM_EMULATED_CTS))
-		return false;
-
 	if (!at_core_init(at_uart_callback, urc_callback, AT_COMM_DELAY_MS))
 		return false;
 
