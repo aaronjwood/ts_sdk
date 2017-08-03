@@ -9,7 +9,7 @@
 
 #ifdef MODEM_SQMONARCH
 #define RECV_TIMEOUT_MS		30000
-#define TIMEOUT_MS		20000
+#define TIMEOUT_MS		30000
 #else
 #define RECV_TIMEOUT_MS		5000
 #define TIMEOUT_MS		5000

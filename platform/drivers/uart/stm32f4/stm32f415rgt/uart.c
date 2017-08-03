@@ -2,7 +2,6 @@
 
 #include <stm32f4xx_hal.h>
 #include "uart_hal.h"
-#include "ts_sdk_modem_config.h"
 
 #define MAX_IRQ_PRIORITY		15
 #define CHECK_HANDLE(hdl, retval)	do { \
@@ -160,8 +159,7 @@ static bool init_peripheral(periph_t hdl, const uart_config *config,
 
 	if (config->irq) {
 		if (rx != NC) {
-			HAL_NVIC_SetPriority(irq_vec[uid],
-			 MODEM_UART_IRQ_PRIORITY, 0);
+			HAL_NVIC_SetPriority(irq_vec[uid], config->priority, 0);
 			HAL_NVIC_EnableIRQ(irq_vec[uid]);
 		}
 	}

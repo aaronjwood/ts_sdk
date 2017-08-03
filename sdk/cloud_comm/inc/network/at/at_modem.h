@@ -70,9 +70,7 @@ bool at_modem_get_imei(char *imei);
 
 /**
  * \brief Retrieve the signal strength as a NULL terminated string.
- * \details The string is expected to be at most 11 bytes long (10 bytes
- * describing the signal strength + 1 terminating NULL byte). For example:
- * "<=-113 dBm"
+ * \details.
  *
  * \param[out] ss Pointer to a NULL terminated buffer to hold the retrieved signal
  * strength. Buffer must be at least 11 bytes long (including terminating NULL

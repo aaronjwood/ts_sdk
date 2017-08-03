@@ -5,7 +5,7 @@
 #ifndef TS_SDK_MODEM_CONFIG_H
 #define TS_SDK_MODEM_CONFIG_H
 
-#if defined (stm32f429zit)	/* XXX: Delete later */
+#if defined (stm32f429zit)
 #ifdef nucleo
 /* Pin and peripheral configuration for UART connecting modem and MCU */
 #define MODEM_UART_TX_PIN	PD5

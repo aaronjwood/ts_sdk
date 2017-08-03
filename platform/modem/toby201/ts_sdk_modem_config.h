@@ -61,7 +61,7 @@
 #endif	/* PROTOCOL */
 
 
-/* Modem communicaations port settings */
+/* Modem communications port settings */
 #if defined (stm32f429zit)
 #ifdef nucleo
 /* Pin and peripheral configuration for UART connecting modem and MCU */

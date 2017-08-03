@@ -5,7 +5,6 @@
 #include "timer_hal.h"
 #include "timer_interface.h"
 #include "board_config.h"
-#include "ts_sdk_modem_config.h"
 
 /* Timer related definations */
 static const timer_interface_t *sleep_timer;
