@@ -61,7 +61,7 @@ static void my_debug(void *ctx, int level,
 #endif
 
 #ifdef MODEM_SQMONARCH
-#define TIMEOUT_MS			20000
+#define TIMEOUT_MS			30000
 #else
 #define TIMEOUT_MS			5000
 #endif
