@@ -168,6 +168,7 @@ static at_ret_code __at_uart_waited_read(char *buf, buf_sz wanted,
 #define CTS_TIMEOUT_MS			1500
 bool at_core_write(uint8_t *buf, uint16_t len)
 {
+#if defined(MODEM_EMULATED_CTS) && defined(MODEM_EMULATED_RTS)
 	if (m_rts != NC && m_cts != NC) {
 		gpio_write(m_rts, PIN_LOW);
 		uint32_t start = sys_get_tick_ms();
@@ -177,11 +178,14 @@ bool at_core_write(uint8_t *buf, uint16_t len)
 				return false;
 		}
 	}
+#endif
 
 	bool res = uart_tx(uart, buf, len, AT_UART_TX_WAIT_MS);
 
+#if defined(MODEM_EMULATED_CTS) && defined(MODEM_EMULATED_RTS)
 	if (m_rts != NC && m_cts != NC)
 		gpio_write(m_rts, PIN_HIGH);
+#endif
 
 	return res;
 }
