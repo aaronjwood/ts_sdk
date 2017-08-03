@@ -7,12 +7,10 @@
 #include "sys.h"
 #include "gpio_hal.h"
 #include "ts_sdk_modem_config.h"
+#include "at_tcp.h"
 
 #define PWR_EN_DELAY_MS			1000
 #define RESET_N_DELAY_MS		1000
-
-#define IMEI_LEN			16	/* IMEI length + NULL */
-#define SIG_STR_LEN			11	/* Signal strength length + NULL */
 
 #define STABLE_TIMEOUT_MS		5000	/* Wait until modem fully restarts */
 
@@ -21,11 +19,35 @@ enum modem_core_commands {
 	CME_CONF,	/* Change the error output format to numerical */
 	MODEM_RESET,	/* Command to reset the modem */
 	SIM_READY,	/* Check if the SIM is present */
-	EPS_REG_QUERY,	/* Query EPS registration */
 	EPS_URC_SET,	/* Set the EPS registration URC */
-	IMEI_QUERY,	/* Query the IMEI of the modem */
-	SIG_STR_QUERY,	/* Query the signal strength */
+	EPS_REG_QUERY,	/* Query EPS registration */
 	MODEM_CORE_END	/* End-of-commands marker */
+};
+
+enum modem_query_commands {
+	GET_IMEI,	/* Query the IMEI of the modem */
+	GET_SIG_STR,	/* Query the signal strength */
+	GET_IP_ADDR,	/* Get the IP address */
+	GET_ICCID,	/* Get the ICCID */
+	GET_TTZ,	/* Get the time and timezone information */
+	GET_IMSI,	/* Get the IMSI */
+	GET_MOD_INFO,	/* Get the model information */
+	GET_MAN_INFO,	/* Get the manufacturer information */
+	GET_FWVER,	/* Get the firmware version */
+	MODEM_QUERY_END
+};
+
+/* Minimum lengths of the buffers including the terminating NULL character */
+static const uint8_t buf_len[MODEM_QUERY_END] = {
+	[GET_IMEI] = 16,
+	[GET_SIG_STR] = 11,
+	[GET_IP_ADDR] = 16,
+	[GET_ICCID] = 23,
+	[GET_TTZ] = 21,
+	[GET_IMSI] = 17,
+	[GET_MOD_INFO] = 7,	/* XXX: Might change in next release of modem */
+	[GET_MAN_INFO] = 23,	/* XXX: Might change in next release of modem */
+	[GET_FWVER] = 11	/* XXX: Might change in next release of modem */
 };
 
 enum at_urc {
@@ -45,16 +67,44 @@ static const char *at_urcs[NUM_URCS] = {
 	[SIM_READY_URC] = "\r\n+IMSSTATE: SIMSTORE,READY\r\n"
 };
 
-static char modem_imei[IMEI_LEN - 1];	/* Store the IMEI */
-static uint8_t sig_str;			/* Store numerical signal strength */
 static bool sys_res_stable;		/* True when system is stable after restart*/
 
+static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
+		const char *stored_rsp, void *data)
+{
+	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
+	if (rcv_bytes[0] != ',')
+		return;		/* PDP context is probably not active; no IP */
+	rcv_bytes += 2;		/* Skip the ',' and the '"' */
+	uint8_t i = 0;
+	while (rcv_bytes[i] != '"') {
+		((char *)data)[i] = rcv_bytes[i];
+		i++;
+	}
+}
 
 static void parse_imei(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data)
 {
 	rcv_rsp += strlen(stored_rsp);
-	memcpy(modem_imei, rcv_rsp, IMEI_LEN - 1);
+	memcpy(data, rcv_rsp, buf_len[GET_IMEI] - 1);
+}
+
+static void decode_sig_str(uint8_t sig_str, char *ss)
+{
+	if (sig_str > 99 || (sig_str > 31 && sig_str < 99))
+		return;
+
+	if (sig_str == 0)
+		strcpy(ss, "<=-113 dBm");
+	else if (sig_str == 99)
+		strcpy(ss, "SIGUNKWN");
+	else if (sig_str == 31)
+		strcpy(ss, ">=-51 dBm");
+	else
+		snprintf(ss, buf_len[GET_SIG_STR] - 1,
+				"%d dBm", -113 + sig_str * 2);
+	return;
 }
 
 static void parse_sig_str(void *rcv_rsp, int rcv_rsp_len,
@@ -62,7 +112,7 @@ static void parse_sig_str(void *rcv_rsp, int rcv_rsp_len,
 {
 	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
 	uint8_t i = 0;
-	sig_str = 0;
+	uint8_t sig_str = 0;
 	while (rcv_bytes[i] != ',') {
 		if (rcv_bytes[i] < '0' || rcv_bytes[i] > '9') {
 			sig_str = 0xFF;
@@ -71,6 +121,69 @@ static void parse_sig_str(void *rcv_rsp, int rcv_rsp_len,
 		sig_str = sig_str * 10 + rcv_bytes[i] - '0';
 		i++;
 	}
+	decode_sig_str(sig_str, data);
+}
+
+static void parse_iccid(void *rcv_rsp, int rcv_rsp_len,
+		const char *stored_rsp, void *data)
+{
+	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
+	uint8_t i = 0;
+	while (rcv_bytes[i] != '"') {
+		((char *)data)[i] = rcv_bytes[i];
+		 i++;
+	}
+}
+
+static void parse_ttz(void *rcv_rsp, int rcv_rsp_len,
+		const char *stored_rsp, void *data)
+{
+	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
+	uint8_t i = 0;
+	while (rcv_bytes[i] != '"') {
+		((char *)data)[i] = rcv_bytes[i];
+		 i++;
+	}
+}
+
+static void parse_man_info(void *rcv_rsp, int rcv_rsp_len,
+		const char *stored_rsp, void *data)
+{
+	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
+	uint8_t i = 0;
+	while (rcv_bytes[i] != '\r') {
+		((char *)data)[i] = rcv_bytes[i];
+		i++;
+	}
+}
+
+static void parse_mod_info(void *rcv_rsp, int rcv_rsp_len,
+		const char *stored_rsp, void *data)
+{
+	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
+	uint8_t i = 0;
+	while (rcv_bytes[i] != '\r') {
+		((char *)data)[i] = rcv_bytes[i];
+		i++;
+	}
+}
+
+static void parse_fwver(void *rcv_rsp, int rcv_rsp_len,
+		const char *stored_rsp, void *data)
+{
+	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
+	uint8_t i = 0;
+	while (rcv_bytes[i] != '\r') {
+		((char *)data)[i] = rcv_bytes[i];
+		i++;
+	}
+}
+
+static void parse_imsi(void *rcv_rsp, int rcv_rsp_len,
+		const char *stored_rsp, void *data)
+{
+	rcv_rsp += strlen(stored_rsp);
+	memcpy(data, rcv_rsp, buf_len[GET_IMSI] - 1);
 }
 
 /*
@@ -164,8 +277,11 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                 },
                 .err = NULL,
                 .comm_timeout = 5000
-        },
-	[IMEI_QUERY] = {
+        }
+};
+
+static at_command_desc modem_query[MODEM_QUERY_END] = {
+	[GET_IMEI] = {
 		.comm = "at+cgsn\r",
 		.rsp_desc = {
 			{
@@ -182,7 +298,7 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
 		.err = NULL,
 		.comm_timeout = 100
 	},
-	[SIG_STR_QUERY] = {
+	[GET_SIG_STR] = {
 		.comm = "at+csq\r",
 		.rsp_desc = {
 			{
@@ -198,6 +314,125 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
 		},
 		.err = NULL,
 		.comm_timeout = 100
+	},
+	[GET_IP_ADDR] = {
+		.comm = "at+cgpaddr="MODEM_PDP_CTX"\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n+CGPADDR: "MODEM_PDP_CTX"",
+				.rsp_handler = parse_ip_addr,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CME ERROR: ",
+		.comm_timeout = 5000
+	},
+	[GET_ICCID] = {
+		.comm = "at+sqnccid\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n+SQNCCID: \"",
+				.rsp_handler = parse_iccid,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CME ERROR: ",
+		.comm_timeout = 5000
+	},
+	[GET_TTZ] = {
+		.comm = "at+cclk?\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n+CCLK: \"",
+				.rsp_handler = parse_ttz,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CME ERROR: ",
+		.comm_timeout = 5000
+	},
+	[GET_MOD_INFO] = {
+		.comm = "at+cgmm\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n",
+				.rsp_handler = parse_mod_info,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CME ERROR: ",
+		.comm_timeout = 5000
+	},
+	[GET_MAN_INFO] = {
+		.comm = "at+cgmi\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n",
+				.rsp_handler = parse_man_info,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CME ERROR: ",
+		.comm_timeout = 5000
+	},
+	[GET_IMSI] = {
+		.comm = "at+cimi\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n",
+				.rsp_handler = parse_imsi,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CME ERROR: ",
+		.comm_timeout = 5000
+	},
+	[GET_FWVER] = {
+		.comm = "at+cgmr\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n",
+				.rsp_handler = parse_fwver,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CME ERROR: ",
+		.comm_timeout = 5000
 	}
 };
 
@@ -250,7 +485,7 @@ bool at_modem_process_urc(const char *urc)
 	return false;
 }
 
-bool at_modem_query_network(void)
+bool at_modem_get_nstat(void)
 {
 	return (at_core_wcmd(&modem_core[EPS_REG_QUERY], true) != AT_SUCCESS) ?
 		false : true;
@@ -341,50 +576,72 @@ bool at_modem_init(void)
 	return true;
 }
 
-bool at_modem_get_imei(char *imei)
+static bool get_param(enum modem_query_commands cmd, char *buf)
 {
-	if (imei == NULL)
-		return false;
-	memset(imei, 0, IMEI_LEN);
+	bool ret = false;
+	if (buf == NULL)
+		goto exit_func;
 
-	if (at_core_wcmd(&modem_core[IMEI_QUERY], true) != AT_SUCCESS)
-		return false;
+	if (!at_tcp_enter_cmd_mode())
+		goto exit_func;
 
-	for (uint8_t i = 0; i < IMEI_LEN - 1; i++) {
-		if (modem_imei[i] < '0' || modem_imei[i] > '9')
-			return false;
-		imei[i] = modem_imei[i];
-	}
+	memset(buf, 0, buf_len[cmd]);
+	modem_query[cmd].rsp_desc[0].data = buf;
 
-	return true;
+	if (at_core_wcmd(&modem_query[cmd], true) != AT_SUCCESS)
+		goto exit_func;
+
+	if (buf[0] == 0x00)
+		goto exit_func;
+
+	ret = true;
+exit_func:
+	if (!at_tcp_leave_cmd_mode())
+		ret = false;
+	return ret;
 }
 
-static bool decode_sig_str(uint8_t sig_str, char *ss)
+bool at_modem_get_ip(char *ip)
 {
-	if (sig_str > 99 || (sig_str > 31 && sig_str < 99))
-		return false;
+	return get_param(GET_IP_ADDR, ip);
+}
 
-	if (sig_str == 0)
-		strcpy(ss, "<=-113 dBm");
-	else if (sig_str == 99)
-		strcpy(ss, "SIGUNKWN");
-	else if (sig_str == 31)
-		strcpy(ss, ">=-51 dBm");
-	else
-		snprintf(ss, SIG_STR_LEN - 1, "%d dBm", -113 + sig_str * 2);
-	return true;
+bool at_modem_get_imei(char *imei)
+{
+	return get_param(GET_IMEI, imei);
 }
 
 bool at_modem_get_ss(char *ss)
 {
-	if (ss == NULL)
-		return false;
-	memset(ss, 0, SIG_STR_LEN);
+	return get_param(GET_SIG_STR, ss);
+}
 
-	if (at_core_wcmd(&modem_core[SIG_STR_QUERY], true) != AT_SUCCESS)
-		return false;
+bool at_modem_get_iccid(char *iccid)
+{
+	return get_param(GET_ICCID, iccid);
+}
 
-	if (!decode_sig_str(sig_str, ss))
-		return false;
-	return true;
+bool at_modem_get_ttz(char *ttz)
+{
+	return get_param(GET_TTZ, ttz);
+}
+
+bool at_modem_get_man_info(char *man)
+{
+	return get_param(GET_MAN_INFO, man);
+}
+
+bool at_modem_get_mod_info(char *mod)
+{
+	return get_param(GET_MOD_INFO, mod);
+}
+
+bool at_modem_get_fwver(char *fwver)
+{
+	return get_param(GET_FWVER, fwver);
+}
+
+bool at_modem_get_imsi(char *imsi)
+{
+	return get_param(GET_IMSI, imsi);
 }

@@ -299,7 +299,7 @@ bool at_modem_configure(void)
 	return true;
 }
 
-bool at_modem_query_network(void)
+bool at_modem_get_nstat(void)
 {
 	at_ret_code res = at_core_wcmd(&modem_core[EPS_REG_QUERY], true);
 	if (res != AT_SUCCESS)

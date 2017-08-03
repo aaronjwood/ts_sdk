@@ -21,8 +21,6 @@
  */
 #define AT_COMM_DELAY_MS		20
 
-#define IP_ADDR_LEN			16
-
 /* Sequans Monarch supports only 1500 bytes of outgoing data at a time */
 #define MAX_DATA_LEN			1500
 
@@ -36,26 +34,13 @@ static const uint8_t disconn_str[] = "\r\nNO CARRIER\r\n";
 static volatile struct __attribute__((packed)) {
 	uint8_t connected : 1;		/* True when connected to the server */
 	uint8_t flag_peer_close : 1;	/* True: Closed by peer, False: Closed by us */
+	uint8_t online_mode : 1;	/* True when in online mode, false otherwise */
 	rbuf *buf;			/* Handle to ring buffer to store received data */
 } tcp_state = {
 	.connected = false,
 	.flag_peer_close = false,
 	.buf = NULL
 };
-
-static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
-		const char *stored_rsp, void *data)
-{
-	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
-	if (rcv_bytes[0] != ',')
-		return;		/* PDP context is probably not active; no IP */
-	rcv_bytes += 2;		/* Skip the ',' and the '"' */
-	uint8_t i = 0;
-	while (rcv_bytes[i] != '"') {
-		((char *)data)[i] = rcv_bytes[i];
-		i++;
-	}
-}
 
 static void at_uart_callback(void)
 {
@@ -120,6 +105,9 @@ bool at_init()
 		return false;
 	}
 
+	/* Ensure the modem is in stable state before activating the PDP context */
+	sys_delay(500);
+
 	/* Activate PDP context and configure TCP socket */
 	at_ret_code res = at_core_wcmd(&tcp_commands[PDP_ACT], true);
 	CHECK_SUCCESS(res, AT_SUCCESS, false);
@@ -129,12 +117,6 @@ bool at_init()
 
 	res = at_core_wcmd(&tcp_commands[SOCK_CONF_EXT], true);
 	CHECK_SUCCESS(res, AT_SUCCESS, false);
-
-#ifdef DEBUG_AT_LIB
-	char ip_addr[16];
-	bool ip_res = at_tcp_get_ip(ip_addr);
-	DEBUG_V0("IP:%s\n", ip_res ? ip_addr : "failed");
-#endif
 
 	/* Initialize the ring buffer for TCP reads */
 	tcp_state.buf = rbuf_init(sizeof(rx_buf), rx_buf);
@@ -160,6 +142,7 @@ int at_tcp_connect(const char *host, const char *port)
 
 	tcp_state.connected = true;
 	tcp_state.flag_peer_close = false;
+	tcp_state.online_mode = true;
 
 	DEBUG_V0("%s: socket("MODEM_SOCK_ID") created\n", __func__);
 	const char sock_id[] = MODEM_SOCK_ID;
@@ -245,27 +228,59 @@ void at_tcp_close(int s_id)
 	}
 
 	DEBUG_V0("%s: closing tcp socket\n", __func__);
+	if (!at_tcp_enter_cmd_mode()) {
+		DEBUG_V0("%s: unable to enter command mode\n", __func__);
+		return;
+	}
+	at_core_wcmd(&tcp_commands[SOCK_CLOSE], true);
+	tcp_state.connected = false;
+	tcp_state.flag_peer_close = false;
+	tcp_state.online_mode = false;
+	rbuf_clear(tcp_state.buf);
+}
+
+bool at_tcp_leave_cmd_mode(void)
+{
+	if (!tcp_state.connected) {
+		tcp_state.online_mode = false;
+		DEBUG_V0("Not connected\n");
+		return true;
+	}
+	if (tcp_state.online_mode)
+		return true;
+	if (at_core_wcmd(&tcp_commands[SOCK_RESM], true) == AT_SUCCESS) {
+		tcp_state.online_mode = true;
+		return true;
+	} else {
+		tcp_state.online_mode = false;
+		return false;
+	}
+}
+
+bool at_tcp_enter_cmd_mode(void)
+{
+	if (!tcp_state.connected) {
+		tcp_state.online_mode = false;
+		DEBUG_V0("Not connected\n");
+		return true;
+	}
+	if (!tcp_state.online_mode)
+		return true;
 	/*
 	 * Arbitrary wait time before the escape sequence, to enable its
 	 * detection. AT manual is unclear about this.
 	 */
 	sys_delay(10);
-	at_core_wcmd(&tcp_commands[SOCK_CLOSE], true);
-	tcp_state.connected = false;
-	tcp_state.flag_peer_close = false;
-	rbuf_clear(tcp_state.buf);
-}
-
-bool at_tcp_get_ip(char *ip)
-{
-	if (ip == NULL)
+	if (!tcp_state.connected) {	/* Check again after delay */
+		tcp_state.online_mode = false;
+		DEBUG_V0("Not connected\n");
+		return true;
+	}
+	if (at_core_wcmd(&tcp_commands[SOCK_SUSP], true) == AT_SUCCESS) {
+		tcp_state.online_mode = false;
+		return true;
+	} else {
+		tcp_state.online_mode = true;
 		return false;
-	memset(ip, 0, IP_ADDR_LEN);
-	tcp_commands[GET_IP_ADDR].rsp_desc[0].data = ip;
-	if (at_core_wcmd(&tcp_commands[GET_IP_ADDR], true) != AT_SUCCESS)
-		return false;
-	if (ip[0] == 0x00)
-		return false;
-
-	return true;
+	}
 }

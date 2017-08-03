@@ -17,16 +17,14 @@ enum tcp_command {
 	SOCK_CONF_EXT,	/* Configure extended socket parameters */
 	SOCK_DIAL,	/* Dial into a hostname:port / IP address:port */
 	SOCK_CLOSE,	/* Close the socket */
-	GET_IP_ADDR,	/* Get the IP address */
+	SOCK_SUSP,	/* Suspend online mode */
+	SOCK_RESM,	/* Resume online mode */
 	TCP_END
 };
 
 static const char *at_urcs[URC_END] = {
 	[TCP_CLOSED] = "\r\n+SQNSH: "MODEM_SOCK_ID"\r\n"
 };
-
-static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
-		const char *stored_rsp, void *data);
 
 /* XXX: Data sheet does not specify timeouts. They're arbitrary for now. */
 static at_command_desc tcp_commands[TCP_END] = {
@@ -67,7 +65,7 @@ static at_command_desc tcp_commands[TCP_END] = {
 		.comm_timeout = 5000
 	},
 	[SOCK_DIAL] = {
-		.comm_sketch = "at+sqnsd="MODEM_SOCK_ID",0,%s,\"%s\",255,0,0\r",
+		.comm_sketch = "at+sqnsd="MODEM_SOCK_ID",0,%s,\"%s\",0,0,0\r",
 		.rsp_desc = {
 			{
 				.rsp = "\r\nCONNECT\r\n",
@@ -78,7 +76,7 @@ static at_command_desc tcp_commands[TCP_END] = {
 		.err = "\r\n+CME ERROR: ",
 		.comm_timeout = 7000
 	},
-	[SOCK_CLOSE] = {
+	[SOCK_SUSP] = {
 		.comm = "+++",
 		.rsp_desc = {
 			{
@@ -90,14 +88,21 @@ static at_command_desc tcp_commands[TCP_END] = {
 		.err = "\r\n+CME ERROR: ",
 		.comm_timeout = 5000
 	},
-	[GET_IP_ADDR] = {
-		.comm = "at+cgpaddr="MODEM_PDP_CTX"\r",
+	[SOCK_RESM] = {
+		.comm = "at+sqnso="MODEM_SOCK_ID"\r",
 		.rsp_desc = {
 			{
-				.rsp = "\r\n+CGPADDR: "MODEM_PDP_CTX"",
-				.rsp_handler = parse_ip_addr,
+				.rsp = "\r\nCONNECT\r\n",
+				.rsp_handler = NULL,
 				.data = NULL
-			},
+			}
+		},
+		.err = "\r\n+CME ERROR: ",
+		.comm_timeout = 5000
+	},
+	[SOCK_CLOSE] = {
+		.comm = "at+sqnsh="MODEM_SOCK_ID"\r",
+		.rsp_desc = {
 			{
 				.rsp = "\r\nOK\r\n",
 				.rsp_handler = NULL,

@@ -505,17 +505,6 @@ bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb, uint32_t d_ms)
 
 	if (!at_modem_init())
 		return false;
-
-	/* Query IMEI and signal strength */
-	char imei[16];
-	res = at_modem_get_imei(imei);
-	DEBUG_V0("IMEI:%s\n", res ? imei : "failed");
-
-	/* XXX: Signal strength might show up as unknown right after start up */
-	char sig_str[11];
-	res = at_modem_get_ss(sig_str);
-	DEBUG_V0("SIGSTR:%s\n", res ? sig_str : "failed");
-
 	return true;
 }
 
@@ -536,5 +525,5 @@ int at_core_read(uint8_t *buf, buf_sz sz)
 
 bool at_core_query_netw_reg(void)
 {
-	return at_modem_query_network();
+	return at_modem_get_nstat();
 }
