@@ -6,7 +6,7 @@ PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw
 PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)
 PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)
 PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/$(DEV_BOARD)
-PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/drivers/gps/inc
+PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/drivers/gps/$(GPS_CHIPSET)/inc
 
 # List of core library components to be included in the build process
 # This includes the standard per-platform device drivers but not any

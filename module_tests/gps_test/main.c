@@ -29,8 +29,6 @@ int main()
 				parsedNMEA.latitude_degrees,
 				parsedNMEA.longitude_degrees);
 		}
-		dbg_printf("Powering down for 20 seconds\n\n");
-		sys_sleep_ms(20000);
 	}
 	return 0;
 }

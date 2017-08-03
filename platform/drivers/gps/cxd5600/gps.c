@@ -22,8 +22,8 @@ static pin_name_t gps_dor_pin;
 static pin_name_t gps_reset_pin;
 
 static uint8_t gps_text[GPS_RX_BUFFER_SIZE];
-static uint8_t sentenceBuffer[GPS_SENTENCE_BUFFER_SIZE];
-volatile bool recvdflag;
+static uint8_t sentence_buffer[GPS_SENTENCE_BUFFER_SIZE];
+static bool recvd_flag;
 
 static const uint8_t GNSS_CMD_GSP[] = "@GSP\r\n";
 static const uint8_t GNSS_CMD_GSTP[] = "@GSTP\r\n";
@@ -50,7 +50,7 @@ static bool read_GPS_DOR_pin(uint16_t step_ms, uint16_t duration)
 		return true;
 }
 
-static int fastCeil(float num)
+static int fast_ceil(float num)
 {
 	int inum = (int)num;
 	if (num == (float)inum)
@@ -58,23 +58,23 @@ static int fastCeil(float num)
 	return inum + 1;
 }
 
-static int fastFloor(double x)
+static int fast_floor(double x)
 {
 	int xi = (int)x;
 	return x < xi ? xi - 1 : xi;
 }
 
-static int fastTrunc(double d)
+static int fast_trunc(double d)
 {
-	return (d > 0) ? fastFloor(d) : fastCeil(d) ;
+	return (d > 0) ? fast_floor(d) : fast_ceil(d) ;
 }
 
-static double floatmod(double a, double b)
+static double float_mod(double a, double b)
 {
-	return (a - b * fastFloor(a / b));
+	return (a - b * fast_floor(a / b));
 }
 
-static uint8_t parseHex(char c)
+static uint8_t parse_hex(char c)
 {
 	if (c < '0')
 		return 0;
@@ -91,20 +91,20 @@ static uint8_t parseHex(char c)
 	return 0;
 }
 
-static void parse_time(char *p, struct parsed_nmea_t *parsedNMEA)
+static void parse_time(char *p, struct parsed_nmea_t *parsed_nmea)
 {
 	/* Parse Time */
 	float timef = atof(p);
 	uint32_t time = timef;
-	parsedNMEA->hour = time / 10000;
-	parsedNMEA->minute = (time % 10000) / 100;
-	parsedNMEA->seconds = (time % 100);
-	parsedNMEA->milliseconds = floatmod((double) timef, 1.0) * 1000;
+	parsed_nmea->hour = time / 10000;
+	parsed_nmea->minute = (time % 10000) / 100;
+	parsed_nmea->seconds = (time % 100);
+	parsed_nmea->milliseconds = float_mod((double) timef, 1.0) * 1000;
 	dbg_printf("hour  %d min %d sec %d\n",
-	parsedNMEA->hour, parsedNMEA->minute, parsedNMEA->seconds);
+	parsed_nmea->hour, parsed_nmea->minute, parsed_nmea->seconds);
 }
 
-static char *parse_latitude(char *p, struct parsed_nmea_t *parsedNMEA,
+static char *parse_latitude(char *p, struct parsed_nmea_t *parsed_nmea,
 				 bool *retval)
 {
 	int32_t degree;
@@ -123,31 +123,31 @@ static char *parse_latitude(char *p, struct parsed_nmea_t *parsedNMEA,
 		degreebuff[6] = '\0';
 		minutes = 50 * atol(degreebuff) / 3;
 
-		parsedNMEA->latitude_fixed = degree + minutes;
-		parsedNMEA->latitude = degree / 100000 + minutes * 0.000006F;
-		parsedNMEA->latitude_degrees = (parsedNMEA->latitude
-		-100 * fastTrunc(parsedNMEA->latitude/100))/60.0;
-		parsedNMEA->latitude_degrees +=
-		 fastTrunc(parsedNMEA->latitude/100);
+		parsed_nmea->latitude_fixed = degree + minutes;
+		parsed_nmea->latitude = degree / 100000 + minutes * 0.000006F;
+		parsed_nmea->latitude_degrees = (parsed_nmea->latitude
+		-100 * fast_trunc(parsed_nmea->latitude/100))/60.0;
+		parsed_nmea->latitude_degrees +=
+		 fast_trunc(parsed_nmea->latitude/100);
 	}
 
 	p = strchr(p, ',')+1;
 	if (',' != *p) {
 		if (p[0] == 'S')
-			parsedNMEA->latitude_degrees *= -1.0;
+			parsed_nmea->latitude_degrees *= -1.0;
 		if (p[0] == 'N')
-			parsedNMEA->lat = 'N';
+			parsed_nmea->lat = 'N';
 		else if (p[0] == 'S')
-			parsedNMEA->lat = 'S';
+			parsed_nmea->lat = 'S';
 		else if (p[0] == ',')
-			parsedNMEA->lat = 0;
+			parsed_nmea->lat = 0;
 		else
 			*retval = false;
 	}
 	return p;
 }
 
-static char *parse_longitude(char *p, struct parsed_nmea_t *parsedNMEA,
+static char *parse_longitude(char *p, struct parsed_nmea_t *parsed_nmea,
 				 bool *retval)
 {
 	int32_t degree;
@@ -166,77 +166,77 @@ static char *parse_longitude(char *p, struct parsed_nmea_t *parsedNMEA,
 		degreebuff[6] = '\0';
 		minutes = 50 * atol(degreebuff) / 3;
 
-		parsedNMEA->longitude_fixed = degree + minutes;
-		parsedNMEA->longitude = degree / 100000 + minutes * 0.000006F;
-		parsedNMEA->longitude_degrees = (parsedNMEA->longitude
-		-100 * fastTrunc(parsedNMEA->longitude/100))/60.0;
-		parsedNMEA->longitude_degrees +=
-		 fastTrunc(parsedNMEA->longitude/100);
+		parsed_nmea->longitude_fixed = degree + minutes;
+		parsed_nmea->longitude = degree / 100000 + minutes * 0.000006F;
+		parsed_nmea->longitude_degrees = (parsed_nmea->longitude
+		-100 * fast_trunc(parsed_nmea->longitude/100))/60.0;
+		parsed_nmea->longitude_degrees +=
+		 fast_trunc(parsed_nmea->longitude/100);
 	}
 
 	p = strchr(p, ',')+1;
 
 	if (',' != *p) {
 
-		if (p[0] == 'W')
-			parsedNMEA->longitude_degrees *= -1.0;
-		if (p[0] == 'W')
-			parsedNMEA->lon = 'W';
+		if (p[0] == 'W') {
+			parsed_nmea->longitude_degrees *= -1.0;
+			parsed_nmea->lon = 'W';
+		}
 		else if (p[0] == 'E')
-			parsedNMEA->lon = 'E';
+			parsed_nmea->lon = 'E';
 		else if (p[0] == ',')
-			parsedNMEA->lon = 0;
+			parsed_nmea->lon = 0;
 		else
 			*retval = false;
 	}
 	return p;
 }
 
-static char *parse_GGA_param(char *p, struct parsed_nmea_t *parsedNMEA)
+static char *parse_GGA_param(char *p, struct parsed_nmea_t *parsed_nmea)
 {
 	p = strchr(p, ',')+1;
 	if (',' != *p)
-		parsedNMEA->fix_quality = atoi(p);
+		parsed_nmea->fix_quality = atoi(p);
 
 	p = strchr(p, ',')+1;
 	if (',' != *p)
-		parsedNMEA->satellites = atoi(p);
+		parsed_nmea->satellites = atoi(p);
 
 	p = strchr(p, ',')+1;
 	if (',' != *p)
-		parsedNMEA->HDOP = atof(p);
+		parsed_nmea->HDOP = atof(p);
 
 	p = strchr(p, ',')+1;
 	if (',' != *p)
-		parsedNMEA->altitude = atof(p);
+		parsed_nmea->altitude = atof(p);
 
 	p = strchr(p, ',')+1;
 	p = strchr(p, ',')+1;
 	if (',' != *p)
-		parsedNMEA->geoid_height = atof(p);
+		parsed_nmea->geoid_height = atof(p);
 
 	return p;
 }
 
-static char *parse_RMC_param(char *p, struct parsed_nmea_t *parsedNMEA)
+static char *parse_RMC_param(char *p, struct parsed_nmea_t *parsed_nmea)
 {
 	/* Parse Speed */
 	p = strchr(p, ',')+1;
 	if (',' != *p)
-		parsedNMEA->speed = atof(p);
+		parsed_nmea->speed = atof(p);
 
 	/* Parse Angle */
 	p = strchr(p, ',')+1;
 	if (',' != *p)
-		parsedNMEA->angle = atof(p);
+		parsed_nmea->angle = atof(p);
 
 	p = strchr(p, ',')+1;
 	if (',' != *p) {
 
 		uint32_t fulldate = atof(p);
-		parsedNMEA->day = fulldate / 10000;
-		parsedNMEA->month = (fulldate % 10000) / 100;
-		parsedNMEA->year = (fulldate % 100);
+		parsed_nmea->day = fulldate / 10000;
+		parsed_nmea->month = (fulldate % 10000) / 100;
+		parsed_nmea->year = (fulldate % 100);
 
 	}
 
@@ -245,13 +245,14 @@ static char *parse_RMC_param(char *p, struct parsed_nmea_t *parsedNMEA)
 
 static bool validate_nmea(char *nmea)
 {
-	if (nmea[strlen(nmea)-4] == '*') {
+	uint8_t len = strlen(nmea);
+	if (nmea[len-4] == '*') {
 
-		uint16_t sum = parseHex(nmea[strlen(nmea)-3]) * 16;
-		sum += parseHex(nmea[strlen(nmea)-2]);
+		uint16_t sum = parse_hex(nmea[len-3]) * 16;
+		sum += parse_hex(nmea[len-2]);
 
 		/* Validate the checksum */
-		for (uint8_t i = 2; i < (strlen(nmea)-4); i++)
+		for (uint8_t i = 2; i < (len-4); i++)
 			sum ^= nmea[i];
 
 		if (sum != 0) {
@@ -278,23 +279,22 @@ static bool gps_new_NMEA_received()
 		return false;
 	}
 
-	int bufferStartIndex = 0;
-	int bufferEndIndex = 0;
+	int buffer_start_index = 0;
+	int buffer_end_index = 0;
 	for (int i = 0; i < GPS_RX_BUFFER_SIZE; i++) {
 		if (buffer[i] == '$')
-			bufferStartIndex = i;
+			buffer_start_index = i;
 		else if (buffer[i] == '\n')
-			bufferEndIndex = i;
+			buffer_end_index = i;
 	}
 
-	int32_t sz = (&buffer[bufferEndIndex]
-			 - &buffer[bufferStartIndex]) + 1;
+	int32_t sz = buffer_end_index - buffer_start_index + 1;
 	dbg_printf("sentenceSize calculate = %ld\r\n", sz);
 	if (sz > 1) {
-		memcpy(sentenceBuffer, &buffer[bufferStartIndex], sz);
-		recvdflag = true;
+		memcpy(sentence_buffer, &buffer[buffer_start_index], sz);
+		recvd_flag = true;
 	}
-	return recvdflag;
+	return recvd_flag;
 }
 
 /**
@@ -303,12 +303,12 @@ static bool gps_new_NMEA_received()
  * values in the received structure format.
  *
  * \param[in] nmea Received NMEA which needs to be parsed.
- * \param[in] parsedNMEA  parsed values will be stored in this.
+ * \param[in] parsed_nmea  parsed values will be stored in this.
  *
  * \retval true NMEA was parsed successfully.
  * \retval false NMEA was not parsed successfully.
  */
-static bool gps_parse_nmea(char *nmea, struct parsed_nmea_t *parsedNMEA)
+static bool gps_parse_nmea(char *nmea, struct parsed_nmea_t *parsed_nmea)
 {
 	if (validate_nmea(nmea) == false)
 		return false;
@@ -322,22 +322,22 @@ static bool gps_parse_nmea(char *nmea, struct parsed_nmea_t *parsedNMEA)
 
 		/* Parse time */
 		bufptr = strchr(bufptr, ',')+1;
-		parse_time(bufptr, parsedNMEA);
+		parse_time(bufptr, parsed_nmea);
 
 		/* Parse Latitude */
 		bufptr = strchr(bufptr, ',')+1;
-		bufptr = parse_latitude(bufptr, parsedNMEA, &retval);
+		bufptr = parse_latitude(bufptr, parsed_nmea, &retval);
 		if (retval == false)
 			return false;
 
 		/* Parse Longitude */
 		bufptr = strchr(bufptr, ',')+1;
-		bufptr = parse_longitude(bufptr, parsedNMEA, &retval);
+		bufptr = parse_longitude(bufptr, parsed_nmea, &retval);
 		if (retval == false)
 			return false;
 
 		/* Parse other parameters */
-		bufptr = parse_GGA_param(bufptr, parsedNMEA);
+		bufptr = parse_GGA_param(bufptr, parsed_nmea);
 		return true;
 	}
 	if (strstr(nmea, "$GPRMC")) {
@@ -348,30 +348,30 @@ static bool gps_parse_nmea(char *nmea, struct parsed_nmea_t *parsedNMEA)
 
 		/* Parse Time */
 		bufptr = strchr(bufptr, ',')+1;
-		parse_time(bufptr, parsedNMEA);
+		parse_time(bufptr, parsed_nmea);
 
 		bufptr = strchr(bufptr, ',')+1;
 		if (bufptr[0] == 'A')
-			parsedNMEA->fix = true;
+			parsed_nmea->fix = true;
 		else if (bufptr[0] == 'V')
-			parsedNMEA->fix = false;
+			parsed_nmea->fix = false;
 		else
 			return false;
 
 		/* Parse Latitude */
 		bufptr = strchr(bufptr, ',')+1;
-		bufptr = parse_latitude(bufptr, parsedNMEA, &retval);
+		bufptr = parse_latitude(bufptr, parsed_nmea, &retval);
 		if (retval == false)
 			return false;
 
 		/* Parse Longitude */
 		bufptr = strchr(bufptr, ',')+1;
-		bufptr = parse_longitude(bufptr, parsedNMEA, &retval);
+		bufptr = parse_longitude(bufptr, parsed_nmea, &retval);
 		if (retval == false)
 			return false;
 
 		/* Parse GPRMC other parameters */
-		bufptr = parse_RMC_param(bufptr, parsedNMEA);
+		bufptr = parse_RMC_param(bufptr, parsed_nmea);
 		return true;
 	}
 
@@ -386,8 +386,8 @@ static bool gps_parse_nmea(char *nmea, struct parsed_nmea_t *parsedNMEA)
  */
 static char *gps_last_NMEA(void)
 {
-	recvdflag = false;
-	return (char *)sentenceBuffer;
+	recvd_flag = false;
+	return (char *)sentence_buffer;
 }
 
 /**
@@ -413,8 +413,8 @@ static bool send_command(const uint8_t *cmd)
 /**
  * \brief Receive and verify GPS command Response
  *
- * \retval true Response is sucessful.
- * \retval false Response is not sucessful.
+ * \retval true Response is successful.
+ * \retval false Response is not successful.
  *
  */
 static bool verify_command_response(const uint8_t *response)
@@ -475,7 +475,7 @@ bool gps_module_init()
 	if (verify_command_response(GNSS_CMD_GSP_RSP) == false)
 		return false;
 
-	recvdflag   = false;
+	recvd_flag   = false;
 	return true;
 }
 
@@ -530,7 +530,7 @@ bool gps_wake(void)
 	if (verify_command_response(GNSS_CMD_GSP_RSP) == false)
 		return false;
 
-	recvdflag   = false;
+	recvd_flag   = false;
 	return true;
 }
 

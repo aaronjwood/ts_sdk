@@ -42,10 +42,10 @@ typedef struct {
 periph_t i2c_init(pin_name_t scl, pin_name_t sda, uint32_t timeout_ms);
 
 /**
- * \brief Read bytes from the I2C peripheral.
+ * \brief Read bytes from a specific memory address of the I2C peripheral.
  * \details This routine performs a blocking read on the I2C peripheral
  * referenced by the handle. It can read a maximum of 255 bytes of data from the
- * slave on the I2C bus. Each byte on this bus is 8-bits wide.
+ * slave's specific address on the I2C bus. Each byte on this bus is 8-bits wide.
  *
  * \param[in] hdl Handle of the I2C peripheral to be read.
  * \param[in] addr Destination address (\ref i2c_addr_t) on the I2C bus.
@@ -60,10 +60,10 @@ periph_t i2c_init(pin_name_t scl, pin_name_t sda, uint32_t timeout_ms);
 bool i2c_read(periph_t hdl, i2c_addr_t addr, uint8_t len, uint8_t *buf);
 
 /**
- * \brief Write bytes to the I2C peripheral.
+ * \brief Write bytes to the specific memory address of I2C peripheral.
  * \details This routine performs a blocking write on the I2C peripheral
  * referenced by the handle. It can write a maximum of 255 bytes of data to the
- * slave on the I2C bus. Each byte on this bus is 8-bits wide.
+ * slave's specific address on the I2C bus. Each byte on this bus is 8-bits wide.
  *
  * \param[in] hdl Handle of the I2C peripheral to be written to.
  * \param[in] addr Destination address (\ref i2c_addr_t) on the I2C bus.
@@ -95,7 +95,7 @@ void i2c_pwr(periph_t hdl, bool state);
  * slave on the I2C bus. Each byte on this bus is 8-bits wide.
  *
  * \param[in] hdl Handle of the I2C peripheral to be read.
- * \param[in] addr Destination address on the I2C bus.
+ * \param[in] addr Device address on the I2C bus.
  * \param[in] len Length of the data to read into the buffer.
  * \param[out] buf Pointer to the buffer that stores the data read in.
  *
@@ -113,7 +113,7 @@ bool i2c_master_read(periph_t hdl, uint8_t addr, uint8_t len, uint8_t *buf);
  * slave on the I2C bus. Each byte on this bus is 8-bits wide.
  *
  * \param[in] hdl Handle of the I2C peripheral to be written to.
- * \param[in] addr Destination address on the I2C bus.
+ * \param[in] addr Device address on the I2C bus.
  * \param[in] len Length of the data contained in the write buffer.
  * \param[in] buf Pointer to the buffer that stores the data to be written.
  *
