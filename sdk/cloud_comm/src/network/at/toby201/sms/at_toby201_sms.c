@@ -4,6 +4,7 @@
 
 #include "at_sms.h"
 #include "at_core.h"
+#include "at_modem.h"
 #include "at_toby201_sms_command.h"
 #include "sys.h"
 
@@ -135,7 +136,7 @@ static void urc_cb(const char *urc)
 
 static at_ret_code check_network_registration(void)
 {
-	if (!at_core_query_netw_reg())
+	if (!at_modem_get_nstat())
 		return AT_FAILURE;
 
 	/* Restart modem if not registered to the network after timeout */

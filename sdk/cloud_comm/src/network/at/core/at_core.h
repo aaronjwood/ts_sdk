@@ -294,16 +294,4 @@ bool at_core_is_proc_urc(void);
  * 	False - The core AT module is not processing a response
  */
 bool at_core_is_proc_rsp(void);
-
-/*
- * Check if the modem is registered to the network.
- *
- * Parameters:
- * 	None
- *
- * Returns:
- * 	True  - The modem is registered to the network
- * 	False - The modem is not correctly registered to the network
- */
-bool at_core_query_netw_reg(void);
 #endif /* at_core.h */

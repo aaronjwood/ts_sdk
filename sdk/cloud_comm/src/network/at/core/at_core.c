@@ -18,8 +18,6 @@
  */
 #define RSP_BUF_DELAY			2000 /* In mili seconds */
 
-static pin_name_t m_rts = NC;
-static pin_name_t m_cts = NC;
 static uint32_t at_comm_delay_ms;
 static const char *rsp_header = "\r\n";
 static const char *rsp_trailer = "\r\n";
@@ -164,6 +162,36 @@ static at_ret_code __at_uart_waited_read(char *buf, buf_sz wanted,
         }
         return AT_SUCCESS;
 }
+
+#if defined(MODEM_EMULATED_CTS) && defined(MODEM_EMULATED_RTS)
+static pin_name_t m_rts = NC;
+static pin_name_t m_cts = NC;
+static bool emu_hwflctrl(pin_name_t rts, pin_name_t cts)
+{
+	if (rts == NC || cts == NC)
+		return false;
+
+	m_rts = rts;
+	m_cts = cts;
+
+	gpio_config_t flctrl_pins = {
+		.dir = OUTPUT,
+		.pull_mode = PP_NO_PULL,
+		.speed = SPEED_HIGH
+	};
+
+	if (!gpio_init(m_rts, &flctrl_pins))
+		return false;
+
+	gpio_write(m_rts, PIN_HIGH);
+
+	flctrl_pins.dir = INPUT;
+	if (!gpio_init(m_cts, &flctrl_pins))
+		return false;
+
+	return true;
+}
+#endif
 
 #define CTS_TIMEOUT_MS			1500
 bool at_core_write(uint8_t *buf, uint16_t len)
@@ -445,34 +473,6 @@ static void at_core_uart_rx_callback(callback_event ev)
 	}
 }
 
-#if defined(MODEM_EMULATED_CTS) && defined(MODEM_EMULATED_RTS)
-static bool emu_hwflctrl(pin_name_t rts, pin_name_t cts)
-{
-	if (rts == NC || cts == NC)
-		return false;
-
-	m_rts = rts;
-	m_cts = cts;
-
-	gpio_config_t flctrl_pins = {
-		.dir = OUTPUT,
-		.pull_mode = PP_NO_PULL,
-		.speed = SPEED_HIGH
-	};
-
-	if (!gpio_init(m_rts, &flctrl_pins))
-		return false;
-
-	gpio_write(m_rts, PIN_HIGH);
-
-	flctrl_pins.dir = INPUT;
-	if (!gpio_init(m_cts, &flctrl_pins))
-		return false;
-
-	return true;
-}
-#endif
-
 bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb, uint32_t d_ms)
 {
 	CHECK_NULL(rx_cb, false);
@@ -527,9 +527,4 @@ buf_sz at_core_rx_available(void)
 int at_core_read(uint8_t *buf, buf_sz sz)
 {
 	return uart_util_read(buf, sz);
-}
-
-bool at_core_query_netw_reg(void)
-{
-	return at_modem_get_nstat();
 }

@@ -15,6 +15,7 @@
 #include <string.h>
 #include "sys.h"
 #include "dbg.h"
+#include "at_modem.h"
 
 /*
  * Delay between successive commands in milisecond, datasheet recommends atleast
@@ -304,7 +305,7 @@ static void urc_callback(const char *urc)
 
 static inline at_ret_code __at_check_network_registration()
 {
-	if (at_core_query_netw_reg())
+	if (at_modem_get_nstat())
                 return AT_SUCCESS;
         return AT_FAILURE;
 }
