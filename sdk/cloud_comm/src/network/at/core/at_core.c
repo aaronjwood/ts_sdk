@@ -441,6 +441,7 @@ static void at_core_uart_rx_callback(callback_event ev)
 	}
 }
 
+#if defined(MODEM_EMULATED_CTS) && defined(MODEM_EMULATED_RTS)
 static bool emu_hwflctrl(pin_name_t rts, pin_name_t cts)
 {
 	if (rts == NC || cts == NC)
@@ -466,6 +467,7 @@ static bool emu_hwflctrl(pin_name_t rts, pin_name_t cts)
 
 	return true;
 }
+#endif
 
 bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb, uint32_t d_ms)
 {
