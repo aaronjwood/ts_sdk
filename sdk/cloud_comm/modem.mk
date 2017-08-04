@@ -10,7 +10,11 @@ else ifeq ($(PROTOCOL),SMSNAS_PROTOCOL)
 MODEM_PROTOCOL = sms
 else ifeq ($(PROTOCOL),MQTT_PROTOCOL)
 MODEM_PROTOCOL = tcp
+ifeq (raspberry_pi3,$(DEV_BOARD))
 NET_OS = linux
+else
+NET_OS = at
+endif
 else ifeq ($(PROTOCOL),NO_PROTOCOL)
 # Some lower-level test programs bypass the protocol layer.
 # They may need to set MODEM_PROTOCOL and other variables.

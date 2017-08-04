@@ -8,6 +8,10 @@ PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)
 PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/$(DEV_BOARD)
 PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/drivers/gps/$(GPS_CHIPSET)/inc
 
+FIND_INC = -name "*.h"
+PLATFORM_DRV_INC = $(shell find $(PLATFORM_HAL_ROOT)/drivers/oem/* $(FIND_INC))
+PLATFORM_INC += -I $(dir $(PLATFORM_DRV_INC))
+
 # List of core library components to be included in the build process
 # This includes the standard per-platform device drivers but not any
 # toolchain or externally supplied files that may need to be built with
@@ -18,7 +22,7 @@ PLATFORM_GPS_HAL_SRC = gps.c
 endif
 
 PLATFORM_HAL_SRC = dbg.c uart.c
-PLATFORM_HAL_SRC += sys.c gpio.c utils.c
+PLATFORM_HAL_SRC += sys.c gpio.c utils.c oem.c
 PLATFORM_HAL_SRC += i2c.c
 PLATFORM_HAL_SRC += pin_map.c port_pin_api.c
 PLATFORM_HAL_SRC += $(PLATFORM_TIMER_HAL_SRC)

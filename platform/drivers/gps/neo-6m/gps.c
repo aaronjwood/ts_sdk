@@ -474,7 +474,6 @@ bool gps_module_init()
 		.parity = GPS_UART_PARITY,
 		.stop_bits = GPS_UART_STOP_BITS_1,
 		.priority = GPS_UART_IRQ_PRIORITY,
-		.hw_flow_ctrl = false,
 		.irq = false
 	};
 

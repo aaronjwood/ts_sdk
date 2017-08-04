@@ -8,41 +8,98 @@ ifneq (build,$(notdir $(CURDIR)))
 include $(MK_HELPER_PATH)/build_in_subdir.mk
 else
 
+# Selecting platform according to CHIPSET_FAMILY
+ifeq ($(CHIPSET_FAMILY),stm32f4)
+CHIPSET_BUILDENV=/ts_sdk_bldenv/
+include $(TARGET_ROOT)/stmicro/chipset/$(CHIPSET_FAMILY)/common_stm32f4.mk
+else ifeq ($(CHIPSET_FAMILY),stm32l4)
+CHIPSET_BUILDENV=/ts_sdk_bldenv/
+include $(TARGET_ROOT)/stmicro/chipset/$(CHIPSET_FAMILY)/common_stm32l4.mk
+else ifeq ($(CHIPSET_FAMILY),osx)
+include $(MK_HELPER_PATH)/osx_buildenv.mk
+else ifeq ($(CHIPSET_FAMILY),)
+ifeq ($(DEV_BOARD),raspberry_pi3)
+include $(MK_HELPER_PATH)/raspberry_pi3_buildenv.mk
+else
+$(error "Makefile must define valid DEV_BOARD variable")
+endif
+else
+$(error "Makefile must define the CHIPSET_FAMILY variable")
+endif
+
+ifeq ($(PROTOCOL),OTT_PROTOCOL)
+PROT_DIR = ott_protocol
+LIMIT_INC = ott_limits.h
+else ifeq ($(PROTOCOL),SMSNAS_PROTOCOL)
+PROT_DIR = smsnas_protocol
+LIMIT_INC = smsnas_limits.h
+else ifeq ($(PROTOCOL),MQTT_PROTOCOL)
+PROT_DIR = mqtt_protocol
+LIMIT_INC = mqtt_limits.h
+else
+$(error The PROTOCOL variable has an invalid value: $(PROTOCOL))
+endif
+
+# CHIPSET_SRC is from above included files for the chipset
+CORELIB_SRC += $(CHIPSET_SRC)
+
+# Header files provided by the chipset build environment
+INC += $(CHIPSET_INC)
+
 include $(SDK_ROOT)/cc_sdk.mk
+INC += $(SDK_INC)
+
+include $(PLATFORM_HAL_ROOT)/platform.mk
+INC += $(PLATFORM_INC)
+
+# SDK_SRC is provided by cc_sdk.mk, includes modem and protocol source files
+# based on the configurations
+CORELIB_SRC += $(SDK_SRC)
+
+# PLATFORM_HAL_SRC is provided by platform.mk
+CORELIB_SRC += $(PLATFORM_HAL_SRC)
 
 # User can select install path from make INSTALL_PATH=<path>
-INSTALL_PATH ?= $(SDK_ROOT)/install
-
-# Compiler and archive, user needs to overwrite these variables if different
-CC = arm-none-eabi-gcc
-AR = arm-none-eabi-ar
-RANLIB = arm-none-eabi-ranlib
-export CC AR RANLIB
+CLIENT_NAME = sdk_client
+INSTALL_PATH ?= $(SDK_ROOT)/$(CLIENT_NAME)
+INSTALL_INCLUDE = $(DEV_BOARD)$(CHIPSET_MCU)/include
+INSTALL_LIB = $(DEV_BOARD)$(CHIPSET_MCU)/lib
+#Used for docker mount point, so host can access build artifacts
+TARGET_PATH = /build/$(CLIENT_NAME)
 
 # SDK depends on this platform headers, end user needs to provide similar
 # API signature if porting sdk into their own platform environment
 
-PLATFORM_DEP_HEADERS = ts_sdk_board_config.h timer_hal.h timer_interface.h \
-	uart_hal.h sys.h dbg.h port_pin_api.h pin_map.h pin_defs.h pin_std_defs.h \
-	hwrng_hal.h
+FIND_INC = -name "*.h"
+PLATFORM_DEP_HEADERS = $(shell find $(PLATFORM_HAL_ROOT)/inc/* $(FIND_INC))
+
+#since app uses it directly
+ifdef VENDOR_LIB_DIRS
+ifneq (,$(findstring cJSON,$(VENDOR_LIB_DIRS)))
+PLATFORM_DEP_HEADERS += $(PROJ_ROOT)/sdk/cloud_comm/vendor/cJSON/cJSON.h
+endif
+endif
 
 # mbedtls library requires exporting INC
-INC += -I $(INSTALL_PATH)/platform_inc
+INC += -I $(INSTALL_PATH)/include
 export INC
 
 # Create lists of object files to be generated from the sources
-OBJ_SDKLIB = $(addsuffix .o, $(basename $(SDK_SRC)))
+OBJ_SDKLIB = $(addsuffix .o, $(basename $(CORELIB_SRC)))
 
-CFLAGS_COM = -Wall -Wcast-align -Werror -std=c99 $(CFLAGS_SDK) $(INC) $(SDK_INC) -D$(PROTOCOL) -D$(MODEM)
+CFLAGS_COM = -Wall -Wcast-align -Werror -std=c99 $(CFLAGS_SDK) $(INC) $(SDK_INC) \
+	-D$(PROTOCOL) -D$(MODEM) -D$(DEV_BOARD)
 
 #==================================RULES=======================================#
 .PHONY: all build clean
 
-all build: install_platform $(OBJ_SDKLIB) vendor_libs libsdk.a install
+all build: $(OBJ_SDKLIB) vendor_libs libsdk.a install
+print-%: ; @echo $* = $($*)
 
+#yes, make one big blob, let user strip off unused objects
 libsdk.a:
-	$(AR) rc $@ $(OBJ_SDKLIB)
-	$(RANLIB) $@
+	$(AR) rcs $@ $(shell find $(PROJ_ROOT)/sdk/cloud_comm/build/ -name "*.o") \
+	$(shell find $(PROJ_ROOT)/sdk/cloud_comm/vendor/* -name "*.o")
 
 $(OBJ_SDKLIB): %.o: %.c
 	$(CC) -c $(CFLAGS_COM) $< -o $@
@@ -57,22 +114,24 @@ ifdef VENDOR_LIB_DIRS
 	@$(MAKE) -C $(PROJ_ROOT)/sdk/cloud_comm/vendor clean
 endif
 	rm -rf $(SDK_ROOT)/build
+	rm -rf $(INSTALL_PATH)
 
-install:
-	-mkdir -p $(INSTALL_PATH)/sdk_inc/api
-	-mkdir -p $(INSTALL_PATH)/library
-	cp -r $(SDK_ROOT)/inc/* $(INSTALL_PATH)/sdk_inc
-	cp -r $(SDK_ROOT)/api/* $(INSTALL_PATH)/sdk_inc/api
-	cp $(SDK_ROOT)/build/*.a $(INSTALL_PATH)/library
-ifdef VENDOR_LIB_DIRS
-	cp -r $(SDK_ROOT)/vendor/mbedtls/include/ $(INSTALL_PATH)/sdk_inc
-endif
+install: install_platform
+	-mkdir -p $(INSTALL_PATH)/$(INSTALL_INCLUDE)/api
+	-mkdir -p $(INSTALL_PATH)/$(INSTALL_LIB)
+	-mkdir -p /build/
+	cp -r $(SDK_ROOT)/api/* $(INSTALL_PATH)/$(INSTALL_INCLUDE)/api
+	cp -r $(SDK_ROOT)/inc/service_ids.h $(INSTALL_PATH)/$(INSTALL_INCLUDE)
+	cp -r $(SDK_ROOT)/inc/services/*.h $(INSTALL_PATH)/$(INSTALL_INCLUDE)
+	cp -r $(SDK_ROOT)/inc/protocols/$(PROT_DIR)/$(LIMIT_INC) $(INSTALL_PATH)/$(INSTALL_INCLUDE)
+	cp -r $(SDK_ROOT)/inc/protocols/protocol_def.h $(INSTALL_PATH)/$(INSTALL_INCLUDE)
+	cp $(SDK_ROOT)/build/libsdk.a $(INSTALL_PATH)/$(INSTALL_LIB)
+	cp -r $(INSTALL_PATH) $(TARGET_PATH)
 
 create_platform_dir:
-	-mkdir -p $(INSTALL_PATH)/platform_inc
-%.h:
-	cp $(shell find $(PLATFORM_HAL_ROOT) -type f -name "$@") $(INSTALL_PATH)/platform_inc/
+	-mkdir -p $(INSTALL_PATH)/$(INSTALL_INCLUDE)
+	cp $(PLATFORM_DEP_HEADERS) $(INSTALL_PATH)/$(INSTALL_INCLUDE)
 
-install_platform: create_platform_dir $(PLATFORM_DEP_HEADERS)
+install_platform: create_platform_dir
 
 endif

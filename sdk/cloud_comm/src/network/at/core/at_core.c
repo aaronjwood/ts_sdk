@@ -8,7 +8,8 @@
 
 #ifdef MODEM_TOBY201
 #define MODEM_RESET_DELAY		25000 /* In milli seconds */
-#define RESET_PULSE_WIDTH_MS		3000  /* Toby-L2 data sheet Section 4.2.9 */
+/* Toby-L2 data sheet Section 4.2.9 */
+#define RESET_PULSE_WIDTH_MS		3000
 #define AT_UART_TX_WAIT_MS		10000
 #define IDLE_CHARS			10
 
@@ -716,7 +717,8 @@ bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb)
 		.data_width = MODEM_UART_DATA_WIDTH,
 		.parity = MODEM_UART_PARITY,
 		.stop_bits = MODEM_UART_STOP_BITS,
-		.priority = MODEM_UART_IRQ_PRIORITY
+		.priority = MODEM_UART_IRQ_PRIORITY,
+		.irq = true
 	};
 	uart = uart_init(&pins, &config);
 	if (uart == NO_PERIPH)

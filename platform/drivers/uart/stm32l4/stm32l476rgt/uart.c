@@ -101,7 +101,7 @@ static bool validate_config(const uart_config *config)
 }
 
 static bool init_peripheral(periph_t hdl, const uart_config *config,
-				 pin_name_t tx, pin_name_t rx)
+		bool hw_flow_ctrl, pin_name_t tx, pin_name_t rx)
 {
 	enum uart_id uid = convert_hdl_to_id(hdl);
 
@@ -138,7 +138,7 @@ static bool init_peripheral(periph_t hdl, const uart_config *config,
 		: UART_MODE_TX_RX;
 
 	uart_stm32_handle[uid].Init.HwFlowCtl =
-		config->hw_flow_ctrl ? UART_HWCONTROL_RTS_CTS : UART_HWCONTROL_NONE;
+		hw_flow_ctrl ? UART_HWCONTROL_RTS_CTS : UART_HWCONTROL_NONE;
 
 	/*
 	 * Choose oversampling by 16 to increase tolerance of the receiver to
@@ -215,6 +215,9 @@ periph_t uart_init(const struct uart_pins *pins, const uart_config *config)
 	if (pins->tx == NC && pins->rx == NC)
 		return NO_PERIPH;
 
+	/* Determine if hardware flow control should be enabled */
+	bool hw_fl_ctrl = pins->rts != NC && pins->cts != NC;
+
 	/* Find a common peripheral among the pins */
 	periph_t periph = find_common_periph(pins);
 	if (periph == NO_PERIPH)
@@ -227,7 +230,7 @@ periph_t uart_init(const struct uart_pins *pins, const uart_config *config)
 	PIN_INIT_RET_ON_ERROR(cts);
 
 	/* Initialize the peripheral itself */
-	return init_peripheral(periph, config, pins->tx, pins->rx) ?
+	return init_peripheral(periph, config, hw_fl_ctrl, pins->tx, pins->rx) ?
 		periph : NO_PERIPH;
 }
 
@@ -259,20 +262,18 @@ void uart_irq_handler(periph_t hdl)
 		return;
 
 	USART_TypeDef *uart_instance = (USART_TypeDef *)hdl;
-#if 0
-	uint32_t uart_sr_reg = uart_instance->CR1;
-	uint32_t err_flags = uart_sr_reg & (uint32_t)(USART_SR_PE | USART_SR_FE
-			| USART_SR_ORE | USART_SR_NE);
+	uint32_t uart_sr_reg = uart_instance->ISR;
+	uint32_t err_flags = uart_sr_reg & (uint32_t)(USART_ISR_PE | USART_ISR_FE
+			| USART_ISR_ORE | USART_ISR_NE);
 
 	/* If any errors, clear it by reading the RX data register. */
 	if (err_flags) {
-		volatile uint8_t data = uart_instance->DR;
+		volatile uint8_t data = uart_instance->RDR;
 		UNUSED(data);
 		return;
 	}
 
-#endif
-	uint8_t data = uart_instance->CR1;
+	uint8_t data = uart_instance->RDR;
 	rx_char_cb[uid](data);
 }
 

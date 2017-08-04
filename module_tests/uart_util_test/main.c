@@ -57,7 +57,6 @@ int main(int argc, char *argv[])
 		.parity = MODEM_UART_PARITY,
 		.stop_bits = MODEM_UART_STOP_BITS,
 		.priority = MODEM_UART_IRQ_PRIORITY,
-		.hw_flow_ctrl = true,
 		.irq = true
 	};
 	uart = uart_init(&pins, &config);
