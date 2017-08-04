@@ -86,7 +86,7 @@ static void *ott_calloc(size_t num, size_t size)
 #endif
 
 #ifdef PROTO_TIME_PROFILE
-static uint32_t proto_begin;
+static uint64_t proto_begin;
 #endif
 
 static uint32_t current_polling_interval = INIT_POLLING_MS;

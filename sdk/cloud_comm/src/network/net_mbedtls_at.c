@@ -46,18 +46,29 @@ uint32_t num_bytes_sent;
 #if defined(OTT_EXPLICIT_NETWORK_TIME) && defined(OTT_TIME_PROFILE)
 
 uint32_t network_time_ms;
-static uint32_t net_begin;
+uint32_t net_read_time;
+uint32_t net_write_time;
+static uint64_t net_begin;
+static uint64_t now;
 
 #define NET_TIME_PROFILE_BEGIN() \
 	net_begin = sys_get_tick_ms()
 
 #define NET_TIME_PROFILE_END() \
-	network_time_ms += (sys_get_tick_ms() - net_begin)
+	network_time_ms += ((now = sys_get_tick_ms()) - net_begin)
+
+#define NET_TIME_RECV_ADD() \
+	net_read_time += (now - net_begin)
+
+#define NET_TIME_WRITE_ADD() \
+	net_write_time += (now - net_begin)
 
 #else
 
 #define NET_TIME_PROFILE_BEGIN()
 #define NET_TIME_PROFILE_END()
+#define NET_TIME_RECV_ADD()
+#define NET_TIME_WRITE_ADD()
 
 #endif	/* OTT_EXPLICIT_NETWORK_TIME && OTT_TIME_PROFILE */
 
@@ -150,22 +161,26 @@ int mbedtls_net_recv(void *ctx, unsigned char *buf, size_t len)
 	ret = read(fd, buf, len);
 	if (ret < 0) {
 		if (ret == AT_TCP_CONNECT_DROPPED) {
-			DEBUG("%s: connection dropped\n", __func__);
 			NET_TIME_PROFILE_END();
+			NET_TIME_RECV_ADD();
+			DEBUG("%s: connection dropped\n", __func__);
 			return MBEDTLS_ERR_SSL_WANT_READ;
 		}
 		if (errno == EPIPE || errno == ECONNRESET) {
 			NET_TIME_PROFILE_END();
+			NET_TIME_RECV_ADD();
 			return MBEDTLS_ERR_NET_CONN_RESET;
 		}
 
 		if (errno == EINTR || errno == EAGAIN) {
 			NET_TIME_PROFILE_END();
+			NET_TIME_RECV_ADD();
 			return MBEDTLS_ERR_SSL_WANT_READ;
 		}
 		return MBEDTLS_ERR_NET_RECV_FAILED;
 	}
 	NET_TIME_PROFILE_END();
+	NET_TIME_RECV_ADD();
 	ADD_TO_RECVD(ret);
 	return ret;
 }
@@ -227,23 +242,27 @@ int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len)
 	ret = write(fd, buf, len);
 	if (ret < 0) {
 		if (ret == AT_TCP_CONNECT_DROPPED) {
-			DEBUG("%s: connection dropped\n", __func__);
 			NET_TIME_PROFILE_END();
+			NET_TIME_WRITE_ADD();
+			DEBUG("%s: connection dropped\n", __func__);
 			return MBEDTLS_ERR_SSL_WANT_WRITE;
 		}
 		if (errno == EPIPE || errno == ECONNRESET) {
 			NET_TIME_PROFILE_END();
+			NET_TIME_WRITE_ADD();
 			return MBEDTLS_ERR_NET_CONN_RESET;
 		}
 
 		if (errno == EINTR) {
 			NET_TIME_PROFILE_END();
+			NET_TIME_WRITE_ADD();
 			return MBEDTLS_ERR_SSL_WANT_WRITE;
 		}
 
 		return MBEDTLS_ERR_NET_SEND_FAILED;
 	}
 	NET_TIME_PROFILE_END();
+	NET_TIME_WRITE_ADD();
 	ADD_TO_SEND(ret);
 	return ret;
 }
