@@ -5,6 +5,9 @@
 #ifndef TS_SDK_MODEM_CONFIG_H
 #define TS_SDK_MODEM_CONFIG_H
 
+#define MODEM_PDP_CTX		"3"
+#define MODEM_SOCK_ID		"1"
+
 #if defined (stm32f429zit)
 #ifdef nucleo
 /* Pin and peripheral configuration for UART connecting modem and MCU */
@@ -29,16 +32,13 @@
 /* Timer ID */
 #define MODEM_UART_IDLE_TIMER	TIMER2
 
-#define MODEM_PDP_CTX		"3"
-#define MODEM_SOCK_ID		"1"
-
 #endif	/* BOARD */
 
 #elif defined (stm32l476rgt)
 #ifdef nucleo
 /* Pin and peripheral configuration for UART connecting modem and MCU */
-#define MODEM_UART_TX_PIN	PA2
-#define MODEM_UART_RX_PIN	PA3
+#define MODEM_UART_TX_PIN	PC10
+#define MODEM_UART_RX_PIN	PC11
 #define MODEM_UART_RTS_PIN	NC
 #define MODEM_UART_CTS_PIN	NC
 #define MODEM_HW_RESET_PIN	PC7
@@ -57,9 +57,6 @@
 
 /* Timer ID */
 #define MODEM_UART_IDLE_TIMER	TIMER2
-
-#define MODEM_PDP_CTX		"3"
-#define MODEM_SOCK_ID		"1"
 
 #endif	/* BOARD */
 
