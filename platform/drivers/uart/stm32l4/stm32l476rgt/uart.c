@@ -144,6 +144,10 @@ static bool init_peripheral(periph_t hdl, const uart_config *config,
 	 * noise on an asynchronous line.
 	 */
 	uart_stm32_handle[uid].Init.OverSampling = UART_OVERSAMPLING_16;
+
+	uart_stm32_handle[uid].Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+	uart_stm32_handle[uid].AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+
 	if (HAL_UART_Init(&uart_stm32_handle[uid]) != HAL_OK)
 		return false;
 
