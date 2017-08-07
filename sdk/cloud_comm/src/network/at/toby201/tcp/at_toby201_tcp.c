@@ -843,10 +843,14 @@ void at_tcp_close(int s_id)
 	return;
 }
 
-bool at_tcp_get_ip(char *ip)
+bool at_tcp_leave_cmd_mode(void)
 {
-	if (ip == NULL)
-		return false;
-	/* TODO: Retrieve IP address using AT+CGPADDR */
+	/* XXX: Stub for now */
+	return true;
+}
+
+bool at_tcp_enter_cmd_mode(void)
+{
+	/* XXX: Stub for now */
 	return true;
 }

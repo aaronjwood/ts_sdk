@@ -37,7 +37,7 @@ enum modem_query_commands {
 	MODEM_QUERY_END
 };
 
-/* Minimum lengths of the buffers including the terminating NULL character */
+/* Minimum lengths of the resposne buffers including the terminating NULL character */
 static const uint8_t buf_len[MODEM_QUERY_END] = {
 	[GET_IMEI] = 16,
 	[GET_SIG_STR] = 11,
@@ -313,7 +313,7 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 			}
 		},
 		.err = NULL,
-		.comm_timeout = 100
+		.comm_timeout = 500
 	},
 	[GET_IP_ADDR] = {
 		.comm = "at+cgpaddr="MODEM_PDP_CTX"\r",
@@ -330,7 +330,7 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 			}
 		},
 		.err = "\r\n+CME ERROR: ",
-		.comm_timeout = 5000
+		.comm_timeout = 500
 	},
 	[GET_ICCID] = {
 		.comm = "at+sqnccid\r",
@@ -347,7 +347,7 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 			}
 		},
 		.err = "\r\n+CME ERROR: ",
-		.comm_timeout = 5000
+		.comm_timeout = 500
 	},
 	[GET_TTZ] = {
 		.comm = "at+cclk?\r",
@@ -364,7 +364,7 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 			}
 		},
 		.err = "\r\n+CME ERROR: ",
-		.comm_timeout = 5000
+		.comm_timeout = 500
 	},
 	[GET_MOD_INFO] = {
 		.comm = "at+cgmm\r",
@@ -381,7 +381,7 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 			}
 		},
 		.err = "\r\n+CME ERROR: ",
-		.comm_timeout = 5000
+		.comm_timeout = 100
 	},
 	[GET_MAN_INFO] = {
 		.comm = "at+cgmi\r",
@@ -398,7 +398,7 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 			}
 		},
 		.err = "\r\n+CME ERROR: ",
-		.comm_timeout = 5000
+		.comm_timeout = 100
 	},
 	[GET_IMSI] = {
 		.comm = "at+cimi\r",
@@ -415,7 +415,7 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 			}
 		},
 		.err = "\r\n+CME ERROR: ",
-		.comm_timeout = 5000
+		.comm_timeout = 100
 	},
 	[GET_FWVER] = {
 		.comm = "at+cgmr\r",
@@ -432,7 +432,7 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 			}
 		},
 		.err = "\r\n+CME ERROR: ",
-		.comm_timeout = 5000
+		.comm_timeout = 100
 	}
 };
 
@@ -601,7 +601,7 @@ exit_func:
 	return ret;
 }
 
-bool at_modem_get_ip(char *ip)
+bool at_modem_get_ip(int s_id, char *ip)
 {
 	return get_param(GET_IP_ADDR, ip);
 }
