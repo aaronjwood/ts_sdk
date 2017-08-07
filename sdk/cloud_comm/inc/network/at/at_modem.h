@@ -167,7 +167,7 @@ bool at_modem_get_fwver(char *fwver);
  * character).
  *
  * \retval true IMSI was retrieved.
- * \retval false Faield to retrieve IMSI. Buffer contents are invalid.
+ * \retval false Failed to retrieve IMSI. Buffer contents are invalid.
  */
 bool at_modem_get_imsi(char *imsi);
 
