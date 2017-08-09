@@ -36,9 +36,10 @@ export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 # NO_PROTOCOL
 #PROTOCOL="OTT_PROTOCOL"
 
-# Defines which GPS chip to use. Currently only neo-6m is supported
-# for CHIPSET_MCU = stm32f415rgt.
-# GPS_CHIPSET="neo-6m"
+# Defines which GPS chip to use. neo-6m, cxd5600 are supported.
+# Currently for CHIPSET_MCU = stm32f415rgt GPS_CHIPSET=neo-6m
+# is supoorted and for CHIPSET_MCU = stm32l476rgt GPS_CHIPSET=cxd5600
+# is supported.
 
 usage()
 {
@@ -94,7 +95,7 @@ Usage:  source $SCRIPT_NAME Options
 	protocol: Cloud data transport protocol. Valid values are OTT_PROTOCOL,
 	SMSNAS_PROTOCOL, MQTT_PROTOCOL and NO_PROTOCOL
 
-	gps_chipset: Name of the GPS chipset. Currently only neo-6m value is supported.
+	gps_chipset: Name of the GPS chipset. Valid values are neo-6m and cxd5600.
 
 	Note: All the options must be present, there are no default values
 

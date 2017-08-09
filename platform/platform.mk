@@ -6,9 +6,10 @@ PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw
 PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)
 PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)
 PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/$(DEV_BOARD)
+PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/drivers/gps/$(GPS_CHIPSET)/inc
 
 FIND_INC = -name "*.h"
-PLATFORM_DRV_INC = $(shell find $(PLATFORM_HAL_ROOT)/drivers/* $(FIND_INC))
+PLATFORM_DRV_INC = $(shell find $(PLATFORM_HAL_ROOT)/drivers/oem/* $(FIND_INC))
 PLATFORM_INC += -I $(dir $(PLATFORM_DRV_INC))
 
 # List of core library components to be included in the build process
