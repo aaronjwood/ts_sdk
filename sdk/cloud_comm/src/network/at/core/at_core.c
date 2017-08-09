@@ -39,6 +39,23 @@ static at_urc_callback urc_callback;
 /* Handle to the UART peripheral connecting the modem and the MCU */
 static periph_t uart;
 
+static void __at_dump_buffer(const char *buf, buf_sz len)
+{
+        if (!buf) {
+                buf_sz bytes = uart_util_available();
+                if (bytes > 0) {
+                        uint8_t temp_buf[bytes];
+                        uart_util_read(temp_buf, bytes);
+                        for (uint8_t i = 0; i < bytes; i++)
+                                DEBUG_V0("0x%x, ", temp_buf[i]);
+                }
+        } else {
+                for (uint8_t i = 0; i < len; i++)
+                        DEBUG_V0("0x%x, ", buf[i]);
+        }
+        DEBUG_V0("\n");
+}
+
 static void __at_dump_wrng_rsp(char *rsp_buf, buf_sz read_bytes, const char *rsp)
 {
 #ifdef DEBUG_WRONG_RSP
@@ -221,23 +238,6 @@ bool at_core_write(uint8_t *buf, uint16_t len)
 void at_core_clear_rx(void)
 {
 	uart_util_flush();
-}
-
-static void __at_dump_buffer(const char *buf, buf_sz len)
-{
-        if (!buf) {
-                buf_sz bytes = uart_util_available();
-                if (bytes > 0) {
-                        uint8_t temp_buf[bytes];
-                        uart_util_read(temp_buf, bytes);
-                        for (uint8_t i = 0; i < bytes; i++)
-                                DEBUG_V0("0x%x, ", temp_buf[i]);
-                }
-        } else {
-                for (uint8_t i = 0; i < len; i++)
-                        DEBUG_V0("0x%x, ", buf[i]);
-        }
-        DEBUG_V0("\n");
 }
 
 /*
