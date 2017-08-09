@@ -24,11 +24,7 @@ int main()
 	ASSERT(gps_module_init() == true);
 	while (1) {
 		/* Receive the GPS data */
-		if (gps_receive(&parsedNMEA)) {
-			dbg_printf("GPS Latitude: %f Longitude: %f\n",
-				parsedNMEA.latitude_degrees,
-				parsedNMEA.longitude_degrees);
-		}
+		gps_receive(&parsedNMEA);
 	}
 	return 0;
 }

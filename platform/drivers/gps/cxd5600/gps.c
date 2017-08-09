@@ -16,6 +16,7 @@
 #define GNSS_INT_POLL_STEP_MS		20
 #define GNSS_INT_POLL_TIME_MS		(2000+GNSS_INT_POLL_STEP_MS)
 
+
 static periph_t i2c_handle;
 static uint8_t i2c_dest_addr;
 static pin_name_t gps_dor_pin;
@@ -100,7 +101,7 @@ static void parse_time(char *p, struct parsed_nmea_t *parsed_nmea)
 	parsed_nmea->minute = (time % 10000) / 100;
 	parsed_nmea->seconds = (time % 100);
 	parsed_nmea->milliseconds = float_mod((double) timef, 1.0) * 1000;
-	dbg_printf("hour  %d min %d sec %d\n",
+	dbg_printf("GPS time: hour:%d min:%d sec:%d\n",
 	parsed_nmea->hour, parsed_nmea->minute, parsed_nmea->seconds);
 }
 
@@ -144,6 +145,8 @@ static char *parse_latitude(char *p, struct parsed_nmea_t *parsed_nmea,
 		else
 			*retval = false;
 	}
+	dbg_printf("GPS Latitude: %f\n",
+		parsed_nmea->latitude_degrees);
 	return p;
 }
 
@@ -181,14 +184,15 @@ static char *parse_longitude(char *p, struct parsed_nmea_t *parsed_nmea,
 		if (p[0] == 'W') {
 			parsed_nmea->longitude_degrees *= -1.0;
 			parsed_nmea->lon = 'W';
-		}
-		else if (p[0] == 'E')
+		} else if (p[0] == 'E')
 			parsed_nmea->lon = 'E';
 		else if (p[0] == ',')
 			parsed_nmea->lon = 0;
 		else
 			*retval = false;
 	}
+	dbg_printf("GPS Longitude: %f\n",
+			parsed_nmea->longitude_degrees);
 	return p;
 }
 
@@ -215,6 +219,16 @@ static char *parse_GGA_param(char *p, struct parsed_nmea_t *parsed_nmea)
 	if (',' != *p)
 		parsed_nmea->geoid_height = atof(p);
 
+	dbg_printf("GPS fix quality indicator: %d\n",
+		parsed_nmea->fix_quality);
+	dbg_printf("GPS number of satellites in use: %d\n",
+		parsed_nmea->satellites);
+	dbg_printf("GPS HDOP: %f\n",
+		parsed_nmea->HDOP);
+	dbg_printf("GPS altitude: %f\n",
+		parsed_nmea->altitude);
+	dbg_printf("GPS geoidal height: %f\n",
+		parsed_nmea->geoid_height);
 	return p;
 }
 
@@ -237,9 +251,14 @@ static char *parse_RMC_param(char *p, struct parsed_nmea_t *parsed_nmea)
 		parsed_nmea->day = fulldate / 10000;
 		parsed_nmea->month = (fulldate % 10000) / 100;
 		parsed_nmea->year = (fulldate % 100);
-
 	}
-
+	dbg_printf("GPS speed: %f\n",
+		parsed_nmea->speed);
+	dbg_printf("GPS angle: %f\n",
+		parsed_nmea->angle);
+	dbg_printf("GPS date: day:%d month:%d year:%d\n",
+		parsed_nmea->day, parsed_nmea->month,
+		parsed_nmea->year);
 	return p;
 }
 
@@ -256,7 +275,7 @@ static bool validate_nmea(char *nmea)
 			sum ^= nmea[i];
 
 		if (sum != 0) {
-			dbg_printf("Bad NMEA Checksum");
+			dbg_printf("Bad NMEA Checksum\n");
 			return false;
 		}
 	}
