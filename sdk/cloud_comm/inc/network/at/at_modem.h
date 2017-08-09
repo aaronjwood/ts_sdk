@@ -88,7 +88,6 @@ bool at_modem_get_ss(char *ss);
  * \brief Retrieve the IP address associated with the modem as a NULL terminated
  * string.
  *
- * \param[in] s_id Socket ID whose IP address needs to be retrieved
  * \param[out] ip Pointer to a NULL terminated buffer to hold the retrieved IP
  * address. Buffer must be at least 16 bytes long (including terminating NULL
  * character).
@@ -96,7 +95,7 @@ bool at_modem_get_ss(char *ss);
  * \retval true IP address was successfully retrieved
  * \retval false Failed to retrieve the IP address. Buffer contents are invalid.
  */
-bool at_modem_get_ip(int s_id, char *ip);
+bool at_modem_get_ip(char *ip);
 
 /**
  * \brief Retrieve the ICCID of the SIM card as a NULL terminated string.

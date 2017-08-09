@@ -601,7 +601,7 @@ exit_func:
 	return ret;
 }
 
-bool at_modem_get_ip(int s_id, char *ip)
+bool at_modem_get_ip(char *ip)
 {
 	return get_param(GET_IP_ADDR, ip);
 }

@@ -34,6 +34,7 @@
 #elif SIM_TYPE == COM
 
 #define MODEM_APN_TYPE_ID	"2"
+#define MODEM_APN_CTX_ID	"8"
 
 #endif	/* SIM_TYPE */
 

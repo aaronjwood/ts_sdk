@@ -378,10 +378,10 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 		.comm_timeout = 500
 	},
 	[GET_IP_ADDR] = {
-		.comm = NULL,			/* Built in at_modem_get_ip */
+		.comm = "at+cgpaddr="MODEM_APN_CTX_ID"\r",
 		.rsp_desc = {
 			{
-				.rsp = NULL,	/* Built in at_modem_get_ip */
+				.rsp = "\r\n+CGPADDR: "MODEM_APN_CTX_ID"",
 				.rsp_handler = parse_ip_addr,
 				.data = NULL
 			},
@@ -657,19 +657,8 @@ exit_func:
 	return ret;
 }
 
-#define CMD_SOCKET_IDX		11
-#define RESP_SOCKET_IDX		12
-#define MAX_SOCKET_IDX		6
-bool at_modem_get_ip(int s_id, char *ip)
+bool at_modem_get_ip(char *ip)
 {
-	if (s_id < 0 || s_id >= MAX_SOCKET_IDX)
-		return false;
-	char rsp[] = "\r\n+CGPADDR: x";
-	char comm[] = "at+cgpaddr=x\r";
-	comm[CMD_SOCKET_IDX] = '0' + s_id;
-	rsp[RESP_SOCKET_IDX] = '0' + s_id;
-	modem_query[GET_IP_ADDR].comm = comm;
-	modem_query[GET_IP_ADDR].rsp_desc[0].rsp = rsp;
 	return get_param(GET_IP_ADDR, ip);
 }
 
