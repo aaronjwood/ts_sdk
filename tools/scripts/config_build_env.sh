@@ -29,6 +29,9 @@ export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 # Defines which modem to use. Currently only the ublox toby201 is supported.
 #MODEM_TARGET="toby201"
 
+# Defines which operating system to use. Currently default os and FREE_RTOS is supported.
+#CHIPSET_OS="FREE_RTOS"
+
 # Defines which cloud protocol to use. Valid options are:
 # OTT_PROTOCOL
 # SMSNAS_PROTOCOL
@@ -110,6 +113,7 @@ clear_sdk_chip_env()
 	unset MODEM_TARGET
 	unset PROTOCOL
 	unset GPS_CHIPSET
+	unset CHIPSET_OS
 }
 
 clear_env()
@@ -137,7 +141,8 @@ process_app_args()
 			dev_board)	DEV_BOARD="$value";;
 			modem)		MODEM_TARGET="$value";;
 			protocol)	PROTOCOL="$value";;
-			gps_chipset)    GPS_CHIPSET="$value";;
+			gps_chipset)	GPS_CHIPSET="$value";;
+			os)		CHIPSET_OS="$value";;
 			*)		usage;;
 		esac
 
@@ -153,6 +158,7 @@ print_env()
 	echo "Modem target = $MODEM_TARGET"
 	echo "Cloud transport protocol = $PROTOCOL"
 	echo "GPS Chipset = $GPS_CHIPSET"
+	echo "Operating System = $CHIPSET_OS"
 }
 
 exp_sdk_defaults()
@@ -202,3 +208,4 @@ export DEV_BOARD=$DEV_BOARD
 export MODEM_TARGET=$MODEM_TARGET
 export PROTOCOL=$PROTOCOL
 export GPS_CHIPSET=$GPS_CHIPSET
+export CHIPSET_OS=$CHIPSET_OS

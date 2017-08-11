@@ -17,6 +17,22 @@
 #include "protocol_init.h"
 #include "sensor_interface.h"
 
+#if defined(FREE_RTOS)
+#include "cmsis_os.h"
+
+enum {
+	THREAD_1 = 0,
+	THREAD_2
+} Thread_TypeDef;
+
+osThreadId sensor_thread1_handle, sensor_thread2_handle;
+static void sensor_thread1(void const *argument);
+static void sensor_thread2(void const *argument);
+uint32_t last_st_ts = 0;
+#else
+uint64_t last_st_ts = 0;
+#endif
+
 #define RESEND_CALIB   0x42
 
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
@@ -33,7 +49,6 @@ static bool resend_calibration;		/* Set if RESEND command was received */
 /* status report interval in milliseconds */
 #define STATUS_REPORT_INT_MS	15000
 /* last status message sent timestamp */
-uint64_t last_st_ts = 0;
 
 static void receive_completed(cc_buffer_desc *buf)
 {
@@ -120,6 +135,103 @@ static void send_all_calibration_data(void)
 	send_with_retry(&send_buffer, data.sz, CC_SERVICE_BASIC);
 }
 
+#if defined(FREE_RTOS)
+array_t data;
+static uint32_t send_all_sensor_data(uint32_t cur_ts)
+{
+	if (last_st_ts != 0) {
+		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS) {
+			dbg_printf("Returning without sending sensor data\n");
+			return last_st_ts + STATUS_REPORT_INT_MS - cur_ts;
+		}
+	}
+	dbg_printf("Sending sensor data\n");
+	for (uint8_t i = 0; i < si_get_num_sensors(); i++) {
+		dbg_printf("\tSensor [%d], ", i);
+		dbg_printf("sending out status message : %d bytes\n", data.sz);
+		send_with_retry(&send_buffer, data.sz, CC_SERVICE_BASIC);
+	}
+	last_st_ts = cur_ts;
+	return STATUS_REPORT_INT_MS;
+}
+
+static uint32_t read_all_sensor_data(uint32_t cur_ts)
+{
+	data.bytes = cc_get_send_buffer_ptr(&send_buffer, CC_SERVICE_BASIC);
+	dbg_printf("Reading sensor data\n");
+	for (uint8_t i = 0; i < si_get_num_sensors(); i++) {
+		ASSERT(si_read_data(i, SEND_DATA_SZ, &data));
+		dbg_printf("\tSensor [%d], ", i);
+	}
+	return STATUS_REPORT_INT_MS;
+}
+
+static void sensor_thread1(void const *argument)
+{
+	(void) argument;
+
+	while (1) {
+		read_all_sensor_data(osKernelSysTick());
+
+		/* Resume Thread 2 */
+		osThreadResume(sensor_thread2_handle);
+		/* Suspend Thread 1 : current thread */
+		osThreadSuspend(sensor_thread1_handle);
+	}
+}
+
+static void sensor_thread2(void const *argument)
+{
+	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
+	uint32_t slept_till = 0;
+	uint32_t next_report_interval = 0;	/* Interval in ms */
+	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
+	(void) argument;
+
+	while (1) {
+		next_report_interval = send_all_sensor_data(
+							osKernelSysTick());
+		if (resend_calibration) {
+			resend_calibration = false;
+			dbg_printf("\tResending calibration data\n");
+			send_all_calibration_data();
+		}
+
+		next_wakeup_interval = cc_service_send_receive(
+							osKernelSysTick());
+		if (next_wakeup_interval == 0) {
+			wake_up_interval = LONG_SLEEP_INT_MS;
+			dbg_printf("Protocol does not required to be called"
+				",sleeping for %"PRIu32" sec.\n",
+				wake_up_interval / 1000);
+		} else {
+			dbg_printf("Protocol requests wakeup in %"PRIu32
+				"sec.\n", next_wakeup_interval / 1000);
+			wake_up_interval = next_wakeup_interval;
+		}
+
+		if (wake_up_interval > next_report_interval) {
+			wake_up_interval = next_report_interval;
+			dbg_printf("Reporting required in %"
+				   PRIu32" sec.\n", wake_up_interval / 1000);
+		}
+		dbg_printf("Powering down for %"PRIu32" seconds\n\n",
+				wake_up_interval / 1000);
+		osDelay(wake_up_interval);
+		ASSERT(si_sleep());
+		slept_till = sys_sleep_ms(wake_up_interval);
+		slept_till = wake_up_interval - slept_till;
+		dbg_printf("Slept for %"PRIu32" seconds\n\n",
+			slept_till / 1000);
+		ASSERT(si_wakeup());
+
+		/* Resume Thread 1 */
+		osThreadResume(sensor_thread1_handle);
+		/* Suspend Thread2 : current thread */
+		osThreadSuspend(sensor_thread2_handle);
+	}
+}
+#else
 static uint32_t read_and_send_all_sensor_data(uint64_t cur_ts)
 {
 	if (last_st_ts != 0) {
@@ -138,14 +250,10 @@ static uint32_t read_and_send_all_sensor_data(uint64_t cur_ts)
 	last_st_ts = cur_ts;
 	return STATUS_REPORT_INT_MS;
 }
+#endif
 
 int main(int argc, char *argv[])
 {
-	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
-	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
-	uint32_t next_report_interval = 0;	/* Interval in ms */
-	uint32_t slept_till = 0;
-
 	sys_init();
 	dbg_module_init();
 	dbg_printf("Begin:\n");
@@ -177,6 +285,40 @@ int main(int argc, char *argv[])
 
 	dbg_printf("Sending out calibration data\n");
 	send_all_calibration_data();
+
+#if defined(FREE_RTOS)
+	dbg_printf("Creating the sensors thread1\n");
+	/* Thread 1 definition */
+	osThreadDef(THREAD_1, sensor_thread1, osPriorityNormal, 0,
+		configMINIMAL_STACK_SIZE);
+
+	dbg_printf("Creating the sensors thread 2\n");
+	/* Thread 2 definition */
+	osThreadDef(THREAD_2, sensor_thread2, osPriorityNormal, 0,
+		configMINIMAL_STACK_SIZE);
+
+	/* Start thread 1 */
+	sensor_thread1_handle = osThreadCreate(osThread(THREAD_1), NULL);
+
+	/* Start thread 2 */
+	sensor_thread2_handle = osThreadCreate(osThread(THREAD_2), NULL);
+
+	/* Set thread 2 in suspend state */
+	osThreadSuspend(sensor_thread2_handle);
+
+	/* Start scheduler */
+	osKernelStart();
+
+	/* We should never get here as control is now taken by the scheduler */
+	while (1) {
+	/* We should never get here as control is now taken by the scheduler */
+	}
+#else
+	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
+	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
+	uint32_t next_report_interval = 0;	/* Interval in ms */
+	uint32_t slept_till = 0;
+
 	while (1) {
 		next_report_interval = read_and_send_all_sensor_data(
 							sys_get_tick_ms());
@@ -194,8 +336,8 @@ int main(int argc, char *argv[])
 				",sleeping for %"PRIu32" sec.\n",
 				wake_up_interval / 1000);
 		} else {
-			dbg_printf("Protocol requests wakeup in %"
-				   PRIu32" sec.\n", next_wakeup_interval /1000);
+			dbg_printf("Protocol requests wakeup in %"PRIu32"
+				sec.\n", next_wakeup_interval / 1000);
 			wake_up_interval = next_wakeup_interval;
 		}
 
@@ -209,8 +351,11 @@ int main(int argc, char *argv[])
 		ASSERT(si_sleep());
 		slept_till = sys_sleep_ms(wake_up_interval);
 		slept_till = wake_up_interval - slept_till;
-		dbg_printf("Slept for %"PRIu32" seconds\n\n", slept_till / 1000);
+		dbg_printf("Slept for %"PRIu32" seconds\n\n",
+			slept_till / 1000);
 		ASSERT(si_wakeup());
 	}
+#endif
+
 	return 0;
 }

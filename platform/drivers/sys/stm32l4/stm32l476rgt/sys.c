@@ -7,6 +7,9 @@
 #include "timer_interface.h"
 #include "board_config.h"
 #include "ts_sdk_board_config.h"
+#if defined(FREE_RTOS)
+#include "cmsis_os.h"
+#endif
 
 /* Timer related definations */
 static const timer_interface_t *sleep_timer;
@@ -48,7 +51,7 @@ static void SystemClock_Config(void)
 	RCC_ClkInitTypeDef RCC_ClkInitStruct;
 	RCC_OscInitTypeDef RCC_OscInitStruct;
 
-        /* MSI is enabled after System reset, activate PLL with MSI as source */
+	/* MSI is enabled after System reset, activate PLL with MSI as source */
 	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
 	RCC_OscInitStruct.MSIState = RCC_MSI_ON;
 	RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6;
@@ -204,7 +207,11 @@ uint32_t sys_sleep_ms(uint32_t sleep)
 /* Increments the SysTick value. */
 void SysTick_Handler(void)
 {
+#if defined(FREE_RTOS)
+	osSystickHandler();
+#else
 	HAL_IncTick();
+#endif
 }
 
 /*
