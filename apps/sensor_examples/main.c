@@ -336,8 +336,8 @@ int main(int argc, char *argv[])
 				",sleeping for %"PRIu32" sec.\n",
 				wake_up_interval / 1000);
 		} else {
-			dbg_printf("Protocol requests wakeup in %"PRIu32"
-				sec.\n", next_wakeup_interval / 1000);
+			dbg_printf("Protocol requests wakeup in %"PRIu32
+			"sec.\n", next_wakeup_interval / 1000);
 			wake_up_interval = next_wakeup_interval;
 		}
 
