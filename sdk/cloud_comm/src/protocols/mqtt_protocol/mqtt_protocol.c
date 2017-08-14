@@ -334,6 +334,9 @@ static void mqtt_rcvd_msg(MessageData *md)
 	MQTTMessage *m = md->message;
 	PRINTF("%s:%d: received payloadlen: %d\n",
 		__func__, __LINE__, (int)m->payloadlen);
+
+	if ((int)m->payloadlen <= 0)
+		return;
 	if ((uint32_t)m->payloadlen > session.rcv_sz) {
 		dbg_printf("%s: %d: buffer overflow detected\n",
 				__func__, __LINE__);
