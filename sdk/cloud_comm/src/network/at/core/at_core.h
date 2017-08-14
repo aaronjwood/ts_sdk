@@ -23,9 +23,6 @@ typedef enum at_return_codes {
         AT_RECHECK_MODEM
 } at_ret_code;
 
-#if defined (MODEM_TOBY201) || defined (MODEM_SQMONARCH)
-#endif
-
 #define MAX_RSP_LINE		2	/* Some command send response plus OK */
 #define AT_CORE_INV_PARAM	UART_INV_PARAM	/* Invalid parameter. */
 
