@@ -1,0 +1,13 @@
+FROM ubuntu:16.04
+RUN apt-get update \
+    && apt-get install -y vim \
+    && apt-get install -y make \
+    && apt-get install -y gcc-multilib \
+    && apt-get install -y perl \
+    && apt-get install -y wget
+RUN mkdir -p ts_sdk_bldenv/toolchain
+RUN wget https://github.com/raspberrypi/tools/archive/master.tar.gz \
+ && tar -C /ts_sdk_bldenv/toolchain/ -xvzf master.tar.gz \
+ && rm -f master.tar.gz \
+ && cp -r /ts_sdk_bldenv/toolchain/tools-master/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/* /ts_sdk_bldenv/toolchain/ \
+ && rm -rf /ts_sdk_bldenv/toolchain/tools-master
