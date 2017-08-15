@@ -13,7 +13,7 @@
 #elif defined (MQTT_PROTOCOL)
 #include "mqtt_limits.h"
 #else
-#error "define valid protocol options from OTT_PROTOCOL or SMSNAS_PROTOCOL"
+#error "define valid protocol options from OTT_PROTOCOL, MQTT_PROTOCOL or SMSNAS_PROTOCOL"
 #endif
 
 /* Superset of the protocol API execution results, depending on the protocols
@@ -83,15 +83,20 @@ typedef void (*proto_callback)(const void *buf, uint32_t sz,
 #ifdef PROTO_EXPLICIT_NETWORK_TIME
 
 extern uint32_t network_time_ms;
+extern uint32_t net_read_time;
+extern uint32_t net_write_time;
 
 #define PROTO_TIME_PROFILE_BEGIN() do { \
 	proto_begin = sys_get_tick_ms(); \
 	network_time_ms = 0; \
+	net_read_time = 0; \
+	net_write_time = 0; \
 } while(0)
 
 #define PROTO_TIME_PROFILE_END(label) do { \
-	dbg_printf("["label":%u]", sys_get_tick_ms() - proto_begin); \
-	dbg_printf(" [NETW:%u]\n", network_time_ms); \
+	dbg_printf("["label":%"PRIu32"]", (uint32_t)(sys_get_tick_ms() - proto_begin)); \
+	dbg_printf(" [NETW:%"PRIu32"~R%"PRIu32"+W%"PRIu32"]\n", network_time_ms, \
+			net_read_time, net_write_time); \
 } while(0)
 
 #else
@@ -100,7 +105,7 @@ extern uint32_t network_time_ms;
 	proto_begin = sys_get_tick_ms()
 
 #define PROTO_TIME_PROFILE_END(label) \
-	dbg_printf("["label":%u]\n", sys_get_tick_ms() - proto_begin)
+	dbg_printf("["label":%"PRIu32"]\n", (uint32_t)(sys_get_tick_ms() - proto_begin))
 
 #endif	/* PROTO_EXPLICIT_NETWORK_TIME */
 

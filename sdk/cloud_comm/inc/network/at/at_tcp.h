@@ -102,6 +102,26 @@ int at_tcp_recv(int s_id, uint8_t *buf, size_t len);
  */
 void at_tcp_close(int s_id);
 
+/**
+ * \brief Enter the modem's command mode
+ * \details If the TCP connection is active in "online mode" / "direct link mode",
+ * suspend the link (keeping the TCP connection alive) and enter the modem's
+ * command mode
+ *
+ * \retval true Entered command mode successfully
+ * \retval false Failed to enter command mode
+ */
+bool at_tcp_enter_cmd_mode(void);
+
+/**
+ * \brief Leave the modem's command mode
+ * \details If a TCP connection is active and "online mode" / "direct link mode"
+ * is suspended, resume it, leaving the modem's command mode.
+ *
+ * \retval true Left command mode successfully
+ * \retval false Failed to leave command mode
+ */
+bool at_tcp_leave_cmd_mode(void);
 #ifdef __cplusplus
 }
 #endif

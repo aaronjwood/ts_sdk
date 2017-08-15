@@ -84,11 +84,6 @@ uint32_t sys_sleep_ms(uint32_t sleep)
                                 (remain.tv_nsec / MS_NS_MULT);
 }
 
-void sys_reset_modem(uint16_t pulse_width_ms)
-{
-        /* stub */
-}
-
 void dsb()
 {
 	/* stub */

@@ -5,10 +5,10 @@
 #include "mbedtls/net.h"
 #include "sys.h"
 
-const char *host = "httpbin.org";
+const char *host = "example.com";
 const char *port = "80";
 
-#define RECV_BUFFER	64
+#define RECV_BUFFER	500
 #define NUM_RETRIES	5
 #define DELAY_MS	500
 
@@ -86,7 +86,7 @@ static void net_rcv(mbedtls_net_context *ctx)
 		else if (bytes > 0)
 			count = 0;
 		read_buf[bytes] = 0x0;
-		printf("%s", (char *)read_buf);
+		printf("\nRecv:\n%s\n", (char *)read_buf);
 	}
 	if (bytes == MBEDTLS_ERR_NET_RECV_FAILED) {
 		dbg_printf("Read failed, code:%d, looping forever\n", bytes);
@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
 
 	/* step 3: send data */
 	dbg_printf("Sending data:\n");
-	char *send_buf = "GET \\ HTTP\\1.1\r\n";
+	char *send_buf = "GET /index.html HTTP/1.0\r\n\r\n";
 	size_t len = strlen(send_buf);
 	net_send(&ctx, (uint8_t *)send_buf, len);
 

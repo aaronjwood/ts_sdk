@@ -2,7 +2,6 @@
 
 #include <stm32l4xx_hal.h>
 #include "uart_hal.h"
-#include "ts_sdk_board_config.h"
 
 #define MAX_IRQ_PRIORITY		15
 #define CHECK_HANDLE(hdl, retval)	do { \
@@ -145,6 +144,10 @@ static bool init_peripheral(periph_t hdl, const uart_config *config,
 	 * noise on an asynchronous line.
 	 */
 	uart_stm32_handle[uid].Init.OverSampling = UART_OVERSAMPLING_16;
+
+	uart_stm32_handle[uid].Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+	uart_stm32_handle[uid].AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+
 	if (HAL_UART_Init(&uart_stm32_handle[uid]) != HAL_OK)
 		return false;
 
@@ -154,10 +157,9 @@ static bool init_peripheral(periph_t hdl, const uart_config *config,
 	/* Enable the UART Parity Error and Data Register not empty Interrupts */
 	SET_BIT(uart_instance->CR1, USART_CR1_PEIE | USART_CR1_RXNEIE);
 
-	if (config->irq)
-	{
+	if (config->irq) {
 		if (rx != NC) {
-			HAL_NVIC_SetPriority(irq_vec[uid], MODEM_UART_IRQ_PRIORITY, 0);
+			HAL_NVIC_SetPriority(irq_vec[uid], config->priority, 0);
 			HAL_NVIC_EnableIRQ(irq_vec[uid]);
 		}
 	}

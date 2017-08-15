@@ -11,7 +11,6 @@
 #define AT_TOBY_TCP_COMM_H
 
 #include "at_tcp_defs.h"
-#include "ts_sdk_board_config.h"
 #include "ts_sdk_modem_config.h"
 
 /* Upper limit for commands which need formatting before sending to modem */
