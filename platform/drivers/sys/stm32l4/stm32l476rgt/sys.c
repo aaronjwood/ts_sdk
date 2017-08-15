@@ -137,12 +137,20 @@ void sys_init(void)
 
 void sys_delay(uint32_t delay_ms)
 {
+#if defined(FREE_RTOS)
+	osDelay(delay_ms);
+#else
 	HAL_Delay(delay_ms);
+#endif
 }
 
 uint64_t sys_get_tick_ms(void)
 {
+#if defined(FREE_RTOS)
+	uint32_t cur_ts = osKernelSysTick();
+#else
 	uint32_t cur_ts = HAL_GetTick();
+#endif
 	uint32_t diff_ms = 0;
 	if (cur_ts >= base_tick)
 		diff_ms = cur_ts - base_tick;
