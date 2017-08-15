@@ -208,6 +208,7 @@ static void mqtt_reset_state(void)
 	session.own_auth_valid = false;
 	session.remote_auth_valid = false;
 	session.host_valid = false;
+	session.msg_sent = 0;
 }
 
 static void mqtt_init_state(void)
