@@ -42,7 +42,6 @@ CHIPSET_INC += -I $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/CMSIS/Inclu
 CHIPSET_INC += -I $(STM32_RTOS)/CMSIS_RTOS/
 CHIPSET_INC += -I $(STM32_RTOS)/include/
 CHIPSET_INC += -I $(STM32_RTOS)/portable/GCC/ARM_CM4F
-CHIPSET_INC += -I $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Projects/STM32L476RG-Nucleo/Applications/FreeRTOS/FreeRTOS_ThreadCreation/Inc/
 CHIPSET_INC += -I $(STM32_CMSIS)/Include
 # Standard library function headers
 CHIPSET_INC += -I $(GCC_ROOT)/include

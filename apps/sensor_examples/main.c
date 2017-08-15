@@ -170,6 +170,34 @@ static void sensor_thread1(void const *argument)
 {
 	(void) argument;
 
+	dbg_printf("Initializing communications module\n");
+	ASSERT(cc_init(ctrl_cb));
+
+	dbg_printf("Register to use the Basic service\n");
+	ASSERT(cc_register_service(&cc_basic_service_descriptor,
+				   basic_service_cb));
+
+	dbg_printf("Setting remote host and port\n");
+	ASSERT(cc_set_destination(REMOTE_HOST));
+
+	dbg_printf("Setting device authentiation credentials\n");
+	ASSERT(cc_set_own_auth_credentials(cl_cred, CL_CRED_SZ,
+				cl_sec_key, CL_SEC_KEY_SZ));
+	dbg_printf("Setting remote side authentiation credentials\n");
+	ASSERT(cc_set_remote_credentials(cacert, CA_CRED_SZ));
+
+	dbg_printf("Make a receive buffer available\n");
+	ASSERT(cc_set_recv_buffer(&recv_buffer) == CC_RECV_SUCCESS);
+
+	dbg_printf("Sending \"restarted\" message\n");
+	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
+
+	dbg_printf("Initializing the sensors\n");
+	ASSERT(si_init());
+
+	dbg_printf("Sending out calibration data\n");
+	send_all_calibration_data();
+
 	while (1) {
 		read_all_sensor_data(osKernelSysTick());
 
@@ -258,34 +286,6 @@ int main(int argc, char *argv[])
 	dbg_module_init();
 	dbg_printf("Begin:\n");
 
-	dbg_printf("Initializing communications module\n");
-	ASSERT(cc_init(ctrl_cb));
-
-	dbg_printf("Register to use the Basic service\n");
-	ASSERT(cc_register_service(&cc_basic_service_descriptor,
-				   basic_service_cb));
-
-	dbg_printf("Setting remote host and port\n");
-	ASSERT(cc_set_destination(REMOTE_HOST));
-
-	dbg_printf("Setting device authentiation credentials\n");
-	ASSERT(cc_set_own_auth_credentials(cl_cred, CL_CRED_SZ,
-				cl_sec_key, CL_SEC_KEY_SZ));
-	dbg_printf("Setting remote side authentiation credentials\n");
-	ASSERT(cc_set_remote_credentials(cacert, CA_CRED_SZ));
-
-	dbg_printf("Make a receive buffer available\n");
-	ASSERT(cc_set_recv_buffer(&recv_buffer) == CC_RECV_SUCCESS);
-
-	dbg_printf("Sending \"restarted\" message\n");
-	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
-
-	dbg_printf("Initializing the sensors\n");
-	ASSERT(si_init());
-
-	dbg_printf("Sending out calibration data\n");
-	send_all_calibration_data();
-
 #if defined(FREE_RTOS)
 	dbg_printf("Creating the sensors thread1\n");
 	/* Thread 1 definition */
@@ -319,6 +319,33 @@ int main(int argc, char *argv[])
 	uint32_t next_report_interval = 0;	/* Interval in ms */
 	uint32_t slept_till = 0;
 
+	dbg_printf("Initializing communications module\n");
+	ASSERT(cc_init(ctrl_cb));
+
+	dbg_printf("Register to use the Basic service\n");
+	ASSERT(cc_register_service(&cc_basic_service_descriptor,
+				   basic_service_cb));
+
+	dbg_printf("Setting remote host and port\n");
+	ASSERT(cc_set_destination(REMOTE_HOST));
+
+	dbg_printf("Setting device authentiation credentials\n");
+	ASSERT(cc_set_own_auth_credentials(cl_cred, CL_CRED_SZ,
+				cl_sec_key, CL_SEC_KEY_SZ));
+	dbg_printf("Setting remote side authentiation credentials\n");
+	ASSERT(cc_set_remote_credentials(cacert, CA_CRED_SZ));
+
+	dbg_printf("Make a receive buffer available\n");
+	ASSERT(cc_set_recv_buffer(&recv_buffer) == CC_RECV_SUCCESS);
+
+	dbg_printf("Sending \"restarted\" message\n");
+	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
+
+	dbg_printf("Initializing the sensors\n");
+	ASSERT(si_init());
+
+	dbg_printf("Sending out calibration data\n");
+	send_all_calibration_data();
 	while (1) {
 		next_report_interval = read_and_send_all_sensor_data(
 							sys_get_tick_ms());

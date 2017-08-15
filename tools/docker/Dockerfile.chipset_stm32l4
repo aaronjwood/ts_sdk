@@ -11,5 +11,4 @@ CMD cp /ts_sdk_bldenv/stm32l4/chipset_hal/STM32Cube_FW_L4_V1.8.0/Drivers/STM32L4
         && (find chipset_hal/STM32Cube_FW_L4_V1.8.0/Middlewares/Third_Party/FreeRTOS/Source/include/ -name '*.h' | tar --create --files-from -) | (cd /build/stm32l4/ && tar xfp -) \
         && (find chipset_hal/STM32Cube_FW_L4_V1.8.0/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/ -name '*.h' | tar --create --files-from -) | (cd /build/stm32l4/ && tar xfp -) \
         && (find chipset_hal/STM32Cube_FW_L4_V1.8.0/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/ -name '*.h' | tar --create --files-from -) | (cd /build/stm32l4/ && tar xfp -) \
-        && (find chipset_hal/STM32Cube_FW_L4_V1.8.0/Projects/STM32L476RG-Nucleo/Applications/FreeRTOS/FreeRTOS_ThreadCreation/Inc/ -name '*.h' | tar --create --files-from -) | (cd /build/stm32l4/ && tar xfp -) \
         && cp chipset_hal/STM32Cube_FW_L4_V1.8.0/Projects/STM32L476RG-Nucleo/Templates/SW4STM32/STM32L476RG_NUCLEO/*.ld /build/stm32l4/
