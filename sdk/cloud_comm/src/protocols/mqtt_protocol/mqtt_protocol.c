@@ -134,8 +134,10 @@ static int read_fn(Network *n, unsigned char *b, int len, int timeout_ms)
 		if (recvd == 0)
 			return 0;
 		if (recvd < 0 && recvd != MBEDTLS_ERR_SSL_WANT_READ &&
-				recvd != MBEDTLS_ERR_SSL_WANT_WRITE)
+				recvd != MBEDTLS_ERR_SSL_WANT_WRITE) {
+			printf("%s:%d: recvd error:%d\n", __func__, __LINE__, recvd);
 			return -1;
+		}
 		if (recvd > 0)
 			nbytes += recvd;
 	} while (nbytes < len && sys_get_tick_ms() - start_time < timeout_ms);
@@ -543,13 +545,17 @@ proto_result mqtt_send_msg_to_cloud(const void *buf, uint32_t sz,
 	(void)svc_id;
 	proto_result res = initialize_send(buf, sz, cb);
 	if (res != PROTO_OK)
-		return res;
+		goto error;
 	snprintf(pub_command_rsp, sizeof(pub_command_rsp),
                 MQTT_PUBL_CMD_RESPONSE, topic);
 	res = mqtt_publish_msg(pub_command_rsp, buf, sz);
 	if (res != PROTO_OK)
-		return res;
+		goto error;
+	session.msg_sent = sys_get_tick_ms();
 	return PROTO_OK;
+error:
+	session.msg_sent = 0;
+	return res;
 }
 
 proto_result mqtt_send_status_msg_to_cloud(const void *buf, uint32_t sz,
@@ -557,15 +563,19 @@ proto_result mqtt_send_status_msg_to_cloud(const void *buf, uint32_t sz,
 {
 	proto_result res = initialize_send(buf, sz, cb);
 	if (res != PROTO_OK)
-		return res;
+		goto error;
 	res = mqtt_publish_msg(pub_unit_on_board, buf, sz);
 	if (res != PROTO_OK)
-		return res;
+		goto error;
+	session.msg_sent = sys_get_tick_ms();
 	return PROTO_OK;
+error:
+	session.msg_sent = 0;
+	return res;
 
 }
 
-void mqtt_maintenance(void)
+void mqtt_maintenance(uint64_t cur_ts)
 {
 	if (MQTTYield(&mclient, MQTT_TIMEOUT_MS) == FAILURE)
 		dbg_printf("%s:%d: MQTT operation failed\n",
@@ -599,5 +609,10 @@ const uint8_t *mqtt_get_rcv_buffer_ptr(const void *msg)
 
 uint32_t mqtt_get_polling_interval(void)
 {
-        return current_polling_interval;
+	uint64_t diff_ts = 0;
+	if (session.msg_sent != 0) {
+		diff_ts = sys_get_tick_ms() - session.msg_sent;
+		session.msg_sent = 0;
+	}
+        return current_polling_interval - diff_ts;
 }
