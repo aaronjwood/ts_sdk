@@ -63,13 +63,13 @@ directory for its container and hence the chipset_env parameters should be /buil
 when compiling application if it depends on the chipset build environment.
 
 To build Application:
-tools/scripts/build.sh app tools/docker/Dockerfile.sdk_stm32f \
+tools/scripts/build.sh app tools/docker/Dockerfile.sdk_stm32 \
 tools/docker/Dockerfile.apps app_dir=sensor_examples chipset_env=/build/stm32f4 PROJ_NAME=bmp180
 Where PROJ_NAME is application specific option which is optional, chipset_env may be
 optional as well depending on the platform or devboard used.
 
 To build Module tests (module_tests directory examples)
-tools/scripts/build.sh app tools/docker/Dockerfile.sdk_dockerhub \
+tools/scripts/build.sh app tools/docker/Dockerfile.sdk_stm32 \
 tools/docker/Dockerfile.module_tests app_dir=at_tcp_test chipset_env=/build/stm32f4
 
 Description:
@@ -238,7 +238,7 @@ checkout_chipset_hal()
 			rm STM32Cube_FW_L4_V1.8.0.tar.bz2
 			cd $PROJ_ROOT
 		else
-			echo "chipset_hal fodler is already existing"
+			echo "chipset_hal folder is already existing"
 		fi
 	fi
 }

@@ -34,6 +34,7 @@
 #elif SIM_TYPE == COM
 
 #define MODEM_APN_TYPE_ID	"2"
+#define MODEM_APN_CTX_ID	"8"
 
 #endif	/* SIM_TYPE */
 
@@ -51,10 +52,61 @@
 #define MODEM_UMNOCONF_VAL	"1,6"
 #endif	/* SIM_TYPE */
 
+#elif defined (NO_PROTOCOL)
+#define MODEM_UMNOCONF_VAL	"3,23"
+
 #else
 
 #error "Must specify a protocol"
 
 #endif	/* PROTOCOL */
 
-#endif
+
+/* Modem communications port settings */
+#if defined (stm32f429zit)
+#ifdef nucleo
+/* Pin and peripheral configuration for UART connecting modem and MCU */
+#define MODEM_UART_TX_PIN	PD5
+#define MODEM_UART_RX_PIN	PD6
+#define MODEM_UART_RTS_PIN	PD4
+#define MODEM_UART_CTS_PIN	PD3
+#define MODEM_HW_RESET_PIN	PD2
+#define MODEM_UART_BAUD_RATE	115200
+#define MODEM_UART_DATA_WIDTH	8
+#define MODEM_UART_PARITY	NONE
+#define MODEM_UART_STOP_BITS	1
+
+/* UART and timer IRQ priorities - UART must have higher priority than timer */
+#define MODEM_UART_IRQ_PRIORITY	5
+#define IDL_TIM_IRQ_PRIORITY	6
+
+/* Timer ID */
+#define MODEM_UART_IDLE_TIMER	TIMER2
+#endif	/* BOARD */
+
+#elif defined (stm32f415rgt)
+#ifdef beduin
+/* Pin and peripheral configuration for UART connecting modem and MCU */
+#define MODEM_UART_TX_PIN	PB10
+#define MODEM_UART_RX_PIN	PB11
+#define MODEM_UART_RTS_PIN	PB14
+#define MODEM_UART_CTS_PIN	PB13
+#define MODEM_HW_RESET_PIN	PB3
+#define MODEM_UART_BAUD_RATE	115200
+#define MODEM_UART_DATA_WIDTH	8
+#define MODEM_UART_PARITY	NONE
+#define MODEM_UART_STOP_BITS	1
+
+/* UART and timer IRQ priorities - UART must have higher priority than timer */
+#define MODEM_UART_IRQ_PRIORITY	5
+#define IDL_TIM_IRQ_PRIORITY	6
+
+/* Timer ID */
+#define MODEM_UART_IDLE_TIMER	TIMER2
+#endif	/* BOARD */
+
+#else
+#error "Must specify chipset and board"
+
+#endif /* MCU */
+#endif /* TS_SDK_MODEM_CONFIG_H */

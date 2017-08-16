@@ -4,8 +4,16 @@
 
 #include "at_sms.h"
 #include "at_core.h"
+#include "at_modem.h"
 #include "at_toby201_sms_command.h"
 #include "sys.h"
+
+/*
+ * Delay between successive commands in milisecond, datasheet recommends atleast
+ * 20mS
+ */
+#define AT_COMM_DELAY_MS		20
+#define CHECK_MODEM_DELAY		5000	/* In ms, polling for modem */
 
 #define MAX_TRIES_MODEM_CONFIG	3		/* Retries at configuring modem */
 #define NET_REG_TIMEOUT_SEC	180000		/* Network registration timeout */
@@ -128,7 +136,7 @@ static void urc_cb(const char *urc)
 
 static at_ret_code check_network_registration(void)
 {
-	if (!at_core_query_netw_reg())
+	if (!at_modem_get_nstat())
 		return AT_FAILURE;
 
 	/* Restart modem if not registered to the network after timeout */
@@ -196,7 +204,7 @@ bool at_init(void)
 	msg.buf = buf;
 	msg.addr = addr;
 
-	if (!at_core_init(uart_cb, urc_cb))
+	if (!at_core_init(uart_cb, urc_cb, AT_COMM_DELAY_MS))
 		return false;
 
 	at_ret_code res = at_core_modem_reset();

@@ -12,10 +12,6 @@
 /* Default cloud polling time in miliseconds if supported by the protocol */
 uint32_t init_polling_ms;
 
-#ifdef PROTO_TIME_PROFILE
-static uint32_t proto_begin;
-#endif
-
 typedef struct service_dispatch_entry {
 	const cc_service_descriptor *descriptor;
 	cc_svc_callback_rtn app_callback;

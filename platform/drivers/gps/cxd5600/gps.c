@@ -6,122 +6,49 @@
 #include "gps_hal.h"
 #include "sys.h"
 #include "dbg.h"
-#include "uart_hal.h"
+#include "i2c_hal.h"
+#include "gpio_hal.h"
 #include "gps_config.h"
 
-#define GPS_RX_BUFFER_SIZE      2048
-#define GPS_SENTENCE_BUFFER_SIZE 128
-#define GPS_SEND_TIMEOUT_MS     2000
-#define GPS_RCV_TIMEOUT_MS      5000
+#define GPS_RX_BUFFER_SIZE		255
+#define GPS_SENTENCE_BUFFER_SIZE	128
+#define GPS_TIMEOUT_MS			5000
+#define GNSS_INT_POLL_STEP_MS		20
+#define GNSS_INT_POLL_TIME_MS		(2000+GNSS_INT_POLL_STEP_MS)
 
-typedef uint16_t buf_sz;
-static periph_t uart;
-static volatile bool received_gps_text;
+
+static periph_t i2c_handle;
+static uint8_t i2c_dest_addr;
+static pin_name_t gps_dor_pin;
+static pin_name_t gps_reset_pin;
+
 static uint8_t gps_text[GPS_RX_BUFFER_SIZE];
 static uint8_t sentence_buffer[GPS_SENTENCE_BUFFER_SIZE];
-
 static bool recvd_flag;
-static const uint8_t RCV_RESET[] = { 0xB5, 0x62, 0x06, 0x04, 0x04,
-					 0x00, 0x00, 0x01, 0x01,
-					 0x00, 0x10, 0x6b };
 
-static const uint8_t RMC_Off[]   = { 0XB5, 0X62, 0X06, 0X01, 0X08,
-					 0X00, 0XF0, 0X04, 0X00,
-					 0X00, 0X00, 0X00, 0X00,
-					 0X00, 0X03, 0X3F };
+static const uint8_t GNSS_CMD_GSP[] = "@GSP\r\n";
+static const uint8_t GNSS_CMD_GSTP[] = "@GSTP\r\n";
+static const uint8_t GNSS_CMD_GSP_RSP[] = "[GSP] Done";
+static const uint8_t GNSS_CMD_GSTP_RSP[] = "[GSTP] Done";
 
-static const uint8_t VTG_Off[]	= { 0XB5, 0X62, 0X06, 0X01, 0X08,
-					 0X00, 0XF0, 0X05, 0X00,
-					 0X00, 0X00, 0X00, 0X00,
-					 0X00, 0X04, 0X46 };
-
-static const uint8_t GSA_Off[]   = { 0XB5, 0X62, 0X06, 0X01, 0X08,
-					 0X00, 0XF0, 0X02, 0X00,
-					 0X00, 0X00, 0X00, 0X00,
-					 0X00, 0X01, 0X31 };
-
-static const uint8_t GSV_Off[]   = { 0XB5, 0X62, 0X06, 0X01, 0X08,
-					 0X00, 0XF0, 0X03, 0X00,
-					 0X00, 0X00, 0X00, 0X00,
-					 0X00, 0X02, 0X38 };
-
-static const uint8_t GLL_Off[]   = { 0XB5, 0X62, 0X06, 0X01, 0X08,
-					 0X00, 0XF0, 0X01, 0X00,
-					 0X00, 0X00, 0X00, 0X00,
-					 0X00, 0X00, 0X2A};
-
-static const uint8_t ZDA_Off[]   = { 0XB5, 0X62, 0X06, 0X01, 0X08,
-					 0X00, 0XF0, 0X08, 0X00,
-					 0X00, 0X00, 0X00, 0X00,
-					 0X00, 0X07, 0X5B };
-
-static const uint8_t GGA_Off[]   = { 0XB5, 0X62, 0X06, 0X01, 0X08,
-					 0X00, 0XF0, 0X00, 0X00,
-					 0X00, 0X00, 0X00, 0X00,
-					 0X00, 0XFF, 0X23};
-
-static const uint8_t GGA_On[]    = { 0XB5, 0X62, 0X06, 0X01, 0X08,
-					 0X00, 0XF0, 0X00, 0X00,
-					 0X01, 0X01, 0X00, 0X00,
-					 0X00, 0X01, 0X2C };
-
-/**
- * \brief Send data over GPS.
- * \details This is a blocking send. In case the modem blocks
- * the flow via hardware flow control, the call will block for
- * at most 'timeout_ms' milliseconds.
- *
- * \param[in] data - Pointer to the data to be sent.
- * \param[in] size - Number of bytes to send
- * \param[in] timeout_ms - Total number of milliseconds to wait before
- * giving up in case of a busy channel.
- *
- * \retval true Data was sent out successfully.
- * \retval false Send aborted due to timeout or null pointer
- * provided for data.
- */
-static bool gps_tx(const uint8_t *data, buf_sz size, uint16_t timeout_ms)
+static bool read_GPS_DOR_pin(uint16_t step_ms, uint16_t duration)
 {
-	if (!data)
+	uint16_t steps = 0;
+	uint16_t max_steps = 0;
+
+	if (step_ms && duration)
+		max_steps = duration/step_ms;
+
+	while (gpio_read(gps_dor_pin) != PIN_HIGH) {
+		if (step_ms && steps > max_steps)
+			break;
+		sys_delay(step_ms);
+		steps++;
+	}
+	if ((steps*step_ms) > duration)
 		return false;
-
-	if (size == 0)
-		return false;
-
-	if (uart_tx(uart, (uint8_t *)data, size, timeout_ms) != true)
-		return false;
-
-	return true;
-}
-
-/**
- * \brief Receive data from GPS.
- * \details This is a blocking receive. In case the receiver blocks the flow via
- * hardware flow control, the call will block for at most 'timeout_ms'
- * milliseconds.
- *
- * \param[in] data Pointer of the buffer to receive the data.
- * \param[in] size Number of bytes in buffer to receive the data.
- * \param[in] timeout_ms Total number of milliseconds to wait before giving up
- * in case of a busy channel.
- *
- * \retval true Data was received successfully.
- * \retval false Receive aborted due to timeout or null pointer was provided for
- * the data.
- *
- */
-static bool gps_rx(uint8_t *data, buf_sz size, uint16_t timeout_ms)
-{
-	if (!data)
-		return false;
-
-	if (size == 0)
-		return false;
-
-	if (uart_rx(uart, data, size, timeout_ms) != true)
-		return false;
-
-	return true;
+	else
+		return true;
 }
 
 static int fast_ceil(float num)
@@ -175,7 +102,7 @@ static void parse_time(char *p, struct parsed_nmea_t *parsed_nmea)
 	parsed_nmea->seconds = (time % 100);
 	parsed_nmea->milliseconds = float_mod((double) timef, 1.0) * 1000;
 	dbg_printf("GPS time: hour:%d min:%d sec:%d\n",
-		parsed_nmea->hour, parsed_nmea->minute, parsed_nmea->seconds);
+	parsed_nmea->hour, parsed_nmea->minute, parsed_nmea->seconds);
 }
 
 static char *parse_latitude(char *p, struct parsed_nmea_t *parsed_nmea,
@@ -265,7 +192,7 @@ static char *parse_longitude(char *p, struct parsed_nmea_t *parsed_nmea,
 			*retval = false;
 	}
 	dbg_printf("GPS Longitude: %f\n",
-		parsed_nmea->longitude_degrees);
+			parsed_nmea->longitude_degrees);
 	return p;
 }
 
@@ -324,7 +251,6 @@ static char *parse_RMC_param(char *p, struct parsed_nmea_t *parsed_nmea)
 		parsed_nmea->day = fulldate / 10000;
 		parsed_nmea->month = (fulldate % 10000) / 100;
 		parsed_nmea->year = (fulldate % 100);
-
 	}
 	dbg_printf("GPS speed: %f\n",
 		parsed_nmea->speed);
@@ -340,6 +266,7 @@ static bool validate_nmea(char *nmea)
 {
 	uint8_t len = strlen(nmea);
 	if (nmea[len-4] == '*') {
+
 		uint16_t sum = parse_hex(nmea[len-3]) * 16;
 		sum += parse_hex(nmea[len-2]);
 
@@ -356,7 +283,7 @@ static bool validate_nmea(char *nmea)
 }
 
 /**
- * \brief Receive and read new GPS NMEA and set the recvd_flag
+ * \brief Receive and read new GPS NMEA and set the recvd flag
  *
  * \retval true New NMEA was received successfully.
  * \retval false No new NMEA received.
@@ -365,7 +292,12 @@ static bool validate_nmea(char *nmea)
 static bool gps_new_NMEA_received()
 {
 	uint8_t *buffer = gps_text;
-	uart_rx(uart, buffer, GPS_RX_BUFFER_SIZE, GPS_RCV_TIMEOUT_MS);
+	if (!(i2c_master_read(i2c_handle, i2c_dest_addr,
+		 GPS_RX_BUFFER_SIZE, buffer))) {
+		dbg_printf("i2c_master_read failed\n");
+		return false;
+	}
+
 	int buffer_start_index = 0;
 	int buffer_end_index = 0;
 	for (int i = 0; i < GPS_RX_BUFFER_SIZE; i++) {
@@ -377,9 +309,10 @@ static bool gps_new_NMEA_received()
 
 	int32_t sz = buffer_end_index - buffer_start_index + 1;
 	dbg_printf("sentenceSize calculate = %ld\r\n", sz);
-	if (sz > 1)
+	if (sz > 1) {
 		memcpy(sentence_buffer, &buffer[buffer_start_index], sz);
-	recvd_flag = true;
+		recvd_flag = true;
+	}
 	return recvd_flag;
 }
 
@@ -396,7 +329,6 @@ static bool gps_new_NMEA_received()
  */
 static bool gps_parse_nmea(char *nmea, struct parsed_nmea_t *parsed_nmea)
 {
-
 	if (validate_nmea(nmea) == false)
 		return false;
 
@@ -477,66 +409,89 @@ static char *gps_last_NMEA(void)
 	return (char *)sentence_buffer;
 }
 
+/**
+ * \brief Sends the GPS command
+ *
+ * \retval true Command sent successfully.
+ * \retval false Command not sent successfully.
+ *
+ */
+static bool send_command(const uint8_t *cmd)
+{
+	uint8_t len = strlen((char *) cmd);
+	dbg_printf("Sent command %s\n", cmd);
+
+	/* Send command */
+	if (!(i2c_master_write(i2c_handle, i2c_dest_addr, len, cmd))) {
+		dbg_printf("i2c_master_write failed\n");
+		return false;
+	}
+	return true;
+}
+
+/**
+ * \brief Receive and verify GPS command Response
+ *
+ * \retval true Response is successful.
+ * \retval false Response is not successful.
+ *
+ */
+static bool verify_command_response(const uint8_t *response)
+{
+	if (read_GPS_DOR_pin(GNSS_INT_POLL_STEP_MS, GNSS_INT_POLL_TIME_MS)
+		 == false) {
+		dbg_printf("Response not received\n");
+		return false;
+	} else {
+		/* Receive the response */
+		memset(gps_text, 0, GPS_RX_BUFFER_SIZE);
+		uint8_t *buffer = gps_text;
+		if (!(i2c_master_read(i2c_handle, i2c_dest_addr,
+			 GPS_RX_BUFFER_SIZE, buffer))) {
+			dbg_printf("i2c_master_read failed\n");
+			return false;
+		}
+		if (strstr((char *)buffer, (char *)response)) {
+			dbg_printf("received %s\n", response);
+			return true;
+		} else {
+			dbg_printf("Invalid response received\n");
+			dbg_printf("%s\n", buffer);
+			return false;
+		}
+	}
+}
+
 bool gps_module_init()
 {
-	/* Configure UART for GPS */
-	const struct uart_pins pins = {
-		.tx = GPS_TX_PIN,
-		.rx = GPS_RX_PIN,
-		.rts = NC,
-		.cts = NC
-	};
-	const uart_config config = {
-		.baud = GPS_BAUD_RATE,
-		.data_width = GPS_UART_DATA_WIDTH,
-		.parity = GPS_UART_PARITY,
-		.stop_bits = GPS_UART_STOP_BITS_1,
-		.priority = GPS_UART_IRQ_PRIORITY,
-		.irq = false
-	};
-
-	uart = uart_init(&pins, &config);
-	if (uart == NO_PERIPH)
-		return false;
-
-	dbg_printf("GNSS: reset Neo-6M, allow only $GPGGA\n");
-	uint8_t buffer[20] = {0};
-
-	if (!gps_tx(RCV_RESET, sizeof(RCV_RESET), GPS_SEND_TIMEOUT_MS))
-		return false;
-	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS))
-		return false;
+	gps_reset_pin = GPS_RESET_PIN;
+	gpio_config_t reset_pin;
+	reset_pin.dir = OUTPUT;
+	reset_pin.pull_mode = PP_NO_PULL;
+	reset_pin.speed = SPEED_LOW;
+	gpio_init(gps_reset_pin, &reset_pin);
+	gpio_write(gps_reset_pin, PIN_HIGH);
 
 	sys_delay(2000);
+	gps_dor_pin = GPS_DOR_PIN;
+	gpio_config_t my_pin;
+	my_pin.dir = INPUT;
+	my_pin.pull_mode = PP_NO_PULL;
+	my_pin.speed = SPEED_LOW;
+	gpio_init(gps_dor_pin, &my_pin);
 
-	if (!gps_tx(RMC_Off, sizeof(RMC_Off), GPS_SEND_TIMEOUT_MS))
-		return false;
-	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS))
-		return false;
-
-	if (!gps_tx(VTG_Off, sizeof(VTG_Off), GPS_SEND_TIMEOUT_MS))
-		return false;
-	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS))
-		return false;
-
-	if (!gps_tx(GSA_Off, sizeof(GSA_Off), GPS_SEND_TIMEOUT_MS))
-		return false;
-	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS))
+	i2c_handle =  i2c_init(GPS_I2C_SCL, GPS_I2C_SDA, GPS_TIMEOUT_MS);
+	if (i2c_handle == NO_PERIPH)
 		return false;
 
-	if (!gps_tx(GSV_Off, sizeof(GSV_Off), GPS_SEND_TIMEOUT_MS))
-		return false;
-	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS))
+	dbg_printf("Reset CXD5600\n");
+	i2c_dest_addr = GPS_SLAVE_ADDR;
+
+	/* Send positioning command */
+	if (send_command(GNSS_CMD_GSP) == false)
 		return false;
 
-	if (!gps_tx(GLL_Off, sizeof(GLL_Off), GPS_SEND_TIMEOUT_MS))
-		return false;
-	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS))
-		return false;
-
-	if (!gps_tx(ZDA_Off, sizeof(ZDA_Off), GPS_SEND_TIMEOUT_MS))
-		return false;
-	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS))
+	if (verify_command_response(GNSS_CMD_GSP_RSP) == false)
 		return false;
 
 	recvd_flag   = false;
@@ -545,47 +500,56 @@ bool gps_module_init()
 
 bool gps_receive(struct parsed_nmea_t *parsedNEMA)
 {
+	if (i2c_handle == NO_PERIPH)
+		return false;
+
 	if (!parsedNEMA)
 		return false;
 
-	if (gps_new_NMEA_received() == true) {
-
-		/* Parse the new NMEA received
-		 * and copy the parsed information */
-		gps_parse_nmea(gps_last_NMEA(), parsedNEMA);
-		return true;
+	if (read_GPS_DOR_pin(GNSS_INT_POLL_STEP_MS, GNSS_INT_POLL_TIME_MS)
+		 == true) {
+		if (gps_new_NMEA_received() == true) {
+			/* Parse the new NMEA received
+			* and copy the parsed information */
+			gps_parse_nmea(gps_last_NMEA(), parsedNEMA);
+			return true;
+		}
 	}
 	return false;
 }
 
 bool gps_sleep(void)
 {
-	uint8_t buffer[20] = {0};
-
-	if (uart_tx(uart, (uint8_t *)GGA_Off,
-		 sizeof(GGA_Off), GPS_SEND_TIMEOUT_MS) != true)
+	if (i2c_handle == NO_PERIPH)
 		return false;
 
-	if (uart_rx(uart, buffer, sizeof(buffer),
-		 GPS_RCV_TIMEOUT_MS) != true)
+	/* Stop Positioning */
+	if (send_command(GNSS_CMD_GSTP) == false)
 		return false;
-
-	return true;
+	if (verify_command_response(GNSS_CMD_GSTP_RSP) == true)
+		return true;
+	else {
+		/* Retry once again */
+		if (verify_command_response(GNSS_CMD_GSTP_RSP) == true)
+			return true;
+		else
+			return false;
+	}
 }
 
 bool gps_wake(void)
 {
-
-	uint8_t buffer[20] = {0};
-
-	if (uart_tx(uart, (uint8_t *)GGA_On,
-		 sizeof(GGA_On), GPS_SEND_TIMEOUT_MS) != true)
+	if (i2c_handle == NO_PERIPH)
 		return false;
 
-	if (uart_rx(uart, buffer, sizeof(buffer),
-		 GPS_RCV_TIMEOUT_MS) != true)
+	/* Start positioning */
+	if (send_command(GNSS_CMD_GSP) == false)
 		return false;
 
+	if (verify_command_response(GNSS_CMD_GSP_RSP) == false)
+		return false;
+
+	recvd_flag   = false;
 	return true;
 }
 

@@ -60,7 +60,11 @@ static void my_debug(void *ctx, int level,
 }
 #endif
 
+#ifdef MODEM_SQMONARCH
+#define TIMEOUT_MS			30000
+#else
 #define TIMEOUT_MS			5000
+#endif
 
 #ifdef CALC_TLS_OVRHD_BYTES
 extern bool ovrhd_profile_flag;
@@ -334,6 +338,9 @@ static void mqtt_rcvd_msg(MessageData *md)
 	MQTTMessage *m = md->message;
 	PRINTF("%s:%d: received payloadlen: %d\n",
 		__func__, __LINE__, (int)m->payloadlen);
+
+	if ((int)m->payloadlen <= 0)
+		return;
 	if ((uint32_t)m->payloadlen > session.rcv_sz) {
 		dbg_printf("%s: %d: buffer overflow detected\n",
 				__func__, __LINE__);

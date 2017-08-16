@@ -15,6 +15,14 @@
 #include <string.h>
 #include "sys.h"
 #include "dbg.h"
+#include "at_modem.h"
+
+/*
+ * Delay between successive commands in milisecond, datasheet recommends atleast
+ * 20mS
+ */
+#define AT_COMM_DELAY_MS	20
+#define CHECK_MODEM_DELAY	5000	/* In ms, polling for modem */
 
 /*
  * Intermediate buffer to hold data from uart buffer when disconnect string
@@ -297,7 +305,7 @@ static void urc_callback(const char *urc)
 
 static inline at_ret_code __at_check_network_registration()
 {
-	if (at_core_query_netw_reg())
+	if (at_modem_get_nstat())
                 return AT_SUCCESS;
         return AT_FAILURE;
 }
@@ -363,7 +371,7 @@ bool at_init()
         dl.dl_buf.ridx= 0;
         dl.dis_state = DIS_IDLE;
 
-	bool res = at_core_init(at_uart_callback, urc_callback);
+	bool res = at_core_init(at_uart_callback, urc_callback, AT_COMM_DELAY_MS);
 	CHECK_SUCCESS(res, true, false);
 
         state = IDLE;
@@ -833,4 +841,16 @@ void at_tcp_close(int s_id)
 	state |= TCP_CONN_CLOSED;
 	__at_reset_dl_state();
 	return;
+}
+
+bool at_tcp_leave_cmd_mode(void)
+{
+	/* XXX: Stub for now */
+	return true;
+}
+
+bool at_tcp_enter_cmd_mode(void)
+{
+	/* XXX: Stub for now */
+	return true;
 }

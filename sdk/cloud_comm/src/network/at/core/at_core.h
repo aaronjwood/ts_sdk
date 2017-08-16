@@ -23,15 +23,6 @@ typedef enum at_return_codes {
         AT_RECHECK_MODEM
 } at_ret_code;
 
-#ifdef MODEM_TOBY201
-/*
- * Delay between successive commands in milisecond, datasheet recommends atleast
- * 20mS
- */
-#define AT_COMM_DELAY_MS	20
-#define CHECK_MODEM_DELAY	5000	/* in mili seconds, polling for modem */
-#endif
-
 #define MAX_RSP_LINE		2	/* Some command send response plus OK */
 #define AT_CORE_INV_PARAM	UART_INV_PARAM	/* Invalid parameter. */
 
@@ -150,12 +141,15 @@ typedef void (*at_urc_callback)(const char *urc);
  * Parameters:
  * 	rx_cb  - A pointer to the serial data receive callback
  * 	urc_cb - A pointer to the URC handler
+ * 	d_ms   - Minimum wait time in ms between two successive AT commands
  *
  * Returns:
  * 	True  - The AT core module was successfully initialized
  * 	False - There was an error initializing the module
+ *
+ * Note: This routine must be called before all other routines in this module.
  */
-bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb);
+bool at_core_init(at_rx_callback rx_cb, at_urc_callback urc_cb, uint32_t d_ms);
 
 /*
  * Reset the modem.
@@ -297,16 +291,4 @@ bool at_core_is_proc_urc(void);
  * 	False - The core AT module is not processing a response
  */
 bool at_core_is_proc_rsp(void);
-
-/*
- * Check if the modem is registered to the network.
- *
- * Parameters:
- * 	None
- *
- * Returns:
- * 	True  - The modem is registered to the network
- * 	False - The modem is not correctly registered to the network
- */
-bool at_core_query_netw_reg(void);
 #endif /* at_core.h */

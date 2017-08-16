@@ -26,8 +26,8 @@ export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 #CHIPSET_MCU="stm32l476rgt"
 #DEV_BOARD="nucleo"
 
-# Defines which modem to use. Currently only the ublox toby201 is supported.
-#MODEM_TARGET="toby201"
+# Defines which modem to use. Currently only the ublox toby201 and Sequans Monarch are supported.
+#MODEM_TARGET="toby201" | "sqmonarch"
 
 # Defines which operating system to use. Currently default os and FREE_RTOS is supported.
 #CHIPSET_OS="FREE_RTOS"
@@ -39,9 +39,10 @@ export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 # NO_PROTOCOL
 #PROTOCOL="OTT_PROTOCOL"
 
-# Defines which GPS chip to use. Currently only neo-6m is supported
-# for CHIPSET_MCU = stm32f415rgt.
-# GPS_CHIPSET="neo-6m"
+# Defines which GPS chip to use. neo-6m, cxd5600 are supported.
+# Currently for CHIPSET_MCU = stm32f415rgt GPS_CHIPSET=neo-6m
+# is supoorted and for CHIPSET_MCU = stm32l476rgt GPS_CHIPSET=cxd5600
+# is supported.
 
 usage()
 {
@@ -92,12 +93,12 @@ Usage:  source $SCRIPT_NAME Options
 
 	dev_board: Name of the development board
 
-	modem: LTE modem target, only "toby201" and "none" value supported
+	modem: LTE modem target, only "toby201", "sqmonarch" and "none" value supported
 
 	protocol: Cloud data transport protocol. Valid values are OTT_PROTOCOL,
 	SMSNAS_PROTOCOL, MQTT_PROTOCOL and NO_PROTOCOL
 
-	gps_chipset: Name of the GPS chipset. Currently only neo-6m value is supported.
+	gps_chipset: Name of the GPS chipset. Valid values are neo-6m and cxd5600.
 
 	os: Name of the OS. Currently only FREE_RTOS is supported.
 
