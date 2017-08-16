@@ -115,4 +115,28 @@ bool utils_get_chipset(char *value, uint32_t len);
  */
 bool utils_get_iccid(char *value, uint32_t len);
 
+/**
+ * \brief	Retrieves imsi information.
+ * \param[out] value:	valid buffer to store retrieved null formatted string.
+ * \param[in] len:	buffer length.
+ * \return    True if success and value contains valid value or false otherwise.
+ */
+bool utils_get_imsi(char *value, uint32_t len);
+
+/**
+ * \brief	Retrieves Firmware verison information.
+ * \param[out] value:	valid buffer to store retrieved null formatted string.
+ * \param[in] len:	buffer length.
+ * \return    True if success and value contains valid value or false otherwise.
+ */
+bool utils_get_fwbid(char *value, uint32_t len);
+
+/**
+ * \brief	Retrieves 4G signal strength information.
+ * \param[out] value:	valid buffer to store retrieved null formatted string.
+ * \param[in] len:	buffer length.
+ * \return    True if success and value contains valid value or false otherwise.
+ */
+bool utils_get_sis(char *value, uint32_t len);
+
 #endif

@@ -21,14 +21,18 @@ INSTALL_LIBRARY_PATH = $(DESTDIR)$(PREFIX)/$(LIBRARY_PATH)
 
 INSTALL ?= cp -a
 
+ifneq ($(DEV_BOARD),raspberry_pi3)
+    CFLAGS += -fno-stack-protector
+else
 # validate gcc version for use fstack-protector-strong
 MIN_GCC_VERSION = "4.9"
 GCC_VERSION := "`$(CC) -dumpversion`"
 IS_GCC_ABOVE_MIN_VERSION := $(shell expr "$(GCC_VERSION)" ">=" "$(MIN_GCC_VERSION)")
 ifeq "$(IS_GCC_ABOVE_MIN_VERSION)" "1"
-    CFLAGS += -fstack-protector-strong
+    CFLAGS += -fstack-protector-strong 
 else
     CFLAGS += -fstack-protector
+endif
 endif
 
 R_CFLAGS = -fPIC -std=c89 -pedantic -Wall -Werror -Wstrict-prototypes -Wwrite-strings -Wshadow -Winit-self -Wcast-align -Wformat=2 -Wmissing-prototypes -Wstrict-overflow=2 -Wcast-qual -Wc++-compat -Wundef -Wswitch-default -Wconversion $(CFLAGS)
@@ -71,14 +75,23 @@ tests: $(CJSON_TEST) $(UTILS_TEST)
 test: tests
 	./$(CJSON_TEST)
 	./$(UTILS_TEST)
-
+ifneq ($(DEV_BOARD),raspberry_pi3)
+.c.o:
+	$(CC) -c $(R_CFLAGS) $(ARCHFLAGS) $<
+else
 .c.o:
 	$(CC) -c $(R_CFLAGS) $<
+endif
 
 #tests
 #cJSON
+ifneq ($(DEV_BOARD),raspberry_pi3)
+$(CJSON_TEST): $(CJSON_TEST_SRC) cJSON.h
+	$(CC) $(R_CFLAGS)  $(ARCHFLAGS) $(CJSON_TEST_SRC)  -o $@ $(LDLIBS) -I.
+else
 $(CJSON_TEST): $(CJSON_TEST_SRC) cJSON.h
 	$(CC) $(R_CFLAGS) $(CJSON_TEST_SRC)  -o $@ $(LDLIBS) -I.
+endif
 
 #static libraries
 #cJSON
