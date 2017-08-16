@@ -9,6 +9,7 @@ Table of contents:
 2. SDK capabilties
         2.1 Supported targets
         2.2 Supported transports and protocols
+	2.3 Supported OS
 3. Repository layout
 4. Thingspace account and device management
 5. Building the SDK
@@ -81,6 +82,11 @@ The following targets are supported by the SDK:
         o SMSNAS - uses SMS as low level transport
         o MQTT - uses TCP/IP as low level transport
 
+2.3 Supported OS
+------------------------------------
+        o Default OS - uses default operating system.
+        o FreeRTOS - uses FreeRTOS operating system for
+	  thread creation and scheduling.
 
 3. Repository layout
 ---------------------

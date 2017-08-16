@@ -64,7 +64,7 @@ Description:
 
 Example Usage:
 source $SCRIPT_NAME chipset_family=<value> mcu=<> dev_board=<> modem=<> protocol=<>
-gps_chipset=<>
+gps_chipset=<> os=<>
 
 Short Cut Settings: This sets sdk default for chipset family, mcu, board and modem
 except transport protocol
@@ -98,6 +98,8 @@ Usage:  source $SCRIPT_NAME Options
 	SMSNAS_PROTOCOL, MQTT_PROTOCOL and NO_PROTOCOL
 
 	gps_chipset: Name of the GPS chipset. Currently only neo-6m value is supported.
+
+	os: Name of the OS. Currently only FREE_RTOS is supported.
 
 	Note: All the options must be present, there are no default values
 
