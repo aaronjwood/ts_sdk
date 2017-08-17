@@ -75,6 +75,7 @@ static struct {
 	proto_service_id send_svc_id;	/* Service id of last sent message */
 	uint8_t *rcv_buf;		/* receive buffer */
 	uint32_t rcv_sz;		/* size in bytes for above buffer */
+	uint64_t msg_sent;		/* timestamp when last message was sent */
 	proto_callback rcv_cb;		/* receive callback */
 	proto_callback send_cb;		/* send callback */
 } session;

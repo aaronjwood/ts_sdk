@@ -1,6 +1,8 @@
 #!/bin/bash
 # Copyright(C) 2017 Verizon. All rights reserved
 
+DOCKERFILE_BASEROOT="$PROJ_ROOT/tools/docker"
+
 MOUNT_DIR="$PROJ_ROOT/build"
 # default mount point for the chipset build environment to output build artifacts
 CHIPSET_BUILD_MOUNT="$MOUNT_DIR"
@@ -16,14 +18,15 @@ TS_SDK_IMAGE_NAME="ts_sdk"
 # this is used when creating tssdk client library
 TS_SDK_CLIENT_IMAGE_NAME="ts_sdk_client"
 
-RASPI_BASE_IMG="raspi_base"
+# raspberry pi 3 related docker base image
+RASPI_BASE_IMG="pi3_base"
 RPI_IMGID=$(docker images -q $RASPI_BASE_IMG)
-RPI_BRANCH="raspberrypi3_image"
-STM_BASE_IMG="vzlabs/ubuntu"
-STM_IMGID=$(docker images -q $STM_BASE_IMG)
-ST_BRANCH="stm32f4_images"
+RASPI_BASE_FILE="Dockerfile.pi3_base"
 
-BRANCH_NAME=
+# St micro related docker base image
+STM_BASE_IMG="stmicro_base"
+STM_IMGID=$(docker images -q $STM_BASE_IMG)
+STM_BASE_FILE="Dockerfile.stm_base"
 
 EXIT_CODE=
 
@@ -102,49 +105,34 @@ error_exit()
 
 }
 
-checkout_git()
+build_base_images()
 {
-	echo "Checking out $BRANCH_NAME for the first time, this may take few minutes..#######"
-
-	if [ -d del ]; then
-		rm -rf del
-	fi
-
-	mkdir del && cd del && git clone https://github.com/verizonlabs/docker_images.git
+	echo "Building docker image $IMAGE_NAME for the first time, this may take few minutes..#######"
+	docker build -t $1 -f $DOCKERFILE_BASEROOT/$2 $DOCKERFILE_BASEROOT
 	EXIT_CODE=$?
-	error_exit "docker images clone failed" "true" $EXIT_CODE
-
-	cd docker_images && git checkout $BRANCH_NAME
-	docker load --input *.tar
-	EXIT_CODE=$?
-	error_exit "Loading docker image failed" "true" $EXIT_CODE
-
-	rm -rf $PROJ_ROOT/del
-	EXIT_CODE=0
-	cd $PROJ_ROOT
+	error_exit "building docker base image $IMAGE_NAME failed" "true" $EXIT_CODE
 }
 
 check_docker_images_config()
 {
-	BRANCH_NAME=
-	LFS_SUPPORT=$(which git-lfs)
-	if [ -z "$LFS_SUPPORT" ]; then
-		error_exit "Install github large file support, follow https://git-lfs.github.com/" "false"
-	fi
+	IMAGE_NAME=
+	BASE_FILE=
 	if [ "$DEV_BOARD" = "raspberry_pi3" ]; then
 		if [ -z "$RPI_IMGID" ]; then
-			BRANCH_NAME=$RPI_BRANCH
+			IMAGE_NAME=$RASPI_BASE_IMG
+			BASE_FILE=$RASPI_BASE_FILE
 		fi
 	elif [ "$DEV_BOARD" = "nucleo" ] || [ "$DEV_BOARD" = "beduin" ]; then
 		if [ -z "$STM_IMGID" ]; then
-			BRANCH_NAME=$ST_BRANCH
+			IMAGE_NAME=$STM_BASE_IMG
+			BASE_FILE=$STM_BASE_FILE
 		fi
 	else
 		error_exit "Select valid DEV_BOARD" "false"
 	fi
 
-	if ! [ -z "$BRANCH_NAME" ]; then
-		checkout_git
+	if ! [ -z "$IMAGE_NAME" ]; then
+		build_base_images $IMAGE_NAME $BASE_FILE
 	fi
 }
 
