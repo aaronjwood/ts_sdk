@@ -36,7 +36,6 @@ uint64_t last_st_ts = 0;
 #define RESEND_CALIB   0x42
 
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
-CC_SEND_BUFFER(send_calbuffer, CC_MAX_SEND_BUF_SZ);
 CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 
 static bool resend_calibration;		/* Set if RESEND command was received */
@@ -148,7 +147,7 @@ static uint32_t send_all_sensor_data(uint32_t cur_ts)
 		resend_calibration = false;
 		dbg_printf("\tResending calibration data\n");
 		dbg_printf("\tCalibration table : %d bytes\n", caldata.sz);
-		send_with_retry(&send_calbuffer, caldata.sz, CC_SERVICE_BASIC);
+		send_with_retry(&send_buffer, caldata.sz, CC_SERVICE_BASIC);
 	}
 	last_st_ts = cur_ts;
 
@@ -168,7 +167,7 @@ static uint32_t read_all_sensor_data(uint32_t cur_ts)
 	dbg_printf("Reading Calibration data now \n");
 
 	/* Reading Sensor Calibration data */
-	caldata.bytes = cc_get_send_buffer_ptr(&send_calbuffer, CC_SERVICE_BASIC);
+	caldata.bytes = cc_get_send_buffer_ptr(&send_buffer, CC_SERVICE_BASIC);
 	ASSERT(si_read_calib(0, SEND_DATA_SZ, &caldata));
 
 	return STATUS_REPORT_INT_MS;
@@ -202,7 +201,7 @@ static void communication_init(void )
 	ASSERT(si_init());
 
 	dbg_printf("Sending out calibration data\n");
-	send_with_retry(&send_calbuffer, caldata.sz, CC_SERVICE_BASIC);
+	send_with_retry(&send_buffer, caldata.sz, CC_SERVICE_BASIC);
 }
 
 static void receive_and_wait_for_reporting(uint32_t next_report_interval)

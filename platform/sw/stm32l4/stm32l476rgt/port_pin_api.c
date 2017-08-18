@@ -24,7 +24,7 @@ static bool is_pin_name_valid(pin_name_t pin_name)
 			return false;
 		break;
 	case PORT_D:
-		if (pin >= NUM_PINS_PORT_D)
+		if (pin != PIN_NUM_IN_PORT_D)
 			return false;
 		break;
 	default:
@@ -189,7 +189,7 @@ periph_t pp_get_peripheral(pin_name_t pin_name, const pin_map_t *mapping)
 #define RET_ON_NOT_FOUND(val)	do { \
 	if ((val) == NC) \
 	return false; \
-} while(0)
+} while (0)
 
 bool pp_peripheral_pin_init(pin_name_t pin_name, const pin_map_t *mapping)
 {

@@ -29,7 +29,7 @@ export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 # Defines which modem to use. Currently only the ublox toby201 and Sequans Monarch are supported.
 #MODEM_TARGET="toby201" | "sqmonarch"
 
-# Defines which operating system to use. Currently default os and FREE_RTOS is supported.
+# Defines which operating system to use. Currently bare metal and FREE_RTOS is supported.
 #CHIPSET_OS="FREE_RTOS"
 
 # Defines which cloud protocol to use. Valid options are:

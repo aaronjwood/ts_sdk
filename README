@@ -84,7 +84,7 @@ The following targets are supported by the SDK:
 
 2.3 Supported OS
 ------------------------------------
-        o Default OS - uses default operating system.
+        o default - uses bare metal.
         o FreeRTOS - uses FreeRTOS operating system for
 	  thread creation and scheduling.
 
