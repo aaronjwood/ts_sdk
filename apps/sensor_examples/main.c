@@ -28,11 +28,9 @@ enum {
 osThreadId reader_thread1_handle, sender_thread2_handle;
 static void reader_thread1(void const *argument);
 static void sender_thread2(void const *argument);
-uint32_t last_st_ts = 0;
-#else
-uint64_t last_st_ts = 0;
 #endif
 
+uint64_t last_st_ts = 0;
 #define RESEND_CALIB   0x42
 
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
@@ -128,7 +126,7 @@ static void send_with_retry(cc_buffer_desc *b, cc_data_sz s, cc_service_id id)
 
 static array_t data;
 static array_t caldata;
-static uint32_t send_all_sensor_data(uint32_t cur_ts)
+static uint32_t send_all_sensor_data(uint64_t cur_ts)
 {
 	if (last_st_ts != 0) {
 		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS) {
@@ -154,7 +152,7 @@ static uint32_t send_all_sensor_data(uint32_t cur_ts)
 	return STATUS_REPORT_INT_MS;
 }
 
-static uint32_t read_all_sensor_data(uint32_t cur_ts)
+static uint32_t read_all_sensor_data(void)
 {
 	data.bytes = cc_get_send_buffer_ptr(&send_buffer, CC_SERVICE_BASIC);
 	dbg_printf("Reading sensor data\n");
@@ -162,9 +160,9 @@ static uint32_t read_all_sensor_data(uint32_t cur_ts)
 		ASSERT(si_read_data(i, SEND_DATA_SZ, &data));
 		dbg_printf("\tSensor [%d], ", i);
 	}
-	dbg_printf("\n\tReading Sensor data Completed \n");
+	dbg_printf("\n\tReading Sensor data Completed\n");
 
-	dbg_printf("Reading Calibration data now \n");
+	dbg_printf("Reading Calibration data now\n");
 
 	/* Reading Sensor Calibration data */
 	caldata.bytes = cc_get_send_buffer_ptr(&send_buffer, CC_SERVICE_BASIC);
@@ -173,7 +171,7 @@ static uint32_t read_all_sensor_data(uint32_t cur_ts)
 	return STATUS_REPORT_INT_MS;
 }
 
-static void communication_init(void )
+static void communication_init(void)
 {
 	dbg_printf("Initializing communications module\n");
 	ASSERT(cc_init(ctrl_cb));
@@ -244,7 +242,7 @@ static void reader_thread1(void const *argument)
 	(void) argument;
 
 	while (1) {
-		read_all_sensor_data(sys_get_tick_ms());
+		read_all_sensor_data();
 
 		/* Resume Thread 2 */
 		osThreadResume(sender_thread2_handle);
@@ -302,7 +300,7 @@ static void create_threads(void)
 }
 #endif
 
-int main(int argc, char *argv[])
+int main(void)
 {
 	sys_init();
 	dbg_module_init();
@@ -313,10 +311,10 @@ int main(int argc, char *argv[])
 #else
 	uint32_t next_report_interval = 0;	/* Interval in ms */
 
-	read_all_sensor_data(sys_get_tick_ms());
+	read_all_sensor_data();
 	communication_init();
 	while (1) {
-		read_all_sensor_data(sys_get_tick_ms());
+		read_all_sensor_data();
 		next_report_interval = send_all_sensor_data(
 							sys_get_tick_ms());
 		receive_and_wait_for_reporting(next_report_interval);
