@@ -99,8 +99,10 @@ Usage:  source $SCRIPT_NAME Options
 	SMSNAS_PROTOCOL, MQTT_PROTOCOL and NO_PROTOCOL
 
 	gps_chipset: Name of the GPS chipset. Valid values are neo-6m and cxd5600.
+	Leave it blank for no gps chipset.
 
-	os: Name of the OS. Currently only FREE_RTOS is supported.
+	os: Name of the OS. Currently FREE_RTOS and bare-metal is supported.
+	This is optional, Valid values are : FREE_RTOS or leave it blank of no os.
 
 	Note: All the options must be present, there are no default values
 
