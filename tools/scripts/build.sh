@@ -34,6 +34,10 @@ if [ "$CHIPSET_FAMILY" = "stm32l4" ]; then
 	CHIPSET_HAL_DIR="$PROJ_ROOT/targets/stmicro/chipset/stm32l4/chipset_hal"
 	CHIPSET_ROOT="$PROJ_ROOT/targets/stmicro/chipset/stm32l4"
 	CHIPSET_STM32L4_BRANCH="stm32l4_chipset"
+elif [ "$CHIPSET_FAMILY" = "stm32f4" ]; then
+	CHIPSET_HAL_DIR="$PROJ_ROOT/targets/stmicro/chipset/stm32f4/chipset_hal"
+	CHIPSET_ROOT="$PROJ_ROOT/targets/stmicro/chipset/stm32f4"
+	CHIPSET_STM32F4_BRANCH="stm32f4_chipset"
 fi
 
 usage()
@@ -207,7 +211,12 @@ check_docker_images_config
 checkout_chipset_hal()
 {
 	if [ $CHIPSET_FAMILY = 'stm32l4' ]; then
-		if [ ! -d $CHIPSET_HAL_DIR ]; then
+		if [ -d $CHIPSET_HAL_DIR ] && [ -d $CHIPSET_HAL_DIR/STM32Cube_FW_L4_V1.8.0 ]; then
+			echo "chipset is already present"
+		else
+			if [ -d $CHIPSET_HAL_DIR ]; then
+				rm -rf $CHIPSET_HAL_DIR
+			fi
 			echo "Checking out chipset halfiles, takes approx 90 seconds..."
 			BRANCH_NAME=$CHIPSET_STM32L4_BRANCH
 			cd $CHIPSET_ROOT && git clone https://github.com/verizonlabs/chipset_hal.git
@@ -225,8 +234,31 @@ checkout_chipset_hal()
 
 			rm STM32Cube_FW_L4_V1.8.0.tar.bz2
 			cd $PROJ_ROOT
+		fi
+	elif [ $CHIPSET_FAMILY = 'stm32f4' ]; then
+		if [ -d $CHIPSET_HAL_DIR ] && [ -d $CHIPSET_HAL_DIR/STM32Cube_FW_F4_V1.16.0 ]; then
+			echo "chipset is already present"
 		else
-			echo "chipset_hal folder is already existing"
+			if [ -d $CHIPSET_HAL_DIR ]; then
+				rm -rf $CHIPSET_HAL_DIR
+			fi
+			echo "Checking out chipset halfiles, takes approx 90 seconds..."
+			BRANCH_NAME=$CHIPSET_STM32F4_BRANCH
+			cd $CHIPSET_ROOT && git clone https://github.com/verizonlabs/chipset_hal.git
+			EXIT_CODE=$?
+			error_exit "chipset_hal images clone failed" "true" $EXIT_CODE
+
+			echo "Checking out $BRANCH_NAME branch ..."
+			cd chipset_hal && git checkout $BRANCH_NAME
+			EXIT_CODE=$?
+			error_exit "git checkout failed" "true" $EXIT_CODE
+
+			tar -xjf STM32Cube_FW_F4_V1.16.0.tar.bz2
+			EXIT_CODE=$?
+			error_exit "Untarring of chipset hal image is failed" "true" $EXIT_CODE
+
+			rm STM32Cube_FW_F4_V1.16.0.tar.bz2
+			cd $PROJ_ROOT
 		fi
 	fi
 }

@@ -1,10 +1,12 @@
 FROM stmicro_base:latest
 RUN mkdir -p ts_sdk_bldenv
-COPY targets/stmicro/chipset /ts_sdk_bldenv/
+COPY targets/stmicro/chipset/stm32f4 /ts_sdk_bldenv/stm32f4
 COPY platform/sw/stm32f4 /ts_sdk_bldenv/
 ENV CHIPSET_MCU=$(CHIPSET_MCU)
-CMD cd /ts_sdk_bldenv/stm32f4 && make clean && make all \
+CMD cp /ts_sdk_bldenv/stm32f4/chipset_hal/STM32Cube_FW_F4_V1.16.0/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_conf_template.h /ts_sdk_bldenv/stm32f4/chipset_hal/STM32Cube_FW_F4_V1.16.0/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_conf.h \
         && mkdir -p /build/stm32f4 \
+	&& cd /ts_sdk_bldenv/stm32f4 && make clean && make all \
         && cp ./build/lib$CHIPSET_MCU.a /build/stm32f4/ \
-        && (find . -name '*.h' -print | tar --create --files-from -) | (cd /build/stm32f4/ && tar xvfp -) \
-        && cp ldscript/*.ld /build/stm32f4/
+        && (find chipset_hal/STM32Cube_FW_F4_V1.16.0/Drivers -name '*.h' -print | tar --create --files-from -) | (cd /build/stm32f4/ && tar xvfp -) \
+	&& cp chipset_hal/STM32Cube_FW_F4_V1.16.0/Projects/STM32F429ZI-Nucleo/Templates/SW4STM32/STM32F429ZI_Nucleo_144/*.ld /build/stm32f4/ \
+        && cp chipset_hal/STM32F415RGTx_FLASH.ld /build/stm32f4/

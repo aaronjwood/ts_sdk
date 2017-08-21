@@ -3,6 +3,7 @@
 #include <stm32f4xx_hal.h>
 #include "dbg.h"
 #include "timer_hal.h"
+#include "gpio_hal.h"
 #include "timer_interface.h"
 #include "board_config.h"
 
