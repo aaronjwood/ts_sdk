@@ -56,7 +56,7 @@ static oem_hash_table_t hash_table_char[CHAR_BUCKET_SZ][CHAR_CHAIN_SZ];
 * Tools (Reading, MA: Addison-Wesley,1986)
 */
 static int hash_function(const char *key, int buck_sz)
-	{
+{
 	if (!key)
 		return INVALID;
 	const char *ptr = key;
@@ -302,8 +302,10 @@ char *oem_get_profile_info_in_json(const char *profile)
 		return NULL;
 	cJSON *payload = cJSON_CreateObject();
 	cJSON *item = cJSON_CreateObject();
-	if (!payload || !item)
+	if (!item){
+		cJSON_Delete(payload);
 		return NULL;
+	}
 	const char *prof_name = NULL;
 	const char *char_name = NULL;
 	prof_name = oem_prof_data[pro_id].grp_short_name;
