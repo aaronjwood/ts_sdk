@@ -228,7 +228,7 @@ static void init_ipaddr_profile(void)
 	int val_sz = sizeof(oem_prof_data[IPADDR_INDEX].oem_char[IP].value);
 	memset(oem_prof_data[IPADDR_INDEX].oem_char[IP].value, 0, val_sz);
 	if (!utils_get_ip_addr(oem_prof_data[IPADDR_INDEX].oem_char[IP].value,
-		val_sz, NET_INTFC)) {
+		val_sz, 0)) {
 		strncpy(oem_prof_data[IPADDR_INDEX].oem_char[IP].value, "N/A",
 			strlen("N/A"));
 	}

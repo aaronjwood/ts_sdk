@@ -108,7 +108,6 @@ NW_PROF_END + STRG_PROF_END + IP_PROF_END)
 
 #define IP_BUF_SZ       18
 #define DEV_ID_SZ       14
-#define NET_INTFC       "eth0"
 #define INVALID         -1
 
 static oem_char_t g_chrt_device_info[DEV_PROF_END] = {
@@ -196,7 +195,7 @@ static oem_char_t g_chrt_device_info[DEV_PROF_END] = {
 
 static oem_char_t g_chrt_ipaddr[IP_PROF_END] = {
 	[IP] = {
-		"ETH0IP",
+		"IP",
 		"N/A"
 	}
 };

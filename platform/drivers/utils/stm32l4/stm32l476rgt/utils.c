@@ -35,6 +35,7 @@ bool utils_get_device_id(char *id, uint8_t len, char *interface)
 	char d_id[21];
 	int i=0;
 	if ((at_modem_get_imei(d_id))) {
+		/* Removing leading zeros from imei to support thingspace portal */
 		while(d_id[i] == '0')
 			i++;
 		snprintf(id, len, "%s", &d_id[i]);
