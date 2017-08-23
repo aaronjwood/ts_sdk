@@ -151,7 +151,8 @@ static uint32_t send_all_sensor_data(uint64_t cur_ts)
 	}
 	dbg_printf("Sending sensor data\n");
 	for (uint8_t i = 0; i < si_get_num_sensors(); i++) {
-		data.bytes = cc_get_send_buffer_ptr(&send_buffer, CC_SERVICE_BASIC);
+		data.bytes = cc_get_send_buffer_ptr(&send_buffer,
+				CC_SERVICE_BASIC);
 		data.sz = read_data[i].sz;
 		for (uint8_t idx = 0; idx < data.sz; idx++)
 			data.bytes[idx] = read_data[i].bytes[idx];
@@ -315,7 +316,9 @@ static void create_threads(void)
 	osKernelStart();
 
 	while (1) {
-	/* We should never get here as control is now taken by the scheduler */
+		/* We should never get here as control is now taken by the
+		 * scheduler
+		 */
 	}
 }
 #endif
