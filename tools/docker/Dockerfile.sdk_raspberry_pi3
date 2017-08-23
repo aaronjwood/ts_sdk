@@ -1,4 +1,4 @@
-FROM raspi_base:latest
+FROM pi3_base:latest
 RUN mkdir -p ts_sdk
 COPY sdk /ts_sdk/sdk
 COPY platform /ts_sdk/platform

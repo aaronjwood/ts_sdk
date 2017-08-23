@@ -146,9 +146,9 @@ proto_result mqtt_send_status_msg_to_cloud(const void *buf, uint32_t sz,
  * decides to sleep for example or relinquish protocol control.
  *
  * Parameters:
- *
+ *      cur_ts : Current timestamp in ms since the power up
  */
-void mqtt_maintenance(void);
+void mqtt_maintenance(uint64_t cur_ts);
 
 /*
  * Close the connection

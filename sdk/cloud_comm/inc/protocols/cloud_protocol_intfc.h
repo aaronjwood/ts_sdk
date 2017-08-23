@@ -199,8 +199,7 @@
 
 #define PROTO_MAINTENANCE(poll_due, cur_ts) do { \
         (void)(poll_due); \
-        (void)(cur_ts); \
-        mqtt_maintenance(); \
+        mqtt_maintenance(cur_ts); \
 } while(0)
 
 #else
