@@ -202,29 +202,21 @@ void SysTick_Handler(void)
 void HardFault_Handler(void)
 {
 	ASSERT(0);
-	while (1)
-		;
 }
 
 void MemManage_Handler(void)
 {
 	ASSERT(0);
-	while (1)
-		;
 }
 
 void BusFault_Handler(void)
 {
 	ASSERT(0);
-	while (1)
-		;
 }
 
 void UsageFault_Handler(void)
 {
 	ASSERT(0);
-	while (1)
-		;
 }
 
 void dsb()

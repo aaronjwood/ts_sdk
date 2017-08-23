@@ -23,7 +23,7 @@ paho_mqtt:
 cJSON:
 	@echo "[Building the cJSON library.]"
 	$(MAKE) -C $(VENDOR_ROOT)/cJSON static \
-	CFLAGS='-g -ggdb3 $(ARCHFLAGS) $(MDEF)'
+	CFLAGS='$(ARCHFLAGS) $(MDEF)'
 	cp $(VENDOR_ROOT)/cJSON/libcjson.a $(SRCDIR)/build
 clean:
 	@echo "[Cleaning vendor libraries.]"

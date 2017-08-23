@@ -29,6 +29,9 @@ bool utils_get_ip_addr(char *ipaddr, uint8_t length, const char *interface)
 
 bool utils_get_device_id(char *id, uint8_t len, char *interface)
 {
+	if (!id || (len == 0))
+                return false;
+
 	char d_id[21];
 	int i=0;
 	if ((at_modem_get_imei(d_id))) {

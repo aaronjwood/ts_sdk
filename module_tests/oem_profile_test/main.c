@@ -20,7 +20,6 @@ int main(void)
 	#if defined(sqmonarch) || defined(toby201)
 		if (!at_init()) {
 			fatal_err("Modem init failed, looping forever\n");
-			ASSERT(0);
 		}
 	#endif
 
