@@ -15,6 +15,11 @@ typedef struct {
 	uint8_t *bytes;		/* Pointer to the data buffer */
 } array_t;
 
+#define MAX_DATA_SZ 100
+typedef struct {
+	uint8_t sz;		/* Number of bytes contained in the data buffer */
+	uint8_t bytes[MAX_DATA_SZ];	/* Array the data buffer */
+} read_array_t;
 /*
  * Initialize the sensor(s) specified in the mask along with the underlying
  * hardware used to communicate with the sensor. This function will be called

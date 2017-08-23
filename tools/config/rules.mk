@@ -19,9 +19,9 @@ endif
 
 ifneq ($(CHIPSET_OS),)
 ifeq ($(CHIPSET_OS),FREE_RTOS)
-DEF_FLAG_MCU = -D$(CHIPSET_OS)
+DEF_FLAG_MCU += -D$(CHIPSET_OS)
 else
-#	error " $(CHIPSET_OS) operting System is not supported")
+	$(error "$(CHIPSET_OS) operting System is not supported")
 endif
 endif
 

@@ -125,8 +125,22 @@ static void send_with_retry(cc_buffer_desc *b, cc_data_sz s, cc_service_id id)
 		dbg_printf("\t%s: Failed to send message.\n", __func__);
 }
 
+#define MAX_NUM_SENSORS 10
 static array_t data;
-static array_t caldata;
+static read_array_t read_data[MAX_NUM_SENSORS];
+static read_array_t caldata;
+
+static void send_all_calibration_data(void)
+{
+	array_t data;
+	data.bytes = cc_get_send_buffer_ptr(&send_buffer, CC_SERVICE_BASIC);
+	data.sz = caldata.sz;
+	for (uint8_t idx = 0; idx < caldata.sz; idx++)
+		data.bytes[idx] = caldata.bytes[idx];
+	dbg_printf("\tCalibration table : %d bytes\n", data.sz);
+	send_with_retry(&send_buffer, data.sz, CC_SERVICE_BASIC);
+}
+
 static uint32_t send_all_sensor_data(uint64_t cur_ts)
 {
 	if (last_st_ts != 0) {
@@ -137,6 +151,10 @@ static uint32_t send_all_sensor_data(uint64_t cur_ts)
 	}
 	dbg_printf("Sending sensor data\n");
 	for (uint8_t i = 0; i < si_get_num_sensors(); i++) {
+		data.bytes = cc_get_send_buffer_ptr(&send_buffer, CC_SERVICE_BASIC);
+		data.sz = read_data[i].sz;
+		for (uint8_t idx = 0; idx < data.sz; idx++)
+			data.bytes[idx] = read_data[i].bytes[idx];
 		dbg_printf("\tSensor [%d], ", i);
 		dbg_printf("sending out status message : %d bytes\n", data.sz);
 		send_with_retry(&send_buffer, data.sz, CC_SERVICE_BASIC);
@@ -145,20 +163,20 @@ static uint32_t send_all_sensor_data(uint64_t cur_ts)
 	if (resend_calibration) {
 		resend_calibration = false;
 		dbg_printf("\tResending calibration data\n");
-		dbg_printf("\tCalibration table : %d bytes\n", caldata.sz);
-		send_with_retry(&send_buffer, caldata.sz, CC_SERVICE_BASIC);
+		send_all_calibration_data();
 	}
 	last_st_ts = cur_ts;
 
 	return STATUS_REPORT_INT_MS;
 }
 
-static uint32_t read_all_sensor_data(void)
+static uint32_t read_all_sensor_data()
 {
-	data.bytes = cc_get_send_buffer_ptr(&send_buffer, CC_SERVICE_BASIC);
 	dbg_printf("Reading sensor data\n");
 	for (uint8_t i = 0; i < si_get_num_sensors(); i++) {
+		data.bytes = read_data[i].bytes;
 		ASSERT(si_read_data(i, SEND_DATA_SZ, &data));
+		read_data[i].sz = data.sz;
 		dbg_printf("\tSensor [%d], ", i);
 	}
 	dbg_printf("\n\tReading Sensor data Completed\n");
@@ -166,8 +184,9 @@ static uint32_t read_all_sensor_data(void)
 	dbg_printf("Reading Calibration data now\n");
 
 	/* Reading Sensor Calibration data */
-	caldata.bytes = cc_get_send_buffer_ptr(&cal_send_buffer, CC_SERVICE_BASIC);
-	ASSERT(si_read_calib(0, SEND_DATA_SZ, &caldata));
+	data.bytes = caldata.bytes;
+	ASSERT(si_read_calib(0, SEND_DATA_SZ, &data));
+	caldata.sz = data.sz;
 
 	return STATUS_REPORT_INT_MS;
 }
@@ -200,7 +219,7 @@ static void communication_init(void)
 	ASSERT(si_init());
 
 	dbg_printf("Sending out calibration data\n");
-	send_with_retry(&send_buffer, caldata.sz, CC_SERVICE_BASIC);
+	send_all_calibration_data();
 }
 
 static void receive_and_wait_for_reporting(uint32_t next_report_interval)
