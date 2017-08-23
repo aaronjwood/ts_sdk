@@ -102,7 +102,7 @@ Usage:  source $SCRIPT_NAME Options
 	Leave it blank for no gps chipset.
 
 	os: Name of the OS. Currently FREE_RTOS and bare-metal is supported.
-	This is optional, Valid values are : FREE_RTOS or leave it blank of no os.
+	This is optional, Valid values are : FREE_RTOS or leave it blank if no os.
 
 	Note: All the options must be present, there are no default values
 
