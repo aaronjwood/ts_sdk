@@ -34,18 +34,18 @@ MODEM_INC += -I $(MODEM_INC_ROOT)
 MODEM_INC += -I $(MODEM_SRC_ROOT)/at -I $(MODEM_SRC_ROOT)/at/core
 endif
 
+ifeq ($(MODEM_PROTOCOL),sms)
+MODEM_SRC += smscodec.c
+MODEM_INC += -I $(MODEM_SRC_ROOT)/at/smscodec
+endif
+endif
+
 # All TCP currently uses "TCP over AT commands" for TLS.
 # Provide the network abstraction module used by the TLS library.
 # Only relevant if the vendor library "mbedtls" is included.
 ifeq ($(MODEM_PROTOCOL),tcp)
 ifneq (,$(findstring mbedtls,$(VENDOR_LIB_DIRS)))
 MODEM_SRC += net_mbedtls_$(NET_OS).c
-endif
-endif
-
-ifeq ($(MODEM_PROTOCOL),sms)
-MODEM_SRC += smscodec.c
-MODEM_INC += -I $(MODEM_SRC_ROOT)/at/smscodec
 endif
 endif
 

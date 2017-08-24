@@ -60,6 +60,7 @@ static void my_debug(void *ctx, int level,
 }
 #endif
 
+/* Special care for cat m1 modem as they are slow */
 #ifdef MODEM_SQMONARCH
 #define TIMEOUT_MS			30000
 #else
