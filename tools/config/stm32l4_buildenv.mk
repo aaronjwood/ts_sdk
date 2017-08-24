@@ -16,11 +16,14 @@ STM32_CMSIS = $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/CMSIS/Device/ST
 
 # Compiler, assembler, object code dumper and object code section copier
 CC = $(GCC_ROOT)/bin/arm-none-eabi-gcc
+AS = $(GCC_ROOT)/bin/arm-none-eabi-as
+AR = $(GCC_ROOT)/bin/arm-none-eabi-ar
+RANLIB = $(GCC_ROOT)/bin/arm-none-eabi-ranlib
 OBJDUMP = $(GCC_ROOT)/bin/arm-none-eabi-objdump
 OBJCOPY = $(GCC_ROOT)/bin/arm-none-eabi-objcopy
 SIZE = $(GCC_ROOT)/bin/arm-none-eabi-size
 
-export CC OBJDUMP OBJCOPY SIZE
+export CC AS AR RANLIB OBJDUMP OBJCOPY SIZE
 
 
 # Machine specific compiler, assembler settings and Linker script
