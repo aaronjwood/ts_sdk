@@ -163,17 +163,6 @@ static uint32_t send_all_sensor_data(uint64_t cur_ts)
 		dbg_printf("sending out status message : %d bytes\n",
 			data[i].sz);
 		send_with_retry(&send_buffer, data[i].sz, CC_SERVICE_BASIC);
-	for (int in = 0; in < caldata.sz ; in++)
-	{
-		dbg_printf("After calibration data[%d] = %x\n", in, \
-							caldata.bytes[in]);
-	}
-		dbg_printf("After reading sensor data[%d] size = %x\n",i, data[i].sz);
-	for (int idx = 0; idx < data[i].sz ; idx++)
-	{
-		dbg_printf("After reading sensor data[%d] = %x\n", i, \
-							data[i].bytes[idx]);
-	}
 	}
 
 	if (resend_calibration) {
