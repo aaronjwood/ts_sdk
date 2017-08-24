@@ -22,9 +22,11 @@ RANLIB = $(GCC_ROOT)/bin/arm-none-eabi-ranlib
 OBJDUMP = $(GCC_ROOT)/bin/arm-none-eabi-objdump
 OBJCOPY = $(GCC_ROOT)/bin/arm-none-eabi-objcopy
 SIZE = $(GCC_ROOT)/bin/arm-none-eabi-size
+export CC AS AR RANLIB OBJDUMP OBJCOPY SIZE
 
 # Machine specific compiler and assembler settings
 ARCHFLAGS = -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
+export ARCHFLAGS
 
 # Point to the C Runtime startup code
 ifeq ($(CHIPSET_MCU),stm32l476rgt)

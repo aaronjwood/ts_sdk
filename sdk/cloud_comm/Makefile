@@ -10,10 +10,10 @@ else
 
 # Selecting platform according to CHIPSET_FAMILY
 ifeq ($(CHIPSET_FAMILY),stm32f4)
-CHIPSET_BUILDENV=/ts_sdk_bldenv/
+CHIPSET_BUILDENV=/ts_sdk_bldenv
 include $(TARGET_ROOT)/stmicro/chipset/$(CHIPSET_FAMILY)/common_stm32f4.mk
 else ifeq ($(CHIPSET_FAMILY),stm32l4)
-CHIPSET_BUILDENV=/ts_sdk_bldenv/
+CHIPSET_BUILDENV=/ts_sdk_bldenv
 include $(TARGET_ROOT)/stmicro/chipset/$(CHIPSET_FAMILY)/common_stm32l4.mk
 else ifeq ($(CHIPSET_FAMILY),osx)
 include $(MK_HELPER_PATH)/osx_buildenv.mk
@@ -84,25 +84,34 @@ endif
 INC += -I $(INSTALL_PATH)/include
 export INC
 
+OBJ = $(OBJ_SDKLIB) $(OBJ_STARTUP)
+
 # Create lists of object files to be generated from the sources
 OBJ_SDKLIB = $(addsuffix .o, $(basename $(CORELIB_SRC)))
 
-CFLAGS_COM = -Wall -Wcast-align -Werror -std=c99 $(CFLAGS_SDK) $(INC) $(SDK_INC) \
-	-D$(PROTOCOL) -D$(MODEM) -D$(DEV_BOARD)
+CFLAGS_COM = -Werror -std=c99 $(CFLAGS_SDK) $(INC) $(SDK_INC) \
+	-D$(PROTOCOL) -D$(MODEM) -D$(DEV_BOARD) -D$(CHIPSET_MCU)
+CFLAGS_CHIPSET = -Os $(CFLAGS_COM) $(DBG_OP_LIB_FLAGS) \
+        -fdata-sections -ffunction-sections
 
+NOSYSLIB =  -Wl,--gc-sections -Wl,--as-needed --specs=nosys.specs --specs=nano.specs
 #==================================RULES=======================================#
 .PHONY: all build clean
 
-all build: $(OBJ_SDKLIB) vendor_libs libsdk.a install
+all build: $(OBJ) vendor_libs libsdk.a install
 print-%: ; @echo $* = $($*)
+
 
 #yes, make one big blob, let user strip off unused objects
 libsdk.a:
 	$(AR) rcs $@ $(shell find $(PROJ_ROOT)/sdk/cloud_comm/build/ -name "*.o") \
 	$(shell find $(PROJ_ROOT)/sdk/cloud_comm/vendor/* -name "*.o")
 
+$(OBJ_STARTUP):
+	$(AS) -c $(ARCHFLAGS) -o $(OBJ_STARTUP) $(STARTUP_SRC)
+
 $(OBJ_SDKLIB): %.o: %.c
-	$(CC) -c $(CFLAGS_COM) $< -o $@
+	$(CC) -c $(CFLAGS_CHIPSET) $(ARCHFLAGS) $(MDEF) $< -o $@
 
 vendor_libs:
 ifdef VENDOR_LIB_DIRS
@@ -125,6 +134,9 @@ install: install_platform
 	cp -r $(SDK_ROOT)/inc/services/*.h $(INSTALL_PATH)/$(INSTALL_INCLUDE)
 	cp -r $(SDK_ROOT)/inc/protocols/$(PROT_DIR)/$(LIMIT_INC) $(INSTALL_PATH)/$(INSTALL_INCLUDE)
 	cp -r $(SDK_ROOT)/inc/protocols/protocol_def.h $(INSTALL_PATH)/$(INSTALL_INCLUDE)
+	cp -r $(PROJ_ROOT)/platform/sw/*.h $(INSTALL_PATH)/$(INSTALL_INCLUDE)
+	cp -r $(PROJ_ROOT)/platform/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/*.h $(INSTALL_PATH)/$(INSTALL_INCLUDE)
+	cp $(PROJ_ROOT)/ldscript/*.ld $(INSTALL_PATH)/$(INSTALL_LIB)
 	cp $(SDK_ROOT)/build/libsdk.a $(INSTALL_PATH)/$(INSTALL_LIB)
 	cp -r $(INSTALL_PATH) $(TARGET_PATH)
 
