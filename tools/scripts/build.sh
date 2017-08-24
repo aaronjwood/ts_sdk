@@ -1,6 +1,8 @@
 #!/bin/bash
 # Copyright(C) 2017 Verizon. All rights reserved
 
+DOCKERFILE_BASEROOT="$PROJ_ROOT/tools/docker"
+
 MOUNT_DIR="$PROJ_ROOT/build"
 # default mount point for the chipset build environment to output build artifacts
 CHIPSET_BUILD_MOUNT="$MOUNT_DIR"
@@ -16,14 +18,15 @@ TS_SDK_IMAGE_NAME="ts_sdk"
 # this is used when creating tssdk client library
 TS_SDK_CLIENT_IMAGE_NAME="ts_sdk_client"
 
-RASPI_BASE_IMG="raspi_base"
+# raspberry pi 3 related docker base image
+RASPI_BASE_IMG="pi3_base"
 RPI_IMGID=$(docker images -q $RASPI_BASE_IMG)
-RPI_BRANCH="raspberrypi3_image"
-STM_BASE_IMG="vzlabs/ubuntu"
-STM_IMGID=$(docker images -q $STM_BASE_IMG)
-ST_BRANCH="stm32f4_images"
+RASPI_BASE_FILE="Dockerfile.pi3_base"
 
-BRANCH_NAME=
+# St micro related docker base image
+STM_BASE_IMG="stmicro_base"
+STM_IMGID=$(docker images -q $STM_BASE_IMG)
+STM_BASE_FILE="Dockerfile.stm_base"
 
 EXIT_CODE=
 
@@ -31,6 +34,10 @@ if [ "$CHIPSET_FAMILY" = "stm32l4" ]; then
 	CHIPSET_HAL_DIR="$PROJ_ROOT/targets/stmicro/chipset/stm32l4/chipset_hal"
 	CHIPSET_ROOT="$PROJ_ROOT/targets/stmicro/chipset/stm32l4"
 	CHIPSET_STM32L4_BRANCH="stm32l4_chipset"
+elif [ "$CHIPSET_FAMILY" = "stm32f4" ]; then
+	CHIPSET_HAL_DIR="$PROJ_ROOT/targets/stmicro/chipset/stm32f4/chipset_hal"
+	CHIPSET_ROOT="$PROJ_ROOT/targets/stmicro/chipset/stm32f4"
+	CHIPSET_STM32F4_BRANCH="stm32f4_chipset"
 fi
 
 usage()
@@ -102,49 +109,34 @@ error_exit()
 
 }
 
-checkout_git()
+build_base_images()
 {
-	echo "Checking out $BRANCH_NAME for the first time, this may take few minutes..#######"
-
-	if [ -d del ]; then
-		rm -rf del
-	fi
-
-	mkdir del && cd del && git clone https://github.com/verizonlabs/docker_images.git
+	echo "Building docker image $IMAGE_NAME for the first time, this may take few minutes..#######"
+	docker build -t $1 -f $DOCKERFILE_BASEROOT/$2 $DOCKERFILE_BASEROOT
 	EXIT_CODE=$?
-	error_exit "docker images clone failed" "true" $EXIT_CODE
-
-	cd docker_images && git checkout $BRANCH_NAME
-	docker load --input *.tar
-	EXIT_CODE=$?
-	error_exit "Loading docker image failed" "true" $EXIT_CODE
-
-	rm -rf $PROJ_ROOT/del
-	EXIT_CODE=0
-	cd $PROJ_ROOT
+	error_exit "building docker base image $IMAGE_NAME failed" "true" $EXIT_CODE
 }
 
 check_docker_images_config()
 {
-	BRANCH_NAME=
-	LFS_SUPPORT=$(which git-lfs)
-	if [ -z "$LFS_SUPPORT" ]; then
-		error_exit "Install github large file support, follow https://git-lfs.github.com/" "false"
-	fi
+	IMAGE_NAME=
+	BASE_FILE=
 	if [ "$DEV_BOARD" = "raspberry_pi3" ]; then
 		if [ -z "$RPI_IMGID" ]; then
-			BRANCH_NAME=$RPI_BRANCH
+			IMAGE_NAME=$RASPI_BASE_IMG
+			BASE_FILE=$RASPI_BASE_FILE
 		fi
 	elif [ "$DEV_BOARD" = "nucleo" ] || [ "$DEV_BOARD" = "beduin" ]; then
 		if [ -z "$STM_IMGID" ]; then
-			BRANCH_NAME=$ST_BRANCH
+			IMAGE_NAME=$STM_BASE_IMG
+			BASE_FILE=$STM_BASE_FILE
 		fi
 	else
 		error_exit "Select valid DEV_BOARD" "false"
 	fi
 
-	if ! [ -z "$BRANCH_NAME" ]; then
-		checkout_git
+	if ! [ -z "$IMAGE_NAME" ]; then
+		build_base_images $IMAGE_NAME $BASE_FILE
 	fi
 }
 
@@ -219,7 +211,12 @@ check_docker_images_config
 checkout_chipset_hal()
 {
 	if [ $CHIPSET_FAMILY = 'stm32l4' ]; then
-		if [ ! -d $CHIPSET_HAL_DIR ]; then
+		if [ -d $CHIPSET_HAL_DIR ] && [ -d $CHIPSET_HAL_DIR/STM32Cube_FW_L4_V1.8.0 ]; then
+			echo "chipset is already present"
+		else
+			if [ -d $CHIPSET_HAL_DIR ]; then
+				rm -rf $CHIPSET_HAL_DIR
+			fi
 			echo "Checking out chipset halfiles, takes approx 90 seconds..."
 			BRANCH_NAME=$CHIPSET_STM32L4_BRANCH
 			cd $CHIPSET_ROOT && git clone https://github.com/verizonlabs/chipset_hal.git
@@ -237,8 +234,31 @@ checkout_chipset_hal()
 
 			rm STM32Cube_FW_L4_V1.8.0.tar.bz2
 			cd $PROJ_ROOT
+		fi
+	elif [ $CHIPSET_FAMILY = 'stm32f4' ]; then
+		if [ -d $CHIPSET_HAL_DIR ] && [ -d $CHIPSET_HAL_DIR/STM32Cube_FW_F4_V1.16.0 ]; then
+			echo "chipset is already present"
 		else
-			echo "chipset_hal folder is already existing"
+			if [ -d $CHIPSET_HAL_DIR ]; then
+				rm -rf $CHIPSET_HAL_DIR
+			fi
+			echo "Checking out chipset halfiles, takes approx 90 seconds..."
+			BRANCH_NAME=$CHIPSET_STM32F4_BRANCH
+			cd $CHIPSET_ROOT && git clone https://github.com/verizonlabs/chipset_hal.git
+			EXIT_CODE=$?
+			error_exit "chipset_hal images clone failed" "true" $EXIT_CODE
+
+			echo "Checking out $BRANCH_NAME branch ..."
+			cd chipset_hal && git checkout $BRANCH_NAME
+			EXIT_CODE=$?
+			error_exit "git checkout failed" "true" $EXIT_CODE
+
+			tar -xjf STM32Cube_FW_F4_V1.16.0.tar.bz2
+			EXIT_CODE=$?
+			error_exit "Untarring of chipset hal image is failed" "true" $EXIT_CODE
+
+			rm STM32Cube_FW_F4_V1.16.0.tar.bz2
+			cd $PROJ_ROOT
 		fi
 	fi
 }

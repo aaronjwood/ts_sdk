@@ -8,6 +8,6 @@ cscope.out
 .build/
 build/
 *.swp
-tools/installed/
 sdk/cloud_comm/vendor/mbedtls/doxygen/apidoc
 .gdbinit
+targets/stmicro/chipset/

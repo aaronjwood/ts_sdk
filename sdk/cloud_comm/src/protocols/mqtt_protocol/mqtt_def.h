@@ -39,7 +39,13 @@
 #define SEC_TO_MS		1000
 
 #define INIT_POLLING_MS		((uint32_t)(MQTT_KEEPALIVE_INT_SEC * SEC_TO_MS))
+
+/* Special care needs to be taken care for cat m1 modems as they are slow */
+#ifdef MODEM_SQMONARCH
 #define MQTT_TIMEOUT_MS		10000
+#else
+#define MQTT_TIMEOUT_MS		1000
+#endif
 
 /* Defines to enable printing of all the error strings */
 #define DEBUG_ERROR
@@ -75,6 +81,7 @@ static struct {
 	proto_service_id send_svc_id;	/* Service id of last sent message */
 	uint8_t *rcv_buf;		/* receive buffer */
 	uint32_t rcv_sz;		/* size in bytes for above buffer */
+	uint64_t msg_sent;		/* timestamp when last message was sent */
 	proto_callback rcv_cb;		/* receive callback */
 	proto_callback send_cb;		/* send callback */
 } session;

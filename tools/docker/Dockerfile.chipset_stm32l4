@@ -1,4 +1,4 @@
-FROM vzlabs/ubuntu:ubuntu_1604_gcc-arm-none-eabi-5_4-2016q2-20160622-linux
+FROM stmicro_base:latest
 RUN mkdir -p ts_sdk_bldenv
 COPY targets/stmicro/chipset/stm32l4 /ts_sdk_bldenv/stm32l4
 ENV CHIPSET_MCU=$(CHIPSET_MCU)
