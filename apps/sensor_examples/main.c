@@ -9,8 +9,8 @@
  * Wherever possible, the program halts with an ASSERT in case the API fails.
  */
 
+#include <string.h>
 #include "sys.h"
-#include "string.h"
 #include "cloud_comm.h"
 #include "cc_basic_service.h"
 #include "cc_control_service.h"
@@ -127,15 +127,15 @@ static void send_with_retry(cc_buffer_desc *b, cc_data_sz s, cc_service_id id)
 }
 
 #define MAX_NUM_SENSORS 5
-#define MAX_DATA_SZ 20
+#define MAX_DATA_SZ 30
 
 static array_t data[MAX_NUM_SENSORS];
 static array_t caldata;
 
 /* Array for sensor data buffer */
-uint8_t rbytes[MAX_NUM_SENSORS][MAX_DATA_SZ];
+static uint8_t rbytes[MAX_NUM_SENSORS][MAX_DATA_SZ];
 /* Array for calibration buffer */
-uint8_t calbytes[MAX_DATA_SZ];
+static uint8_t calbytes[MAX_DATA_SZ];
 
 static void send_all_calibration_data(void)
 {
