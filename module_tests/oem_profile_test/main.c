@@ -17,10 +17,10 @@ int main(void)
 	sys_init();
 	dbg_module_init();
 
-	#if defined(sqmonarch) || defined(toby201)
-		if (!at_init()) {
-			fatal_err("Modem init failed, looping forever\n");
-		}
+	#ifndef  MODEM_NONE
+	if (!at_init()) {
+		fatal_err("Modem init failed, looping forever\n");
+	}
 	#endif
 
 	oem_init();

@@ -145,15 +145,16 @@ int main(void)
 	sys_init();
 	dbg_module_init();
 
-	if (!utils_get_device_id(dev_id, DEV_ID_LEN, NET_INTFC))
-		dbg_printf("Can not retrieve device mac address\n");
-	else
-		dbg_printf("Device mac address is: %s\n", dev_id);
 
 	dbg_printf("Initializing communications module\n");
 	ASSERT(cc_init(ctrl_cb));
-	
+
 	oem_init();
+
+	if (!utils_get_device_id(dev_id, DEV_ID_LEN, NET_INTFC))
+		dbg_printf("Can not retrieve device mac address\n");
+	else
+		dbg_printf("Device IMEI or mac address is: %s\n", dev_id);
 
 	dbg_printf("Register to use the Basic service\n");
 	ASSERT(cc_register_service(&cc_basic_service_descriptor,

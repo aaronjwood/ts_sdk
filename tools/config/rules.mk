@@ -17,7 +17,7 @@ ifneq ($(CHIPSET_MCU),)
 DEF_FLAG_MCU = -D$(CHIPSET_MCU)
 endif
 
-CFLAGS_COM = -Werror -std=c99 $(INC) -D$(PROTOCOL) -D$(MODEM) -D$(MODEM_TARGET) -D$(DEV_BOARD) $(DEF_FLAG_MCU)
+CFLAGS_COM = -Werror -std=c99 $(INC) -D$(PROTOCOL) -D$(MODEM) -D$(DEV_BOARD) $(DEF_FLAG_MCU)
 CFLAGS_USER = -Wall -Wcast-align $(CFLAGS_COM) $(DBG_OP_USER_FLAGS)
 CFLAGS_LIB = -Wall -Wcast-align $(CFLAGS_SDK) $(PLATFORM_HAL_CFLAGS) \
 	$(CFLAGS_COM) $(DBG_OP_LIB_FLAGS) -fdata-sections -ffunction-sections
