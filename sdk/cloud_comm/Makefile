@@ -62,8 +62,8 @@ CORELIB_SRC += $(PLATFORM_HAL_SRC)
 # User can select install path from make INSTALL_PATH=<path>
 CLIENT_NAME = sdk_client
 INSTALL_PATH ?= $(SDK_ROOT)/$(CLIENT_NAME)
-INSTALL_INCLUDE = $(DEV_BOARD)$(CHIPSET_MCU)/include
-INSTALL_LIB = $(DEV_BOARD)$(CHIPSET_MCU)/lib
+INSTALL_INCLUDE = $(DEV_BOARD)$(CHIPSET_MCU)$(MODEM_TARGET)$(PROTOCOL)/include
+INSTALL_LIB = $(DEV_BOARD)$(CHIPSET_MCU)$(MODEM_TARGET)$(PROTOCOL)/lib
 #Used for docker mount point, so host can access build artifacts
 TARGET_PATH = /build/$(CLIENT_NAME)
 
