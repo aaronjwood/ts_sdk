@@ -304,9 +304,13 @@ char *oem_get_profile_info_in_json(const char *profile)
         if (pro_id == INVALID)
                 return NULL;
         cJSON *payload = cJSON_CreateObject();
-        cJSON *item = cJSON_CreateObject();
-        if (!payload || !item)
+        if (!payload)
                 return NULL;
+        cJSON *item = cJSON_CreateObject();
+        if (!item) {
+                cJSON_Delete(payload);
+                return NULL;
+        }
         const char *prof_name = NULL;
         const char *char_name = NULL;
         prof_name = oem_prof_data[pro_id].grp_short_name;

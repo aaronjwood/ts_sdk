@@ -16,13 +16,20 @@ STM32_CMSIS = $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/CMSIS/Device/ST
 
 # Compiler, assembler, object code dumper and object code section copier
 CC = $(GCC_ROOT)/bin/arm-none-eabi-gcc
+AS = $(GCC_ROOT)/bin/arm-none-eabi-as
+AR = $(GCC_ROOT)/bin/arm-none-eabi-ar
+RANLIB = $(GCC_ROOT)/bin/arm-none-eabi-ranlib
 OBJDUMP = $(GCC_ROOT)/bin/arm-none-eabi-objdump
 OBJCOPY = $(GCC_ROOT)/bin/arm-none-eabi-objcopy
 SIZE = $(GCC_ROOT)/bin/arm-none-eabi-size
-export CC OBJDUMP OBJCOPY SIZE
+
+export CC AS AR RANLIB OBJDUMP OBJCOPY SIZE
+
 
 # Machine specific compiler, assembler settings and Linker script
 ARCHFLAGS = -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
+LDFLAGS += -u _printf_float
+
 ifeq ($(CHIPSET_MCU),stm32l476rgt)
 	MDEF = -DSTM32L476xx
 	LDSCRIPT = -T $(STMSDK_HEADER_ROOT)/STM32L476RGTx_FLASH.ld
@@ -30,6 +37,7 @@ else
 	$(error "$(CHIPSET_MCU) chipset is not supported")
 
 endif
+
 export MDEF
 export ARCHFLAGS
 
