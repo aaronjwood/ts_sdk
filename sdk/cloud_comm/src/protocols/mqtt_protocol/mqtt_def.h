@@ -40,12 +40,14 @@
 
 #define INIT_POLLING_MS		((uint32_t)(MQTT_KEEPALIVE_INT_SEC * SEC_TO_MS))
 
+
 /* Special care needs to be taken care for cat m1 modems as they are slow */
 #ifdef MODEM_SQMONARCH
-#define MQTT_TIMEOUT_MS		10000
+#define MQTT_TIMEOUT_MS		30000
 #else
 #define MQTT_TIMEOUT_MS		1000
 #endif
+
 
 /* Defines to enable printing of all the error strings */
 #define DEBUG_ERROR

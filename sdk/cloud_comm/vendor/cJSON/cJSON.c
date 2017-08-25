@@ -70,29 +70,36 @@ CJSON_PUBLIC(const char*) cJSON_Version(void)
     return version;
 }
 
+static int ts_tolower( int c)
+{
+	return (c >='A' && c<='Z') ? (c + 32) : (c); 
+}
+
+
 /* Case insensitive string comparison, doesn't consider two NULL pointers equal though */
 static int case_insensitive_strcmp(const unsigned char *string1, const unsigned char *string2)
 {
-    if ((string1 == NULL) || (string2 == NULL))
+  if ((string1 == NULL) || (string2 == NULL))
     {
         return 1;
     }
 
-    if (string1 == string2)
+  if (string1 == string2)
     {
         return 0;
     }
+    
+	for(; ts_tolower(*string1) == ts_tolower(*string2); (void)string1++, string2++)
 
-    for(; tolower(*string1) == tolower(*string2); (void)string1++, string2++)
-    {
-        if (*string1 == '\0')
-        {
-            return 0;
-        }
-    }
-
-    return tolower(*string1) - tolower(*string2);
+	{
+        	if (*string1 == '\0')
+        	{
+            		return 0;
+        	}
+    	}
+	return ts_tolower(*string1) - ts_tolower(*string2);
 }
+
 
 typedef struct internal_hooks
 {
@@ -1713,7 +1720,7 @@ static cJSON *get_object_item(const cJSON * const object, const char * const nam
     }
     else
     {
-        while ((current_element != NULL) && (case_insensitive_strcmp((const unsigned char*)name, (const unsigned char*)(current_element->string)) != 0))
+	while ((current_element != NULL) && (case_insensitive_strcmp((const unsigned char*)name, (const unsigned char*)(current_element->string)) != 0))
         {
             current_element = current_element->next;
         }

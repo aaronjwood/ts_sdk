@@ -52,7 +52,9 @@ VENDOR_INC += -DMQTTCLIENT_PLATFORM_HEADER=paho_mqtt_port.h
 VENDOR_INC += -isystem $(SDK_ROOT)/vendor/paho_mqtt/MQTTPacket/src
 VENDOR_LIB_DIRS += paho_mqtt
 VENDOR_LIB_FLAGS += -L. -lpahomqtt
+endif
 
+ifeq ($(PROTOCOL),$(filter $(PROTOCOL),OTT_PROTOCOL MQTT_PROTOCOL))
 # add cjson dependency
 VENDOR_INC += -I $(SDK_ROOT)/vendor/cJSON/
 VENDOR_LIB_DIRS += cJSON

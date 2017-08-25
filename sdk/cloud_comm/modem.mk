@@ -63,7 +63,7 @@ MODEM_SRC += rbuf.c
 MODEM_DIR += at/$(MODEM_TARGET)/$(MODEM_PROTOCOL)
 else ifeq ($(MODEM_TARGET),none)
 # Special case for some tests using native networking
-MODEM = none
+MODEM = MODEM_NONE
 else
 $(error The MODEM_TARGET variable has an invalid value: $(MODEM_TARGET))
 endif
