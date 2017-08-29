@@ -6,16 +6,26 @@ PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw
 PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)
 PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)
 PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/$(DEV_BOARD)
+PLATFORM_INC += -I $(PLATFORM_HAL_ROOT)/drivers/gps/$(GPS_CHIPSET)/inc
 PLATFORM_INC += -I $(SDK_ROOT)/inc/network/at
 
 
 FIND_INC = -name "*.h"
-ifneq ($(DEV_BOARD),raspberry_pi3)
-PLATFORM_DRV_INC = $(shell find $(PLATFORM_HAL_ROOT)/drivers/oem/$(CHIPSET_FAMILY)/$(CHIPSET_MCU) $(FIND_INC))
-else
-PLATFORM_DRV_INC = $(shell find $(PLATFORM_HAL_ROOT)/drivers/* $(FIND_INC))
-endif
+
+ifeq ($(DEV_BOARD),raspberry_pi3)
+PLATFORM_DRV_INC = $(shell find $(PLATFORM_HAL_ROOT)/drivers/oem/$(DEV_BOARD)/* $(FIND_INC))
 PLATFORM_INC += -I $(dir $(PLATFORM_DRV_INC))
+else
+
+ifeq ($(CHIPSET_MCU), stm32l476rgt)
+PLATFORM_DRV_INC = $(shell find $(PLATFORM_HAL_ROOT)/drivers/oem/$(CHIPSET_FAMILY)/$(CHIPSET_MCU) $(FIND_INC))
+PLATFORM_INC += -I $(dir $(PLATFORM_DRV_INC))
+endif
+
+endif
+
+
+
 
 # List of core library components to be included in the build process
 # This includes the standard per-platform device drivers but not any
