@@ -54,9 +54,9 @@ VENDOR_LIB_DIRS += paho_mqtt
 VENDOR_LIB_FLAGS += -L. -lpahomqtt
 endif
 
-ifeq ($(PROTOCOL),$(filter $(PROTOCOL),OTT_PROTOCOL MQTT_PROTOCOL))
+#ifeq ($(PROTOCOL),$(filter $(PROTOCOL),OTT_PROTOCOL MQTT_PROTOCOL))
 # add cjson dependency
 VENDOR_INC += -I $(SDK_ROOT)/vendor/cJSON/
 VENDOR_LIB_DIRS += cJSON
 VENDOR_LIB_FLAGS += -L. -lcjson
-endif
+#endif
