@@ -97,15 +97,24 @@ endif
 INC += -I $(INSTALL_PATH)/include
 export INC
 
+ifeq ($(DEV_BOARD),raspberry_pi3)
+OBJ = $(OBJ_SDKLIB)
+else
 OBJ = $(OBJ_SDKLIB) $(OBJ_STARTUP)
+endif
 
 # Create lists of object files to be generated from the sources
 OBJ_SDKLIB = $(addsuffix .o, $(basename $(CORELIB_SRC)))
 
+ifeq ($(DEV_BOARD),raspberry_pi3)
+CFLAGS_COM = -Wall -Wcast-align -Werror -std=c99 $(CFLAGS_SDK) $(INC) $(SDK_INC) \
+        -D$(PROTOCOL) -D$(MODEM) -D$(DEV_BOARD)
+else
 CFLAGS_COM = -Werror -std=c99 $(CFLAGS_SDK) $(INC) $(SDK_INC) \
 	-D$(PROTOCOL) -D$(MODEM) -D$(DEV_BOARD) -D$(CHIPSET_MCU)
 CFLAGS_CHIPSET = -Os $(CFLAGS_COM) $(DBG_OP_LIB_FLAGS) \
         -fdata-sections -ffunction-sections
+endif
 
 NOSYSLIB =  -Wl,--gc-sections -Wl,--as-needed --specs=nosys.specs --specs=nano.specs
 #==================================RULES=======================================#
@@ -123,8 +132,13 @@ libsdk.a:
 $(OBJ_STARTUP):
 	$(AS) -c $(ARCHFLAGS) -o $(OBJ_STARTUP) $(STARTUP_SRC)
 
+ifeq ($(DEV_BOARD),raspberry_pi3)
+$(OBJ_SDKLIB): %.o: %.c
+	$(CC) -c $(CFLAGS_COM) $< -o $@
+else
 $(OBJ_SDKLIB): %.o: %.c
 	$(CC) -c $(CFLAGS_CHIPSET) $(ARCHFLAGS) $(MDEF) $< -o $@
+endif
 
 vendor_libs:
 ifdef VENDOR_LIB_DIRS
