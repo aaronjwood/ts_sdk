@@ -40,6 +40,14 @@ else
 $(error The PROTOCOL variable has an invalid value: $(PROTOCOL))
 endif
 
+ifneq ($(DEV_BOARD),raspberry_pi3)
+BOARD_CONFIG = $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/$(DEV_BOARD)/board_config.h
+HSEVALUE= $(shell grep  "EXT_CLK_FREQ_HZ" $(BOARD_CONFIG) | cut -f3 -d"	")
+CHIPSET_HSECLK = -DHSE_VALUE='$(HSEVALUE)'
+endif
+
+#HSEVALUE= $(shell grep  "EXT_CLK_FREQ_HZ" $(PROJ_ROOT)/platform/sw/stm32f4/stm32f415rgt/beduin/board_config.h | cut -f3 -d"	")
+
 # CHIPSET_SRC is from above included files for the chipset
 CORELIB_SRC += $(CHIPSET_SRC)
 
@@ -62,8 +70,13 @@ CORELIB_SRC += $(PLATFORM_HAL_SRC)
 # User can select install path from make INSTALL_PATH=<path>
 CLIENT_NAME = sdk_client
 INSTALL_PATH ?= $(SDK_ROOT)/$(CLIENT_NAME)
-INSTALL_INCLUDE = $(DEV_BOARD)$(CHIPSET_MCU)$(MODEM_TARGET)$(PROTOCOL)/include
-INSTALL_LIB = $(DEV_BOARD)$(CHIPSET_MCU)$(MODEM_TARGET)$(PROTOCOL)/lib
+ifeq ($(DEV_BOARD),raspberry_pi3)
+INSTALL_INCLUDE = $(DEV_BOARD)$(CHIPSET_MCU)/include
+INSTALL_LIB = $(DEV_BOARD)$(CHIPSET_MCU)/lib
+else
+INSTALL_INCLUDE = $(DEV_BOARD)$(CHIPSET_MCU)_$(MODEM_TARGET)_$(PROTOCOL)/include
+INSTALL_LIB = $(DEV_BOARD)$(CHIPSET_MCU)_$(MODEM_TARGET)_$(PROTOCOL)/lib
+endif 
 #Used for docker mount point, so host can access build artifacts
 TARGET_PATH = /build/$(CLIENT_NAME)
 
@@ -134,10 +147,18 @@ install: install_platform
 	cp -r $(SDK_ROOT)/inc/services/*.h $(INSTALL_PATH)/$(INSTALL_INCLUDE)
 	cp -r $(SDK_ROOT)/inc/protocols/$(PROT_DIR)/$(LIMIT_INC) $(INSTALL_PATH)/$(INSTALL_INCLUDE)
 	cp -r $(SDK_ROOT)/inc/protocols/protocol_def.h $(INSTALL_PATH)/$(INSTALL_INCLUDE)
+	cp $(SDK_ROOT)/build/libsdk.a $(INSTALL_PATH)/$(INSTALL_LIB)
+ifneq ($(DEV_BOARD),raspberry_pi3)
 	cp -r $(PROJ_ROOT)/platform/sw/*.h $(INSTALL_PATH)/$(INSTALL_INCLUDE)
 	cp -r $(PROJ_ROOT)/platform/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/*.h $(INSTALL_PATH)/$(INSTALL_INCLUDE)
+ifeq ($(CHIPSET_MCU),stm32f415rgt)
+	cp $(PROJ_ROOT)/ldscript/STM32F415RGTx_FLASH.ld $(INSTALL_PATH)/$(INSTALL_LIB)
+else ifeq ($(CHIPSET_MCU),stm32f429zit)
+	cp $(PROJ_ROOT)/ldscript/STM32F429ZITx_FLASH.ld $(INSTALL_PATH)/$(INSTALL_LIB)
+else
 	cp $(PROJ_ROOT)/ldscript/*.ld $(INSTALL_PATH)/$(INSTALL_LIB)
-	cp $(SDK_ROOT)/build/libsdk.a $(INSTALL_PATH)/$(INSTALL_LIB)
+endif
+endif
 	cp -r $(INSTALL_PATH) $(TARGET_PATH)
 
 create_platform_dir:
