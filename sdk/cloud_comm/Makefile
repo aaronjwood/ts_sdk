@@ -10,10 +10,10 @@ else
 
 # Selecting platform according to CHIPSET_FAMILY
 ifeq ($(CHIPSET_FAMILY),stm32f4)
-CHIPSET_BUILDENV=/ts_sdk_bldenv
+CHIPSET_BUILDENV=/ts_sdk_bldenv/
 include $(TARGET_ROOT)/stmicro/chipset/$(CHIPSET_FAMILY)/common_stm32f4.mk
 else ifeq ($(CHIPSET_FAMILY),stm32l4)
-CHIPSET_BUILDENV=/ts_sdk_bldenv
+CHIPSET_BUILDENV=/ts_sdk_bldenv/
 include $(TARGET_ROOT)/stmicro/chipset/$(CHIPSET_FAMILY)/common_stm32l4.mk
 else ifeq ($(CHIPSET_FAMILY),osx)
 include $(MK_HELPER_PATH)/osx_buildenv.mk
@@ -45,8 +45,6 @@ BOARD_CONFIG = $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/$(DEV_BO
 HSEVALUE= $(shell grep  "EXT_CLK_FREQ_HZ" $(BOARD_CONFIG) | cut -f3 -d"	")
 CHIPSET_HSECLK = -DHSE_VALUE='$(HSEVALUE)'
 endif
-
-#HSEVALUE= $(shell grep  "EXT_CLK_FREQ_HZ" $(PROJ_ROOT)/platform/sw/stm32f4/stm32f415rgt/beduin/board_config.h | cut -f3 -d"	")
 
 # CHIPSET_SRC is from above included files for the chipset
 CORELIB_SRC += $(CHIPSET_SRC)
