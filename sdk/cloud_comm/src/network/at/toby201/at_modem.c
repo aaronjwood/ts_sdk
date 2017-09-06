@@ -65,6 +65,7 @@ static const uint8_t buf_len[MODEM_QUERY_END] = {
 	[GET_FWVER] = 11	/* XXX: Might change in next release of modem */
 };
 
+#if SIM_TYPE != DAK_LAB && SIM_TYPE != DAK_COM
 static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data)
 {
@@ -78,6 +79,7 @@ static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
 		i++;
 	}
 }
+#endif
 
 static void parse_imei(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data)
@@ -377,6 +379,7 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 		.err = NULL,
 		.comm_timeout = 500
 	},
+#if SIM_TYPE != DAK_LAB && SIM_TYPE != DAK_COM
 	[GET_IP_ADDR] = {
 		.comm = "at+cgpaddr="MODEM_APN_CTX_ID"\r",
 		.rsp_desc = {
@@ -394,6 +397,7 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 		.err = "\r\n+CME ERROR: ",
 		.comm_timeout = 500
 	},
+#endif
 	[GET_ICCID] = {
 		.comm = "at+ccid\r",
 		.rsp_desc = {

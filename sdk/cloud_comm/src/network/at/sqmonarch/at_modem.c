@@ -69,6 +69,7 @@ static const char *at_urcs[NUM_URCS] = {
 
 static bool sys_res_stable;		/* True when system is stable after restart*/
 
+#if SIM_TYPE != DAK_LAB && SIM_TYPE != DAK_COM
 static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data)
 {
@@ -82,6 +83,7 @@ static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
 		i++;
 	}
 }
+#endif
 
 static void parse_imei(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data)
@@ -315,6 +317,7 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 		.err = NULL,
 		.comm_timeout = 500
 	},
+#if SIM_TYPE != DAK_LAB && SIM_TYPE != DAK_COM
 	[GET_IP_ADDR] = {
 		.comm = "at+cgpaddr="MODEM_PDP_CTX"\r",
 		.rsp_desc = {
@@ -332,6 +335,7 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 		.err = "\r\n+CME ERROR: ",
 		.comm_timeout = 500
 	},
+#endif
 	[GET_ICCID] = {
 		.comm = "at+sqnccid\r",
 		.rsp_desc = {

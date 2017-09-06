@@ -162,6 +162,12 @@ static at_ret_code config_modem_for_sms(void)
 		return AT_RECHECK_MODEM;
 	}
 
+#if SIM_TYPE == DAK_COM
+	/* Activate PDN */
+	res = at_core_wcmd(&mod_netw_cmd[ACT_APN], true);
+	CHECK_SUCCESS(res, AT_SUCCESS, res);
+#endif
+
 	/* Check network registration */
 	uint32_t start = sys_get_tick_ms();
 	uint32_t end = start;

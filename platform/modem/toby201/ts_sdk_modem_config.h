@@ -9,11 +9,13 @@
  * Define the SIM type being used. Possible values are:
  * o M2M - Machine-to-Machine
  * o COM - Commercial
- * o DAK - Dakota (SMSNAS)
+ * o DAK_LAB - Dakota Lab SIM (SMSNAS LAB network)
+ * o DAK_COM - Dakota Commercial SIM (SMSNAS Commercial network)
  */
 #define M2M			0
 #define COM			1
-#define DAK			2
+#define DAK_LAB			2
+#define DAK_COM			3
 
 /*
  * The SIM_TYPE macro can be used to specialize the configuration for a given
@@ -46,8 +48,10 @@
 
 #elif defined (SMSNAS_PROTOCOL)
 
-#if SIM_TYPE == DAK
-#define MODEM_UMNOCONF_VAL	"0,0"
+#if SIM_TYPE == DAK_LAB
+#define MODEM_UMNOCONF_VAL	"0,0,0"
+#elif SIM_TYPE == DAK_COM
+#define MODEM_UMNOCONF_VAL	"0,7"
 #else
 #define MODEM_UMNOCONF_VAL	"1,6"
 #endif	/* SIM_TYPE */
