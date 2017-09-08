@@ -69,8 +69,8 @@ CORELIB_SRC += $(PLATFORM_HAL_SRC)
 CLIENT_NAME = sdk_client
 INSTALL_PATH ?= $(SDK_ROOT)/$(CLIENT_NAME)
 ifeq ($(DEV_BOARD),raspberry_pi3)
-INSTALL_INCLUDE = $(DEV_BOARD)$(CHIPSET_MCU)/include
-INSTALL_LIB = $(DEV_BOARD)$(CHIPSET_MCU)/lib
+INSTALL_INCLUDE = $(DEV_BOARD)$(CHIPSET_MCU)_$(PROTOCOL)/include
+INSTALL_LIB = $(DEV_BOARD)$(CHIPSET_MCU)_$(PROTOCOL)/lib
 else
 INSTALL_INCLUDE = $(DEV_BOARD)$(CHIPSET_MCU)_$(MODEM_TARGET)_$(PROTOCOL)/include
 INSTALL_LIB = $(DEV_BOARD)$(CHIPSET_MCU)_$(MODEM_TARGET)_$(PROTOCOL)/lib
@@ -104,13 +104,13 @@ endif
 # Create lists of object files to be generated from the sources
 OBJ_SDKLIB = $(addsuffix .o, $(basename $(CORELIB_SRC)))
 
-ifeq ($(DEV_BOARD),raspberry_pi3)
-CFLAGS_COM = -Wall -Wcast-align -Werror -std=c99 $(CFLAGS_SDK) $(INC) $(SDK_INC) \
-        -D$(PROTOCOL) -D$(MODEM) -D$(DEV_BOARD)
-else
 CFLAGS_COM = -Werror -std=c99 $(CFLAGS_SDK) $(INC) $(SDK_INC) \
-	-D$(PROTOCOL) -D$(MODEM) -D$(DEV_BOARD) -D$(CHIPSET_MCU)
-CFLAGS_CHIPSET = -Os $(CFLAGS_COM) $(DBG_OP_LIB_FLAGS) \
+        -D$(PROTOCOL) -D$(MODEM) -D$(DEV_BOARD)
+
+ifeq ($(DEV_BOARD),raspberry_pi3)
+CFLAGS_RASP = -Wall -Wcast-align $(CFLAGS_COM)
+else
+CFLAGS_CHIPSET = $(CFLAGS_COM) -D$(CHIPSET_MCU) -Os $(CFLAGS_COM) $(DBG_OP_LIB_FLAGS) \
         -fdata-sections -ffunction-sections
 endif
 
@@ -132,7 +132,7 @@ $(OBJ_STARTUP):
 
 ifeq ($(DEV_BOARD),raspberry_pi3)
 $(OBJ_SDKLIB): %.o: %.c
-	$(CC) -c $(CFLAGS_COM) $< -o $@
+	$(CC) -c $(CFLAGS_RASP) $< -o $@
 else
 $(OBJ_SDKLIB): %.o: %.c
 	$(CC) -c $(CFLAGS_CHIPSET) $(ARCHFLAGS) $(MDEF) $< -o $@
