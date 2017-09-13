@@ -540,14 +540,8 @@ bool at_modem_sw_reset(void)
 
 void at_modem_hw_reset(void)
 {
-	/* XXX: Try removing pwr_en altogether */
-	/* XXX: Try using native RTS CTS instead of emulation */
-	sys_res_stable = true;
+	sys_res_stable = false;
 	gpio_write(MODEM_HW_RESET_PIN, PIN_LOW);
-	sys_delay(RESET_N_DELAY_MS);
-	gpio_write(MODEM_HW_PWREN_PIN, PIN_HIGH);
-	sys_delay(PWR_EN_DELAY_MS);
-	gpio_write(MODEM_HW_PWREN_PIN, PIN_LOW);
 	sys_delay(RESET_N_DELAY_MS);
 	gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
 
@@ -557,23 +551,17 @@ void at_modem_hw_reset(void)
 
 bool at_modem_init(void)
 {
-	gpio_config_t lte_pin_config = {
+	const gpio_config_t lte_pin_config = {
 		.dir = OUTPUT,
-		.pull_mode = PP_NO_PULL,
+		.pull_mode = OD_NO_PULL,
 		.speed = SPEED_HIGH
 	};
 
 	sys_delay(PWR_EN_DELAY_MS);
 
-	/* Power enable pin */
-	if (!gpio_init(MODEM_HW_PWREN_PIN, &lte_pin_config))
-		return false;
-	gpio_write(MODEM_HW_PWREN_PIN, PIN_LOW);
-
 	/* LTE reset pin */
 	if (!gpio_init(MODEM_HW_RESET_PIN, &lte_pin_config))
 		return false;
-	gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
 
 	at_modem_hw_reset();
 
