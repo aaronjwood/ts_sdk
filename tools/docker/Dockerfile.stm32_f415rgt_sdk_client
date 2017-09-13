@@ -1,0 +1,17 @@
+FROM stmicro_base:latest
+RUN mkdir -p ts_sdk
+RUN mkdir -p /ts_sdk/ldscript
+COPY sdk /ts_sdk/sdk
+COPY platform /ts_sdk/platform
+COPY tools/config /ts_sdk/tools/config
+COPY tools/scripts/config_build_env.sh /ts_sdk/tools/scripts/
+COPY targets/stmicro/chipset/stm32f4/common_stm32f4.mk /ts_sdk/targets/stmicro/chipset/stm32f4/
+RUN mkdir -p ts_sdk_bldenv
+COPY targets/stmicro/chipset/stm32f4 /ts_sdk_bldenv/stm32f4
+RUN cp /ts_sdk_bldenv/stm32f4/chipset_hal/STM32Cube_FW_F4_V1.16.0/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_conf_template.h /ts_sdk_bldenv/stm32f4/chipset_hal/STM32Cube_FW_F4_V1.16.0/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_conf.h
+RUN cp /ts_sdk_bldenv/stm32f4/chipset_hal/STM32Cube_FW_F4_V1.16.0/Projects/STM32F429ZI-Nucleo/Templates/SW4STM32/STM32F429ZI_Nucleo_144/*.ld /ts_sdk/ldscript
+RUN cp /ts_sdk_bldenv/stm32f4/chipset_hal/STM32F415RGTx_FLASH.ld /ts_sdk/ldscript
+RUN chmod a+x /ts_sdk/tools/scripts/config_build_env.sh
+CMD cd /ts_sdk && \
+    . tools/scripts/config_build_env.sh \
+    && cd /ts_sdk/sdk/cloud_comm && make clean && make all

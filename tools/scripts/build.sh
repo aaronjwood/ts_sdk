@@ -368,8 +368,14 @@ elif [ "$1" = "app" ]; then
 	check_for_file "$2"
 	build_app "$@"
 elif [ "$1" = "create_sdk_client" ]; then
-	shift
-	create_sdk_client "$@"
+	if [ "$DEV_BOARD" = "raspberry_pi3" ]; then
+		shift
+		create_sdk_client "$@"
+	else
+		shift
+		checkout_chipset_hal "$@"
+		create_sdk_client "$@"
+	fi
 else
 	usage
 fi
