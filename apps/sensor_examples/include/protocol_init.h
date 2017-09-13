@@ -4,7 +4,9 @@
 #define PROTO_INIT_H
 
 #if defined (OTT_PROTOCOL)
+#ifndef REMOTE_HOST
 #define REMOTE_HOST	"iwk.ott.thingspace.verizon.com:443"
+#endif
 #define SEND_DATA_SZ    22
 #include "dev_creds.h"
 /* Certificate that is used with the OTT services */
@@ -30,7 +32,9 @@ static const uint8_t *cacert;
 
 #elif defined (MQTT_PROTOCOL)
 
+#ifndef REMOTE_HOST
 #define REMOTE_HOST	"simpm-ea-iwk.thingspace.verizon.com:8883"
+#endif
 #define SEND_DATA_SZ   22
 #include "client-crt-1801.h"
 #include "client-key-1801.h"
@@ -44,7 +48,8 @@ static const uint8_t *cacert = cacert_buf;
 #define CL_SEC_KEY_SZ	sizeof(client_key)
 #define CA_CRED_SZ	sizeof(cacert_buf)
 #else
-#error "define valid protocol options from OTT_PROTOCOL/SMSNAS_PROTOCOL/MQTT_PROTOCOL"
+#error "define valid protocol options from OTT_PROTOCOL \
+	SMSNAS_PROTOCOL/MQTT_PROTOCOL"
 #endif
 
 #endif
