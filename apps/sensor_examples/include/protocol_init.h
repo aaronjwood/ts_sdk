@@ -4,9 +4,6 @@
 #define PROTO_INIT_H
 
 #if defined (OTT_PROTOCOL)
-#ifndef REMOTE_HOST
-#define REMOTE_HOST	"iwk.ott.thingspace.verizon.com:443"
-#endif
 #define SEND_DATA_SZ    22
 #include "dev_creds.h"
 /* Certificate that is used with the OTT services */
@@ -33,7 +30,7 @@ static const uint8_t *cacert;
 #elif defined (MQTT_PROTOCOL)
 
 #ifndef REMOTE_HOST
-#define REMOTE_HOST	"simpm-ea-iwk.thingspace.verizon.com:8883"
+#define REMOTE_HOST	"68.128.212.248:8883"
 #endif
 #define SEND_DATA_SZ   22
 #include "client-crt-1801.h"
