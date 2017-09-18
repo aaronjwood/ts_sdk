@@ -27,6 +27,7 @@ typedef uint8_t pin_id_t;
 #define PD_GET_PIN(pin_name)	((pin_id_t)(pin_name & 0x0F))
 #define NUM_PINS_PORT_A_TO_C		16
 #define NUM_PINS_PORT_D			1
+#define PIN_NUM_IN_PORT_D		2
 
 /**
  * \brief Type that represents the alternate functions of the GPIO pins.

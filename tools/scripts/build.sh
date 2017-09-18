@@ -266,7 +266,8 @@ checkout_chipset_hal()
 build_chipset_library()
 {
 	docker build -t $CHIPSET_IMAGE_NAME -f $1 $PROJ_ROOT
-	docker run --rm -e CHIPSET_MCU=$CHIPSET_MCU -v $CHIPSET_BUILD_MOUNT:/build $CHIPSET_IMAGE_NAME
+	docker run --rm -e CHIPSET_MCU=$CHIPSET_MCU -e CHIPSET_OS=$CHIPSET_OS \
+	-v $CHIPSET_BUILD_MOUNT:/build $CHIPSET_IMAGE_NAME
 	check_build $CHIPSET_IMAGE_NAME
 	cleanup_docker_images $CHIPSET_IMAGE_NAME
 	echo "Chipset build success, generated static library lib$CHIPSET_MCU.a \
@@ -318,7 +319,7 @@ build_app()
 	docker run $BUILD_APP_ARG $APP_MAKE_ENV -e PROTOCOL=$PROTOCOL \
 		-e CHIPSET_FAMILY=$CHIPSET_FAMILY -e CHIPSET_MCU=$CHIPSET_MCU \
 		-e DEV_BOARD=$DEV_BOARD -e MODEM_TARGET=$MODEM_TARGET \
-		-e GPS_CHIPSET=$GPS_CHIPSET $CHIPSET_BUILDENV \
+		-e GPS_CHIPSET=$GPS_CHIPSET $CHIPSET_BUILDENV -e CHIPSET_OS=$CHIPSET_OS \
 		-v $MOUNT_DIR:/build $APP_NAME
 	check_build $APP_NAME $TS_SDK_IMAGE_NAME
 	cleanup_docker_images $APP_NAME $TS_SDK_IMAGE_NAME
@@ -335,7 +336,7 @@ create_sdk_client()
 	docker run -e PROTOCOL=$PROTOCOL \
 		-e CHIPSET_FAMILY=$CHIPSET_FAMILY -e CHIPSET_MCU=$CHIPSET_MCU \
 		-e DEV_BOARD=$DEV_BOARD -e MODEM_TARGET=$MODEM_TARGET \
-		-e GPS_CHIPSET=$GPS_CHIPSET $CHIPSET_BUILDENV \
+		-e GPS_CHIPSET=$GPS_CHIPSET $CHIPSET_BUILDENV -e CHIPSET_OS=$CHIPSET_OS \
 		-v $MOUNT_DIR:/build/sdk_client $TS_SDK_CLIENT_IMAGE_NAME
 	check_build $TS_SDK_CLIENT_IMAGE_NAME
 	echo "Build was successful..."
@@ -367,8 +368,14 @@ elif [ "$1" = "app" ]; then
 	check_for_file "$2"
 	build_app "$@"
 elif [ "$1" = "create_sdk_client" ]; then
-	shift
-	create_sdk_client "$@"
+	if [ "$DEV_BOARD" = "raspberry_pi3" ]; then
+		shift
+		create_sdk_client "$@"
+	else
+		shift
+		checkout_chipset_hal "$@"
+		create_sdk_client "$@"
+	fi
 else
 	usage
 fi

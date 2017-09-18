@@ -171,7 +171,7 @@ function create_user_account()
 	local ATOKEN=$(curl -s -k -X POST \
 		-H "Authorization: Basic $BAUTH" \
 		-H "Content-Type: application/x-www-form-urlencoded" \
-		-d 'grant_type=client_credentials&scope=ts.account.wo ts.dakota.mimic ts.account ts.configuration ts.dakota.inventory' \
+		-d 'grant_type=client_credentials&scope=ts.account.wo ts.dakota.mimic ts.configuration ts.dakota.inventory' \
 		$TS_ADDR/oauth2/token)
 	exit_on_error "There was an error in creating the client credential" "$ATOKEN" "$?"
 	ATOKEN=$(echo "$ATOKEN" | python -c "import json, sys; print json.load(sys.stdin)['access_token']")
@@ -191,7 +191,7 @@ function create_user_account()
 	# Create a user token associated with the user account
 	local UTOKEN=$(curl -s -k -X POST \
 		-H "Authorization: Basic $BAUTH" \
-		-d "grant_type=password&scope=ts.account ts.target ts.tag ts.device ts.place ts.trigger ts.schedule ts.specification ts.specification.ro ts.data.ro ts.user&username="$1"&password="$2 \
+		-d "grant_type=password&scope=ts.target ts.tag ts.device ts.place ts.trigger ts.schedule ts.specification ts.specification.ro ts.data.ro ts.user&username="$1"&password="$2 \
 		$TS_ADDR/oauth2/token)
 	exit_on_error "Could not retrieve the user token" "$UTOKEN" "$?"
 	echo "Tokens retrieved (Note down the user access token for future use):"

@@ -17,6 +17,14 @@ ifneq ($(CHIPSET_MCU),)
 DEF_FLAG_MCU = -D$(CHIPSET_MCU)
 endif
 
+ifneq ($(CHIPSET_OS),)
+ifeq ($(CHIPSET_OS),FREE_RTOS)
+DEF_FLAG_MCU += -D$(CHIPSET_OS)
+else
+	$(error "$(CHIPSET_OS) operting System is not supported")
+endif
+endif
+
 CFLAGS_COM = -Werror -std=c99 $(INC) -D$(PROTOCOL) -D$(MODEM) -D$(DEV_BOARD) $(DEF_FLAG_MCU)
 CFLAGS_USER = -Wall -Wcast-align $(CFLAGS_COM) $(DBG_OP_USER_FLAGS)
 CFLAGS_LIB = -Wall -Wcast-align $(CFLAGS_SDK) $(PLATFORM_HAL_CFLAGS) \

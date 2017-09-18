@@ -40,6 +40,12 @@ else
 $(error The PROTOCOL variable has an invalid value: $(PROTOCOL))
 endif
 
+ifneq ($(DEV_BOARD),raspberry_pi3)
+BOARD_CONFIG = $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/$(DEV_BOARD)/board_config.h
+HSEVALUE= $(shell grep  "EXT_CLK_FREQ_HZ" $(BOARD_CONFIG) | cut -f3 -d"	")
+CHIPSET_HSECLK = -DHSE_VALUE='$(HSEVALUE)'
+endif
+
 # CHIPSET_SRC is from above included files for the chipset
 CORELIB_SRC += $(CHIPSET_SRC)
 
@@ -62,8 +68,13 @@ CORELIB_SRC += $(PLATFORM_HAL_SRC)
 # User can select install path from make INSTALL_PATH=<path>
 CLIENT_NAME = sdk_client
 INSTALL_PATH ?= $(SDK_ROOT)/$(CLIENT_NAME)
-INSTALL_INCLUDE = $(DEV_BOARD)$(CHIPSET_MCU)/include
-INSTALL_LIB = $(DEV_BOARD)$(CHIPSET_MCU)/lib
+ifeq ($(DEV_BOARD),raspberry_pi3)
+INSTALL_INCLUDE = $(DEV_BOARD)$(CHIPSET_MCU)_$(PROTOCOL)/include
+INSTALL_LIB = $(DEV_BOARD)$(CHIPSET_MCU)_$(PROTOCOL)/lib
+else
+INSTALL_INCLUDE = $(DEV_BOARD)$(CHIPSET_MCU)_$(MODEM_TARGET)_$(PROTOCOL)/include
+INSTALL_LIB = $(DEV_BOARD)$(CHIPSET_MCU)_$(MODEM_TARGET)_$(PROTOCOL)/lib
+endif 
 #Used for docker mount point, so host can access build artifacts
 TARGET_PATH = /build/$(CLIENT_NAME)
 
@@ -84,25 +95,48 @@ endif
 INC += -I $(INSTALL_PATH)/include
 export INC
 
+ifeq ($(DEV_BOARD),raspberry_pi3)
+OBJ = $(OBJ_SDKLIB)
+else
+OBJ = $(OBJ_SDKLIB) $(OBJ_STARTUP)
+endif
+
 # Create lists of object files to be generated from the sources
 OBJ_SDKLIB = $(addsuffix .o, $(basename $(CORELIB_SRC)))
 
-CFLAGS_COM = -Wall -Wcast-align -Werror -std=c99 $(CFLAGS_SDK) $(INC) $(SDK_INC) \
-	-D$(PROTOCOL) -D$(MODEM) -D$(DEV_BOARD)
+CFLAGS_COM = -Werror -std=c99 $(CFLAGS_SDK) $(INC) $(SDK_INC) \
+        -D$(PROTOCOL) -D$(MODEM) -D$(DEV_BOARD)
 
+ifeq ($(DEV_BOARD),raspberry_pi3)
+CFLAGS_RASP = -Wall -Wcast-align $(CFLAGS_COM)
+else
+CFLAGS_CHIPSET = $(CFLAGS_COM) -D$(CHIPSET_MCU) -Os $(CFLAGS_COM) $(DBG_OP_LIB_FLAGS) \
+        -fdata-sections -ffunction-sections
+endif
+
+NOSYSLIB =  -Wl,--gc-sections -Wl,--as-needed --specs=nosys.specs --specs=nano.specs
 #==================================RULES=======================================#
 .PHONY: all build clean
 
-all build: $(OBJ_SDKLIB) vendor_libs libsdk.a install
+all build: $(OBJ) vendor_libs libsdk.a install
 print-%: ; @echo $* = $($*)
+
 
 #yes, make one big blob, let user strip off unused objects
 libsdk.a:
 	$(AR) rcs $@ $(shell find $(PROJ_ROOT)/sdk/cloud_comm/build/ -name "*.o") \
 	$(shell find $(PROJ_ROOT)/sdk/cloud_comm/vendor/* -name "*.o")
 
+$(OBJ_STARTUP):
+	$(AS) -c $(ARCHFLAGS) -o $(OBJ_STARTUP) $(STARTUP_SRC)
+
+ifeq ($(DEV_BOARD),raspberry_pi3)
 $(OBJ_SDKLIB): %.o: %.c
-	$(CC) -c $(CFLAGS_COM) $< -o $@
+	$(CC) -c $(CFLAGS_RASP) $< -o $@
+else
+$(OBJ_SDKLIB): %.o: %.c
+	$(CC) -c $(CFLAGS_CHIPSET) $(ARCHFLAGS) $(MDEF) $< -o $@
+endif
 
 vendor_libs:
 ifdef VENDOR_LIB_DIRS
@@ -126,6 +160,17 @@ install: install_platform
 	cp -r $(SDK_ROOT)/inc/protocols/$(PROT_DIR)/$(LIMIT_INC) $(INSTALL_PATH)/$(INSTALL_INCLUDE)
 	cp -r $(SDK_ROOT)/inc/protocols/protocol_def.h $(INSTALL_PATH)/$(INSTALL_INCLUDE)
 	cp $(SDK_ROOT)/build/libsdk.a $(INSTALL_PATH)/$(INSTALL_LIB)
+ifneq ($(DEV_BOARD),raspberry_pi3)
+	cp -r $(PROJ_ROOT)/platform/sw/*.h $(INSTALL_PATH)/$(INSTALL_INCLUDE)
+	cp -r $(PROJ_ROOT)/platform/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/*.h $(INSTALL_PATH)/$(INSTALL_INCLUDE)
+ifeq ($(CHIPSET_MCU),stm32f415rgt)
+	cp $(PROJ_ROOT)/ldscript/STM32F415RGTx_FLASH.ld $(INSTALL_PATH)/$(INSTALL_LIB)
+else ifeq ($(CHIPSET_MCU),stm32f429zit)
+	cp $(PROJ_ROOT)/ldscript/STM32F429ZITx_FLASH.ld $(INSTALL_PATH)/$(INSTALL_LIB)
+else
+	cp $(PROJ_ROOT)/ldscript/*.ld $(INSTALL_PATH)/$(INSTALL_LIB)
+endif
+endif
 	cp -r $(INSTALL_PATH) $(TARGET_PATH)
 
 create_platform_dir:

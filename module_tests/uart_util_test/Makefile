@@ -11,9 +11,9 @@ else
 # This low-level test program bypasses the protocol layer and above.
 # This requires overriding some of the normal configuration.
 # Must always build with NO_PROTOCOL even if PROTOCOL is set externally.
-override PROTOCOL = NO_PROTOCOL
-override MODEM_PROTOCOL = none
-override MODEM_TARGET = none
+#override PROTOCOL = NO_PROTOCOL
+#override MODEM_PROTOCOL = none
+#override MODEM_TARGET = none
 CLOUD_COMM_SRC =
 SERVICES_SRC =
 
@@ -27,8 +27,7 @@ vpath %.c $(SRCDIR):
 APP_SRC = $(wildcard $(SRCDIR)/*.c)
 
 # Module specific header and source
-APP_INC += -I $(SDK_ROOT)/src/network/at/core
-APP_SRC += $(SDK_ROOT)/src/network/at/core/uart_util.c
+APP_INC =
 
 # Library sources are built without debug info and optimized for size.
 # Use DBG_LIB_SRC to compile a subset of the peripheral library sources with the

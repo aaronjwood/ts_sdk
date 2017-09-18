@@ -13,6 +13,7 @@ STM32_LIB_COMMON = $(STMSDK_HEADER_ROOT)/chipset_hal
 # Source paths
 STM32_PLIB = $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/STM32L4xx_HAL_Driver/Src
 STM32_CMSIS = $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/CMSIS/Device/ST/STM32L4xx
+STM32_RTOS = $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Middlewares/Third_Party/FreeRTOS/Source
 
 # Compiler, assembler, object code dumper and object code section copier
 CC = $(GCC_ROOT)/bin/arm-none-eabi-gcc
@@ -46,6 +47,9 @@ export ARCHFLAGS
 CHIPSET_INC = -I $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/STM32L4xx_HAL_Driver/Inc
 # CMSIS (Core) headers
 CHIPSET_INC += -I $(STM32_LIB_COMMON)/STM32Cube_FW_L4_V1.8.0/Drivers/CMSIS/Include
+CHIPSET_INC += -I $(STM32_RTOS)/CMSIS_RTOS/
+CHIPSET_INC += -I $(STM32_RTOS)/include/
+CHIPSET_INC += -I $(STM32_RTOS)/portable/GCC/ARM_CM4F
 CHIPSET_INC += -I $(STM32_CMSIS)/Include
 # Standard library function headers
 CHIPSET_INC += -I $(GCC_ROOT)/include

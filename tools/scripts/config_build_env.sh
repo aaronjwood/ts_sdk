@@ -29,6 +29,9 @@ export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 # Defines which modem to use. Currently only the ublox toby201 and Sequans Monarch are supported.
 #MODEM_TARGET="toby201" | "sqmonarch"
 
+# Defines which operating system to use. Currently bare metal and FREE_RTOS is supported.
+#CHIPSET_OS="FREE_RTOS"
+
 # Defines which cloud protocol to use. Valid options are:
 # OTT_PROTOCOL
 # SMSNAS_PROTOCOL
@@ -62,7 +65,7 @@ Description:
 
 Example Usage:
 source $SCRIPT_NAME chipset_family=<value> mcu=<> dev_board=<> modem=<> protocol=<>
-gps_chipset=<>
+gps_chipset=<> os=<>
 
 Short Cut Settings: This sets sdk default for chipset family, mcu, board and modem
 except transport protocol
@@ -96,6 +99,10 @@ Usage:  source $SCRIPT_NAME Options
 	SMSNAS_PROTOCOL, MQTT_PROTOCOL and NO_PROTOCOL
 
 	gps_chipset: Name of the GPS chipset. Valid values are neo-6m and cxd5600.
+	Leave it blank for no gps chipset.
+
+	os: Name of the OS. Currently FREE_RTOS and bare-metal is supported.
+	This is optional, Valid values are : FREE_RTOS or leave it blank if no os.
 
 	Note: All the options must be present, there are no default values
 
@@ -111,6 +118,7 @@ clear_sdk_chip_env()
 	unset MODEM_TARGET
 	unset PROTOCOL
 	unset GPS_CHIPSET
+	unset CHIPSET_OS
 }
 
 clear_env()
@@ -138,7 +146,8 @@ process_app_args()
 			dev_board)	DEV_BOARD="$value";;
 			modem)		MODEM_TARGET="$value";;
 			protocol)	PROTOCOL="$value";;
-			gps_chipset)    GPS_CHIPSET="$value";;
+			gps_chipset)	GPS_CHIPSET="$value";;
+			os)		CHIPSET_OS="$value";;
 			*)		usage;;
 		esac
 
@@ -154,6 +163,7 @@ print_env()
 	echo "Modem target = $MODEM_TARGET"
 	echo "Cloud transport protocol = $PROTOCOL"
 	echo "GPS Chipset = $GPS_CHIPSET"
+	echo "Operating System = $CHIPSET_OS"
 }
 
 exp_sdk_defaults()
@@ -203,3 +213,4 @@ export DEV_BOARD=$DEV_BOARD
 export MODEM_TARGET=$MODEM_TARGET
 export PROTOCOL=$PROTOCOL
 export GPS_CHIPSET=$GPS_CHIPSET
+export CHIPSET_OS=$CHIPSET_OS
