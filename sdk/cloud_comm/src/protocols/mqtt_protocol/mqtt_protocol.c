@@ -296,7 +296,7 @@ static int mqtt_net_connect()
 	 * certificate CN or SubjectAltName.
 	 */
 #ifndef SSL_HOST
-#define SSLHOST "simpm.thingspace.verizon.com"
+#define SSL_HOST "simpm.thingspace.verizon.com"
 #endif
 	if (mbedtls_ssl_set_hostname(&ssl, SSL_HOST) != 0) {
 		ret = -1;
