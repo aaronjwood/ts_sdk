@@ -21,6 +21,7 @@ enum modem_core_commands {
 	SIM_READY,	/* Check if the SIM is present */
 	EPS_URC_SET,	/* Set the EPS registration URC */
 	EPS_REG_QUERY,	/* Query EPS registration */
+	EN_CELL_FUNC,	/* Enable cell functionality */
 	MODEM_CORE_END	/* End-of-commands marker */
 };
 
@@ -67,7 +68,8 @@ static const char *at_urcs[NUM_URCS] = {
 	[SIM_READY_URC] = "\r\n+IMSSTATE: SIMSTORE,READY\r\n"
 };
 
-static bool sys_res_stable;		/* True when system is stable after restart*/
+static volatile bool sys_en_cell_func;		/* Set when the modem has partially booted up */
+static volatile bool sys_res_stable;		/* True when system is stable after restart*/
 
 static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data)
@@ -219,12 +221,7 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                 .comm = "at^reset\r",
 		.rsp_desc = {
 			{
-				/*
-				 * Should actually be +SYSSHDN but the modem
-				 * has a tendency to only partially print the
-				 * response.
-				 */
-				.rsp = "\r\n+SY",
+				.rsp = "\r\n+SYSSHDN\r\n",
 				.rsp_handler = NULL,
 				.data = NULL
 			}
@@ -277,7 +274,19 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                 },
                 .err = NULL,
                 .comm_timeout = 5000
-        }
+        },
+	[EN_CELL_FUNC] = {
+		.comm = "at+cfun=1\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = NULL,
+		.comm_timeout = 5000
+	}
 };
 
 static at_command_desc modem_query[MODEM_QUERY_END] = {
@@ -456,6 +465,7 @@ static bool process_urc(const char *urc, enum at_urc u_code)
 		break;
 	case SIM_WAIT_URC1:
 		DEBUG_V0("%s: Wait for SIM\n", __func__);
+		sys_en_cell_func = true;
 		break;
 	case SIM_WAIT_URC2:
 		DEBUG_V0("%s: Wait for STORE\n", __func__);
@@ -508,10 +518,10 @@ bool at_modem_configure(void)
 	return true;
 }
 
-static bool wait_for_clean_restart(uint32_t timeout_ms)
+static bool wait_for_clean_restart(const volatile bool *flag, uint32_t timeout_ms)
 {
 	uint32_t start = sys_get_tick_ms();
-	while (!sys_res_stable) {
+	while (!(*flag)) {
 		uint32_t now = sys_get_tick_ms();
 		if (now - start > timeout_ms) {
 			DEBUG_V0("%s: timed out waiting for a clean reset\n",
@@ -525,13 +535,16 @@ static bool wait_for_clean_restart(uint32_t timeout_ms)
 bool at_modem_sw_reset(void)
 {
 	sys_res_stable = false;
+	sys_en_cell_func = false;
 	at_ret_code res = at_core_wcmd(&modem_core[MODEM_RESET], false);
 	if (res == AT_SUCCESS) {
 		/* Block until modem is stable or timeout */
-		if (!wait_for_clean_restart(STABLE_TIMEOUT_MS)) {
-			sys_res_stable = true;
+		if (!wait_for_clean_restart(&sys_en_cell_func, STABLE_TIMEOUT_MS))
 			return false;
-		}
+		if (at_core_wcmd(&modem_core[EN_CELL_FUNC], false) != AT_SUCCESS)
+			return false;
+		if (!wait_for_clean_restart(&sys_res_stable, STABLE_TIMEOUT_MS))
+			return false;
 		return true;
 	}
 	sys_res_stable = true;
@@ -541,12 +554,15 @@ bool at_modem_sw_reset(void)
 void at_modem_hw_reset(void)
 {
 	sys_res_stable = false;
+	sys_en_cell_func = false;
 	gpio_write(MODEM_HW_RESET_PIN, PIN_LOW);
 	sys_delay(RESET_N_DELAY_MS);
 	gpio_write(MODEM_HW_RESET_PIN, PIN_HIGH);
 
 	/* Block until modem is stable or timeout */
-	wait_for_clean_restart(STABLE_TIMEOUT_MS);
+	wait_for_clean_restart(&sys_en_cell_func, STABLE_TIMEOUT_MS);
+	at_core_wcmd(&modem_core[EN_CELL_FUNC], false);
+	wait_for_clean_restart(&sys_res_stable, STABLE_TIMEOUT_MS);
 }
 
 bool at_modem_init(void)
