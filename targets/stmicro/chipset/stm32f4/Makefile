@@ -15,7 +15,7 @@ else
 CHIPSET_ROOT = $(shell dirname $(SRCDIR))
 CHIPSET_BUILDENV = $(shell dirname $(CHIPSET_ROOT))ts_sdk_bldenv
 ifeq ($(CHIPSET_MCU),stm32f415rgt)
-	DEV_BOARD="beduin"
+	DEV_BOARD="nomad"
 else ifeq ($(CHIPSET_MCU),stm32f429zit)
 	DEV_BOARD="nucleo"
 endif

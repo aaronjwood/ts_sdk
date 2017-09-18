@@ -126,7 +126,7 @@ check_docker_images_config()
 			IMAGE_NAME=$RASPI_BASE_IMG
 			BASE_FILE=$RASPI_BASE_FILE
 		fi
-	elif [ "$DEV_BOARD" = "nucleo" ] || [ "$DEV_BOARD" = "beduin" ]; then
+	elif [ "$DEV_BOARD" = "nucleo" ] || [ "$DEV_BOARD" = "beduin" ] || [ "$DEV_BOARD" = "nomad" ]; then
 		if [ -z "$STM_IMGID" ]; then
 			IMAGE_NAME=$STM_BASE_IMG
 			BASE_FILE=$STM_BASE_FILE

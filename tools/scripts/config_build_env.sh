@@ -27,7 +27,7 @@ export MK_HELPER_PATH=$PROJ_ROOT/tools/config
 #DEV_BOARD="nucleo"
 
 # Defines which modem to use. Currently only the ublox toby201 and Sequans Monarch are supported.
-#MODEM_TARGET="toby201" | "sqmonarch"
+#MODEM_TARGET="toby201" | "sqmonarch" | "sara404"
 
 # Defines which operating system to use. Currently bare metal and FREE_RTOS is supported.
 #CHIPSET_OS="FREE_RTOS"
