@@ -96,6 +96,17 @@ static void SystemClock_Config(void)
 
 static void enable_level_shifter(void)
 {
+#if defined(nomad)
+        /* On nomad, 1.8V needs to be enabled before anything else */
+        gpio_config_t low_voltage_st;
+        pin_name_t low_voltage_pin_name = PC9;
+        low_voltage_st.dir = OUTPUT;
+        low_voltage_st.pull_mode = OD_PULL_UP;
+        gpio_init(low_voltage_pin_name, &low_voltage_st);
+        gpio_write(low_voltage_pin_name, PIN_LOW);
+        HAL_Delay(3000);
+        gpio_write(low_voltage_pin_name, PIN_HIGH);
+#endif
 	gpio_config_t init_st;
 #if defined(beduin)
 	pin_name_t pin_name = PB4;
