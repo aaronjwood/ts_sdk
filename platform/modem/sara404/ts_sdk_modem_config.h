@@ -124,7 +124,7 @@
 
 /* Timer ID */
 #define MODEM_UART_IDLE_TIMER	TIMER2
-#elif defined(nomad)
+#elif defined(beduin)
 /* Pin and peripheral configuration for UART connecting modem and MCU */
 #define MODEM_UART_TX_PIN	PB10
 #define MODEM_UART_RX_PIN	PB11

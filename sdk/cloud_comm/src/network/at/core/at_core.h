@@ -29,18 +29,18 @@ typedef enum at_return_codes {
 /* Enable to debug wrong response, this prints expected vs received buffer in
  * raw format
  */
-/*#define DEBUG_WRONG_RSP*/
+#define DEBUG_WRONG_RSP
 
 /* Enable this macro to display messages, error will alway be reported if this
  * macro is enabled while V2 and V1 will depend on debug_level setting
  */
-/*#define DEBUG_AT_LIB*/
+#define DEBUG_AT_LIB
 
 /* level v2 is normally for extensive debugging need, for example tracing
  * function calls
  */
 #ifdef DEBUG_AT_LIB
-static int __attribute__((unused)) debug_level;
+static int __attribute__((unused)) debug_level = 2;
 #define DEBUG_V2(...)	\
                         do { \
                                 if (debug_level >= 2) \

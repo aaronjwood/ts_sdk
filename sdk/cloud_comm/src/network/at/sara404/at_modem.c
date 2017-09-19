@@ -35,8 +35,8 @@ enum at_urc {
 };
 
 static const char *at_urcs[NUM_URCS] = {
-	[EPS_STAT_URC] = "\r\n+CEREG: ",
-	[ExPS_STAT_URC] = "\r\n+UREG: "
+	[EPS_STAT_URC] = "\r\n+CEREG: "
+
 };
 
 enum modem_query_commands {
@@ -193,7 +193,7 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                         }
                 },
                 .err = NULL,
-                .comm_timeout = 100
+                .comm_timeout = 300
         },
         [ECHO_OFF] = {
                 .comm = "ate0\r",
@@ -205,7 +205,7 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                         }
                 },
                 .err = "\r\nERROR\r\n",
-                .comm_timeout = 100
+                .comm_timeout = 300
         },
         [CME_CONF] = {
                 .comm = "at+cmee=1\r",
@@ -295,7 +295,7 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                 .comm_timeout = 100
         },
         [MODEM_RESET] = {
-                .comm = "at+cfun=16\r",
+                .comm = "at+cfun=15\r",
 		.rsp_desc = {
 			{
 				.rsp = "\r\nOK\r\n",
@@ -558,8 +558,8 @@ bool at_modem_configure(void)
 	CHECK_SUCCESS(result, AT_SUCCESS, false);
 
 	/* Enable the Extended Packet Switched network registration URC */
-	result = at_core_wcmd(&modem_core[ExPS_URC_SET], true);
-	CHECK_SUCCESS(result, AT_SUCCESS, false);
+	//	result = at_core_wcmd(&modem_core[ExPS_URC_SET], true);
+	//CHECK_SUCCESS(result, AT_SUCCESS, false);
 
 	/* Enable the EPS network registration URC */
 	result = at_core_wcmd(&modem_core[EPS_URC_SET], true);

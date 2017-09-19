@@ -101,7 +101,8 @@ static void enable_level_shifter(void)
         gpio_config_t low_voltage_st;
         pin_name_t low_voltage_pin_name = PC9;
         low_voltage_st.dir = OUTPUT;
-        low_voltage_st.pull_mode = OD_PULL_UP;
+        low_voltage_st.pull_mode = OD_NO_PULL;
+        low_voltage_st.speed = SPEED_HIGH;
         gpio_init(low_voltage_pin_name, &low_voltage_st);
         gpio_write(low_voltage_pin_name, PIN_LOW);
         HAL_Delay(3000);
