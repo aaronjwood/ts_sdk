@@ -64,3 +64,18 @@ bool utils_get_uptime(char *value, uint32_t len)
 {
         return false;
 }
+
+bool utils_get_imsi(char *value, uint32_t len)
+{
+  return false;
+}
+
+bool utils_get_fwbid(char *value, uint32_t len)
+{
+  return false;
+}
+
+bool utils_get_sis(char *value, uint32_t len)
+{
+  return false;
+}

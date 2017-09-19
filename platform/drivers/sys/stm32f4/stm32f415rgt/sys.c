@@ -97,7 +97,11 @@ static void SystemClock_Config(void)
 static void enable_level_shifter(void)
 {
 	gpio_config_t init_st;
+#if defined(beduin)
 	pin_name_t pin_name = PB4;
+#else
+        pin_name_t pin_name = PB3;
+#endif
 	init_st.dir = OUTPUT;
 	init_st.pull_mode = PP_PULL_DOWN;
 	init_st.speed = SPEED_HIGH;

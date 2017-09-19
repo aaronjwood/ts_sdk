@@ -6,7 +6,7 @@ prg_name=$(basename "$0")
 
 
 # ThingSpace API URL for smsnas
-TS_ADDR_SMS=https://198.159.196.191
+TS_ADDR_SMS=https://core.thingspace.verizon.com
 
 # ThingSpace API URL for OTT
 TS_ADDR_OTT=https://63.98.10.23
@@ -449,6 +449,7 @@ function read_status()
 		echo "Statuses available to be read = $N"
 		for i in $(seq 0 $((N-1))); do
 			echo -n "$((i+1))) "
+                        echo -n "$STVAL" | python -c "import json, sys; print json.load(sys.stdin)[$i]['lastupdated']" 2> /dev/null
 			echo "$STVAL" | python -c "import json, sys; print json.load(sys.stdin)[$i]['fields']['status']" 2> /dev/null | base64 -D | xxd -p
 		done
 	else

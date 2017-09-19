@@ -7,7 +7,7 @@
  * CHIPSET_MCU = stm32f415rgt
  */
 
-#if defined(beduin)
+#if defined(beduin) || defined(nomad)
 /* Pin and peripheral configuration for UART connecting GPS */
 #define GPS_TX_PIN              PC10
 #define GPS_RX_PIN              PC11

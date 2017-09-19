@@ -1,14 +1,14 @@
 /**
- * \file at_toby201_tcp_command.h
+ * \file at_sara404_tcp_command.h
  *
- * \brief AT commands for the ublox-toby201 modem to communicate over TCP
+ * \brief AT commands for the ublox-sara404 modem to communicate over TCP
  *
  * \copyright Copyright (C) 2016, 2017 Verizon. All rights reserved.
  *
  *
  */
-#ifndef AT_TOBY_TCP_COMM_H
-#define AT_TOBY_TCP_COMM_H
+#ifndef AT_SARA_TCP_COMM_H
+#define AT_SARA_TCP_COMM_H
 
 #include "at_tcp_defs.h"
 #include "ts_sdk_modem_config.h"
@@ -74,7 +74,7 @@ static const char *at_urcs[URC_END] = {
 
 static const at_command_desc modem_net_status_comm[MOD_END] = {
         [MNO_STAT] = {
-                .comm = "at+umnoconf?\r",
+                .comm = "at+vzwapne?\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\n+UMNOCONF: "MODEM_UMNOCONF_VAL"\r\n",
@@ -271,4 +271,4 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .comm_timeout = 100
         }
 };
-#endif /* at_toby201_tcp_command.h */
+#endif /* at_sara404_tcp_command.h */
