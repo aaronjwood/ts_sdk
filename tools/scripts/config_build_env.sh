@@ -105,14 +105,10 @@ Usage:  source $SCRIPT_NAME Options
 	This is optional, Valid values are : FREE_RTOS or leave it blank if no os.
 
 	host: Remote host address for protocol.
-	Valid values are: For OTT protocol:- 
-	'"iwk.ott.thingspace.verizon.com:443"', 
-	For MQTT protocol:- '"simpm-ea-iwk.thingspace.verizon.com:8883"',
-	'"68.128.212.248:8883"'
+	Format to be followed is: '"abc.com:8883"'
 
 	ssl_host: Remote host address for certificate verification.
-	Valid values for MQTT protocl are:
-	'"simpm-ea-iwk.thingspace.verizon.com"', '"simpm-ea-iwk.thingspace.verizon.com"'
+	Format to be followed is:- '"abc.com"'
 
 	Note: All the options must be present, there are no default values
 
