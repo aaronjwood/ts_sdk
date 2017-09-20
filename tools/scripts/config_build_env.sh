@@ -105,7 +105,7 @@ Usage:  source $SCRIPT_NAME Options
 	This is optional, Valid values are : FREE_RTOS or leave it blank if no os.
 
 	host: Remote host address for protocol.
-	Format to be followed is: '"abc.com:8883"'
+	Format to be followed is: '"abc.com:8883"' or '"12.21.13.14:8883"'
 
 	ssl_host: Remote host address for certificate verification.
 	Format to be followed is:- '"abc.com"'
