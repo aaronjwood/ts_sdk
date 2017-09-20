@@ -304,7 +304,7 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
 			}
 		},
                 .err = NULL,
-                .comm_timeout = 7000
+                .comm_timeout = 10000
         },
 	[IMEI_QUERY] = {
 		.comm = "at+cgsn\r",
@@ -574,9 +574,9 @@ bool at_modem_get_nstat(void)
 	if (res != AT_SUCCESS)
 		return false;
 
-	res = at_core_wcmd(&modem_core[ExPS_REG_QUERY], true);
+	/*res = at_core_wcmd(&modem_core[ExPS_REG_QUERY], true);
 	if (res != AT_SUCCESS)
-		return false;
+	return false; */
 
 	return true;
 }

@@ -149,10 +149,10 @@ static at_command_desc sms_cmd[NUM_SMS_COMMANDS] = {
 
 static const at_command_desc mod_netw_cmd[NUM_MODEM_COMMANDS] = {
 	[NET_REG_QUERY] = {
-		.comm = "at+creg?\r",
+		.comm = "at+cereg?\r",
 		.rsp_desc = {
 			{
-				.rsp = "\r\n+CREG: 1,6\r\n",
+				.rsp = "\r\n+CEREG: 1,1\r\n",
 				.rsp_handler = NULL,
 				.data = NULL
 			},
@@ -166,7 +166,7 @@ static const at_command_desc mod_netw_cmd[NUM_MODEM_COMMANDS] = {
 		.comm_timeout = 100
 	},
 	[NET_REG_URC_SET] = {
-		.comm = "at+creg=1\r",
+		.comm = "at+cereg=1\r",
 		.rsp_desc = {
 			{
 				.rsp = "\r\nOK\r\n",
