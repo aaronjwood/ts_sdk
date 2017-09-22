@@ -120,10 +120,11 @@ static void send_with_retry(cc_buffer_desc *b, cc_data_sz s, cc_service_id id)
 #define MAX_NUM_SENSORS 5
 #define MAX_DATA_SZ 30
 
-static array_t data;
 
+static array_t sendData;
 /* Array for sensor data buffer */
 static uint8_t rbytes[MAX_DATA_SZ];
+static uint32_t size;
 
 static uint32_t send_all_sensor_data(uint64_t cur_ts)
 {
@@ -134,12 +135,13 @@ static uint32_t send_all_sensor_data(uint64_t cur_ts)
 		}
 	}
 	dbg_printf("Sending sensor data\n");
-	data.bytes = cc_get_send_buffer_ptr(&send_buffer,
+	sendData.bytes = cc_get_send_buffer_ptr(&send_buffer,
 				CC_SERVICE_BASIC);
-	memcpy(data.bytes, rbytes, data.sz);
+	memcpy(sendData.bytes, rbytes, size);
+	sendData.sz = size;
 	dbg_printf("sending out status message : %d bytes\n",
-			data.sz);
-	send_with_retry(&send_buffer, data.sz, CC_SERVICE_BASIC);
+			sendData.sz);
+	send_with_retry(&send_buffer, sendData.sz, CC_SERVICE_BASIC);
 
 	last_st_ts = cur_ts;
 
@@ -174,7 +176,7 @@ static uint32_t read_all_sensor_data()
         array_t data;
         data.bytes = rbytes;
         bme280_beduin_read_sensor(&data);
-
+        size = data.sz;
 
         /*if (beduin_gps_new_NMEA_received()) {
           beduin_gps_parse_nmea(beduin_gps_last_NMEA(), &parsedNMEA);
@@ -210,9 +212,6 @@ static void communication_init(void)
 
 	dbg_printf("Sending \"restarted\" message\n");
 	ASSERT(cc_ctrl_resend_init_config() == CC_SEND_SUCCESS);
-
-	dbg_printf("Init the BME280 sensor\n\r");
-        bme280_beduin_init();
 
 }
 
@@ -320,6 +319,8 @@ int main(void)
 	sys_init();
 	dbg_module_init();
 	dbg_printf("Begin:\n");
+	dbg_printf("Init the BME280 sensor\n\r");
+        bme280_beduin_init();
 
 #if defined(FREE_RTOS)
 	create_threads();

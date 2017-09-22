@@ -10,47 +10,32 @@
 #include "bme280-beduin.h"
 #include <stdint.h>
 #include "bme280.h"
-#include <stm32f4xx_hal.h>
-#include <stm32f4xx_hal_gpio.h>
-#include <stm32f4xx_hal_i2c.h>
 #include "dbg.h"
+#include "i2c_hal.h"
+#include "sys.h"
+#include "board_interface.h"
+
+#define EOE(func) \
+	do { \
+		if (!(func)) \
+			return false; \
+	} while (0)
 
 #define	I2C_BUFFER_LEN 28
+#define I2C_TIMEOUT		2000	/* 2000ms timeout for I2C response */
+periph_t  i2c_handle;
+i2c_addr_t i2c_dest_addr;
 
 struct bme280_t bme280;
-I2C_HandleTypeDef    hi2c1;
-static GPIO_InitTypeDef  GPIO_I2CStruct;
 
 void int_to_buffer(char *buffer, int32_t n);
 int32_t bme280_beduin_set_operational_mode(void);
 float bme280_beduin_read_pressure(void);
 
-void HAL_I2C_MspInit(I2C_HandleTypeDef *hi2c)
-{
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_I2C1_CLK_ENABLE();
-
-  GPIO_I2CStruct.Pin = GPIO_PIN_6 | GPIO_PIN_7;
-  GPIO_I2CStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_I2CStruct.Pull = GPIO_NOPULL;
-  GPIO_I2CStruct.Speed = GPIO_SPEED_FAST;
-  GPIO_I2CStruct.Alternate = GPIO_AF4_I2C1;
-  HAL_GPIO_Init(GPIOB, &GPIO_I2CStruct);
-}
-
 void bme280_beduin_init(void)
 {
-      /* DISCOVERY_I2Cx peripheral configuration */
-      hi2c1.Init.ClockSpeed = 400000;
-      hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-      hi2c1.Init.OwnAddress1 = 0xEE;
-      hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-      hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE ;
-      hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-      hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-      hi2c1.Instance = I2C1;
-      /* Init the I2C */
-     HAL_I2C_Init(&hi2c1);
+     uint32_t timeout_ms = 0;
+     i2c_handle =  i2c_init(I2C_SCL, I2C_SDA, timeout_ms);
      bme280_beduin_set_operational_mode();
 }
 
@@ -125,7 +110,7 @@ int32_t bme280_beduin_read_sensor(array_t *buffer_struct)
   uint32_t v_data_hum[2] = {BME280_INIT_VALUE,BME280_INIT_VALUE};
   int32_t com_rslt = E_ERROR;
   com_rslt = bme280_beduin_wake();
-  HAL_Delay(1000);  
+  sys_delay(1000);  
   // let's make sure t_fine is set
   com_rslt += bme280_read_uncomp_temperature(&v_data_uncomp_temp_s32);
   com_rslt += bme280_read_uncomp_pressure(&v_data_uncomp_pres_s32);
@@ -141,7 +126,7 @@ int32_t bme280_beduin_read_sensor(array_t *buffer_struct)
   int_to_buffer(&buffer[8],(int32_t)v_data_hum[0]);
     
   buffer_struct->sz = 4 * 3;
-  /* float imp_temp = ((float)(v_data_temp[0])/100)*1.8+32;// convert to fahrenheit
+  float imp_temp = ((float)(v_data_temp[0])/100)*1.8+32;// convert to fahrenheit
   float imp_press = ((float)(v_data_pres[0])/100)*.0295300; // convert to inches of mercury
   float imp_humi = ((float)(v_data_hum[0])/1024);// relative humidity
   float dewpt = ((float)v_data_temp[0]/100) - ((100 - imp_humi) / 5. );
@@ -150,7 +135,7 @@ int32_t bme280_beduin_read_sensor(array_t *buffer_struct)
 	 imp_temp,
 	 imp_press,
 	 imp_humi,
-	 dewpt); */
+	 dewpt); 
   bme280_beduin_sleep();
   return com_rslt;
 
@@ -183,23 +168,11 @@ int32_t bme280_beduin_sleep(void)
  */
 s8 BME280_I2C_bus_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t *reg_data, uint8_t cnt)
 {
-    HAL_StatusTypeDef status = HAL_OK;
     int32_t iError = BME280_INIT_VALUE;
-    while (HAL_I2C_IsDeviceReady(&hi2c1, (uint8_t)(dev_addr<<1), 3, 100) != HAL_OK) {}
 
-        status = HAL_I2C_Mem_Write(&hi2c1,		  // i2c handle
-    			      (uint8_t)(dev_addr<<1),	  // i2c address, left aligned
-			      (uint8_t)reg_addr,	  // register address
-			      I2C_MEMADD_SIZE_8BIT,	  // bme280 uses 8bit register addresses
-			      (uint8_t*)(&reg_data),	  // write returned data to reg_data
-			      cnt,			  // write how many bytes
-			      100);			  // timeout
-
-    if (status != HAL_OK) {
-        // The BME280 API calls for 0 return value as a success, and -1 returned as failure
-    	iError = (-1);
-    }
- 
+    i2c_dest_addr.slave = dev_addr;
+    i2c_dest_addr.reg = reg_addr;
+    EOE(i2c_write(i2c_handle, i2c_dest_addr, cnt ,  (uint8_t *)&reg_data));
     return (int8_t)iError;
 }
 
@@ -212,26 +185,15 @@ s8 BME280_I2C_bus_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t *reg_data, u
  */
 s8 BME280_I2C_bus_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *reg_data, uint8_t cnt)
 {
-    HAL_StatusTypeDef status = HAL_OK;
     int32_t iError = BME280_INIT_VALUE;
     uint8_t array[I2C_BUFFER_LEN] = {BME280_INIT_VALUE};
     uint8_t stringpos = BME280_INIT_VALUE;
     array[BME280_INIT_VALUE] = reg_addr;
 
-    while (HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(dev_addr<<1), 3, 100) != HAL_OK) {}
+    i2c_dest_addr.slave = dev_addr;
+    i2c_dest_addr.reg = reg_addr;
+    EOE(i2c_read(i2c_handle, i2c_dest_addr, cnt, (uint8_t *)*&array));
 
-        status = HAL_I2C_Mem_Read(&hi2c1,			// i2c handle
-    			       (uint8_t)(dev_addr<<1),		// i2c address, left aligned
-			       (uint8_t)reg_addr,		// register address
-			       I2C_MEMADD_SIZE_8BIT,		// bme280 uses 8bit register addresses
-			       (uint8_t*)(&array),		// write returned data to this variable
-			       cnt,				// how many bytes to expect returned
-			       100);				// timeout
-
-    if (status != HAL_OK) {
-    	// The BME280 API calls for 0 return value as a success, and -1 returned as failure
-    	iError = (-1);
-    }
     for (stringpos = BME280_INIT_VALUE; stringpos < cnt; stringpos++) {
 		*(reg_data + stringpos) = array[stringpos];
     }
@@ -245,7 +207,7 @@ s8 BME280_I2C_bus_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *reg_data, ui
 void BME280_delay_msek(uint32_t msek)
 {
 	/*Here you can write your own delay routine*/
-	HAL_Delay(10*msek);
+	sys_delay(10*msek);
 }
 
 /*

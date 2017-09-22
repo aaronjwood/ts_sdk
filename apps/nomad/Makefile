@@ -40,6 +40,8 @@ APP_SRC += $(wildcard $(SRCDIR)/$(PROJ_NAME)/*.c)
 # Eg: DBG_LIB_SRC = stm32l0xx_hal_uart.c stm32l0xx_hal_uart_ex.c
 DBG_LIB_SRC =
 
+LDFLAGS += -u _printf_float
+
 # Common and per-platform Makefile variables
 include $(MK_HELPER_PATH)/common.mk
 print-%: ; @echo $* = $($*)
