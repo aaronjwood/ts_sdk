@@ -7,6 +7,8 @@
 #include "protocol_init.h"
 #include "bme280-beduin.h"
 #include "oem_hal.h"
+#include "gps_hal.h"
+#include "at_modem.h"
 
 #if defined(FREE_RTOS)
 #include "cmsis_os.h"
@@ -30,7 +32,7 @@ CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
 
 extern signed long bme280_data_readout_template(array_t *data);
 
-//struct parsed_nmea_t parsedNMEA;
+struct parsed_nmea_t parsedNMEA;
 
 /* Number of times to retry sending in case of failure */
 #define MAX_RETRIES	((uint8_t)3)
@@ -148,9 +150,9 @@ static uint32_t send_all_sensor_data(uint64_t cur_ts)
 	return STATUS_REPORT_INT_MS;
 }
 
-/*int insert_location_into_buffer(uint8_t *buffer, struct parsed_nmea_t *nmea)
+int insert_location_into_buffer(uint8_t *buffer, struct parsed_nmea_t *nmea)
 {
-  return 0;
+
   union cvt {
     float val;
     unsigned char b[4];
@@ -158,17 +160,17 @@ static uint32_t send_all_sensor_data(uint64_t cur_ts)
 
   int noOfBytes = 10;
 
-  x.val = nmea->latitudeDegrees;
+  x.val = nmea->latitude_degrees;
   memcpy(buffer, x.b, noOfBytes/2);
 
-  x.val = nmea->longitudeDegrees;
+  x.val = nmea->longitude_degrees;
   memcpy(buffer+4, x.b, noOfBytes/2);
 
-  memcpy(buffer+8, &nmea->fixquality, 4);
+  memcpy(buffer+8, &nmea->fix_quality, 4);
   memcpy(buffer+12, &nmea->satellites, 4);
-
+  dbg_printf("Lat: %4f, Lon: %4f, sats: %d, fix: %d\r\n",nmea->latitude_degrees,nmea->longitude_degrees, nmea->satellites, nmea->fix_quality);
   return noOfBytes;
-}*/
+}
 
 static uint32_t read_all_sensor_data()
 {
@@ -178,13 +180,15 @@ static uint32_t read_all_sensor_data()
         bme280_beduin_read_sensor(&data);
         size = data.sz;
 
-        /*if (beduin_gps_new_NMEA_received()) {
-          beduin_gps_parse_nmea(beduin_gps_last_NMEA(), &parsedNMEA);
+        if (gps_receive(&parsedNMEA)) {
           uint8_t *buffer = data.bytes + data.sz;
           int ret = insert_location_into_buffer(buffer, &parsedNMEA);
-          data.sz = data.sz + ret;
-	  } */
-
+          size = size + ret;
+	}
+        /* insert nomad at the end of the buffer */
+	char dev_name_buffer[] = "nomad";
+        memcpy(data.bytes+data.sz, dev_name_buffer, 5);
+        size += 5;
 	return STATUS_REPORT_INT_MS;
 }
 
@@ -194,6 +198,7 @@ static void communication_init(void)
 	ASSERT(cc_init(ctrl_cb));
 
 	oem_init();
+
 	dbg_printf("Register to use the Basic service\n");
 	ASSERT(cc_register_service(&cc_basic_service_descriptor,
 				   basic_service_cb));
@@ -319,6 +324,8 @@ int main(void)
 	sys_init();
 	dbg_module_init();
 	dbg_printf("Begin:\n");
+        dbg_printf("Setup NEO-6m/ZOE-8m gnss\r\n");
+        gps_module_init();
 	dbg_printf("Init the BME280 sensor\n\r");
         bme280_beduin_init();
 
