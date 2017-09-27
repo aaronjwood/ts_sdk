@@ -22,6 +22,8 @@ enum modem_core_commands {
 	EPS_URC_SET,	/* Set the EPS registration URC */
 	EPS_REG_QUERY,	/* Query EPS registration */
 	EN_CELL_FUNC,	/* Enable cell functionality */
+	OMA_LWM2M_QUERY,/* Query the status of LWM2M */
+	DIS_OMA_LWM2M,	/* Disable OMA LWM2M */
 	MODEM_CORE_END	/* End-of-commands marker */
 };
 
@@ -70,6 +72,18 @@ static const char *at_urcs[NUM_URCS] = {
 
 static volatile bool sys_en_cell_func;		/* Set when the modem has partially booted up */
 static volatile bool sys_res_stable;		/* True when system is stable after restart*/
+
+static volatile bool workaround_req;		/* Set when the OMA workaround is required */
+
+static void parse_oma_autostart(void *rcv_rsp, int rcp_rsp_len,
+		const char *stored_rsp, void *data)
+{
+	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
+	if (rcv_bytes[0] == '1')
+		workaround_req = true;
+	else
+		workaround_req = false;
+}
 
 static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data)
@@ -221,6 +235,11 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                 .comm = "at^reset\r",
 		.rsp_desc = {
 			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			},
+			{
 				.rsp = "\r\n+SYSSHDN\r\n",
 				.rsp_handler = NULL,
 				.data = NULL
@@ -285,6 +304,35 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
 			}
 		},
 		.err = NULL,
+		.comm_timeout = 5000
+	},
+	[OMA_LWM2M_QUERY] = {
+		.comm = "at+sqnomaautostart?\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n+SQNOMAAUTOSTART: ",
+				.rsp_handler = parse_oma_autostart,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CME ERROR: ",
+		.comm_timeout = 5000
+	},
+	[DIS_OMA_LWM2M] = {
+		.comm = "at+sqnomaautostart=0\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CME ERROR: ",
 		.comm_timeout = 5000
 	}
 };
@@ -514,6 +562,15 @@ bool at_modem_configure(void)
 	/* Enable the EPS network registration URC */
 	result = at_core_wcmd(&modem_core[EPS_URC_SET], true);
 	CHECK_SUCCESS(result, AT_SUCCESS, false);
+
+	result = at_core_wcmd(&modem_core[OMA_LWM2M_QUERY], true);
+	CHECK_SUCCESS(result, AT_SUCCESS, false);
+	if (workaround_req) {
+		result = at_core_wcmd(&modem_core[DIS_OMA_LWM2M], true);
+		CHECK_SUCCESS(result, AT_SUCCESS, false);
+		if (!at_modem_sw_reset())
+			return false;
+	}
 
 	return true;
 }
