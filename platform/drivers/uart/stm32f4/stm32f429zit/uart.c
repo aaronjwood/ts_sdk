@@ -83,7 +83,10 @@ static bool validate_config(const uart_config *config)
 			config->baud != 19200 &&
 			config->baud != 38400 &&
 			config->baud != 57600 &&
-			config->baud != 115200)
+			config->baud != 115200 &&
+			config->baud != 230400 &&
+			config->baud != 460800 &&
+			config->baud != 921600)
 		return false;
 
 	if (config->data_width != 8 && config->data_width != 9)
