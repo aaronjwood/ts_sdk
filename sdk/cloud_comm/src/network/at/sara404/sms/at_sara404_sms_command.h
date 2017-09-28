@@ -34,7 +34,7 @@ typedef enum at_urc {
 } at_urc;
 
 static const char *at_urcs[NUM_URCS] = {
-	[NET_STAT_URC] = "\r\n+CREG: ",
+  //[NET_STAT_URC] = "\r\n+CEREG: ",
 	[CMT_URC] = "\r\n+CMT: ,"
 };
 
@@ -67,7 +67,7 @@ static at_command_desc sms_cmd[NUM_SMS_COMMANDS] = {
 		.comm = NULL,	/* Filled later with PDU string in at_sms_send */
 		.rsp_desc = {
 			{
-				.rsp = "\r\n+CMGS: ",
+				.rsp = "\r\n+cmgs: ",
 				.rsp_handler = NULL,
 				.data = NULL
 			},
@@ -166,7 +166,7 @@ static const at_command_desc mod_netw_cmd[NUM_MODEM_COMMANDS] = {
 		.comm_timeout = 100
 	},
 	[NET_REG_URC_SET] = {
-		.comm = "at+cereg=1\r",
+		.comm = "at+cops=0\r",
 		.rsp_desc = {
 			{
 				.rsp = "\r\nOK\r\n",
@@ -178,10 +178,10 @@ static const at_command_desc mod_netw_cmd[NUM_MODEM_COMMANDS] = {
 		.comm_timeout = 100
 	},
 	[MNO_CONF_QUERY] = {
-		.comm = "at+umnoconf?\r",
+		.comm = "at+cops?\r",
 		.rsp_desc = {
 			{
-				.rsp = "\r\n+UMNOCONF: "MODEM_UMNOCONF_VAL",0\r\n",
+				.rsp = "\r\n+cops: 0,0,\"Verizon Wireless\",7\r\n",
 				.rsp_handler = NULL,
 				.data = NULL
 			},
@@ -195,7 +195,7 @@ static const at_command_desc mod_netw_cmd[NUM_MODEM_COMMANDS] = {
 		.comm_timeout = 100
 	},
 	[MNO_CONF_SET] = {
-		.comm = "at+umnoconf="MODEM_UMNOCONF_VAL"\r",
+		.comm = "at+cops=0,0\r",
 		.rsp_desc = {
 			{
 				.rsp = "\r\nOK\r\n",

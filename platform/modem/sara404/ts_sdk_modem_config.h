@@ -48,7 +48,7 @@
 #elif defined(SMSNAS_PROTOCOL)
 
 #if SIM_TYPE == DAK
-#define MODEM_UMNOCONF_VAL	"0,0"
+#define MODEM_UMNOCONF_VAL	"0,0,\"Verizon Wireless\",7"
 #else
 #define MODEM_UMNOCONF_VAL	"1,6"
 #endif	/* SIM_TYPE */
