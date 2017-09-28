@@ -25,7 +25,19 @@ else
 endif
 endif
 
+ifneq ($(REMOTE_HOST),)
+ifneq ($(SSL_HOST),)
+CFLAGS_COM = -Werror -std=c99 $(INC) -DSSL_HOST='$(SSL_HOST)' \
+	-DREMOTE_HOST='$(REMOTE_HOST)' -D$(PROTOCOL) -D$(MODEM) \
+	-D$(DEV_BOARD) $(DEF_FLAG_MCU)
+else
+CFLAGS_COM = -Werror -std=c99 $(INC) -DREMOTE_HOST='$(REMOTE_HOST)' \
+	-D$(PROTOCOL) -D$(MODEM) -D$(DEV_BOARD) $(DEF_FLAG_MCU)
+endif
+else
 CFLAGS_COM = -Werror -std=c99 $(INC) -D$(PROTOCOL) -D$(MODEM) -D$(DEV_BOARD) $(DEF_FLAG_MCU)
+endif
+
 CFLAGS_USER = -Wall -Wcast-align $(CFLAGS_COM) $(DBG_OP_USER_FLAGS)
 CFLAGS_LIB = -Wall -Wcast-align $(CFLAGS_SDK) $(PLATFORM_HAL_CFLAGS) \
 	$(CFLAGS_COM) $(DBG_OP_LIB_FLAGS) -fdata-sections -ffunction-sections
