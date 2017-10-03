@@ -8,6 +8,7 @@
 #include "gpio_hal.h"
 #include "ts_sdk_modem_config.h"
 #include "at_tcp.h"
+#include "dbg.h"
 
 #define MODEM_RESET_DELAY		25000	/* In milli seconds */
 #define RESET_PULSE_WIDTH_MS		3000	/* Toby-L2 data sheet Section 4.2.9 */
@@ -49,6 +50,7 @@ enum modem_query_commands {
 	GET_MOD_INFO,	/* Get the model information */
 	GET_MAN_INFO,	/* Get the manufacturer information */
 	GET_FWVER,	/* Get the firmware version */
+        GET_CNUM,       /* Get the subscriber number */
 	MODEM_QUERY_END
 };
 
@@ -62,7 +64,8 @@ static const uint8_t buf_len[MODEM_QUERY_END] = {
 	[GET_IMSI] = 17,
 	[GET_MOD_INFO] = 7,	/* XXX: Might change in next release of modem */
 	[GET_MAN_INFO] = 23,	/* XXX: Might change in next release of modem */
-	[GET_FWVER] = 11	/* XXX: Might change in next release of modem */
+	[GET_FWVER] = 11,	/* XXX: Might change in next release of modem */
+        [GET_CNUM] = 50
 };
 
 static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
@@ -71,7 +74,7 @@ static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
 	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
 	if (rcv_bytes[0] != ',')
 		return;		/* PDP context is probably not active; no IP */
-	rcv_bytes += 2;		/* Skip the ',' and the '"' */
+ rcv_bytes += 2;		/* Skip the ',' and the '"' */
 	uint8_t i = 0;
 	while (rcv_bytes[i] != '"') {
 		((char *)data)[i] = rcv_bytes[i];
@@ -156,7 +159,7 @@ static void parse_man_info(void *rcv_rsp, int rcv_rsp_len,
 static void parse_mod_info(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data)
 {
-	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
+  char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
 	uint8_t i = 0;
 	while (rcv_bytes[i] != '\r') {
 		((char *)data)[i] = rcv_bytes[i];
@@ -180,6 +183,18 @@ static void parse_imsi(void *rcv_rsp, int rcv_rsp_len,
 {
 	rcv_rsp += strlen(stored_rsp);
 	memcpy(data, rcv_rsp, buf_len[GET_IMSI] - 1);
+}
+
+static void parse_cnum(void *rcv_rsp, int rcv_rsp_len,
+		const char *stored_rsp, void *data)
+{
+  char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
+	uint8_t i = 0;
+        dbg_printf("bytes=%s", (char *)rcv_rsp);
+	while (rcv_bytes[i] != '\r') {
+		((char *)data)[i] = rcv_bytes[i];
+		 i++;
+	}
 }
 
 static const at_command_desc modem_core[MODEM_CORE_END] = {
@@ -495,6 +510,23 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 		},
 		.err = "\r\n+CME ERROR: ",
 		.comm_timeout = 100
+	},
+	[GET_CNUM] = {
+	         .comm = "at+cnum\r",
+	         .rsp_desc = {
+	                 {
+			   .rsp = "\r\n+CNUM:",
+			   .rsp_handler = parse_cnum,
+			   .data = NULL
+			 },
+			 {
+			   .rsp = "\r\nOK\r\n",
+			   .rsp_handler = NULL,
+			   .data = NULL
+			 }
+	         },
+		 .err = "\r\n+CME ERROR: ",
+		 .comm_timeout = 10000
 	}
 };
 
@@ -637,13 +669,13 @@ static bool get_param(enum modem_query_commands cmd, char *buf)
 	bool ret = false;
 	if (buf == NULL)
 		goto exit_func;
-
+#if !defined(SMSNAS_PROTOCOL)
 	if (!at_tcp_enter_cmd_mode())
 		goto exit_func;
+#endif
 
 	memset(buf, 0, buf_len[cmd]);
 	modem_query[cmd].rsp_desc[0].data = buf;
-
 	if (at_core_wcmd(&modem_query[cmd], true) != AT_SUCCESS)
 		goto exit_func;
 
@@ -652,8 +684,10 @@ static bool get_param(enum modem_query_commands cmd, char *buf)
 
 	ret = true;
 exit_func:
+#if !defined(SMSNAS_PROTOCOL)
 	if (!at_tcp_leave_cmd_mode())
 		ret = false;
+#endif
 	return ret;
 }
 
@@ -700,4 +734,9 @@ bool at_modem_get_fwver(char *fwver)
 bool at_modem_get_imsi(char *imsi)
 {
 	return get_param(GET_IMSI, imsi);
+}
+
+bool at_modem_get_cnum(char *cnum)
+{
+  return get_param(GET_CNUM, cnum);
 }

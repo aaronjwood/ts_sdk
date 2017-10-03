@@ -170,4 +170,16 @@ bool at_modem_get_fwver(char *fwver);
  */
 bool at_modem_get_imsi(char *imsi);
 
+/**
+ * \brief Retrieve the CNUM as a NULL terminated string.
+ *
+ * \param[out] cnum Pointer to a NULL terminated buffer to hold the retrieved
+ * CNUM. Buffer must be at least 35 bytes long (including the terminating NULL
+ * character).
+ *
+ * \retval true CNUM was retrieved.
+ * \retval false Failed to retrieve CNUM. Buffer contents are invalid.
+ */
+bool at_modem_get_cnum(char *cnum);
+
 #endif

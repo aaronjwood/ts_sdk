@@ -26,6 +26,13 @@ static const uint8_t RCV_RESET[] = { 0xB5, 0x62, 0x06, 0x04, 0x04,
 					 0x00, 0x00, 0x01, 0x01,
 					 0x00, 0x10, 0x6b };
 
+static const uint8_t REVERT_NMEA[] = { 0xB5, 0x62, 0x06, 0x17, 0x14, 
+				       0x00, 0x10, 0x23, 0x0C, 0x00, 
+				       0x60, 0x00, 0x00, 0x00, 0x00, 
+				       0x01, 0x01, 0x01, 0x00, 0x00, 
+				       0x00, 0x00, 0x00, 0x00, 0x00, 
+				       0x00, 0xD3, 0x28 };
+
 static const uint8_t RMC_Off[]   = { 0XB5, 0X62, 0X06, 0X01, 0X08,
 					 0X00, 0XF0, 0X04, 0X00,
 					 0X00, 0X00, 0X00, 0X00,
@@ -65,6 +72,8 @@ static const uint8_t GGA_On[]    = { 0XB5, 0X62, 0X06, 0X01, 0X08,
 					 0X00, 0XF0, 0X00, 0X00,
 					 0X01, 0X01, 0X00, 0X00,
 					 0X00, 0X01, 0X2C };
+
+static const uint8_t SAVE_Config[] = { 0xB5, 0X62, 0X06, 0X09, 0X0D, 0X00, 0X00, 0X00, 0X00, 0X00, 0XFF, 0XFF, 0X00, 0X00, 0X00, 0X00, 0X00, 0X00, 0X01, 0X1B, 0XA9 };
 
 /**
  * \brief Send data over GPS.
@@ -175,7 +184,7 @@ static void parse_time(char *p, struct parsed_nmea_t *parsed_nmea)
 	parsed_nmea->minute = (time % 10000) / 100;
 	parsed_nmea->seconds = (time % 100);
 	parsed_nmea->milliseconds = float_mod((double) timef, 1.0) * 1000;
-	dbg_printf("GPS time: hour:%d min:%d sec:%d\n",
+	dbg_printf("GPS time: hour:%d min:%d sec:%d\n\r",
 		parsed_nmea->hour, parsed_nmea->minute, parsed_nmea->seconds);
 }
 
@@ -219,7 +228,7 @@ static char *parse_latitude(char *p, struct parsed_nmea_t *parsed_nmea,
 		else
 			*retval = false;
 	}
-	dbg_printf("GPS Latitude: %f\n",
+	dbg_printf("GPS Latitude: %f\n\r",
 		parsed_nmea->latitude_degrees);
 	return p;
 }
@@ -265,7 +274,7 @@ static char *parse_longitude(char *p, struct parsed_nmea_t *parsed_nmea,
 		else
 			*retval = false;
 	}
-	dbg_printf("GPS Longitude: %f\n",
+	dbg_printf("GPS Longitude: %f\n\r",
 		parsed_nmea->longitude_degrees);
 	return p;
 }
@@ -293,15 +302,15 @@ static char *parse_GGA_param(char *p, struct parsed_nmea_t *parsed_nmea)
 	if (',' != *p)
 		parsed_nmea->geoid_height = atof(p);
 
-	dbg_printf("GPS fix quality indicator: %d\n",
+	dbg_printf("GPS fix quality indicator: %d\n\r",
 		parsed_nmea->fix_quality);
-	dbg_printf("GPS number of satellites in use: %d\n",
+	dbg_printf("GPS number of satellites in use: %d\n\r",
 		parsed_nmea->satellites);
-	dbg_printf("GPS HDOP: %f\n",
+	dbg_printf("GPS HDOP: %f\n\r",
 		parsed_nmea->HDOP);
-	dbg_printf("GPS altitude: %f\n",
+	dbg_printf("GPS altitude: %f\n\r",
 		parsed_nmea->altitude);
-	dbg_printf("GPS geoidal height: %f\n",
+	dbg_printf("GPS geoidal height: %f\n\r",
 		parsed_nmea->geoid_height);
 	return p;
 }
@@ -327,11 +336,11 @@ static char *parse_RMC_param(char *p, struct parsed_nmea_t *parsed_nmea)
 		parsed_nmea->year = (fulldate % 100);
 
 	}
-	dbg_printf("GPS speed: %f\n",
+	dbg_printf("GPS speed: %f\n\r",
 		parsed_nmea->speed);
-	dbg_printf("GPS angle: %f\n",
+	dbg_printf("GPS angle: %f\n\r",
 		parsed_nmea->angle);
-	dbg_printf("GPS date: day:%d month:%d year:%d\n",
+	dbg_printf("GPS date: day:%d month:%d year:%d\n\r",
 		parsed_nmea->day, parsed_nmea->month,
 		parsed_nmea->year);
 	return p;
@@ -349,7 +358,7 @@ static bool validate_nmea(char *nmea)
 			sum ^= nmea[i];
 
 		if (sum != 0) {
-			dbg_printf("Bad NMEA Checksum\n");
+			dbg_printf("Bad NMEA Checksum\n\r");
 			return false;
 		}
 	}
@@ -370,10 +379,10 @@ static bool gps_new_NMEA_received()
 	int buffer_start_index = 0;
 	int buffer_end_index = 0;
 	for (int i = 0; i < GPS_RX_BUFFER_SIZE; i++) {
-		if (buffer[i] == '$')
-			buffer_start_index = i;
-		else if (buffer[i] == '\n')
-			buffer_end_index = i;
+	  if (buffer[i] == '$')
+		buffer_start_index = i;
+	  else if (buffer[i] == '\n')
+		buffer_end_index = i;
 	}
 
 	int32_t sz = buffer_end_index - buffer_start_index + 1;
@@ -381,6 +390,7 @@ static bool gps_new_NMEA_received()
 
 	if (sz > 1)
 		memcpy(sentence_buffer, &buffer[buffer_start_index], sz);
+        dbg_printf("Sentence buffer=%s",sentence_buffer);
 	recvd_flag = true;
 	return recvd_flag;
 }
@@ -402,7 +412,7 @@ static bool gps_parse_nmea(char *nmea, struct parsed_nmea_t *parsed_nmea)
 	if (validate_nmea(nmea) == false)
 		return false;
 	/* Look for a few common sentences */
-	if (strstr(nmea, "$GNGGA")) {
+	if (strstr(nmea, "$GPGGA")) {
 
 		/* Found GGA */
 		char *bufptr = nmea;
@@ -428,7 +438,7 @@ static bool gps_parse_nmea(char *nmea, struct parsed_nmea_t *parsed_nmea)
 		bufptr = parse_GGA_param(bufptr, parsed_nmea);
 		return true;
 	}
-	if (strstr(nmea, "$GNRMC")) {
+	if (strstr(nmea, "$GPRMC")) {
 
 		/* Found RMC */
 		char *bufptr = nmea;
@@ -478,6 +488,73 @@ static char *gps_last_NMEA(void)
 	return (char *)sentence_buffer;
 }
 
+bool gps_module_set_reporting(void)
+{
+	uint8_t buffer[20] = {0};
+
+	if (!gps_tx(REVERT_NMEA, sizeof(REVERT_NMEA), GPS_SEND_TIMEOUT_MS)) {
+          dbg_printf("failed to xmit REVERT_NMEA");
+	  return false;
+	}
+	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS)) {
+	  dbg_printf("failed rcv on REVERT_NMEA");
+		return false;
+	}
+
+	if (!gps_tx(RMC_Off, sizeof(RMC_Off), GPS_SEND_TIMEOUT_MS)) {
+          dbg_printf("failed to xmit RMC_Off");
+	  return false;
+	}
+	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS)) {
+	  dbg_printf("failed rcv on RMC_Off");
+		return false;
+	}
+	if (!gps_tx(VTG_Off, sizeof(VTG_Off), GPS_SEND_TIMEOUT_MS)) {
+          dbg_printf("failed to xmit VTG_Off");
+		return false;
+	}
+	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS)) {
+	  dbg_printf("failed rcv on VTG_Off");
+		return false;
+	}
+
+	if (!gps_tx(GSA_Off, sizeof(GSA_Off), GPS_SEND_TIMEOUT_MS)) {
+          dbg_printf("failed to xmit GSA_Off");
+		return false;
+	}
+	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS)) {
+	  dbg_printf("failed rcv on GSA_Off");
+		return false;
+	}
+
+	if (!gps_tx(GSV_Off, sizeof(GSV_Off), GPS_SEND_TIMEOUT_MS)) {
+          dbg_printf("failed to xmit GSV_Off");
+		return false;
+	}
+	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS)) {
+	  dbg_printf("failed rcv on GSV_Off");
+		return false;
+	}
+	if (!gps_tx(GLL_Off, sizeof(GLL_Off), GPS_SEND_TIMEOUT_MS)) {
+          dbg_printf("failed to xmit GLL_Off");
+		return false;
+	}
+	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS)) {
+	  dbg_printf("failed rcv on GLL_Off");
+		return false;
+	}
+	if (!gps_tx(ZDA_Off, sizeof(ZDA_Off), GPS_SEND_TIMEOUT_MS)) {
+          dbg_printf("failed to xmit ZDA_Off");
+		return false;
+	}
+	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS)) {
+	  dbg_printf("failed rcv on ZDA_Off");
+		return false;
+	}
+        dbg_printf("ZOE set for GGA only\r\n");
+	return true;
+}
+
 bool gps_module_init()
 {
 
@@ -487,9 +564,9 @@ bool gps_module_init()
         to be set up again
        */
         gpio_config_t zoe_reset_pin;
-        pin_name_t zoe_reset_pin_name = PB5;
+        pin_name_t zoe_reset_pin_name = GPS_RESET_PIN;
         zoe_reset_pin.dir = OUTPUT;
-        zoe_reset_pin.pull_mode = OD_PULL_DOWN;
+        zoe_reset_pin.pull_mode = PP_PULL_UP;
         zoe_reset_pin.speed = SPEED_VERY_HIGH;
         gpio_init(zoe_reset_pin_name, &zoe_reset_pin);
         gpio_write(zoe_reset_pin_name, PIN_HIGH);
@@ -514,7 +591,7 @@ bool gps_module_init()
 	if (uart == NO_PERIPH)
 		return false;
 
-	dbg_printf("GNSS: reset Zoe-8M, allow only $GNGGA\n\r");
+	dbg_printf("GNSS: reset Zoe-8M, allow only $GPGGA\n\r");
 	uint8_t buffer[20] = {0};
 
 	if (!gps_tx(RCV_RESET, sizeof(RCV_RESET), GPS_SEND_TIMEOUT_MS))
@@ -522,39 +599,16 @@ bool gps_module_init()
 	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS))
 		return false;
 
-	sys_delay(2000);
-
-	if (!gps_tx(RMC_Off, sizeof(RMC_Off), GPS_SEND_TIMEOUT_MS))
-		return false;
-	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS))
-		return false;
-
-	if (!gps_tx(VTG_Off, sizeof(VTG_Off), GPS_SEND_TIMEOUT_MS))
-		return false;
-	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS))
-		return false;
-
-	if (!gps_tx(GSA_Off, sizeof(GSA_Off), GPS_SEND_TIMEOUT_MS))
-		return false;
-	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS))
-		return false;
-
-	if (!gps_tx(GSV_Off, sizeof(GSV_Off), GPS_SEND_TIMEOUT_MS))
-		return false;
-	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS))
-		return false;
-
-	if (!gps_tx(GLL_Off, sizeof(GLL_Off), GPS_SEND_TIMEOUT_MS))
-		return false;
-	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS))
-		return false;
-
-	if (!gps_tx(ZDA_Off, sizeof(ZDA_Off), GPS_SEND_TIMEOUT_MS))
-		return false;
-	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS))
-		return false;
+	sys_delay(2000); 
 
 	recvd_flag   = false;
+
+        if (!gps_module_set_reporting())
+	  return false;
+	if (!gps_tx(SAVE_Config, sizeof(SAVE_Config), GPS_SEND_TIMEOUT_MS))
+	  return false;
+	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS))
+	  return false;
 	return true;
 }
 

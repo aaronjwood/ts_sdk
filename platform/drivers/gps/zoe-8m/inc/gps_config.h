@@ -16,7 +16,7 @@
 #define GPS_UART_PARITY         0
 #define GPS_UART_STOP_BITS_1    1
 #define GPS_UART_IRQ_PRIORITY   0
-
+#define GPS_RESET_PIN           PB5
 #else
 
 #error "define valid board options is nomad"

@@ -9,6 +9,7 @@
 #include "oem_hal.h"
 #include "gps_hal.h"
 #include "at_modem.h"
+#include "gpio_hal.h"
 
 #if defined(FREE_RTOS)
 #include "cmsis_os.h"
@@ -34,6 +35,10 @@ extern signed long bme280_data_readout_template(array_t *data);
 
 struct parsed_nmea_t parsedNMEA;
 
+gpio_config_t green_led_st;
+pin_name_t green_led_pin_name = PC12;
+bool user_led_state = false;
+
 /* Number of times to retry sending in case of failure */
 #define MAX_RETRIES	((uint8_t)3)
 
@@ -41,7 +46,7 @@ struct parsed_nmea_t parsedNMEA;
 #define LONG_SLEEP_INT_MS	180000
 
 /* status report interval in milliseconds */
-#define STATUS_REPORT_INT_MS	15000
+#define STATUS_REPORT_INT_MS	150000
 /* last status message sent timestamp */
 
 static void receive_completed(cc_buffer_desc *buf)
@@ -168,27 +173,22 @@ int insert_location_into_buffer(uint8_t *buffer, struct parsed_nmea_t *nmea)
 
   memcpy(buffer+8, &nmea->fix_quality, 4);
   memcpy(buffer+12, &nmea->satellites, 4);
-  dbg_printf("Lat: %4f, Lon: %4f, sats: %d, fix: %d\r\n",nmea->latitude_degrees,nmea->longitude_degrees, nmea->satellites, nmea->fix_quality);
   return noOfBytes;
 }
 
 static uint32_t read_all_sensor_data()
 {
 	dbg_printf("Reading sensor data\n");
+
         array_t data;
         data.bytes = rbytes;
         bme280_beduin_read_sensor(&data);
         size = data.sz;
-
         if (gps_receive(&parsedNMEA)) {
           uint8_t *buffer = data.bytes + data.sz;
           int ret = insert_location_into_buffer(buffer, &parsedNMEA);
           size = size + ret;
 	}
-        /* insert nomad at the end of the buffer */
-	char dev_name_buffer[] = "nomad";
-        memcpy(data.bytes+data.sz, dev_name_buffer, 5);
-        size += 5;
 	return STATUS_REPORT_INT_MS;
 }
 
@@ -198,6 +198,14 @@ static void communication_init(void)
 	ASSERT(cc_init(ctrl_cb));
 
 	oem_init();
+
+        char firmware_version[30];
+        at_modem_get_fwver(firmware_version);
+        dbg_printf("SARA-R404 FW version = %s", firmware_version);
+
+        char cnum[38];
+        at_modem_get_cnum(cnum);
+        dbg_printf("CNUM= %s", cnum);
 
 	dbg_printf("Register to use the Basic service\n");
 	ASSERT(cc_register_service(&cc_basic_service_descriptor,
@@ -319,15 +327,25 @@ static void create_threads(void)
 }
 #endif
 
+void setup_user_gpio(void)
+{
+        green_led_st.dir = OUTPUT;
+        green_led_st.pull_mode = PP_PULL_UP;
+        green_led_st.speed = SPEED_VERY_HIGH;
+        gpio_init(green_led_pin_name, &green_led_st);
+        gpio_write(green_led_pin_name, PIN_HIGH);
+}
+
 int main(void)
 {
 	sys_init();
 	dbg_module_init();
 	dbg_printf("Begin:\n");
-        dbg_printf("Setup NEO-6m/ZOE-8m gnss\r\n");
-        gps_module_init();
+        dbg_printf("Setup ZOE-8m gnss\r\n");
+        ASSERT(gps_module_init() !=0);
 	dbg_printf("Init the BME280 sensor\n\r");
         bme280_beduin_init();
+        setup_user_gpio();
 
 #if defined(FREE_RTOS)
 	create_threads();
@@ -341,6 +359,8 @@ int main(void)
 		next_report_interval = send_all_sensor_data(
 							sys_get_tick_ms());
 		receive_and_wait_for_reporting(next_report_interval);
+                gpio_write(green_led_pin_name, user_led_state ? PIN_HIGH : PIN_LOW);
+		user_led_state = !user_led_state;
 	}
 #endif
 
