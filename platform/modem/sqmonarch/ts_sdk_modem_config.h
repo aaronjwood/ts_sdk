@@ -37,19 +37,19 @@
 #elif defined (stm32l476rgt)
 #ifdef nucleo
 /* Pin and peripheral configuration for UART connecting modem and MCU */
-#define MODEM_UART_TX_PIN	PC10
-#define MODEM_UART_RX_PIN	PC11
+#define MODEM_UART_TX_PIN	PA9
+#define MODEM_UART_RX_PIN	PA10
 #define MODEM_UART_RTS_PIN	NC
 #define MODEM_UART_CTS_PIN	NC
-#define MODEM_HW_RESET_PIN	PC7
-#define MODEM_HW_PWREN_PIN	PB6
-#define MODEM_UART_BAUD_RATE	115200
+#define MODEM_HW_RESET_PIN	PB4
+#define MODEM_HW_PWREN_PIN	PA4
+#define MODEM_UART_BAUD_RATE	921600
 #define MODEM_UART_DATA_WIDTH	8
 #define MODEM_UART_PARITY	NONE
 #define MODEM_UART_STOP_BITS	1
 
-#define MODEM_EMULATED_RTS	PB3
-#define MODEM_EMULATED_CTS	PA10
+#define MODEM_EMULATED_RTS	PB5
+#define MODEM_EMULATED_CTS	PB3
 
 /* UART and timer IRQ priorities - UART must have higher priority than timer */
 #define MODEM_UART_IRQ_PRIORITY	5

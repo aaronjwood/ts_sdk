@@ -313,6 +313,8 @@ build_app()
 	echo "SDK root: $SDK_ROOT"
 	echo "Application directory to build: $APP_NAME"
 	echo "Application specific build options: $APP_MAKE_ENV"
+	echo "Application REMOTE_HOST: $REMOTE_HOST"
+	echo "Application SSL_HOST: $SSL_HOST"
 
 	docker build -t $TS_SDK_IMAGE_NAME -f $SDK_DOCKER $PROJ_ROOT
 	docker build -t $APP_NAME -f $APP_DOCKER $PROJ_ROOT
@@ -320,6 +322,7 @@ build_app()
 		-e CHIPSET_FAMILY=$CHIPSET_FAMILY -e CHIPSET_MCU=$CHIPSET_MCU \
 		-e DEV_BOARD=$DEV_BOARD -e MODEM_TARGET=$MODEM_TARGET \
 		-e GPS_CHIPSET=$GPS_CHIPSET $CHIPSET_BUILDENV -e CHIPSET_OS=$CHIPSET_OS \
+		-e REMOTE_HOST=$REMOTE_HOST -e SSL_HOST=$SSL_HOST \
 		-v $MOUNT_DIR:/build $APP_NAME
 	check_build $APP_NAME $TS_SDK_IMAGE_NAME
 	cleanup_docker_images $APP_NAME $TS_SDK_IMAGE_NAME

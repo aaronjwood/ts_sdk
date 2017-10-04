@@ -200,7 +200,7 @@ static bool emu_hwflctrl(pin_name_t rts, pin_name_t cts)
 	if (!gpio_init(m_rts, &flctrl_pins))
 		return false;
 
-	gpio_write(m_rts, PIN_HIGH);
+	gpio_write(m_rts, PIN_LOW);
 
 	flctrl_pins.dir = INPUT;
 	if (!gpio_init(m_cts, &flctrl_pins))
@@ -215,7 +215,7 @@ bool at_core_write(uint8_t *buf, uint16_t len)
 {
 #if defined(MODEM_EMULATED_CTS) && defined(MODEM_EMULATED_RTS)
 	if (m_rts != NC && m_cts != NC) {
-		gpio_write(m_rts, PIN_LOW);
+		gpio_write(m_rts, PIN_HIGH);
 		uint32_t start = sys_get_tick_ms();
 		while (gpio_read(m_cts) == PIN_HIGH) {
 			uint32_t now = sys_get_tick_ms();
@@ -229,7 +229,7 @@ bool at_core_write(uint8_t *buf, uint16_t len)
 
 #if defined(MODEM_EMULATED_CTS) && defined(MODEM_EMULATED_RTS)
 	if (m_rts != NC && m_cts != NC)
-		gpio_write(m_rts, PIN_HIGH);
+		gpio_write(m_rts, PIN_LOW);
 #endif
 
 	return res;

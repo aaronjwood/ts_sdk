@@ -65,7 +65,7 @@ Description:
 
 Example Usage:
 source $SCRIPT_NAME chipset_family=<value> mcu=<> dev_board=<> modem=<> protocol=<>
-gps_chipset=<> os=<>
+gps_chipset=<> os=<> host=<> ssl_host=<>
 
 Short Cut Settings: This sets sdk default for chipset family, mcu, board and modem
 except transport protocol
@@ -104,6 +104,12 @@ Usage:  source $SCRIPT_NAME Options
 	os: Name of the OS. Currently FREE_RTOS and bare-metal is supported.
 	This is optional, Valid values are : FREE_RTOS or leave it blank if no os.
 
+	host: Remote host address for protocol.
+	Format to be followed is: '"abc.com:8883"' or '"12.21.13.14:8883"'
+
+	ssl_host: Remote host address for certificate verification.
+	Format to be followed is:- '"abc.com"'
+
 	Note: All the options must be present, there are no default values
 
 EOF
@@ -119,6 +125,8 @@ clear_sdk_chip_env()
 	unset PROTOCOL
 	unset GPS_CHIPSET
 	unset CHIPSET_OS
+	unset REMOTE_HOST
+	unset SSL_HOST
 }
 
 clear_env()
@@ -148,6 +156,8 @@ process_app_args()
 			protocol)	PROTOCOL="$value";;
 			gps_chipset)	GPS_CHIPSET="$value";;
 			os)		CHIPSET_OS="$value";;
+			host)		REMOTE_HOST="$value";;
+			ssl_host)	SSL_HOST="$value";;
 			*)		usage;;
 		esac
 
@@ -164,6 +174,8 @@ print_env()
 	echo "Cloud transport protocol = $PROTOCOL"
 	echo "GPS Chipset = $GPS_CHIPSET"
 	echo "Operating System = $CHIPSET_OS"
+	echo "Remote Host = $REMOTE_HOST"
+	echo "SSL Host = $SSL_HOST"
 }
 
 exp_sdk_defaults()
@@ -214,3 +226,5 @@ export MODEM_TARGET=$MODEM_TARGET
 export PROTOCOL=$PROTOCOL
 export GPS_CHIPSET=$GPS_CHIPSET
 export CHIPSET_OS=$CHIPSET_OS
+export REMOTE_HOST=$REMOTE_HOST
+export SSL_HOST=$SSL_HOST

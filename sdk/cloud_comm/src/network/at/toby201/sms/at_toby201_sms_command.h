@@ -8,6 +8,9 @@
 
 #define NET_STAT_REG_CODE	6
 enum at_modem_network_commands {
+#if SIM_TYPE == DAK_COM
+	ACT_APN,
+#endif
 	NET_REG_QUERY,
 	NET_REG_URC_SET,
 	MNO_CONF_QUERY,
@@ -148,6 +151,20 @@ static at_command_desc sms_cmd[NUM_SMS_COMMANDS] = {
 };
 
 static const at_command_desc mod_netw_cmd[NUM_MODEM_COMMANDS] = {
+#if SIM_TYPE == DAK_COM
+	[ACT_APN] = {
+		.comm = "at+cgact=1,4\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = NULL,
+		.comm_timeout = 20000
+	},
+#endif
 	[NET_REG_QUERY] = {
 		.comm = "at+creg?\r",
 		.rsp_desc = {
@@ -181,7 +198,7 @@ static const at_command_desc mod_netw_cmd[NUM_MODEM_COMMANDS] = {
 		.comm = "at+umnoconf?\r",
 		.rsp_desc = {
 			{
-				.rsp = "\r\n+UMNOCONF: "MODEM_UMNOCONF_VAL",0\r\n",
+				.rsp = "\r\n+UMNOCONF: "MODEM_UMNOCONF_VAL"\r\n",
 				.rsp_handler = NULL,
 				.data = NULL
 			},
