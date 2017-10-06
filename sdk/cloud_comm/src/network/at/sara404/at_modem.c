@@ -51,6 +51,7 @@ enum modem_query_commands {
 	GET_MAN_INFO,	/* Get the manufacturer information */
 	GET_FWVER,	/* Get the firmware version */
         GET_CNUM,       /* Get the subscriber number */
+        GET_APNS,       /* get the APN list */
 	MODEM_QUERY_END
 };
 
@@ -65,7 +66,8 @@ static const uint8_t buf_len[MODEM_QUERY_END] = {
 	[GET_MOD_INFO] = 7,	/* XXX: Might change in next release of modem */
 	[GET_MAN_INFO] = 23,	/* XXX: Might change in next release of modem */
 	[GET_FWVER] = 11,	/* XXX: Might change in next release of modem */
-        [GET_CNUM] = 50
+        [GET_CNUM] = 50,
+	[GET_APNS] = 200
 };
 
 static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
@@ -191,12 +193,25 @@ static void parse_cnum(void *rcv_rsp, int rcv_rsp_len,
   char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
 	uint8_t i = 0;
         dbg_printf("bytes=%s", (char *)rcv_rsp);
-	while (rcv_bytes[i] != '\r') {
+	while (rcv_bytes[i] != '\n') {
 		((char *)data)[i] = rcv_bytes[i];
 		 i++;
 	}
 }
 
+static void parse_apns(void *rcv_rsp, int rcv_rsp_len,
+		       const char *stored_rsp, void *data)
+{
+
+  char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
+  uint8_t i = 0;
+  dbg_printf("bytes=%s", (char *)rcv_rsp);
+  while (i  < 500) {
+    ((char *)data)[i] = rcv_bytes[i];
+    i++;
+  }
+
+}
 static const at_command_desc modem_core[MODEM_CORE_END] = {
         [MODEM_OK] = {
                 .comm = "at\r",
@@ -288,7 +303,7 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                                 .rsp_handler = NULL,
                                 .data = NULL
                         },
-                        {
+ {
                                 .rsp = "\r\nOK\r\n",
                                 .rsp_handler = NULL,
                                 .data = NULL
@@ -527,7 +542,26 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 	         },
 		 .err = "\r\n+CME ERROR: ",
 		 .comm_timeout = 10000
-	}
+	},
+        [GET_APNS] = {
+                .comm = "at+cgdcont?\r",
+                .rsp_desc = {
+                        {
+                                .rsp = "\r\n",
+                                .rsp_handler = parse_apns,
+                                .data = NULL
+                        },
+                        {
+                                .rsp = "\r\nOK\r\n",
+                                .rsp_handler = NULL,
+                                .data = NULL
+                        }
+                },
+                .err = NULL,
+                .comm_timeout = 100
+        },
+
+
 };
 
 static bool wait_for_clean_restart(uint32_t timeout_ms)
@@ -739,4 +773,9 @@ bool at_modem_get_imsi(char *imsi)
 bool at_modem_get_cnum(char *cnum)
 {
   return get_param(GET_CNUM, cnum);
+}
+
+bool at_modem_get_apns(char *apns) 
+{
+  return get_param(GET_APNS, apns);
 }

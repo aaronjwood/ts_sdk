@@ -182,4 +182,16 @@ bool at_modem_get_imsi(char *imsi);
  */
 bool at_modem_get_cnum(char *cnum);
 
+/**
+ * \brief Retrieve the APNS as a NULL terminated string.
+ *
+ * \param[out] cnum Pointer to a NULL terminated buffer to hold the retrieved
+ * APNS. Buffer must be at least 35 bytes long (including the terminating NULL
+ * character).
+ *
+ * \retval true APNS was retrieved.
+ * \retval false Failed to retrieve APNS. Buffer contents are invalid.
+ */
+bool at_modem_get_apns(char *apns);
+
 #endif
