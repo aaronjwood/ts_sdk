@@ -113,7 +113,7 @@ static void send_with_retry(cc_buffer_desc *b, cc_data_sz s, cc_service_id id)
 	uint8_t retries = 0;
 	cc_send_result res;
 	while (retries < MAX_RETRIES) {
-#if defined (OTT_PROTOCOL)
+#if defined(OTT_PROTOCOL) || defined(SMSNAS_PROTOCOL)
 		res = cc_send_svc_msg_to_cloud(b, s, id, NULL);
 #elif defined (MQTT_PROTOCOL)
 		res = cc_send_status_msg_to_cloud(b, s);
@@ -210,6 +210,11 @@ static void communication_init(void)
         char imsi[38];
         at_modem_get_imsi(imsi);
         dbg_printf("IMSI = %s", imsi);
+
+	/*char apns[500];
+        at_modem_get_apns(apns);
+        dbg_printf("APNS = %s", apns);
+	*/
 
 	dbg_printf("Register to use the Basic service\n");
 	ASSERT(cc_register_service(&cc_basic_service_descriptor,
