@@ -211,10 +211,10 @@ static void communication_init(void)
         at_modem_get_imsi(imsi);
         dbg_printf("IMSI = %s", imsi);
 
-	/*char apns[500];
+	char apns[500];
         at_modem_get_apns(apns);
         dbg_printf("APNS = %s", apns);
-	*/
+	
 
 	dbg_printf("Register to use the Basic service\n");
 	ASSERT(cc_register_service(&cc_basic_service_descriptor,

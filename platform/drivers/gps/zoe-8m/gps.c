@@ -375,21 +375,25 @@ static bool validate_nmea(char *nmea)
 static bool gps_new_NMEA_received()
 {
 	uint8_t *buffer = gps_text;
-	uart_rx(uart, buffer, GPS_RX_BUFFER_SIZE, GPS_RCV_TIMEOUT_MS);
+	gps_rx(buffer, GPS_RX_BUFFER_SIZE, GPS_RCV_TIMEOUT_MS);
 	int buffer_start_index = 0;
 	int buffer_end_index = 0;
+        char *sentence = strstr((char *)buffer, "$GNGGA");
+        if (sentence == NULL) {
+	  return recvd_flag;
+	}
+	buffer_start_index = 0;
 	for (int i = 0; i < GPS_RX_BUFFER_SIZE; i++) {
-	  if (buffer[i] == '$')
-		buffer_start_index = i;
-	  else if (buffer[i] == '\n')
+	  if (sentence[i] == '\n') {
 		buffer_end_index = i;
+		break;
+	  }
 	}
 
 	int32_t sz = buffer_end_index - buffer_start_index + 1;
 	dbg_printf("sentenceSize calculate = %ld\r\n", sz);
-
 	if (sz > 1)
-		memcpy(sentence_buffer, &buffer[buffer_start_index], sz);
+		memcpy(sentence_buffer, &sentence[buffer_start_index], sz);
         dbg_printf("Sentence buffer=%s",sentence_buffer);
 	recvd_flag = true;
 	return recvd_flag;
@@ -412,7 +416,7 @@ static bool gps_parse_nmea(char *nmea, struct parsed_nmea_t *parsed_nmea)
 	if (validate_nmea(nmea) == false)
 		return false;
 	/* Look for a few common sentences */
-	if (strstr(nmea, "$GPGGA")) {
+	if (strstr(nmea, "$GNGGA")) {
 
 		/* Found GGA */
 		char *bufptr = nmea;
@@ -438,7 +442,7 @@ static bool gps_parse_nmea(char *nmea, struct parsed_nmea_t *parsed_nmea)
 		bufptr = parse_GGA_param(bufptr, parsed_nmea);
 		return true;
 	}
-	if (strstr(nmea, "$GPRMC")) {
+	if (strstr(nmea, "$GNRMC")) {
 
 		/* Found RMC */
 		char *bufptr = nmea;
@@ -492,14 +496,14 @@ bool gps_module_set_reporting(void)
 {
 	uint8_t buffer[20] = {0};
 
-	if (!gps_tx(REVERT_NMEA, sizeof(REVERT_NMEA), GPS_SEND_TIMEOUT_MS)) {
+	/*	if (!gps_tx(REVERT_NMEA, sizeof(REVERT_NMEA), GPS_SEND_TIMEOUT_MS)) {
           dbg_printf("failed to xmit REVERT_NMEA");
 	  return false;
 	}
 	if (!gps_rx(buffer, sizeof(buffer), GPS_RCV_TIMEOUT_MS)) {
 	  dbg_printf("failed rcv on REVERT_NMEA");
 		return false;
-	}
+		}*/
 
 	if (!gps_tx(RMC_Off, sizeof(RMC_Off), GPS_SEND_TIMEOUT_MS)) {
           dbg_printf("failed to xmit RMC_Off");
@@ -591,7 +595,7 @@ bool gps_module_init()
 	if (uart == NO_PERIPH)
 		return false;
 
-	dbg_printf("GNSS: reset Zoe-8M, allow only $GPGGA\n\r");
+	dbg_printf("GNSS: reset Zoe-8M, allow only $GNGGA\n\r");
 	uint8_t buffer[20] = {0};
 
 	if (!gps_tx(RCV_RESET, sizeof(RCV_RESET), GPS_SEND_TIMEOUT_MS))
