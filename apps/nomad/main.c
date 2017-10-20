@@ -10,6 +10,10 @@
 #include "gps_hal.h"
 #include "at_modem.h"
 #include "gpio_hal.h"
+#include "bmc156_nomad.h"
+#include "i2c_hal.h"
+#include "board_interface.h"
+#include "pin_std_defs.h"
 
 #if defined(FREE_RTOS)
 #include "cmsis_os.h"
@@ -27,6 +31,7 @@ static void sender_thread2(void const *argument);
 uint64_t last_st_ts = 0;
 #define RESEND_CALIB   0x42
 
+
 CC_SEND_BUFFER(send_buffer, CC_MAX_SEND_BUF_SZ);
 CC_SEND_BUFFER(cal_send_buffer, CC_MAX_SEND_BUF_SZ);
 CC_RECV_BUFFER(recv_buffer, CC_MAX_RECV_BUF_SZ);
@@ -38,6 +43,7 @@ struct parsed_nmea_t parsedNMEA;
 gpio_config_t green_led_st;
 pin_name_t green_led_pin_name = PC12;
 bool user_led_state = false;
+periph_t  i2c_handle;
 
 /* Number of times to retry sending in case of failure */
 #define MAX_RETRIES	((uint8_t)3)
@@ -110,6 +116,7 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 
 static void send_with_retry(cc_buffer_desc *b, cc_data_sz s, cc_service_id id)
 {
+return;
 	uint8_t retries = 0;
 	cc_send_result res;
 	while (retries < MAX_RETRIES) {
@@ -134,11 +141,12 @@ static void send_with_retry(cc_buffer_desc *b, cc_data_sz s, cc_service_id id)
 
 static array_t sendData;
 /* Array for sensor data buffer */
-static uint8_t rbytes[MAX_DATA_SZ];
+static uint8_t rbytes[MAX_DATA_SZ], abytes[MAX_DATA_SZ];
 static uint32_t size;
 
 static uint32_t send_all_sensor_data(uint64_t cur_ts)
 {
+
 	if (last_st_ts != 0) {
 		if ((cur_ts - last_st_ts) < STATUS_REPORT_INT_MS) {
 			dbg_printf("Returning without sending sensor data\n");
@@ -184,37 +192,34 @@ static uint32_t read_all_sensor_data()
 {
 	dbg_printf("Reading sensor data\n");
 
-        array_t data;
-        data.bytes = rbytes;
-        bme280_beduin_read_sensor(&data);
-        size = data.sz;
-        if (gps_receive(&parsedNMEA)) {
+    array_t data;
+    data.bytes = rbytes;
+    bme280_beduin_read_sensor(&data);
+    size = data.sz;
+    if (gps_receive(&parsedNMEA)) {
           uint8_t *buffer = data.bytes + data.sz;
           int ret = insert_location_into_buffer(buffer, &parsedNMEA);
           size = size + ret;
 	}
+	array_t accel_data;
+	accel_data.bytes = abytes;
+	bmc156_read_sensor(&accel_data);
+	memcpy(data.bytes+data.sz, abytes, accel_data.sz);
+	size = size + accel_data.sz;
 	return STATUS_REPORT_INT_MS;
 }
 
 static void communication_init(void)
 {
+	return;
 	dbg_printf("Initializing communications module\n");
 	ASSERT(cc_init(ctrl_cb));
 
 	oem_init();
 
-        char firmware_version[30];
-        at_modem_get_fwver(firmware_version);
-        dbg_printf("SARA-R404 FW version = %s", firmware_version);
-
-        char imsi[38];
-        at_modem_get_imsi(imsi);
-        dbg_printf("IMSI = %s", imsi);
-
-	char apns[500];
-        at_modem_get_apns(apns);
-        dbg_printf("APNS = %s", apns);
-	
+	char imsi[14];
+	at_modem_get_imsi(imsi);
+	dbg_printf("imsi = %s",imsi);
 
 	dbg_printf("Register to use the Basic service\n");
 	ASSERT(cc_register_service(&cc_basic_service_descriptor,
@@ -239,6 +244,7 @@ static void communication_init(void)
 
 static void receive_and_wait_for_reporting(uint32_t next_report_interval)
 {
+return;
 	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
 	uint32_t slept_till = 0;
 	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
@@ -353,7 +359,10 @@ int main(void)
         dbg_printf("Setup ZOE-8m gnss\r\n");
         ASSERT(gps_module_init() !=0);
 	dbg_printf("Init the BME280 sensor\n\r");
-        bme280_beduin_init();
+     uint32_t timeout_ms = 0;
+     	i2c_handle =  i2c_init(I2C_SCL, I2C_SDA, timeout_ms);
+     	bme280_beduin_init(i2c_handle);
+     	bmc156_nomad_init(i2c_handle);
         setup_user_gpio();
 
 #if defined(FREE_RTOS)
@@ -367,7 +376,7 @@ int main(void)
 		read_all_sensor_data();
 		next_report_interval = send_all_sensor_data(
 							sys_get_tick_ms());
-		receive_and_wait_for_reporting(next_report_interval);
+		receive_and_wait_for_reporting(next_report_interval); 
                 gpio_write(green_led_pin_name, user_led_state ? PIN_HIGH : PIN_LOW);
 		user_led_state = !user_led_state;
 	}
