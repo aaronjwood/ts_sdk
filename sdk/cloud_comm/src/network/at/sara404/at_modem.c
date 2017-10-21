@@ -22,16 +22,16 @@ enum modem_core_commands {
 	SIM_READY,	/* Check if the SIM is present */
 	EPS_REG_QUERY,	/* Query EPS registration */
 	EPS_URC_SET,	/* Set the EPS registration URC */
-	ExPS_REG_QUERY,	/* Query extended packet switched network registration */
-	ExPS_URC_SET,	/* Set the extended packet switched network reg URC */
+    ATTACH_SET,  /* tell the SARA ay attach */
 	IMEI_QUERY,	/* Query the IMEI of the modem */
 	SIG_STR_QUERY,	/* Query the signal strength */
+	ATTACHED_QUERY, /* query to see if we are attached to the net */
+	AIRPLANE_MODE_QUERY, /* get CFUN status */
 	MODEM_CORE_END	/* End-of-commands marker */
 };
 
 enum at_urc {
 	EPS_STAT_URC,
-	ExPS_STAT_URC,
 	NUM_URCS
 };
 
@@ -50,8 +50,7 @@ enum modem_query_commands {
 	GET_MOD_INFO,	/* Get the model information */
 	GET_MAN_INFO,	/* Get the manufacturer information */
 	GET_FWVER,	/* Get the firmware version */
-        GET_CNUM,       /* Get the subscriber number */
-        GET_APNS,       /* get the APN list */
+    GET_PROFILE,    /* get the CGCONT profile */
 	MODEM_QUERY_END
 };
 
@@ -66,8 +65,7 @@ static const uint8_t buf_len[MODEM_QUERY_END] = {
 	[GET_MOD_INFO] = 7,	/* XXX: Might change in next release of modem */
 	[GET_MAN_INFO] = 23,	/* XXX: Might change in next release of modem */
 	[GET_FWVER] = 11,	/* XXX: Might change in next release of modem */
-        [GET_CNUM] = 50,
-	[GET_APNS] = 200
+	[GET_PROFILE] = 100
 };
 
 static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
@@ -187,29 +185,15 @@ static void parse_imsi(void *rcv_rsp, int rcv_rsp_len,
 	memcpy(data, rcv_rsp, buf_len[GET_IMSI] - 1);
 }
 
-static void parse_cnum(void *rcv_rsp, int rcv_rsp_len,
-		const char *stored_rsp, void *data)
+static void parse_profile(void *rcv_rsp, int rcv_rsp_len,
+			  const char *stored_rsp, void *data)
 {
-  char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
+	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
 	uint8_t i = 0;
-        dbg_printf("bytes=%s", (char *)rcv_rsp);
-	while (rcv_bytes[i] != '\n') {
+	while (rcv_bytes[i] != '\0') {
 		((char *)data)[i] = rcv_bytes[i];
-		 i++;
+		i++;
 	}
-}
-
-static void parse_apns(void *rcv_rsp, int rcv_rsp_len,
-		       const char *stored_rsp, void *data)
-{
-
-  char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
-  uint8_t i = 0;
-  dbg_printf("bytes=%s", (char *)rcv_rsp);
-  while (i  < 500) {
-    ((char *)data)[i] = rcv_bytes[i];
-    i++;
-  }
 
 }
 static const at_command_desc modem_core[MODEM_CORE_END] = {
@@ -219,7 +203,7 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                         {
                                 .rsp = "at\r\r\nOK\r\n",
                                 .rsp_handler = NULL,
-                                .data = NULL
+                                 .data = NULL
                         }
                 },
                 .err = NULL,
@@ -295,25 +279,8 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                 .err = NULL,
                 .comm_timeout = 100
         },
-        [ExPS_REG_QUERY] = {
-                .comm = "at+ureg?\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+UREG: 1,7\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        },
- {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
-        [ExPS_URC_SET] = {
-                .comm = "at+ureg=1\r",
+        [ATTACH_SET] = {
+                .comm = "at+cgatt=1\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",
@@ -322,7 +289,7 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                         }
                 },
                 .err = NULL,
-                .comm_timeout = 100
+                .comm_timeout = 180000
         },
         [MODEM_RESET] = {
                 .comm = "at+cfun=15\r",
@@ -369,7 +336,42 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
 		},
 		.err = NULL,
 		.comm_timeout = 100
+	},
+		[ATTACHED_QUERY] = {
+		.comm = "at+cgatt?\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n+CGATT: 1\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CME ERROR: ",
+		.comm_timeout = 100
+	},
+	[AIRPLANE_MODE_QUERY] = {
+		.comm = "at+cfun?\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n+CFUN: 1\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CME ERROR: ",
+		.comm_timeout = 100
 	}
+
 };
 
 static at_command_desc modem_query[MODEM_QUERY_END] = {
@@ -526,42 +528,23 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 		.err = "\r\n+CME ERROR: ",
 		.comm_timeout = 100
 	},
-	[GET_CNUM] = {
-	         .comm = "at+cnum\r",
-	         .rsp_desc = {
-	                 {
-			   .rsp = "\r\n+CNUM:",
-			   .rsp_handler = parse_cnum,
-			   .data = NULL
-			 },
-			 {
-			   .rsp = "\r\nOK\r\n",
-			   .rsp_handler = NULL,
-			   .data = NULL
-			 }
-	         },
-		 .err = "\r\n+CME ERROR: ",
-		 .comm_timeout = 10000
-	},
-        [GET_APNS] = {
-                .comm = "at+cgdcont?\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n",
-                                .rsp_handler = parse_apns,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
-
-
+	[GET_PROFILE] = {
+		.comm = "at+cgdcont?\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n",
+				.rsp_handler = parse_profile,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = "\r\n+CME ERROR: ",
+		.comm_timeout = 100
+	}
 };
 
 static bool wait_for_clean_restart(uint32_t timeout_ms)
@@ -623,10 +606,18 @@ bool at_modem_configure(void)
 	result = at_core_wcmd(&modem_core[CME_CONF], true);
 	CHECK_SUCCESS(result, AT_SUCCESS, false);
 
-	/* Enable the Extended Packet Switched network registration URC */
-	//	result = at_core_wcmd(&modem_core[ExPS_URC_SET], true);
-	//CHECK_SUCCESS(result, AT_SUCCESS, false);
+    /* see if we are in airplane mode */
+    result = at_core_wcmd(&modem_core[AIRPLANE_MODE_QUERY], true);
+    CHECK_SUCCESS(result, AT_SUCCESS, false);
+ 
+     /* attached to network */
+    result = at_core_wcmd(&modem_core[ATTACH_SET], true);
+    CHECK_SUCCESS(result, AT_SUCCESS, false);
 
+    /* see if we are are attached to network */
+    result = at_core_wcmd(&modem_core[ATTACHED_QUERY], true);
+    CHECK_SUCCESS(result, AT_SUCCESS, false);
+   
 	/* Enable the EPS network registration URC */
 	result = at_core_wcmd(&modem_core[EPS_URC_SET], true);
 	CHECK_SUCCESS(result, AT_SUCCESS, false);
@@ -639,10 +630,6 @@ bool at_modem_get_nstat(void)
 	at_ret_code res = at_core_wcmd(&modem_core[EPS_REG_QUERY], true);
 	if (res != AT_SUCCESS)
 		return false;
-
-	/*res = at_core_wcmd(&modem_core[ExPS_REG_QUERY], true);
-	if (res != AT_SUCCESS)
-	return false; */
 
 	return true;
 }
@@ -662,12 +649,6 @@ static bool process_network_urc(const char *urc, enum at_urc u_code)
 		else
 			DEBUG_V0("%s: Registered to EPS network\n", __func__);
 		break;
-	case ExPS_STAT_URC:
-		if (net_stat == 0)
-			DEBUG_V0("%s: Extended PS network reg lost\n", __func__);
-		else
-			DEBUG_V0("%s: Registered to extended PS network\n", __func__);
-		break;
 	default:
 		return false;
 	}
@@ -677,9 +658,6 @@ static bool process_network_urc(const char *urc, enum at_urc u_code)
 bool at_modem_process_urc(const char *urc)
 {
 	if (process_network_urc(urc, EPS_STAT_URC))
-		return true;
-
-	if (process_network_urc(urc, ExPS_STAT_URC))
 		return true;
 
 	return false;
@@ -770,12 +748,7 @@ bool at_modem_get_imsi(char *imsi)
 	return get_param(GET_IMSI, imsi);
 }
 
-bool at_modem_get_cnum(char *cnum)
+bool at_modem_get_cgdcont(char *profile) 
 {
-  return get_param(GET_CNUM, cnum);
-}
-
-bool at_modem_get_apns(char *apns) 
-{
-  return get_param(GET_APNS, apns);
+  return get_param(GET_PROFILE, profile);
 }

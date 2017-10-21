@@ -10,6 +10,7 @@
 #ifndef __bme280_beduin__
 #define __bme280_beduin__
 #include <stdint.h>
+#include "pin_std_defs.h"
 
 typedef struct {
 	uint8_t sz;		/* Number of bytes contained in the data buffer */
@@ -40,7 +41,7 @@ int8_t BME280_I2C_bus_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t *reg_dat
 */
 void BME280_delay_msek(uint32_t msek);
 
-void bme280_beduin_init(void);
+void bme280_beduin_init(periph_t i2c);
 int32_t bme280_beduin_read_sensor(array_t *buffer_struct);
 int32_t bme280_beduin_wake(void);
 int32_t bme280_beduin_sleep(void);

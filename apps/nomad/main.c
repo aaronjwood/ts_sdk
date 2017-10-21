@@ -14,6 +14,7 @@
 #include "i2c_hal.h"
 #include "board_interface.h"
 #include "pin_std_defs.h"
+#include "bh1750fvi.h"
 
 #if defined(FREE_RTOS)
 #include "cmsis_os.h"
@@ -116,7 +117,7 @@ static void ctrl_cb(cc_event event, uint32_t value, void *ptr)
 
 static void send_with_retry(cc_buffer_desc *b, cc_data_sz s, cc_service_id id)
 {
-return;
+
 	uint8_t retries = 0;
 	cc_send_result res;
 	while (retries < MAX_RETRIES) {
@@ -141,7 +142,7 @@ return;
 
 static array_t sendData;
 /* Array for sensor data buffer */
-static uint8_t rbytes[MAX_DATA_SZ], abytes[MAX_DATA_SZ];
+static uint8_t rbytes[MAX_DATA_SZ];
 static uint32_t size;
 
 static uint32_t send_all_sensor_data(uint64_t cur_ts)
@@ -202,16 +203,17 @@ static uint32_t read_all_sensor_data()
           size = size + ret;
 	}
 	array_t accel_data;
-	accel_data.bytes = abytes;
+	accel_data.bytes = rbytes+size;
 	bmc156_read_sensor(&accel_data);
-	memcpy(data.bytes+data.sz, abytes, accel_data.sz);
 	size = size + accel_data.sz;
+	
+	//bh1750fvi_read_sensor();
+	
 	return STATUS_REPORT_INT_MS;
 }
 
 static void communication_init(void)
 {
-	return;
 	dbg_printf("Initializing communications module\n");
 	ASSERT(cc_init(ctrl_cb));
 
@@ -244,7 +246,6 @@ static void communication_init(void)
 
 static void receive_and_wait_for_reporting(uint32_t next_report_interval)
 {
-return;
 	uint32_t next_wakeup_interval = 0;	/* Interval value in ms */
 	uint32_t slept_till = 0;
 	uint32_t wake_up_interval = 15000;	/* Interval value in ms */
@@ -358,11 +359,12 @@ int main(void)
 	dbg_printf("Begin:\n");
         dbg_printf("Setup ZOE-8m gnss\r\n");
         ASSERT(gps_module_init() !=0);
-	dbg_printf("Init the BME280 sensor\n\r");
+	dbg_printf("Init the BME280, BH1750fvi, and BMC156 sensors\n\r");
      uint32_t timeout_ms = 0;
      	i2c_handle =  i2c_init(I2C_SCL, I2C_SDA, timeout_ms);
      	bme280_beduin_init(i2c_handle);
      	bmc156_nomad_init(i2c_handle);
+     	bh1750fvi_init(i2c_handle);
         setup_user_gpio();
 
 #if defined(FREE_RTOS)

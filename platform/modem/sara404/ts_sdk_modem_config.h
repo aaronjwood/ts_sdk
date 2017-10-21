@@ -34,33 +34,14 @@
 
 #elif SIM_TYPE == COM
 
-#define MODEM_APN_TYPE_ID	"2"
-#define MODEM_APN_CTX_ID	"8"
+#define MODEM_APN_TYPE_ID	"0"
+#define MODEM_APN_CTX_ID	"3"
+#define MODEM_APN_VALUE         "VZWINTERNET"
+#define MODEM_APN_TYPE          "IPV4V6"
 
 #endif	/* SIM_TYPE */
 
 
-/* Protocol and SIM specific settings */
-#if defined(OTT_PROTOCOL) || defined(MQTT_PROTOCOL)
-
-#define MODEM_UMNOCONF_VAL	"3,23"
-
-#elif defined(SMSNAS_PROTOCOL)
-
-#if SIM_TYPE == DAK
-#define MODEM_UMNOCONF_VAL	"0,0,\"Verizon Wireless\",7"
-#else
-#define MODEM_UMNOCONF_VAL	"1,6"
-#endif	/* SIM_TYPE */
-
-#elif defined(NO_PROTOCOL)
-#define MODEM_UMNOCONF_VAL	"3,23"
-
-#else
-
-#error "Must specify a protocol"
-
-#endif	/* PROTOCOL */
 
 
 /* Modem communications port settings */
