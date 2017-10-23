@@ -265,11 +265,14 @@ checkout_chipset_hal()
 
 build_chipset_library()
 {
+        sed -i '.bak' '/targets/d' .dockerignore
+        rm -f .dockerignore.bak
 	docker build -t $CHIPSET_IMAGE_NAME -f $1 $PROJ_ROOT
 	docker run --rm -e CHIPSET_MCU=$CHIPSET_MCU -e CHIPSET_OS=$CHIPSET_OS \
 	-v $CHIPSET_BUILD_MOUNT:/build $CHIPSET_IMAGE_NAME
 	check_build $CHIPSET_IMAGE_NAME
 	cleanup_docker_images $CHIPSET_IMAGE_NAME
+        echo "targets" >> .dockerignore
 	echo "Chipset build success, generated static library lib$CHIPSET_MCU.a \
 	at $MOUNT_DIR/$CHIPSET_FAMILY along with headers"
 	exit 0

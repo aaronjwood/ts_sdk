@@ -176,35 +176,6 @@ static const at_command_desc mod_netw_cmd[NUM_MODEM_COMMANDS] = {
 		},
 		.err = NULL,
 		.comm_timeout = 100
-	},
-	[MNO_CONF_QUERY] = {
-		.comm = "at+cops?\r",
-		.rsp_desc = {
-			{
-				.rsp = "\r\n+cops: 0,0,\"Verizon Wireless\",7\r\n",
-				.rsp_handler = NULL,
-				.data = NULL
-			},
-			{
-				.rsp = "\r\nOK\r\n",
-				.rsp_handler = NULL,
-				.data = NULL
-			}
-		},
-		.err = NULL,
-		.comm_timeout = 100
-	},
-	[MNO_CONF_SET] = {
-		.comm = "at+cops=0,0\r",
-		.rsp_desc = {
-			{
-				.rsp = "\r\nOK\r\n",
-				.rsp_handler = NULL,
-				.data = NULL
-			}
-		},
-		.err = NULL,
-		.comm_timeout = 190000
 	}
 };
 
