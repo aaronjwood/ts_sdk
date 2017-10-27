@@ -10,6 +10,7 @@ build/
 *.swp
 sdk/cloud_comm/vendor/mbedtls/doxygen/apidoc
 .gdbinit
-targets/stmicro/chipset/
+targets/stmicro/chipset/stm32f4
+targets/stmicro/chipset/stm32l4
 .idea 
 cmake-build-debug
