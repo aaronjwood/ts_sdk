@@ -1,0 +1,4 @@
+Directory contains all the docker files used in this SDK
+
+Note: docker files using ubuntu 16.04 base images comes with arm toolchain
+installed /ts_sdk_bldenv/toolchain

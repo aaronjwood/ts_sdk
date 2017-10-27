@@ -1,0 +1,16 @@
+FROM stmicro_base:latest
+RUN mkdir -p ts_sdk
+RUN mkdir -p /ts_sdk/ldscript
+COPY sdk /ts_sdk/sdk
+COPY platform /ts_sdk/platform
+COPY tools/config /ts_sdk/tools/config
+COPY tools/scripts/config_build_env.sh /ts_sdk/tools/scripts/
+COPY targets/stmicro/chipset/stm32l4/common_stm32l4.mk /ts_sdk/targets/stmicro/chipset/stm32l4/
+RUN mkdir -p ts_sdk_bldenv
+COPY targets/stmicro/chipset/stm32l4 /ts_sdk_bldenv/stm32l4
+RUN cp /ts_sdk_bldenv/stm32l4/chipset_hal/STM32Cube_FW_L4_V1.8.0/Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_conf_template.h /ts_sdk_bldenv/stm32l4/chipset_hal/STM32Cube_FW_L4_V1.8.0/Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_conf.h
+RUN cp /ts_sdk_bldenv/stm32l4/chipset_hal/STM32Cube_FW_L4_V1.8.0/Projects/STM32L476RG-Nucleo/Templates/SW4STM32/STM32L476RG_NUCLEO/*.ld /ts_sdk/ldscript
+RUN chmod a+x /ts_sdk/tools/scripts/config_build_env.sh
+CMD cd /ts_sdk && \
+    . tools/scripts/config_build_env.sh \
+    && cd /ts_sdk/sdk/cloud_comm && make clean && make all

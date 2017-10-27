@@ -1,0 +1,12 @@
+FROM ts_sdk
+RUN mkdir -p build
+ARG DEVICE=light_bulb
+COPY apps/virtual_devices /ts_sdk/apps/virtual_devices
+COPY tools/config /ts_sdk/tools/config
+COPY tools/scripts/config_build_env.sh /ts_sdk/tools/scripts/
+COPY build/.uuid /generated_uuid/.uuid
+RUN chmod a+x /ts_sdk/tools/scripts/config_build_env.sh
+CMD cd /ts_sdk && \
+    . tools/scripts/config_build_env.sh \
+    && cd /ts_sdk/apps/$APP && make clean && make build && cd ./build \
+    && ./firmware

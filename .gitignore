@@ -1,0 +1,15 @@
+*~
+*.o
+*.so
+*.a
+.tscreds*
+cscope.out
+.DS_Store
+.build/
+build/
+*.swp
+sdk/cloud_comm/vendor/mbedtls/doxygen/apidoc
+.gdbinit
+targets/stmicro/chipset/
+.idea 
+cmake-build-debug

@@ -1,0 +1,44 @@
+* These are virtual devices meant only for mqtt protocol and simulation purposes and
+  can be used quickly test end to end flow without needing to have actual hardware
+  These devices are all linux based
+
+* Steps to construct and run virtual devices:
+
+0) Configure SDK for virtual device
+source tools/scripts/config_build_env.sh dev_board=virtual modem=none protocol=MQTT_PROTOCOL
+        a. configures sdk for virtual device with no modem and MQTT protocol
+
+1) First generate unique device id which will be used for all the communications with Thingspace
+tools/scripts/build.sh generate_uuid tools/docker/Dockerfile.gen_uuid
+        a. Above command creates .uuid file at ./build directory
+
+2) Build or construct virtual device by issuing below command
+tools/scripts/build.sh app tools/docker/Dockerfile.sdk_virtual tools/docker/Dockerfile.virtual_devices app_dir=virtual_devices PROJ_NAME=<name>
+        a. this command should build the image name as PROJ_NAME
+        b. it will spit out the above generated uuid to be used with thingspace
+           to register device
+        c. Use that uuid to register device with uuid as a MAC in thingspace portal, see
+           Readme under each interested devices' directory to find out the thingspace model
+           it uses to communicate data to thingspace, that model needs to used during registration
+        d. PROJ_NAME is must and always the directory name under virtual_devices folder
+           General rule of thumb is to name directory based on simulate device i.e. light_bulb, accelerometer, gps etc...
+
+3) Download certificates from thingspace portal and place it under root directory
+
+4) Generate c header code from the certificates for application to compile
+tools/scripts/include_certs.sh thingspaceserver.pem <deviceid>.pem <device_id>.private.key apps/virtual_devices/include/
+        a. Above command takes downloaded certificates from step 3 and converts to c header files and installs
+           at apps/virtual_devices/include/
+        b. Script uses openssl and xxd commands, make sure both are installed in host machine
+
+5) Run created virtual device
+tools/scripts/build.sh run_virtual_device <PROJ_NAME from step 2>
+
+6) Delete and completely remove virtual device
+tools/scripts/build.sh remove_virtual_device <PROJ_NAME from step 2>
+        a. This stops running container if any and deletes the PROJ_NAME docker image
+        b. After this step, user has to start from step 1
+
+* Get UUID of the device
+1) tools/scripts/build.sh get_uuid <virtual device>
+Above command spits out uuid of the <virtual device>

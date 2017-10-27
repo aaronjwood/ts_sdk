@@ -1,0 +1,183 @@
+Porting Guide
+--------------
+
+Copyright (C) 2017 Verizon. All rights reserved.
+
+Table of contents:
+-------------------
+1. Overview
+2. HAL Interface
+3. Directory naming convention
+4. Porting the SDK across boards
+5. Porting the SDK across MCU (same chipset family)
+6. Porting the SDK across MCU (different chipset families)
+
+1. Overview
+------------
+The HAL separates the SDK from the specifics of the platform. To make the SDK
+work on other platforms, it must be ported to the target platform. The HAL
+consists of three layers:
+
+Layer No.       Description
+----------      ----------------------------------------------------------------
+    1           A chipset HAL that is usually provided for a chipset family by
+                the chipset vendor (Eg. STM32F4 HAL etc.)
+
+    2           A port and pin abstraction layer that generalizes the way ports
+                and pins are accessed across MCUs by layers above it.
+
+    3           Peripheral driver APIs that create an abstraction over how
+                different peripherals are accessed across MCUs.
+
+User applications are expected to use the API in layer 3. In addition to the
+above layers, there are configuration files that are used to remap which
+peripherals and pins are used by the SDK.
+
+The diagram below summarizes the structure of the platform HAL, the SDK and the
+user application:
+
+                          +--------------------+
+                          |  User Application  |
+                          |    & conf file     |
+                          |         +----------+
+                          |         | TS SDK & |
+                          |         | conf file|
+                          +---------+----------+
+                          | Peripheral drivers |
+                          |      Layer 3       |
+                          +--------------------+
+                          |    Port Pin API    |
+                          |      Layer 2       |
+                          +--------------------+
+                          |    Chipset HAL     |
+                          |      Layer 1       |
+                          +--------------------+
+                          |   Microcontroller  |
+                          |      Hardware      |
+                          +--------------------+
+
+Note that while the user application and the SDK are shown to rely on the same
+HAL in the above diagram, that need not necessarily be true. The application is
+free to implement its own drivers.
+
+Porting efforts can be divided into multiple categories based on what subset of
+the above layers is being changed:
+        o When porting across boards built around an already supported MCU, only
+          the configuration files need to be changed.
+        o When porting across MCUs belonging to the same chipset family, usually
+          layer 1 remains the same while layers 2 and 3 need to be reimplemented.
+        o When porting across MCUs belonging to different chipset families or if
+          they are from different vendors, layer 1 will need to be switched out
+          and layers 2 and 3 will need to be reimplemented.
+
+Chipset HALs/SDKs reside in ts_sdk/targets directory.
+
+
+2. HAL Interface
+-----------------
+Porting the HAL requires understanding its interface. This interface consists
+of a set of API routines belonging to layers 2 and 3 and are common to all
+platforms and visible to higher layers.
+
+The header files located in ts_sdk/platform/inc form the part of the interface
+from layer 3. The header files located in ts_sdk/platform/sw (pin_map.h,
+pin_std_defs.h, port_pin_api.h) form the part of the interface from layer 2. A
+detailed specification of the entire interface can be found by generating the
+HAL documentation (see 'Generating documentation' in the SDK README). The
+porting process basically involves implementing the routines and concretely
+defining the types that are specified in the above header files for a
+particular target.
+
+The HAL is centered around two types that need to be defined by the target
+implementation. The first is the 'enum pin_name' (typedef'ed as pin_name_t in
+the specification). A member of this enum type must encode the port name and pin
+number into its value. For example, if a target platform has 16 ports and 16
+pins per port, then bits 0 - 3 of the value could be used to represent the pin
+number and bits 4 - 7 could be used to identify the port. Note that the value
+0xFFFFFFFF is reserved (as 'NC') to stand for the absence of a port-pin
+combination.
+
+Names of the members of this enum type follow a simple convention:
+P<port letter><pin ID>
+Eg. PA4 for representing the 4th pin of Port A. It is recommended that this
+convention be followed across all targets.
+
+The second type that must be implemented is 'struct pin_map' (typedef'ed as
+pin_map_t in the specification). This structure defines a member of the pin map
+list in pin_map.h. An instance of this structure type completely specifies how a
+pin must be configured when attached to a given peripheral. Therefore, this
+structure must at least have members of type 'pin_name_t', 'periph_t' and
+'gpio_config_t' to store which peripheral a given pin connects to and the pin's
+settings when connected to that peripheral.
+
+Each map defined in pin_map.h aggregates all possible pin mappings that perform
+a particular function for the peripheral. For example, 'uart_tx_map' maps all
+pins that can act as the TX pin of a UART peripheral. Note that for a given
+board, some of the pins may be hardwired to perform another function or be not
+connected at all. In such situations it is recommended to comment out the entry
+for those pins so that they cannot be erroneously initialized by the HAL.
+
+
+3. HAL directory hierarchy
+---------------------------
+The HAL is contained within ts_sdk/platform. The per target implementation of
+each layer 3 HAL component lies within:
+ts_sdk/platform/drivers/<component name>/<chipset family>/<mcu>
+If a driver is common to all members of the chipset family, the <mcu> level will
+not exist.
+
+Target specific implementations of layer 2 HAL components lie within the
+following directories:
+        o ts_sdk/platform/sw/<chipset family>
+        o ts_sdk/platform/sw/<chipset family>/<mcu>
+        o ts_sdk/platform/sw/<chipset family>/<mcu>/<board>
+The first directory houses all implementations common across the chipset family,
+the second contains MCU specific implementations, and the third contains board
+specific implementations.
+
+Note that the names of the directories representing <chipset family>, <mcu> and
+<board> are also the expected values of CHIPSET_FAMILY, CHIPSET_MCU and
+DEV_BOARD, respectively, as referenced in the SDK README.
+
+
+4. Porting the SDK across boards
+---------------------------------
+Porting the SDK from one board to another board built around the same MCU is
+fairly easy. Board configurations are stored in:
+ts_sdk/platfrom/sw/<chipset family>/<mcu>/<board>
+
+The file board_config.h defines the application's peripheral dependencies.
+
+Regardless of the board, the serial conenction between the MCU and modem must
+have a higher IRQ priority than the idle timer IRQ.
+
+
+5. Porting the SDK across MCUs (same chipset family)
+-----------------------------------------------------
+The process of porting the SDK within the same chipset family consists of two
+steps:
+        o Porting layer 2 by accounting for the change in the names of the pins,
+          pin map entries and how ports and pins are initialized.
+        o Porting layer 3 to account for changes in the chipset HAL.
+
+Depending on how the chipset vendor structures the chipset HAL, the second step
+above may or may not be needed. For example, the STM32F4 HAL targets the entire
+Cortex M4 family at once and therefore most of layer 3 remains the same.
+However, in this case, differences in the number and type of peripherals may
+need to be accounted for. It is also necessary to modify the target specific
+Makefile fragment to configure the chipset HAL and choose the proper linker
+script. The details of doing this is specific to the chipset HAL and is beyond
+the scope of this guide.
+
+If the chipset HAL does not support the entire family at once, the porting
+process will be similar to the one described in Section 6.
+
+
+6. Porting the SDK across MCUs (different chipset families)
+------------------------------------------------------------
+This porting strategy is relevant when building support for an entirely new MCU.
+It consists of implementing layer 2, i.e. establishing pin name encodings, pin
+maps, implementing the API routines needed to initialize the ports and pins and
+implementing the layer 3 drivers. Both layers 2 and 3 rely on the chipset HAL
+provided by the chipset vendor. So the chipset HAL will need to be configured
+for the given target.

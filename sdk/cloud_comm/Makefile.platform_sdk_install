@@ -1,0 +1,156 @@
+# Copyright(C) 2017 Verizon. All rights reserved.
+
+# ts_sdk_client contains truestudio_project.bat script, .cproject file, project.ioc file, example app and sdk client.
+# sdk_client contains header and source files of platform and sdk based on config_build_env.sh environment
+
+TS_SDK_CLIENT_PATH = $(SDK_ROOT)/ts_sdk_client/
+INSTALL_PATH = $(TS_SDK_CLIENT_PATH)/sdk_client
+TRSTUDIO_PATH = $(PROJ_ROOT)/tools/scripts/truestudio/$(CHIPSET_MCU)
+CPROJECT_FILE = $(TRSTUDIO_PATH)/.cproject
+
+truestudio:
+	touch $(TRSTUDIO_PATH)/env_param
+	touch $(TRSTUDIO_PATH)/.cproject_temp
+	cp $(TRSTUDIO_PATH)/.cproject $(TRSTUDIO_PATH)/.cproject_temp
+	echo "<listOptionValue builtIn=\"false\" value=\"$(DEV_BOARD)=1\"/>^M" >> $(TRSTUDIO_PATH)/env_param
+	echo "<listOptionValue builtIn=\"false\" value=\"$(CHIPSET_MCU)=1\"/>^M" >> $(TRSTUDIO_PATH)/env_param
+	echo "<listOptionValue builtIn=\"false\" value=\"$(PROTOCOL)=1\"/>^M" >> $(TRSTUDIO_PATH)/env_param
+	echo "<listOptionValue builtIn=\"false\" value=\"SIMULATE_SENSOR=1\"/>^M" >> $(TRSTUDIO_PATH)/env_param
+	echo "<listOptionValue builtIn=\"false\" value=\"MBEDTLS_CONFIG_FILE=&lt;mbedtls/config_$(DEV_BOARD).h&gt;\"/>^M" >> $(TRSTUDIO_PATH)/env_param
+ifeq ($(PROTOCOL),SMSNAS_PROTOCOL)
+	echo "<listOptionValue builtIn=\"false\" value=\"REMOTE_HOST='&quot;+12345678912&quot;'\"/>^M" >> $(TRSTUDIO_PATH)/env_param
+else
+	echo "<listOptionValue builtIn=\"false\" value=\"REMOTE_HOST='&quot;$(REMOTE_HOST)&quot;'\"/>^M" >> $(TRSTUDIO_PATH)/env_param
+endif
+ifeq ($(PROTOCOL),MQTT_PROTOCOL)
+	echo "<listOptionValue builtIn=\"false\" value=\"SSL_HOST='&quot;$(SSL_HOST)&quot;'\"/>^M" >> $(TRSTUDIO_PATH)/env_param
+	echo "<listOptionValue builtIn=\"false\" value=\"MQTTCLIENT_PLATFORM_HEADER=paho_mqtt_port.h\"/>^M" >> $(TRSTUDIO_PATH)/env_param
+endif
+ifeq ($(CHIPSET_MCU),stm32f415rgt)
+	echo "<listOptionValue builtIn=\"false\" value=\"HSE_VALUE=(uint32_t)12000000\"/>^M" >> $(TRSTUDIO_PATH)/env_param
+endif
+
+install_truestudio:
+	$(shell $(PROJ_ROOT)/tools/scripts/cprojet_env_param.sh  $(TRSTUDIO_PATH)/env_param $(TRSTUDIO_PATH)/.cproject_temp $(CHIPSET_MCU))
+	cp $(TRSTUDIO_PATH)/.cproject_temp $(TS_SDK_CLIENT_PATH)
+	mv $(TS_SDK_CLIENT_PATH)/.cproject_temp $(TS_SDK_CLIENT_PATH)/.cproject
+	cp $(TRSTUDIO_PATH)/project.ioc $(TS_SDK_CLIENT_PATH)
+	cp $(PROJ_ROOT)/tools/scripts/truestudio/truestudio_project.bat $(TS_SDK_CLIENT_PATH)
+	cp $(PROJ_ROOT)/tools/scripts/truestudio/Truestudio_IDE_Guide.pdf $(TS_SDK_CLIENT_PATH)
+	rm -f $(TRSTUDIO_PATH)/.cproject_temp
+	rm -f $(TRSTUDIO_PATH)/env_param
+
+ifeq ($(PROTOCOL),OTT_PROTOCOL)
+PROTOCOL_DIR = ott_protocol
+else ifeq ($(PROTOCOL),SMSNAS_PROTOCOL)
+PROTOCOL_DIR = smsnas_protocol
+else ifeq ($(PROTOCOL),MQTT_PROTOCOL)
+PROTOCOL_DIR = mqtt_protocol
+else
+$(error The PROTOCOL variable has an invalid value: $(PROTOCOL))
+endif
+
+include $(SDK_ROOT)/cc_sdk.mk
+
+# SDK modem module depends on this platform pin map defination headers
+PLATFORM_DEP_HEADERS = port_pin_api.h pin_map.h pin_std_defs.h
+
+#==================================RULES=======================================#
+.PHONY: all clean truestudio install_platform vendor_libs install_sdk install_app install_truestudio zip
+
+all: truestudio install_platform vendor_libs install_sdk install_app install_truestudio zip
+
+vendor_libs:
+ifdef VENDOR_LIB_DIRS
+	-mkdir -p $(INSTALL_PATH)/vendor
+	for dir in $(VENDOR_LIB_DIRS); do \
+		cp -r $(SDK_ROOT)/vendor/$$dir $(INSTALL_PATH)/vendor/; \
+	done
+endif
+ifeq ($(PROTOCOL),MQTT_PROTOCOL)
+	rm -rf $(INSTALL_PATH)/vendor/paho_mqtt/MQTTClient-C/src/linux
+	rm -rf $(INSTALL_PATH)/vendor/paho_mqtt/MQTTClient-C/src/cc3200
+	rm -rf $(INSTALL_PATH)/vendor/paho_mqtt/MQTTClient-C/src/FreeRTOS
+endif
+
+clean:
+	rm -rf $(SDK_ROOT)/ts_sdk_client*
+
+install_sdk:
+	-mkdir -p $(INSTALL_PATH)/api
+	-mkdir -p $(INSTALL_PATH)/inc
+	-mkdir -p $(INSTALL_PATH)/src
+	-mkdir -p $(INSTALL_PATH)/src/network/at
+	cp -r $(SDK_ROOT)/inc/* $(INSTALL_PATH)/inc
+	cp -r $(SDK_ROOT)/api/* $(INSTALL_PATH)/api
+	cp -r $(SDK_ROOT)/src/cloud_comm_api $(INSTALL_PATH)/src/
+	cp -r $(SDK_ROOT)/src/services $(INSTALL_PATH)/src/
+ifneq ($(PROTOCOL),SMSNAS_PROTOCOL)
+	cp $(SDK_ROOT)/src/network/net_mbedtls_$(NET_OS).c $(INSTALL_PATH)/src/network/
+endif
+	cp $(INSTALL_PATH)/inc/protocols/$(PROTOCOL)/* $(INSTALL_PATH)/inc/protocols/
+	rm -rf $(INSTALL_PATH)/inc/protocols/ott_protocol
+	rm -rf $(INSTALL_PATH)/inc/protocols/mqtt_protocol
+	rm -rf $(INSTALL_PATH)/inc/protocols/smsnas_protocol 
+ifneq ($(MODEM_TARGET),none)
+	-mkdir -p $(INSTALL_PATH)/src/network/at
+	-mkdir -p $(INSTALL_PATH)/src/network/at/$(MODEM_TARGET)
+	cp -r $(SDK_ROOT)/src/network/at/core $(INSTALL_PATH)/src/network/at/
+	cp -r $(SDK_ROOT)/src/network/at/$(MODEM_TARGET)/$(MODEM_PROTOCOL) $(INSTALL_PATH)/src/network/at/$(MODEM_TARGET)/
+	cp $(SDK_ROOT)/src/network/at/$(MODEM_TARGET)/at_modem.c $(INSTALL_PATH)/src/network/at/$(MODEM_TARGET)/
+ifeq ($(MODEM_PROTOCOL),sms)
+	cp -r $(SDK_ROOT)/src/network/at/smscodec $(INSTALL_PATH)/src/network/at/
+endif
+endif
+ifneq ($(PROTOCOL),NO_PROTOCOL)
+	-mkdir -p $(INSTALL_PATH)/src/protocols
+	cp $(SDK_ROOT)/src/protocols/$(PROTOCOL_DIR)/* $(INSTALL_PATH)/src/protocols/
+endif
+
+platform:
+	-mkdir -p $(INSTALL_PATH)/platform_inc
+	cp -r $(PLATFORM_HAL_ROOT)/inc/ $(INSTALL_PATH)/platform_inc/
+	cp $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/$(DEV_BOARD)/board_config.h $(INSTALL_PATH)/platform_inc/
+	cp $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/pin_defs.h $(INSTALL_PATH)/platform_inc/	
+	cp -r $(PLATFORM_HAL_ROOT)/modem/$(MODEM_TARGET)/ts_sdk_modem_config.h $(INSTALL_PATH)/platform_inc/
+	-mkdir -p $(INSTALL_PATH)/platform_src
+	cp $(PLATFORM_HAL_ROOT)/drivers/dbg/$(CHIPSET_FAMILY)/dbg.c $(INSTALL_PATH)/platform_src/
+	cp $(PLATFORM_HAL_ROOT)/drivers/gpio/$(CHIPSET_FAMILY)/gpio.c $(INSTALL_PATH)/platform_src/
+	cp $(PLATFORM_HAL_ROOT)/drivers/i2c/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/i2c.c $(INSTALL_PATH)/platform_src/
+	cp $(PLATFORM_HAL_ROOT)/drivers/oem/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/oem.c $(INSTALL_PATH)/platform_src/
+	cp $(PLATFORM_HAL_ROOT)/drivers/sys/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/sys.c $(INSTALL_PATH)/platform_src/
+	cp $(PLATFORM_HAL_ROOT)/drivers/timer/timer_hal.c $(INSTALL_PATH)/platform_src/
+	cp $(PLATFORM_HAL_ROOT)/drivers/timer/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/timer_interface.c $(INSTALL_PATH)/platform_src/
+	cp $(PLATFORM_HAL_ROOT)/drivers/uart/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/uart.c $(INSTALL_PATH)/platform_src/
+	cp $(PLATFORM_HAL_ROOT)/drivers/utils/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/utils.c $(INSTALL_PATH)/platform_src/
+	cp $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/port_pin_api.c $(INSTALL_PATH)/platform_src/
+	cp $(PLATFORM_HAL_ROOT)/sw/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/$(DEV_BOARD)/pin_map.c $(INSTALL_PATH)/platform_src/
+
+ifneq ($(DEV_BOARD),raspberry_pi3)
+ifneq ($(GPS_CHIPSET),)
+	cp $(PLATFORM_HAL_ROOT)/drivers/gps/$(GPS_CHIPSET)/inc/gps_config.h $(INSTALL_PATH)/platform_inc/
+	cp $(PLATFORM_HAL_ROOT)/drivers/gps/$(GPS_CHIPSET)/gps.c $(INSTALL_PATH)/platform_src/
+endif
+endif
+ifneq ($(PROTOCOL),SMSNAS_PROTOCOL)
+	cp $(PLATFORM_HAL_ROOT)/drivers/hwrng/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/hwrng.c $(INSTALL_PATH)/platform_src/
+endif
+ifeq ($(CHIPSET_MCU), stm32l476rgt)
+	cp $(PLATFORM_HAL_ROOT)/drivers/oem/$(CHIPSET_FAMILY)/$(CHIPSET_MCU)/oem_defs.h $(INSTALL_PATH)/platform_inc/
+endif
+
+%.h:
+	cp $(shell find $(PLATFORM_HAL_ROOT) -type f -name "$@") $(INSTALL_PATH)/platform_inc/
+
+install_platform: platform $(PLATFORM_DEP_HEADERS)
+
+install_app:
+	-mkdir -p $(TS_SDK_CLIENT_PATH)/app/inc
+	cp $(PROJ_ROOT)/apps/sensor_examples/include/* $(TS_SDK_CLIENT_PATH)/app/inc/
+	cp $(PROJ_ROOT)/apps/sensor_examples/*.c $(TS_SDK_CLIENT_PATH)/app/
+	cp $(PROJ_ROOT)/apps/sensor_examples/bmp180/*.c $(TS_SDK_CLIENT_PATH)/app/
+	 	
+		
+zip:
+	tar -C $(SDK_ROOT) -cvf ts_sdk_client.tar ts_sdk_client
+	rm -rf $(SDK_ROOT)/ts_sdk_client

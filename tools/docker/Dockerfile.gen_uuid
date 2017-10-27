@@ -1,0 +1,4 @@
+FROM virtual_base:latest
+RUN mkdir -p /generated_uuid
+CMD uuid -F siv -o .uuid \
+        && mv .uuid /generated_uuid/

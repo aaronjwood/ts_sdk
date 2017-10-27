@@ -1,0 +1,8 @@
+* Description
+
+1) Device needs to regitered as a ts.device.cHeAssetTracker in the portal
+2) Simulated gps generates Latitude and Longitude random values and sends them to
+thingspace at regular interval (controlled by main.c status reporting interval)
+as a cHeAssetTracker json format through MQTT protocol
+3) Device is also capable of sending diagnostic information when requested
+4) Get and Set commands are not supported

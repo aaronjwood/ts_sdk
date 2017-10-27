@@ -1,0 +1,8 @@
+* Description
+
+1) Device needs to be registered as a ts.device.sdk.bulb in the portal
+2) Simulated light bulb is capable of sending diagnostic information back to thingspace
+when requested
+3) It also responds to set command to set the various blub characteristics from the portal
+4) All the communication is done through the ts.device.sdk.bulb json model and
+only MQTT_PROTOCOL is supported

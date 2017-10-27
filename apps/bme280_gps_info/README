@@ -1,0 +1,28 @@
+This directory houses example firmware that make use of the Verizon IoT
+protocols (Over The Top (OTT) and SMSNAS) to communicate with the cloud.
+Protocol functionalities are exposed to the users through Cloud Communication
+(CC module) APIs.
+
+Functional overview of the firmware:
+------------------------------------
+This example exposes BME280 sensor and gps chipset interface to the main 
+firmware in a uniform way. This example share the code that enables 
+communication with the cloud. The basic flow of the firmware is as
+follows:
+
+1) Based on protocol selected it communicates with the cloud services.
+
+2) Read BME280 sensor for pressure, tempratue and humidity values, get GPS 
+   location and transmit all this information in single message.
+
+3) Wait until the next reporting interval which is set by application, or in
+   case of OTT protocol wait till minimum(reporting, polling) interval as OTT
+   OTT protocol requires application to poll cloud services to retrieve any
+   pending update messages.
+
+4) Wake up all sensors and repeat from step 2.
+
+To convey the usage of the Cloud Communication API in the most simple way
+possible,  no measures have been taken to handle connection timeouts or to
+perform retries on failed transactions. All calls to the API are wrapped with
+an ASSERT macro.  On the first unexpected return value, execution stops.
