@@ -7,14 +7,14 @@
 #define SEND_DATA_SZ    22
 #include "dev_creds.h"
 /* Certificate that is used with the OTT services */
-#include "verizon_ott_ca.h"
+#include "cacert.h"
 static const uint8_t *cl_cred = d_ID;
 static const uint8_t *cl_sec_key = d_sec;
-static const uint8_t *cacert = cacert_der;
+static const uint8_t *cacert = cacert_buf;
 
 #define CL_CRED_SZ	sizeof(d_ID)
 #define CL_SEC_KEY_SZ	sizeof(d_sec)
-#define CA_CRED_SZ	sizeof(cacert_der)
+#define CA_CRED_SZ	sizeof(cacert_buf)
 
 #elif defined (SMSNAS_PROTOCOL)
 #define REMOTE_HOST	"+12345678912"
