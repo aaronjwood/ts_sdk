@@ -34,20 +34,10 @@ typedef enum at_urc {
         URC_END
 } at_urc;
 
-/** For modem status check and configuration related commands */
-typedef enum at_modem_stat_command {
-        MNO_STAT, /** check mobile network opertor */
-        MNO_SET, /** set mobile network opertor */
-        MOD_END
-} at_modem_stat_command;
-
 /** For PDN (packet data network) activation commands */
 typedef enum at_pdp_command {
-#if SIM_TYPE == M2M
-	ADD_PDP_CTX,		/** Add PDP context */
-	ACT_PDP_CTX,		/** Activate PDP Context */
-	MAP_PDP_PROFILE,	/** Map UPSD profile to PDP Context */
-#endif
+	ACT_PDP_CTX,            /* put SARA back in operational mode */
+	SET_ADDR,               /** set cgpaddr */
 	SEL_IPV4,		/** IPV4 stack */
 	ACT_PDP_PROFILE,	/** Activate PDP context with specific profile */
 	PDP_END
@@ -72,107 +62,9 @@ static const char *at_urcs[URC_END] = {
                 [DISCONNECT] = "\r\nDISCONNECT\r\n"
 };
 
-static const at_command_desc modem_net_status_comm[MOD_END] = {
-        [MNO_STAT] = {
-                .comm = "at+vzwapne?\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\n+UMNOCONF: "MODEM_UMNOCONF_VAL"\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 100
-        },
-        [MNO_SET] = {
-                .comm = "at+umnoconf="MODEM_UMNOCONF_VAL"\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 190000
-        }
-};
 
 static const at_command_desc pdp_conf_comm[PDP_END] = {
-#if SIM_TYPE == M2M
-        [ADD_PDP_CTX] = {
-                .comm = "at+cgdcont="MODEM_APN_CTX_ID",\""MODEM_APN_TYPE"\",\""\
-			 MODEM_APN_VALUE"\"\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 100
-        },
-        [ACT_PDP_CTX] = {
-                .comm = "at+cgact=1,"MODEM_APN_CTX_ID"\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 500
-        },
-        [MAP_PDP_PROFILE] = {
-                .comm = "at+upsd=0,100,"MODEM_APN_CTX_ID"\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 100
-        },
-#endif
-        [SEL_IPV4] = {
-                .comm = "at+upsd=0,0,"MODEM_APN_TYPE_ID"\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 100
-        },
-        [ACT_PDP_PROFILE] = {
-                .comm = "at+upsda=0,3\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        },
-                        {
-                                .rsp = "\r\n+UUPSDA: 0,",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 190000
-        }
+ 
 };
 
 static at_command_desc tcp_comm[TCP_END] = {
@@ -194,7 +86,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                 .comm_timeout = 100
         },
         [TCP_CONN] = {
-                .comm_sketch = "at+usoco=%d,%s,%s\r",
+                .comm_sketch = "at+usoco=%d,\"%s\",%s\r",
                 .rsp_desc = {
                         {
                                 .rsp = "\r\nOK\r\n",

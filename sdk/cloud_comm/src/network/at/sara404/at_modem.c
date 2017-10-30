@@ -22,11 +22,10 @@ enum modem_core_commands {
 	SIM_READY,	/* Check if the SIM is present */
 	EPS_REG_QUERY,	/* Query EPS registration */
 	EPS_URC_SET,	/* Set the EPS registration URC */
-    ATTACH_SET,  /* tell the SARA ay attach */
 	IMEI_QUERY,	/* Query the IMEI of the modem */
 	SIG_STR_QUERY,	/* Query the signal strength */
-	ATTACHED_QUERY, /* query to see if we are attached to the net */
 	AIRPLANE_MODE_QUERY, /* get CFUN status */
+	COPS_QUERY,      /* Operator selection query */
 	MODEM_CORE_END	/* End-of-commands marker */
 };
 
@@ -196,6 +195,17 @@ static void parse_profile(void *rcv_rsp, int rcv_rsp_len,
 	}
 
 }
+
+static void parse_cops(void *rcv_rsp, int rcv_rsp_len,
+				const char *stored_rsp, void *data)
+{
+	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
+	uint8_t i = 0;
+	while (rcv_bytes[i] != '\r') {
+		((char *)data)[i] = rcv_bytes[i];
+		i++;
+	}
+}
 static const at_command_desc modem_core[MODEM_CORE_END] = {
         [MODEM_OK] = {
                 .comm = "at\r",
@@ -279,18 +289,6 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
                 .err = NULL,
                 .comm_timeout = 100
         },
-        [ATTACH_SET] = {
-                .comm = "at+cgatt=1\r",
-                .rsp_desc = {
-                        {
-                                .rsp = "\r\nOK\r\n",
-                                .rsp_handler = NULL,
-                                .data = NULL
-                        }
-                },
-                .err = NULL,
-                .comm_timeout = 180000
-        },
         [MODEM_RESET] = {
                 .comm = "at+cfun=15\r",
 		.rsp_desc = {
@@ -335,24 +333,7 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
 			}
 		},
 		.err = NULL,
-		.comm_timeout = 100
-	},
-		[ATTACHED_QUERY] = {
-		.comm = "at+cgatt?\r",
-		.rsp_desc = {
-			{
-				.rsp = "\r\n+CGATT: 1\r\n",
-				.rsp_handler = NULL,
-				.data = NULL
-			},
-			{
-				.rsp = "\r\nOK\r\n",
-				.rsp_handler = NULL,
-				.data = NULL
-			}
-		},
-		.err = "\r\n+CME ERROR: ",
-		.comm_timeout = 100
+		.comm_timeout = 200
 	},
 	[AIRPLANE_MODE_QUERY] = {
 		.comm = "at+cfun?\r",
@@ -369,6 +350,23 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
 			}
 		},
 		.err = "\r\n+CME ERROR: ",
+		.comm_timeout = 100
+	},
+	[COPS_QUERY] = {
+		.comm = "at+cops?\r",
+		.rsp_desc = {
+			{
+				.rsp = "\r\n",
+				.rsp_handler = parse_cops,
+				.data = NULL
+			},
+			{
+				.rsp = "\r\nOK\r\n",
+				.rsp_handler = NULL,
+				.data = NULL
+			}
+		},
+		.err = NULL,
 		.comm_timeout = 100
 	}
 
@@ -610,18 +608,13 @@ bool at_modem_configure(void)
     result = at_core_wcmd(&modem_core[AIRPLANE_MODE_QUERY], true);
     CHECK_SUCCESS(result, AT_SUCCESS, false);
  
-     /* attached to network */
-    result = at_core_wcmd(&modem_core[ATTACH_SET], true);
-    CHECK_SUCCESS(result, AT_SUCCESS, false);
-
-    /* see if we are are attached to network */
-    result = at_core_wcmd(&modem_core[ATTACHED_QUERY], true);
-    CHECK_SUCCESS(result, AT_SUCCESS, false);
-   
 	/* Enable the EPS network registration URC */
 	result = at_core_wcmd(&modem_core[EPS_URC_SET], true);
 	CHECK_SUCCESS(result, AT_SUCCESS, false);
 
+	result = at_core_wcmd(&modem_core[COPS_QUERY], true);
+	CHECK_SUCCESS(result, AT_SUCCESS, false);
+	
 	return true;
 }
 

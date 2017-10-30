@@ -15,6 +15,8 @@
 #include "sys.h"
 #include "board_interface.h"
 
+
+
 #define EOE(func) \
 	do { \
 		if (!(func)) \
@@ -26,16 +28,16 @@
 periph_t  i2c_handle;
 i2c_addr_t i2c_dest_addr;
 
+
 struct bme280_t bme280;
 
 void int_to_buffer(char *buffer, int32_t n);
 int32_t bme280_beduin_set_operational_mode(void);
 float bme280_beduin_read_pressure(void);
 
-void bme280_beduin_init(void)
+void bme280_beduin_init(periph_t i2c)
 {
-     uint32_t timeout_ms = 0;
-     i2c_handle =  i2c_init(I2C_SCL, I2C_SDA, timeout_ms);
+     i2c_handle =  i2c;
      bme280_beduin_set_operational_mode();
 }
 

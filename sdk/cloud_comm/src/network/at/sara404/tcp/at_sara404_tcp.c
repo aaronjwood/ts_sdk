@@ -54,7 +54,7 @@ static volatile at_states state;
 static volatile bool pdp_conf;
 
 /* maximum timeout value in searching for the network coverage */
-#define NET_REG_CHECK_DELAY     60000 /* In milli seconds */
+#define NET_REG_CHECK_DELAY     180000 /* In milli seconds */
 
 /*
  * FIXME: After setting the PDP context, it seems the modem needs some time to
@@ -322,32 +322,22 @@ static at_ret_code __at_modem_conf()
         result = at_core_wcmd(desc, true);
         CHECK_SUCCESS(result, AT_SUCCESS, result);
 
-        /* Check MNO configuration, if it is not set for the Verizon, configure
-         * for it and reset the modem to save settings
-         */
-        result = at_core_wcmd(&modem_net_status_comm[MNO_STAT], true);
-        if (result != AT_SUCCESS) {
-                result = at_core_wcmd(&modem_net_status_comm[MNO_SET], true);
-                CHECK_SUCCESS(result, AT_SUCCESS, result);
-                uint8_t res = at_core_modem_reset();
-                if (res == AT_RSP_TIMEOUT || res == AT_TX_FAILURE)
-                        return res;
-                return AT_RECHECK_MODEM;
-        }
-
         result = AT_FAILURE;
         uint32_t start = sys_get_tick_ms();
-        uint32_t end;
-        while (result != AT_SUCCESS) {
-                end = sys_get_tick_ms();
-                DEBUG_V0("%s: Rechecking network registration\n", __func__);
-                if ((end - start) > NET_REG_CHECK_DELAY) {
-                        DEBUG_V0("%s: timed out\n", __func__);
-                        break;
-                }
-                result = __at_check_network_registration();
-                sys_delay(CHECK_MODEM_DELAY);
-        }
+        uint32_t end = 0;
+	do {
+		DEBUG_V0("%s: Rechecking network registration\n", __func__);
+		result = __at_check_network_registration();
+		if (result == AT_SUCCESS)
+			break;
+		sys_delay(CHECK_MODEM_DELAY);
+		end = sys_get_tick_ms();
+	} while(end - start < NET_REG_CHECK_DELAY);
+
+	if (end - start >= NET_REG_CHECK_DELAY) {
+		DEBUG_V0("%s: Network registration timeout\n", __func__);
+		return result;
+	}
 
         /* Now modem has registered with home network, it is safe to say network
          * is ready for tcp connection
@@ -506,18 +496,7 @@ static int __at_tcp_connect(const char *host, const char *port)
 
 static at_ret_code __at_pdp_conf(void)
 {
-	at_ret_code result = AT_FAILURE;
-#if SIM_TYPE == M2M
-	result = at_core_wcmd(&pdp_conf_comm[ADD_PDP_CTX], true);
-	CHECK_SUCCESS(result, AT_SUCCESS, result);
-	result = at_core_wcmd(&pdp_conf_comm[ACT_PDP_CTX], true);
-	CHECK_SUCCESS(result, AT_SUCCESS, result);
-	result = at_core_wcmd(&pdp_conf_comm[MAP_PDP_PROFILE], true);
-	CHECK_SUCCESS(result, AT_SUCCESS, result);
-#endif
-	result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4], true);
-	CHECK_SUCCESS(result, AT_SUCCESS, result);
-	return at_core_wcmd(&pdp_conf_comm[ACT_PDP_PROFILE], true);
+	return AT_SUCCESS;
 }
 
 int at_tcp_connect(const char *host, const char *port)
@@ -575,7 +554,7 @@ static int __at_tcp_tx(const uint8_t *buf, size_t len)
         }
         return 0;
 }
-
+ 
 int at_tcp_send(int s_id, const unsigned char *buf, size_t len)
 {
         CHECK_NULL(buf, AT_TCP_INVALID_PARA);
@@ -613,7 +592,7 @@ int at_read_available(int s_id)
                         return 0;
                 if (dl.dl_buf.buf_unread > 0)
                         return dl.dl_buf.buf_unread;
-                DEBUG_V0("%s: tcp not connected to read\n", __func__);
+                 DEBUG_V0("%s: tcp not connected to read\n", __func__);
                 return AT_TCP_RCV_FAIL;
         }
 

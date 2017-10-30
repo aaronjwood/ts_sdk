@@ -219,9 +219,10 @@ static void communication_init(void)
 
 	oem_init();
 
-	char imsi[14];
+	/* char imsi[14];
 	at_modem_get_imsi(imsi);
 	dbg_printf("imsi = %s",imsi);
+	*/
 
 	dbg_printf("Register to use the Basic service\n");
 	ASSERT(cc_register_service(&cc_basic_service_descriptor,
