@@ -393,11 +393,7 @@ static bool mqtt_client_and_topic_init(void)
 {
 	MQTTClientInit(&mclient, &net, MQTT_TIMEOUT_MS,
 		send_intr_buf, MQTT_SEND_SZ, recv_intr_buf, MQTT_RCV_SZ);
-	if (!utils_get_device_id(device_id, MQTT_DEVICE_ID_SZ, NET_INTERFACE)) {
-		dbg_printf("%s:%d: Can not retrieve device id\n",
-			__func__, __LINE__);
-		return false;
-	}
+
 	mqtt_conn_data.willFlag = MQTT_WILL;
 	mqtt_conn_data.MQTTVersion = MQTT_PROTO_VERSION;
 	mqtt_conn_data.clientID.cstring = device_id;
@@ -491,8 +487,16 @@ proto_result mqtt_set_destination(const char *dest)
 	strncpy(session.host, dest, hlen);
 	session.host[hlen] = '\0';
 	strncpy(session.port, delimiter + 1, plen);
-	session.port[plen] = '\0';
-	session.host_valid = true;
+        session.port[plen] = '\0';
+        session.host_valid = true;
+     	
+
+	if (!utils_get_device_id(device_id, MQTT_DEVICE_ID_SZ, NET_INTERFACE)) {
+		dbg_printf("%s:%d: Can not retrieve device id\n",
+			__func__, __LINE__);
+		return false;
+	}
+
 	if (!__mqtt_net_connect(session.remote_auth_valid,
 		session.own_auth_valid))
 		RETURN_ERROR("remote connect failed", PROTO_ERROR);

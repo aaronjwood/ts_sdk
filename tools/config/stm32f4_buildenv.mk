@@ -23,6 +23,8 @@ export CC OBJDUMP OBJCOPY SIZE
 
 # Machine specific compiler, assembler settings and Linker script
 ARCHFLAGS = -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
+LDFLAGS += -u _printf_float
+
 ifeq ($(CHIPSET_MCU),stm32f415rgt)
 	MDEF = -DSTM32F415xx
 	LDSCRIPT = -T $(STMSDK_HEADER_ROOT)/STM32F415RGTx_FLASH.ld

@@ -847,12 +847,15 @@ void at_tcp_close(int s_id)
 
 bool at_tcp_leave_cmd_mode(void)
 {
-	/* XXX: Stub for now */
+	if (state == (IDLE | TCP_CONNECTED))
+		 __at_set_dl_mode(s_id_cmd);
 	return true;
+
 }
 
 bool at_tcp_enter_cmd_mode(void)
 {
-	/* XXX: Stub for now */
+	if (state == (IDLE | TCP_CONNECTED | DL_MODE ))
+		 __at_esc_dl_mode();
 	return true;
 }
