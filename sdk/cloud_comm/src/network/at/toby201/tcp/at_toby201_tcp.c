@@ -52,6 +52,7 @@ static volatile at_states state;
 
 /* Flag to indicate one time packet data network enable procedure */
 static volatile bool pdp_conf;
+int s_id_cmd;
 
 /* maximum timeout value in searching for the network coverage */
 #define NET_REG_CHECK_DELAY     60000 /* In milli seconds */
@@ -362,6 +363,22 @@ static at_ret_code __at_modem_conf()
         return result;
 }
 
+static at_ret_code __at_pdp_conf(void)
+{
+	at_ret_code result = AT_FAILURE;
+#if SIM_TYPE == M2M
+	result = at_core_wcmd(&pdp_conf_comm[ADD_PDP_CTX], true);
+	CHECK_SUCCESS(result, AT_SUCCESS, result);
+	result = at_core_wcmd(&pdp_conf_comm[ACT_PDP_CTX], true);
+	CHECK_SUCCESS(result, AT_SUCCESS, result);
+	result = at_core_wcmd(&pdp_conf_comm[MAP_PDP_PROFILE], true);
+	CHECK_SUCCESS(result, AT_SUCCESS, result);
+#endif
+	result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4], true);
+	CHECK_SUCCESS(result, AT_SUCCESS, result);
+	return at_core_wcmd(&pdp_conf_comm[ACT_PDP_PROFILE], true);
+}
+
 bool at_init()
 {
         dl.dis_str = "\r\nDISCONNECT\r\n\r\nOK\r\n\r\n+UUSOCL: ";
@@ -393,7 +410,15 @@ bool at_init()
                 state = AT_INVALID;
                 return false;
         }
-
+	
+	if (!pdp_conf) {
+                if (__at_pdp_conf() != AT_SUCCESS) {
+                        DEBUG_V0("%s: PDP configuration failed\n", __func__);
+                        return -1;
+                }
+                pdp_conf = true;
+		sys_delay(PDP_CTX_STABLE_MS);
+        }
         return true;
 
 }
@@ -504,22 +529,6 @@ static int __at_tcp_connect(const char *host, const char *port)
         return s_id;
 }
 
-static at_ret_code __at_pdp_conf(void)
-{
-	at_ret_code result = AT_FAILURE;
-#if SIM_TYPE == M2M
-	result = at_core_wcmd(&pdp_conf_comm[ADD_PDP_CTX], true);
-	CHECK_SUCCESS(result, AT_SUCCESS, result);
-	result = at_core_wcmd(&pdp_conf_comm[ACT_PDP_CTX], true);
-	CHECK_SUCCESS(result, AT_SUCCESS, result);
-	result = at_core_wcmd(&pdp_conf_comm[MAP_PDP_PROFILE], true);
-	CHECK_SUCCESS(result, AT_SUCCESS, result);
-#endif
-	result = at_core_wcmd(&pdp_conf_comm[SEL_IPV4], true);
-	CHECK_SUCCESS(result, AT_SUCCESS, result);
-	return at_core_wcmd(&pdp_conf_comm[ACT_PDP_PROFILE], true);
-}
-
 int at_tcp_connect(const char *host, const char *port)
 {
 
@@ -537,16 +546,9 @@ int at_tcp_connect(const char *host, const char *port)
 			return -1;
 		}
         }
-        if (!pdp_conf) {
-                if (__at_pdp_conf() != AT_SUCCESS) {
-                        DEBUG_V0("%s: PDP configuration failed\n", __func__);
-                        return -1;
-                }
-                pdp_conf = true;
-		sys_delay(PDP_CTX_STABLE_MS);
-        }
-        int s_id = __at_tcp_connect(host, port);
+	int s_id = __at_tcp_connect(host, port);
         if (s_id >= 0) {
+                s_id_cmd = s_id;
                 at_ret_code result1 = __at_conf_dl_mode(s_id);
                 at_ret_code result2 = __at_set_dl_mode(s_id);
                 if ((result1 != AT_SUCCESS) || (result2 != AT_SUCCESS)) {

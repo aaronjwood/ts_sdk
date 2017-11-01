@@ -65,7 +65,6 @@ static const uint8_t buf_len[MODEM_QUERY_END] = {
 	[GET_FWVER] = 11	/* XXX: Might change in next release of modem */
 };
 
-#if SIM_TYPE != DAK_LAB && SIM_TYPE != DAK_COM
 static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data)
 {
@@ -79,7 +78,6 @@ static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
 		i++;
 	}
 }
-#endif
 
 static void parse_imei(void *rcv_rsp, int rcv_rsp_len,
 		const char *stored_rsp, void *data)
@@ -127,7 +125,7 @@ static void parse_iccid(void *rcv_rsp, int rcv_rsp_len,
 {
 	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
 	uint8_t i = 0;
-	while (rcv_bytes[i] != '"') {
+	while (rcv_bytes[i] != '\r') {
 		((char *)data)[i] = rcv_bytes[i];
 		 i++;
 	}
@@ -142,6 +140,7 @@ static void parse_ttz(void *rcv_rsp, int rcv_rsp_len,
 		((char *)data)[i] = rcv_bytes[i];
 		 i++;
 	}
+	
 }
 
 static void parse_man_info(void *rcv_rsp, int rcv_rsp_len,
@@ -379,7 +378,6 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 		.err = NULL,
 		.comm_timeout = 500
 	},
-#if SIM_TYPE != DAK_LAB && SIM_TYPE != DAK_COM
 	[GET_IP_ADDR] = {
 		.comm = "at+cgpaddr="MODEM_APN_CTX_ID"\r",
 		.rsp_desc = {
@@ -397,12 +395,11 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 		.err = "\r\n+CME ERROR: ",
 		.comm_timeout = 500
 	},
-#endif
 	[GET_ICCID] = {
 		.comm = "at+ccid\r",
 		.rsp_desc = {
 			{
-				.rsp = "\r\n+CCID: \"",
+				.rsp = "\r\n+CCID: ",   
 				.rsp_handler = parse_iccid,
 				.data = NULL
 			},
@@ -658,6 +655,7 @@ static bool get_param(enum modem_query_commands cmd, char *buf)
 exit_func:
 	if (!at_tcp_leave_cmd_mode())
 		ret = false;
+	
 	return ret;
 }
 

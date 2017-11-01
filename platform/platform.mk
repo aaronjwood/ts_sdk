@@ -23,7 +23,7 @@ ifeq ($(DEV_BOARD_MOD),$(filter $(DEV_BOARD_MOD),raspberry_pi3 virtual))
 PLATFORM_DRV_INC = $(shell find $(PLATFORM_HAL_ROOT)/drivers/oem/$(DEV_BOARD_MOD)/* $(FIND_INC))
 PLATFORM_INC += -I $(dir $(PLATFORM_DRV_INC))
 else
-ifeq ($(CHIPSET_MCU), stm32l476rgt)
+ifeq ($(CHIPSET_MCU), $(filter $(CHIPSET_MCU), stm32l476rgt stm32f415rgt))
 PLATFORM_DRV_INC = $(shell find $(PLATFORM_HAL_ROOT)/drivers/oem/$(CHIPSET_FAMILY)/$(CHIPSET_MCU) $(FIND_INC))
 PLATFORM_INC += -I $(dir $(PLATFORM_DRV_INC))
 endif

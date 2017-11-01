@@ -23,7 +23,7 @@
  * scenario. Example: With protocol set to SMSNAS, UMNOCONF takes "0,0" when
  * using Dakota SIMs and takes "1,6" when using another type of SIM.
  */
-#define SIM_TYPE		COM
+#define SIM_TYPE		M2M
 
 
 /* SIM specific APN settings */
