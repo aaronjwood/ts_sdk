@@ -217,7 +217,6 @@ static void communication_init(void)
 	dbg_printf("Initializing communications module\n");
 	ASSERT(cc_init(ctrl_cb));
 
-	oem_init();
 
 	/* char imsi[14];
 	at_modem_get_imsi(imsi);

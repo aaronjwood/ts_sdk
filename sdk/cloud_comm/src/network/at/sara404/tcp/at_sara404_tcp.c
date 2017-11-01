@@ -317,7 +317,7 @@ static at_ret_code __at_modem_conf()
         /* set escape sequence delay */
         char temp_comm[TEMP_COMM_LIMIT];
         at_command_desc *desc = &tcp_comm[ESCAPE_TIME_CONF];
-        snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, DL_MODE_ESC_TIME);
+        snprintf(temp_comm, TEMP_COMM_LIMIT, desc->comm_sketch, DL_ESC_TIME_MS);
         desc->comm = temp_comm;
         result = at_core_wcmd(desc, true);
         CHECK_SUCCESS(result, AT_SUCCESS, result);

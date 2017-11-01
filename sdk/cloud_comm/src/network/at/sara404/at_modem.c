@@ -73,9 +73,9 @@ static void parse_ip_addr(void *rcv_rsp, int rcv_rsp_len,
 	char *rcv_bytes = (char *)rcv_rsp + strlen(stored_rsp);
 	if (rcv_bytes[0] != ',')
 		return;		/* PDP context is probably not active; no IP */
- rcv_bytes += 2;		/* Skip the ',' and the '"' */
+ rcv_bytes += 1;		/* Skip the ',' */
 	uint8_t i = 0;
-	while (rcv_bytes[i] != '"') {
+	while (rcv_bytes[i] != ',') { /* just get the IPV4 addr */
 		((char *)data)[i] = rcv_bytes[i];
 		i++;
 	}
@@ -322,7 +322,7 @@ static const at_command_desc modem_core[MODEM_CORE_END] = {
 		.comm = "at+csq\r",
 		.rsp_desc = {
 			{
-				.rsp = "\r\n+CSQ: ",
+				.rsp = "\r\n+csq: ",
 				.rsp_handler = parse_sig_str,
 				.data = NULL
 			},
@@ -394,7 +394,7 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 		.comm = "at+csq\r",
 		.rsp_desc = {
 			{
-				.rsp = "\r\n+CSQ: ",
+				.rsp = "\r\n+csq: ",
 				.rsp_handler = parse_sig_str,
 				.data = NULL
 			},
@@ -445,7 +445,7 @@ static at_command_desc modem_query[MODEM_QUERY_END] = {
 		.comm = "at+cclk?\r",
 		.rsp_desc = {
 			{
-				.rsp = "\r\n+CCLK: \"",
+				.rsp = "\r\n+cclk: \"",
 				.rsp_handler = parse_ttz,
 				.data = NULL
 			},
@@ -612,6 +612,7 @@ bool at_modem_configure(void)
 	result = at_core_wcmd(&modem_core[EPS_URC_SET], true);
 	CHECK_SUCCESS(result, AT_SUCCESS, false);
 
+	/* Query COPS to make sure we are registering */
 	result = at_core_wcmd(&modem_core[COPS_QUERY], true);
 	CHECK_SUCCESS(result, AT_SUCCESS, false);
 	

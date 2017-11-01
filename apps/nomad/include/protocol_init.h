@@ -30,12 +30,11 @@ static const uint8_t *cacert;
 
 #elif defined (MQTT_PROTOCOL)
 
-//#define REMOTE_HOST	"152.198.0.162:8883"
 #define REMOTE_HOST "simpm.thingspace.verizon.com:8883"
 #define SEND_DATA_SZ   22
-#include "client-crt-1801.h"
-#include "client-key-1801.h"
-#include "simpm-server.h"
+#include "client-crt.h"
+#include "client-key.h"
+#include "server.h"
 
 static const uint8_t *cl_cred = client_cert;
 static const uint8_t *cl_sec_key = client_key;

@@ -35,7 +35,7 @@
 #elif SIM_TYPE == COM
 
 #define MODEM_APN_TYPE_ID	"0"
-#define MODEM_APN_CTX_ID	"3"
+#define MODEM_APN_CTX_ID	"1"
 #define MODEM_APN_VALUE         "VZWINTERNET"
 #define MODEM_APN_TYPE          "IPV4V6"
 

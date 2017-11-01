@@ -136,7 +136,7 @@ static at_command_desc tcp_comm[TCP_END] = {
                         }
                 },
                 .err = "\r\n+CME ERROR: ",
-                .comm_timeout = 2000
+                .comm_timeout = 4000
         },
         [ESCAPE_TIME_CONF] = {
                 .comm_sketch = "ats12=%d\r",

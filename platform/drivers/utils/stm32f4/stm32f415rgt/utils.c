@@ -123,6 +123,7 @@ bool utils_get_local_time(char *value, uint32_t len)
 				__func__, __LINE__);
 		return false;
 	}
+
 }
 
 bool utils_get_time_zone(char *value, uint32_t len)
@@ -145,6 +146,7 @@ bool utils_get_time_zone(char *value, uint32_t len)
 				__func__, __LINE__);
 		return false;
 	}
+
 }
 
 bool utils_get_uptime(char *value, uint32_t len)
