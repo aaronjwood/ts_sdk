@@ -11,6 +11,9 @@ TS_ADDR_SMS=https://198.159.196.191
 # ThingSpace API URL for OTT
 TS_ADDR_OTT=https://63.98.10.23
 
+# ThingSpace API URL for MQTT
+TS_ADDR_MQTT=https://core.thingspace.verizon.com
+
 TS_ADDR=
 
 # OTT Device API URL
@@ -86,6 +89,13 @@ function init_ott()
 	MODEL_ID=$MODEL_ID_OTT
 	DEV_KIND=$DEV_KIND_OTT
 	PROV_ID=$PROV_ID_OTT
+}
+
+function init_mqtt()
+{
+	protocol="mqtt"
+	cfg="./.tscreds_$protocol"
+	TS_ADDR=$TS_ADDR_MQTT
 }
 
 function read_config()
@@ -203,6 +213,37 @@ function create_user_account()
 	echo "Writing tokens to config file ($cfg)"
 	write_config "$UATOKEN" "$ATOKEN" "$ts_dev"
 
+	exit 0
+}
+
+function create_user_access_token()
+{
+	# INPUTS:
+	# $1 = Email ID
+	# $2 = Password
+	#
+	# RETURNS:
+	# User Access Token
+	# Create a user access token for the user account
+	# associated with Email ID and password
+
+	echo "Creating user access token"
+
+	exit_on_error "No email address provided" "$1" "0"
+	exit_on_error "No password provided" "$2" "0"
+
+	local UTOKEN=$(curl -s -k -X POST \
+                -H "Authorization: Basic $BAUTH" \
+                -d "grant_type=password&scope=ts.account ts.target ts.tag ts.device ts.place ts.trigger ts.schedule ts.user&username="$1"&password="$2 $TS_ADDR/oauth2/token)
+	exit_on_error "Could not retrieve the user token" "$UTOKEN" "$?"
+	echo "Tokens retrieved (Note down the user access token for future use):"
+	local UATOKEN=$(echo "$UTOKEN" | python -c "import json, sys; print json.load(sys.stdin)['access_token']")
+	local URTOKEN=$(echo "$UTOKEN" | python -c "import json, sys; print json.load(sys.stdin)['refresh_token']")
+	echo "User access token : $(tput setaf $IC)$UATOKEN$(tput sgr 0)"
+	echo "User refresh token : $(tput setaf $IC)$URTOKEN$(tput sgr 0)"
+
+	echo "Writing tokens to config file ($cfg)"
+	write_config "$UATOKEN" "$ts_dev"
 	exit 0
 }
 
@@ -419,6 +460,56 @@ function check_updates()
 	exit 0
 }
 
+function check_fields()
+{
+	# INPUTS:
+	# $1 = Number of field value set messages whose states need to be checked (latest sent, first)
+	# $2 = Field-name of the TS Device Model associated with TS Device ID
+	# $3 = ThingSpace Device ID
+	# $4 = User Access Token
+	#
+	# RETURNS:
+	# Statuses of the last 'n' messages sent to the device to set the value of field-name.
+	# These can take the following value:
+	# pending - Device is yet to read the field setting message
+	# failed - Device NACKed the field setting message
+	# update - Device ACKed the field setting message
+
+	local NUMSTAT=$1
+	local FIELDNAME=$2
+	local TSDEVID=${3:-$ts_dev}
+	local UATOKEN=${4:-$user_token}
+
+	echo "Getting states of the messages sent for $FIELDNAME"
+	exit_on_error "Not sure how many messages to query" "$NUMSTAT" "0"
+	exit_on_error "No field name provided" "$FIELDNAME" "0"
+	exit_on_error "No user access token provided" "$UATOKEN" "0"
+	exit_on_error "No ThingSpace device ID provided" "$TSDEVID" "0"
+
+	if [ "$NUMSTAT" -gt 0 2>/dev/null ]; then
+		local STVAL=$(curl -s -k -X POST \
+                        -H "Authorization: Bearer $UATOKEN" \
+                        -H "Content-Type: application/json" \
+                        -d "{\"\$limitnumber\" : $NUMSTAT}" \
+                        $TS_ADDR/api/v2/devices/$TSDEVID/fields/$FIELDNAME/actions/history)
+		exit_on_error "Unable to read the message states" "$STVAL" "$?"
+		local N=$(echo "$STVAL" | python -c "import json, sys; print len(json.load(sys.stdin))" 2> /dev/null)
+		echo "Messages available to be queried = $N"
+		for i in $(seq 0 $((N-1))); do
+			echo -n "$((i+1))) "
+			echo -n "$STVAL" | python -c "import json, sys; print json.load(sys.stdin)[$i]['state']" 2> /dev/null
+			echo -n "   field value : "
+			echo "$STVAL" | python -c "import json, sys; print json.load(sys.stdin)[$i]['fields']['$FIELDNAME']" 2> /dev/null
+		done
+	else
+		echo "Please enter a valid positive integer for number of mesages to query"
+		exit 1
+	fi
+
+	exit 0
+}
+
+
 function read_status()
 {
 	# INPUTS:
@@ -488,6 +579,38 @@ function write_update()
 	echo "New update message was queued"
 	echo "$UPDVAL" | python -m json.tool
 
+	exit 0
+}
+
+function write_field_value()
+{
+	# INPUTS:
+	# $1 = ThingSpace Device Model Field Name
+	# $2 = ThingSpace Device Model Field Value
+	# $3 = ThingSpace Device ID
+	#
+	# RETURNS:
+	# JSON Object
+
+	local FIELDNAME=$1
+	local FIELDVALUE=$2
+	local TSDEVID=${3:-$ts_dev}
+	local UATOKEN=${4:-$user_token}
+
+	echo "Updating field value to the device"
+	exit_on_error "No ThingSpace Device Model Field Name provided" "$FIELDNAME" "0"
+	exit_on_error "No ThingSpace Device Model Field Value provided" "$FIELDVALUE" "0"
+	exit_on_error "No ThingSpace device ID provided" "$TSDEVID" "0"
+	exit_on_error "No user access token provided" "$UATOKEN" "0"
+
+	local UPDVAL=$(curl -s -k -X POST \
+                -H "Authorization: Bearer $UATOKEN" \
+                -H "Content-Type: application/json" \
+                -d \""$FIELDVALUE"\" \
+                $TS_ADDR/api/v2/devices/$TSDEVID/fields/$FIELDNAME/actions/set)
+	exit_on_error "Unable to send update to the device" "$UPDVAL" "$?"
+	echo "New message was queued"
+	echo "$UPDVAL" | python -m json.tool
 	exit 0
 }
 
@@ -569,6 +692,42 @@ function write_sleep_interval()
 		fi
 	else
 		echo "Please enter a valid positive integer for the sleep interval"
+		exit 1
+	fi
+
+	exit 0
+}
+
+function write_device_model()
+{
+	# INPUTS:
+	# $1 = Thingspace Device Model Name
+	# $2 = ThingSpace Device ID
+	#
+	# RETURNS:
+	# JSON Object
+
+	local VALUE=$1
+	local TSDEVID=${2:-$ts_dev}
+	local UATOKEN=${3:-$user_token}
+
+	echo "Setting Thingspace Device Model Name for the device"
+	exit_on_error "No Thingspace Device Model Name provided" "$VALUE" "0"
+	exit_on_error "No ThingSpace Device ID provided" "$TSDEVID" "0"
+	exit_on_error "No user access token provided" "$UATOKEN" "0"
+
+	local PIVAL=$(curl  -s -k -X PATCH \
+                        -H "Authorization: Bearer $UATOKEN" \
+                        -H "Content-Type: application/json" \
+                        -d "{\"kind\":\"$VALUE\"}" \
+                        $TS_ADDR/api/v2/devices/$TSDEVID)
+	exit_on_error "Unable to update the Thingspace device model name for the device" "$PIVAL" "$?"
+	local PIVALSTAT=$(echo "$PIVAL" | python -c "import json, sys; print json.load(sys.stdin)['state']")
+	echo "$PIVAL" | python -m json.tool
+	if [ "$PIVALSTAT" != "failed" ]; then
+		echo "Updated the Thingspace device model name"
+		else
+	echo "Unable to update the Thingspace device model name"
 		exit 1
 	fi
 
@@ -688,6 +847,10 @@ $prg_name <smsnas or ott> account <e-mail> <password>
 	to access the ThingSpace APIs. A new application token will be automatically
 	created for this account. E-mail verification is turned off.
 
+$prg_name mqtt usr_acess_code <e-mail> <password>
+	Create user access code for MQTT ThingSpace user account associated with
+	given emailid and password. This needs to be done only once.
+
 $prg_name ott dev <device-name> [qr-code] [user-access-token] [app-cl-token]
 	Create an OTT device with the given name and register it to the
 	ThingSpace user account. If a QR code is provided, this already
@@ -702,11 +865,11 @@ $prg_name smsnas dev <device-name> <qr-code> <imei> <imsi> [user-access-token] [
 	can be provided, if not specified, it will be read from .tscreds_smsnas file
 
 Query APIs:
-$prg_name <smsnas or ott> lsdev [user-access-token]
+$prg_name <smsnas or ott or mqtt> lsdev [user-access-token]
 	List ThingSpace devices associated with the ThingSpace user account. If
 	token is not specified, it will be read from .tscreds_<xxx> file
 
-$prg_name <smsnas or ott> chktok <token>
+$prg_name <smsnas or ott or mqtt> chktok <token>
 	Check the validity of the token. The token can either be an application
 	(client) token or a user access token.
 
@@ -717,6 +880,13 @@ $prg_name <smsnas or ott> chkupd <num-to-read> [ts-device-id] [user-access-token
 	failed - Device NACKed the update message
 	update - Device ACKed the update message
 
+$prg_name mqtt chkfld <num-to-read> <field-name> <ts-device-id> [user-access-token]
+	Check the states of the last <num-to-read> messages sent to the
+	device to set the fieldValue for the give <field-name>.
+	These can take the values:
+	pending - Device is yet to read the field setting message
+	failed - Device NACKed the field setting message
+	update - Device ACKed the field setting message
 
 Read and write APIs:
 $prg_name <smsnas or ott> rdstat <num-to-read> [ts-device-id] [user-access-token]
@@ -726,12 +896,19 @@ $prg_name <smsnas or ott> wrupd <plain-hex-data> [ts-device-id] [user-access-tok
 	Write an update message to the device. The data must be in plain
 	hex. Eg. 19acdc89fe
 
+$prg_name mqtt wrfld <field-name> <field-value> <ts-device-id>
+	Update the <field-value> for the Thingspace  device. <field-name> and
+	<field-value> should be campatible with the Thingspace device model
+	of the device.
+
 $prg_name ott wrpi <value> [ts-device-id] [user-access-token]
 	Send a new polling interval to the device.
 
 $prg_name <smsnas or ott> wrsi <value> [ts-device-id] [user-access-token]
 	Send a new sleep interval to the device.
 
+$prg_name mqtt wrdm <device-model-name> <ts-device-id>
+	Update the ThingSpace device model for the give Thingspace device id.
 
 Revocation APIs:
 $prg_name <smsnas or ott> rapptoken <application-access-token>
@@ -761,11 +938,13 @@ if [ "$1" == "smsnas" ]; then
 	init_smsnas
 elif [ "$1" == "ott" ]; then
 	init_ott
+elif [ "$1" == "mqtt" ]; then
+	init_mqtt
 elif [ "$1" == "help" ]; then
 	print_usage
 	exit 0
 else
-	echo "Specify smsnas or ott as first argument"
+	echo "Specify smsnas, ott or mqtt as first argument"
 	print_usage_small
 	echo "Type in '$prg_name help' for more information."
 	exit 1
@@ -784,6 +963,9 @@ case "$2" in
 	account)
 		create_user_account "$3" "$4"
 		;;
+	usrtok)
+		create_user_access_token "$3" "$4"
+		;;
 	dev)
 		create_device "$3" "$4" "$5" "$6" "$7" "$8"
 		;;
@@ -797,13 +979,19 @@ case "$2" in
 		check_tokens "$3"
 		;;
 	chkupd)
-		check_updates "$3"
+		check_updates "$3" "$4" "$5"
 		;;
+	chkfld)
+                check_fields "$3" "$4" "$5" "$6"
+                ;;
 	rdstat)
 		read_status "$3" "$4" "$5"
 		;;
 	wrupd)
 		write_update "$3" "$4" "$5"
+		;;
+	wrfld)
+		write_field_value "$3" "$4" "$5"
 		;;
 	wrpi)
 		if [ $protocol == "ott" ]; then
@@ -816,6 +1004,9 @@ case "$2" in
 	wrsi)
 		write_sleep_interval "$3" "$4" "$5"
 		;;
+	wrdm)
+		write_device_model "$3" "$4"
+                ;;
 	rapptoken)
 		revoke_application_token "$3"
 		;;
