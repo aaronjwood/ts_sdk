@@ -825,7 +825,7 @@ function remove_device()
 
 function print_usage_small()
 {
-	echo "$prg_name is a script to manage ThingSpace accounts & SMSNAS/OTT devices."
+	echo "$prg_name is a script to manage ThingSpace accounts & SMSNAS/OTT/MQTT devices."
 	echo "Copyright (C) 2016, 2017 Verizon. All rights reserved."
 	echo "NOTE: Any output the user should note down will be colored green."
 }
@@ -833,7 +833,7 @@ function print_usage_small()
 function print_usage()
 {
 	less << EOF
-$prg_name is a script to manage ThingSpace accounts & SMSNAS/OTT devices.
+$prg_name is a script to manage ThingSpace accounts & SMSNAS/OTT/MQTT devices.
 Copyright (C) 2016, 2017 Verizon. All rights reserved.
 NOTE: Any output the user should note down will be colored green.
 If an optional parameter (enclosed in square brackets) is not provided, it will
