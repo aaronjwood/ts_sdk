@@ -201,20 +201,20 @@ int uart_util_line_avail(const char *header, const char *trailer)
 	int hidx = rx.ridx;		/* Store the header index */
 	int tidx = 0;			/* Store the trailer index */
 	buf_sz len = 0;
-	if (!header) {
-		return 0;
-	}
-	buf_sz hlen = strlen(header);
+	buf_sz hlen = 0;
 	buf_sz tlen = strlen(trailer);
 
 	if (rx.num_unread < hlen + tlen)
 		return 0;
 
-	/* Search for the header from where we left off reading. */
-	hidx = find_substr_in_ring_buffer(rx.ridx,
-			(uint8_t *)header, hlen);
-	if (hidx == -1)
-		return 0;	/* Header specified but not found. */
+	if (header) {
+		/* Search for the header from where we left off reading. */
+		hlen = strlen(header);
+		hidx = find_substr_in_ring_buffer(rx.ridx,
+				(uint8_t *)header, hlen);
+		if (hidx == -1)
+			return 0;	/* Header specified but not found. */
+	}
 
 	/* If the header was found, skip the length of the header from the
 	 * read location. This workaround is for the case where the header and
